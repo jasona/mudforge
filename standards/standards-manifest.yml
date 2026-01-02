@@ -1,0 +1,67 @@
+# Corporate Standards Manifest
+# This file defines which standards apply to each phase of the workflow.
+# Update the version when standards change.
+
+version: "1.0.0"
+owner: "Your Team Name"
+last_updated: "2026-01-02"
+
+# Phase-to-standards mapping
+# Each phase includes the standards files that apply to it
+phases:
+  research:
+    includes:
+      - global/principles.md
+      - global/security-privacy.md
+      - domains/code-architecture.md
+      - domains/content-voice.md
+      - domains/design-ui.md
+      - phases/research.md
+
+  create-prd:
+    includes:
+      - global/principles.md
+      - global/security-privacy.md
+      - global/terminology.md
+      - domains/code-architecture.md
+      - phases/create-prd.md
+
+  create-crd:
+    includes:
+      - global/principles.md
+      - global/terminology.md
+      - domains/content-voice.md
+      - phases/create-crd.md
+
+  create-drd:
+    includes:
+      - global/principles.md
+      - global/accessibility.md
+      - domains/design-ui.md
+      - phases/create-drd.md
+
+  generate-tasks:
+    includes:
+      - global/principles.md
+      - phases/generate-tasks.md
+
+  execute-tasks:
+    includes:
+      - global/principles.md
+      - global/security-privacy.md
+      - global/accessibility.md
+      - domains/code-architecture.md
+      - phases/execute-tasks.md
+
+# Team-specific overlays (optional)
+# Teams can extend the base standards with their own additions
+teams:
+  # Example: web-platform team
+  # web-platform:
+  #   includes:
+  #     - teams/web-platform.md
+  
+  # Example: mobile team
+  # mobile:
+  #   includes:
+  #     - teams/mobile.md

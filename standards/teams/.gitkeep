@@ -1,0 +1,3 @@
+# This directory contains team-specific standard overlays.
+# Create a file like "web-platform.md" or "mobile.md" for team-specific rules.
+# Reference them in standards-manifest.yml under the "teams" section.

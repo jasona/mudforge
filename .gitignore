@@ -1,0 +1,74 @@
+# .NET build output
+bin/
+obj/
+out/
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# JetBrains Rider
+.idea/
+*.sln.iml
+
+# Visual Studio Code
+.vscode/
+
+# NuGet
+*.nupkg
+**/packages/*
+!**/packages/repositories.config
+
+# Build results
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Ww][Ii][Nn]32/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+# Test results
+[Tt]est[Rr]esult*/
+*.trx
+*.Coverage
+*.coveragexml
+
+# NCrunch
+*.ncrunch*
+_NCrunch_*
+.*crunch*.local.xml
+nCrunchTemp_*
+
+# Misc
+*.log
+*.tmp
+*.temp
+*.bak
+*.cache
+.DS_Store
+Thumbs.db
+
+# User-specific files
+*.rsuser
+*.pidb
+*.dbmdl
+
+# Publish output
+publish/
+
+# Secrets (per SEC-1)
+*.pfx
+*.p12
+appsettings.*.local.json
+secrets.json
+.env
+.env.*
