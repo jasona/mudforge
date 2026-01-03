@@ -1,0 +1,172 @@
+# EditorConfig for MudForge
+# https://editorconfig.org
+# Follows CODE-1 .NET conventions and CODE-17 file-scoped namespaces
+
+root = true
+
+# All files
+[*]
+indent_style = space
+indent_size = 4
+end_of_line = crlf
+charset = utf-8
+trim_trailing_whitespace = true
+insert_final_newline = true
+
+# C# files
+[*.cs]
+# Organize usings
+dotnet_sort_system_directives_first = true
+dotnet_separate_import_directive_groups = false
+
+# Use file-scoped namespaces (CODE-17)
+csharp_style_namespace_declarations = file_scoped:warning
+
+# Use expression-bodied members where appropriate
+csharp_style_expression_bodied_methods = when_on_single_line:suggestion
+csharp_style_expression_bodied_constructors = false:suggestion
+csharp_style_expression_bodied_operators = when_on_single_line:suggestion
+csharp_style_expression_bodied_properties = true:suggestion
+csharp_style_expression_bodied_indexers = true:suggestion
+csharp_style_expression_bodied_accessors = true:suggestion
+csharp_style_expression_bodied_lambdas = true:suggestion
+csharp_style_expression_bodied_local_functions = false:suggestion
+
+# Pattern matching preferences (CODE-15)
+csharp_style_pattern_matching_over_is_with_cast_check = true:suggestion
+csharp_style_pattern_matching_over_as_with_null_check = true:suggestion
+csharp_style_prefer_switch_expression = true:suggestion
+csharp_style_prefer_pattern_matching = true:suggestion
+csharp_style_prefer_not_pattern = true:suggestion
+
+# Null checking preferences
+csharp_style_throw_expression = true:suggestion
+csharp_style_conditional_delegate_call = true:suggestion
+csharp_style_prefer_null_check_over_type_check = true:suggestion
+
+# var preferences
+csharp_style_var_for_built_in_types = true:suggestion
+csharp_style_var_when_type_is_apparent = true:suggestion
+csharp_style_var_elsewhere = true:suggestion
+
+# Expression-level preferences
+csharp_prefer_simple_default_expression = true:suggestion
+csharp_style_prefer_local_over_anonymous_function = true:suggestion
+csharp_style_prefer_tuple_swap = true:suggestion
+csharp_style_implicit_object_creation_when_type_is_apparent = true:suggestion
+
+# Code block preferences
+csharp_prefer_braces = true:suggestion
+csharp_prefer_simple_using_statement = true:suggestion
+
+# 'using' directive preferences
+csharp_using_directive_placement = outside_namespace:warning
+
+# Modifier preferences
+csharp_preferred_modifier_order = public,private,protected,internal,static,extern,new,virtual,abstract,sealed,override,readonly,unsafe,volatile,async:suggestion
+csharp_prefer_static_local_function = true:suggestion
+
+# New line preferences
+csharp_new_line_before_open_brace = all
+csharp_new_line_before_else = true
+csharp_new_line_before_catch = true
+csharp_new_line_before_finally = true
+csharp_new_line_before_members_in_object_initializers = true
+csharp_new_line_before_members_in_anonymous_types = true
+csharp_new_line_between_query_expression_clauses = true
+
+# Indentation preferences
+csharp_indent_case_contents = true
+csharp_indent_switch_labels = true
+csharp_indent_labels = one_less_than_current
+csharp_indent_block_contents = true
+csharp_indent_braces = false
+csharp_indent_case_contents_when_block = false
+
+# Space preferences
+csharp_space_after_cast = false
+csharp_space_after_keywords_in_control_flow_statements = true
+csharp_space_between_parentheses = false
+csharp_space_before_colon_in_inheritance_clause = true
+csharp_space_after_colon_in_inheritance_clause = true
+csharp_space_around_binary_operators = before_and_after
+csharp_space_between_method_declaration_parameter_list_parentheses = false
+csharp_space_between_method_declaration_empty_parameter_list_parentheses = false
+csharp_space_between_method_declaration_name_and_open_parenthesis = false
+csharp_space_between_method_call_parameter_list_parentheses = false
+csharp_space_between_method_call_empty_parameter_list_parentheses = false
+csharp_space_between_method_call_name_and_opening_parenthesis = false
+csharp_space_after_comma = true
+csharp_space_before_comma = false
+csharp_space_after_dot = false
+csharp_space_before_dot = false
+csharp_space_after_semicolon_in_for_statement = true
+csharp_space_before_semicolon_in_for_statement = false
+csharp_space_around_declaration_statements = false
+csharp_space_before_open_square_brackets = false
+csharp_space_between_empty_square_brackets = false
+csharp_space_between_square_brackets = false
+
+# Naming conventions (CODE-1)
+# PascalCase for public members
+dotnet_naming_rule.public_members_should_be_pascal_case.severity = suggestion
+dotnet_naming_rule.public_members_should_be_pascal_case.symbols = public_symbols
+dotnet_naming_rule.public_members_should_be_pascal_case.style = pascal_case_style
+
+dotnet_naming_symbols.public_symbols.applicable_kinds = property, method, field, event, delegate, class, struct, interface, enum
+dotnet_naming_symbols.public_symbols.applicable_accessibilities = public, internal, protected, protected_internal
+
+dotnet_naming_style.pascal_case_style.capitalization = pascal_case
+
+# camelCase with underscore prefix for private fields
+dotnet_naming_rule.private_fields_should_be_camel_case_with_underscore.severity = suggestion
+dotnet_naming_rule.private_fields_should_be_camel_case_with_underscore.symbols = private_fields
+dotnet_naming_rule.private_fields_should_be_camel_case_with_underscore.style = camel_case_underscore_style
+
+dotnet_naming_symbols.private_fields.applicable_kinds = field
+dotnet_naming_symbols.private_fields.applicable_accessibilities = private
+
+dotnet_naming_style.camel_case_underscore_style.required_prefix = _
+dotnet_naming_style.camel_case_underscore_style.capitalization = camel_case
+
+# Interfaces should start with I
+dotnet_naming_rule.interfaces_should_start_with_i.severity = suggestion
+dotnet_naming_rule.interfaces_should_start_with_i.symbols = interfaces
+dotnet_naming_rule.interfaces_should_start_with_i.style = interface_style
+
+dotnet_naming_symbols.interfaces.applicable_kinds = interface
+dotnet_naming_symbols.interfaces.applicable_accessibilities = *
+
+dotnet_naming_style.interface_style.required_prefix = I
+dotnet_naming_style.interface_style.capitalization = pascal_case
+
+# Async methods should end with Async (CODE-4)
+dotnet_naming_rule.async_methods_should_end_with_async.severity = suggestion
+dotnet_naming_rule.async_methods_should_end_with_async.symbols = async_methods
+dotnet_naming_rule.async_methods_should_end_with_async.style = async_style
+
+dotnet_naming_symbols.async_methods.applicable_kinds = method
+dotnet_naming_symbols.async_methods.required_modifiers = async
+
+dotnet_naming_style.async_style.required_suffix = Async
+dotnet_naming_style.async_style.capitalization = pascal_case
+
+# XML files
+[*.{xml,csproj,props,targets}]
+indent_size = 2
+
+# JSON files
+[*.json]
+indent_size = 2
+
+# YAML files
+[*.{yml,yaml}]
+indent_size = 2
+
+# Markdown files
+[*.md]
+trim_trailing_whitespace = false
+
+# JavaScript/CSS files
+[*.{js,css,html}]
+indent_size = 2

@@ -146,24 +146,24 @@ Update the file after completing each sub-task, not just after completing an ent
 
 ### Phase 1: Solution Structure
 
-- [ ] **1.0 Set up solution structure and projects** (traces to: FR-1, CODE standards)
-  - [ ] 1.1 Create root solution file `MudForge.sln`
-  - [ ] 1.2 Create `src/MudForge.Domain` class library project (.NET 8+)
-  - [ ] 1.3 Create `src/MudForge.Application` class library project with reference to Domain
-  - [ ] 1.4 Create `src/MudForge.Infrastructure` class library project with references to Domain and Application
-  - [ ] 1.5 Create `src/MudForge.Engine` class library project with references to Domain and Application
-  - [ ] 1.6 Create `src/MudForge.Server` ASP.NET Core project with references to all layers
-  - [ ] 1.7 Create `src/MudForge.WebClient` project for static web files
-  - [ ] 1.8 Create `src/MudForge.DemoGame` class library project (plugin) with reference to Engine
-  - [ ] 1.9 Create `tests/MudForge.Domain.Tests` xUnit test project
-  - [ ] 1.10 Create `tests/MudForge.Application.Tests` xUnit test project
-  - [ ] 1.11 Create `tests/MudForge.Engine.Tests` xUnit test project
-  - [ ] 1.12 Create `tests/MudForge.Integration.Tests` xUnit test project
-  - [ ] 1.13 Enable nullable reference types (`<Nullable>enable</Nullable>`) in all projects
-  - [ ] 1.14 Add common NuGet packages: Serilog, FluentValidation, MediatR
-  - [ ] 1.15 Create `Directory.Build.props` for shared project settings
-  - [ ] 1.16 Create `.editorconfig` for code style consistency
-  - [ ] 1.17 Verify solution builds with `dotnet build`
+- [x] **1.0 Set up solution structure and projects** (traces to: FR-1, CODE standards)
+  - [x] 1.1 Create root solution file `MudForge.sln`
+  - [x] 1.2 Create `src/MudForge.Domain` class library project (.NET 8+)
+  - [x] 1.3 Create `src/MudForge.Application` class library project with reference to Domain
+  - [x] 1.4 Create `src/MudForge.Infrastructure` class library project with references to Domain and Application
+  - [x] 1.5 Create `src/MudForge.Engine` class library project with references to Domain and Application
+  - [x] 1.6 Create `src/MudForge.Server` ASP.NET Core project with references to all layers
+  - [x] 1.7 Create `src/MudForge.WebClient` project for static web files
+  - [x] 1.8 Create `src/MudForge.DemoGame` class library project (plugin) with reference to Engine
+  - [x] 1.9 Create `tests/MudForge.Domain.Tests` xUnit test project
+  - [x] 1.10 Create `tests/MudForge.Application.Tests` xUnit test project
+  - [x] 1.11 Create `tests/MudForge.Engine.Tests` xUnit test project
+  - [x] 1.12 Create `tests/MudForge.Integration.Tests` xUnit test project
+  - [x] 1.13 Enable nullable reference types (`<Nullable>enable</Nullable>`) in all projects
+  - [x] 1.14 Add common NuGet packages: Serilog, FluentValidation, MediatR
+  - [x] 1.15 Create `Directory.Build.props` for shared project settings
+  - [x] 1.16 Create `.editorconfig` for code style consistency
+  - [x] 1.17 Verify solution builds with `dotnet build`
 
 ---
 
