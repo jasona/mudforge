@@ -169,24 +169,24 @@ Update the file after completing each sub-task, not just after completing an ent
 
 ### Phase 2: Domain Layer
 
-- [ ] **2.0 Implement Domain layer (entities and value objects)** (traces to: FR-3, FR-20-26, FR-60-62)
-  - [ ] 2.1 Create base `Entity<TId>` abstract class with Id property
-  - [ ] 2.2 Create `Account` entity with properties: Id, Email, PasswordHash, CreatedAt, LastLoginAt
-  - [ ] 2.3 Create `Character` entity with properties: Id, AccountId, Name, RoomId, Stats, Level, Experience, Health, MaxHealth
-  - [ ] 2.4 Create `Room` entity with properties: Id, AreaId, Name, Description, Exits (collection)
-  - [ ] 2.5 Create `Exit` value object with properties: Direction, TargetRoomId, IsLocked, KeyItemId
-  - [ ] 2.6 Create `Item` entity with properties: Id, Name, Description, ItemType, Weight, Value, Stats
-  - [ ] 2.7 Create `Npc` entity with properties: Id, Name, Description, RoomId, Behavior, Stats, IsHostile
-  - [ ] 2.8 Create `Stats` value object with properties: Strength, Agility, Intelligence, Constitution
-  - [ ] 2.9 Create `CharacterClass` record with properties: Id, Name, Description, BaseStats, Abilities
-  - [ ] 2.10 Create `Direction` enum (North, South, East, West, Up, Down)
-  - [ ] 2.11 Create `ItemType` enum (Weapon, Armor, Consumable, Key, Misc)
-  - [ ] 2.12 Create `NpcBehavior` enum (Static, Wandering, Hostile, Merchant)
-  - [ ] 2.13 Create domain events: `PlayerEnteredRoomEvent`, `PlayerLeftRoomEvent`, `ItemPickedUpEvent`, `CombatStartedEvent`, `CharacterDiedEvent`
-  - [ ] 2.14 Create `IDomainEvent` marker interface for domain events
-  - [ ] 2.15 Write unit tests for `Character` entity (stat calculations, level up logic)
-  - [ ] 2.16 Write unit tests for `Stats` value object (equality, arithmetic)
-  - [ ] 2.17 Write unit tests for `Room` entity (exit management)
+- [x] **2.0 Implement Domain layer (entities and value objects)** (traces to: FR-3, FR-20-26, FR-60-62)
+  - [x] 2.1 Create base `Entity<TId>` abstract class with Id property
+  - [x] 2.2 Create `Account` entity with properties: Id, Email, PasswordHash, CreatedAt, LastLoginAt
+  - [x] 2.3 Create `Character` entity with properties: Id, AccountId, Name, RoomId, Stats, Level, Experience, Health, MaxHealth
+  - [x] 2.4 Create `Room` entity with properties: Id, AreaId, Name, Description, Exits (collection)
+  - [x] 2.5 Create `Exit` value object with properties: Direction, TargetRoomId, IsLocked, KeyItemId
+  - [x] 2.6 Create `Item` entity with properties: Id, Name, Description, ItemType, Weight, Value, Stats
+  - [x] 2.7 Create `Npc` entity with properties: Id, Name, Description, RoomId, Behavior, Stats, IsHostile
+  - [x] 2.8 Create `Stats` value object with properties: Strength, Agility, Intelligence, Constitution
+  - [x] 2.9 Create `CharacterClass` record with properties: Id, Name, Description, BaseStats, Abilities
+  - [x] 2.10 Create `Direction` enum (North, South, East, West, Up, Down)
+  - [x] 2.11 Create `ItemType` enum (Weapon, Armor, Consumable, Key, Misc)
+  - [x] 2.12 Create `NpcBehavior` enum (Static, Wandering, Hostile, Merchant)
+  - [x] 2.13 Create domain events: `PlayerEnteredRoomEvent`, `PlayerLeftRoomEvent`, `ItemPickedUpEvent`, `CombatStartedEvent`, `CharacterDiedEvent`
+  - [x] 2.14 Create `IDomainEvent` marker interface for domain events
+  - [x] 2.15 Write unit tests for `Character` entity (stat calculations, level up logic)
+  - [x] 2.16 Write unit tests for `Stats` value object (equality, arithmetic)
+  - [x] 2.17 Write unit tests for `Room` entity (exit management)
 
 ---
 
