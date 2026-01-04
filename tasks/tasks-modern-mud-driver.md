@@ -383,19 +383,19 @@ Update the file after completing each sub-task, not just after completing an ent
 ### Phase 12: Testing and Documentation (traces to: TASKS-4, CODE-6)
 
 - [ ] **12.0 Write tests and documentation**
-  - [ ] 12.1 Review and fill gaps in unit test coverage (target: 80%+ on driver code)
-  - [ ] 12.2 Write integration test: full player flow (connect → login → move → quit)
-  - [ ] 12.3 Write integration test: builder creates room via in-game editor
-  - [ ] 12.4 Write integration test: hot-reload updates object behavior
-  - [ ] 12.5 Write integration test: permission denial for unauthorized actions
-  - [ ] 12.6 Create `README.md` with project overview, quick start, architecture
-  - [ ] 12.7 Create `docs/architecture.md` explaining driver vs mudlib separation
-  - [ ] 12.8 Create `docs/efuns.md` documenting all available efuns
-  - [ ] 12.9 Create `docs/mudlib-guide.md` for builders (how to create rooms, items, NPCs)
-  - [ ] 12.10 Create `docs/deployment.md` with Docker and PM2 instructions
-  - [ ] 12.11 Create `docs/permissions.md` explaining the permission system
-  - [ ] 12.12 Add JSDoc comments to all public APIs in driver code
-  - [ ] 12.13 Run full test suite and fix any failures
+  - [x] 12.1 Review and fill gaps in unit test coverage (target: 80%+ on driver code) - Coverage at 80.31%
+  - [x] 12.2 Write integration test: full player flow (connect → login → move → quit)
+  - [x] 12.3 Write integration test: builder creates room via in-game editor
+  - [x] 12.4 Write integration test: hot-reload updates object behavior
+  - [x] 12.5 Write integration test: permission denial for unauthorized actions
+  - [x] 12.6 Create `README.md` with project overview, quick start, architecture
+  - [x] 12.7 Create `docs/architecture.md` explaining driver vs mudlib separation
+  - [x] 12.8 Create `docs/efuns.md` documenting all available efuns
+  - [x] 12.9 Create `docs/mudlib-guide.md` for builders (how to create rooms, items, NPCs)
+  - [x] 12.10 Create `docs/deployment.md` with Docker and PM2 instructions
+  - [x] 12.11 Create `docs/permissions.md` explaining the permission system
+  - [x] 12.12 Add JSDoc comments to all public APIs in driver code - Already comprehensive
+  - [x] 12.13 Run full test suite and fix any failures - 496 tests passing
   - [ ] 12.14 Run linter and fix any issues
   - [ ] 12.15 Commit: "docs: Add comprehensive documentation and tests"
 
