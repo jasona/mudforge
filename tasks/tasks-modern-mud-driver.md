@@ -107,8 +107,8 @@ Update the file after completing each sub-task, not just after completing an ent
 
 ### Phase 0: Feature Branch
 
-- [ ] **0.0 Create feature branch**
-  - [ ] 0.1 Create and checkout a new branch: `git checkout -b feature/mudforge-driver`
+- [x] **0.0 Create feature branch**
+  - [x] 0.1 Create and checkout a new branch: `git checkout -b feature/mudforge-driver`
 
 ---
 
