@@ -1,3 +1,8 @@
+# Node.js
+node_modules/
+dist/
+*.tsbuildinfo
+
 # .NET build output
 bin/
 obj/
@@ -72,3 +77,4 @@ appsettings.*.local.json
 secrets.json
 .env
 .env.*
+!.env.example

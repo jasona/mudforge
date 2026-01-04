@@ -34,11 +34,11 @@ If the standards manifest or standards files are not available, proceed without 
 Guidelines for managing task lists in markdown files to track progress on completing a PRD
 
 ## Task Implementation
-- **One sub-task at a time:** Do **NOT** start the next subtask until you ask the user for permission and they say "yes" or "y"
+- **Continuous execution:** Work through all tasks and subtasks continuously without pausing for user approval between each one.
 - **Completion protocol:**
   1. When you finish a **sub-task**, immediately mark it as completed by changing `[ ]` to `[x]`.
   2. If **all** subtasks underneath a parent task are now `[x]`, also mark the **parent task** as completed.
-- Stop after each sub-task and wait for the user's go-ahead.
+  3. When a **parent task** is completed, commit and push to git before proceeding to the next parent task.
 
 ## Task List Maintenance
 
@@ -55,11 +55,15 @@ Guidelines for managing task lists in markdown files to track progress on comple
 When working with task lists, the AI must:
 
 1. Regularly update the task list file after finishing any significant work.
-2. Follow the completed protocol:
+2. Follow the completion protocol:
    - Mark each finished **sub-task** `[x]`.
    - Mark the **parent task** `[x]` once **all** its subtasks are `[x]`.
-   - When the **parent task** is finished commit and push to git (assume git has already been setup and initialized for this directory).
+   - When a **parent task** is finished, commit and push to git (assume git has already been setup and initialized for this directory).
 3. Add newly discovered tasks.
 4. Keep "Relevant Files" accurate and up to date.
-5. Before starting work, check with sub-task is next.
-6. After implementing a sub-task, update the file and then pause for user approval.
+5. Before starting work, check which sub-task is next.
+6. Work through all tasks continuously without stopping for approval after each one.
+7. Only pause to ask the user if:
+   - A critical decision requires user input
+   - An unexpected error or blocker is encountered
+   - Clarification is needed on requirements

@@ -114,20 +114,20 @@ Update the file after completing each sub-task, not just after completing an ent
 
 ### Phase 1: Project Infrastructure (traces to: FR-20, FR-30)
 
-- [ ] **1.0 Set up project infrastructure and build system**
-  - [ ] 1.1 Initialize Node.js project with `npm init` and configure `package.json` with project metadata
-  - [ ] 1.2 Install core dependencies: `isolated-vm`, `ws`, `fastify`, `@fastify/static`, `@fastify/websocket`, `esbuild`, `pino`
-  - [ ] 1.3 Install dev dependencies: `typescript`, `vitest`, `@types/node`, `@types/ws`, `eslint`, `prettier`
-  - [ ] 1.4 Create `tsconfig.json` with strict mode, ES2022 target, NodeNext module resolution
-  - [ ] 1.5 Create `tsconfig.client.json` for browser-targeted client code
-  - [ ] 1.6 Create `.env.example` with configuration variables (PORT, MUDLIB_PATH, LOG_LEVEL, etc.)
-  - [ ] 1.7 Create `src/driver/config.ts` to load configuration from environment variables
-  - [ ] 1.8 Create project directory structure: `src/driver/`, `src/isolation/`, `src/network/`, `src/client/`, `mudlib/`, `tests/`
-  - [ ] 1.9 Configure ESLint and Prettier for consistent code style
-  - [ ] 1.10 Add npm scripts: `build`, `dev`, `start`, `test`, `test:watch`, `lint`
-  - [ ] 1.11 Verify build pipeline works with a minimal "hello world" entry point
-  - [ ] 1.12 Write tests for config loading
-  - [ ] 1.13 Commit: "feat: Initialize project infrastructure and build system"
+- [x] **1.0 Set up project infrastructure and build system**
+  - [x] 1.1 Initialize Node.js project with `npm init` and configure `package.json` with project metadata
+  - [x] 1.2 Install core dependencies: `isolated-vm`, `ws`, `fastify`, `@fastify/static`, `@fastify/websocket`, `esbuild`, `pino`
+  - [x] 1.3 Install dev dependencies: `typescript`, `vitest`, `@types/node`, `@types/ws`, `eslint`, `prettier`
+  - [x] 1.4 Create `tsconfig.json` with strict mode, ES2022 target, NodeNext module resolution
+  - [x] 1.5 Create `tsconfig.client.json` for browser-targeted client code
+  - [x] 1.6 Create `.env.example` with configuration variables (PORT, MUDLIB_PATH, LOG_LEVEL, etc.)
+  - [x] 1.7 Create `src/driver/config.ts` to load configuration from environment variables
+  - [x] 1.8 Create project directory structure: `src/driver/`, `src/isolation/`, `src/network/`, `src/client/`, `mudlib/`, `tests/`
+  - [x] 1.9 Configure ESLint and Prettier for consistent code style
+  - [x] 1.10 Add npm scripts: `build`, `dev`, `start`, `test`, `test:watch`, `lint`
+  - [x] 1.11 Verify build pipeline works with a minimal "hello world" entry point
+  - [x] 1.12 Write tests for config loading
+  - [x] 1.13 Commit: "feat: Initialize project infrastructure and build system"
 
 ---
 
