@@ -155,21 +155,21 @@ Update the file after completing each sub-task, not just after completing an ent
 
 ### Phase 3: Script Isolation (traces to: FR-26, FR-27, FR-28, FR-31)
 
-- [ ] **3.0 Implement script isolation with isolated-vm**
-  - [ ] 3.1 Create `IsolatePool` class to manage a pool of V8 isolates
-  - [ ] 3.2 Implement isolate creation with configurable memory limit (default 128MB)
-  - [ ] 3.3 Implement context creation within isolates for mudlib execution
-  - [ ] 3.4 Create `Sandbox` class to set up restricted execution environment
-  - [ ] 3.5 Implement `Sandbox.expose()` to safely expose driver APIs (efuns) to isolate
-  - [ ] 3.6 Implement `ScriptRunner.run(code, context, timeout)` with CPU timeout enforcement
-  - [ ] 3.7 Implement error capture: catch exceptions without crashing driver, log with context
-  - [ ] 3.8 Implement memory limit enforcement and graceful handling when exceeded
-  - [ ] 3.9 Create mechanism to pass object references between driver and isolate safely
-  - [ ] 3.10 Write unit tests for isolate creation and teardown
-  - [ ] 3.11 Write unit tests for timeout enforcement (script exceeds time limit)
-  - [ ] 3.12 Write unit tests for memory limit enforcement
-  - [ ] 3.13 Write unit tests for error isolation (bad script doesn't crash driver)
-  - [ ] 3.14 Commit: "feat: Implement script isolation with isolated-vm (FR-26 to FR-31)"
+- [x] **3.0 Implement script isolation with isolated-vm**
+  - [x] 3.1 Create `IsolatePool` class to manage a pool of V8 isolates
+  - [x] 3.2 Implement isolate creation with configurable memory limit (default 128MB)
+  - [x] 3.3 Implement context creation within isolates for mudlib execution
+  - [x] 3.4 Create `Sandbox` class to set up restricted execution environment
+  - [x] 3.5 Implement `Sandbox.expose()` to safely expose driver APIs (efuns) to isolate
+  - [x] 3.6 Implement `ScriptRunner.run(code, context, timeout)` with CPU timeout enforcement
+  - [x] 3.7 Implement error capture: catch exceptions without crashing driver, log with context
+  - [x] 3.8 Implement memory limit enforcement and graceful handling when exceeded
+  - [x] 3.9 Create mechanism to pass object references between driver and isolate safely
+  - [x] 3.10 Write unit tests for isolate creation and teardown
+  - [x] 3.11 Write unit tests for timeout enforcement (script exceeds time limit)
+  - [x] 3.12 Write unit tests for memory limit enforcement
+  - [x] 3.13 Write unit tests for error isolation (bad script doesn't crash driver)
+  - [x] 3.14 Commit: "feat: Implement script isolation with isolated-vm (FR-26 to FR-31)"
 
 ---
 
