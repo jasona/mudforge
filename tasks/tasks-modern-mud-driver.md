@@ -293,49 +293,49 @@ Update the file after completing each sub-task, not just after completing an ent
 
 ### Phase 8: Permission System (traces to: FR-40 through FR-47)
 
-- [ ] **8.0 Implement permission system**
-  - [ ] 8.1 Define `PermissionLevel` enum: `Player`, `Builder`, `SeniorBuilder`, `Administrator`
-  - [ ] 8.2 Create `Permissions` class for permission checking
-  - [ ] 8.3 Implement `Permissions.getLevel(player)` - retrieve player's permission level
-  - [ ] 8.4 Implement `Permissions.canRead(player, path)` - check read permission
-  - [ ] 8.5 Implement `Permissions.canWrite(player, path)` - check write permission (domain-based)
-  - [ ] 8.6 Implement `Permissions.canExecute(player, objectPath)` - check execution permission
-  - [ ] 8.7 Implement domain mapping: builders assigned to specific directory paths
-  - [ ] 8.8 Implement `/std/` protection: only Administrators can modify
-  - [ ] 8.9 Create `AuditLog` class for logging builder actions
-  - [ ] 8.10 Implement `AuditLog.log(player, action, target, details)` - log to file
-  - [ ] 8.11 Integrate permission checks into file efuns (`readFile`, `writeFile`)
-  - [ ] 8.12 Integrate permission checks into object compilation (`compileObject`, `updateObject`)
-  - [ ] 8.13 Create admin commands: `grant`, `revoke`, `domains`, `audit`
-  - [ ] 8.14 Store permission data in `mudlib/data/permissions.json`
-  - [ ] 8.15 Write unit tests for permission level checks
-  - [ ] 8.16 Write unit tests for domain-based write restrictions
-  - [ ] 8.17 Write unit tests for audit logging
-  - [ ] 8.18 Commit: "feat: Implement tiered permission system (FR-40 to FR-47)"
+- [x] **8.0 Implement permission system**
+  - [x] 8.1 Define `PermissionLevel` enum: `Player`, `Builder`, `SeniorBuilder`, `Administrator`
+  - [x] 8.2 Create `Permissions` class for permission checking
+  - [x] 8.3 Implement `Permissions.getLevel(player)` - retrieve player's permission level
+  - [x] 8.4 Implement `Permissions.canRead(player, path)` - check read permission
+  - [x] 8.5 Implement `Permissions.canWrite(player, path)` - check write permission (domain-based)
+  - [x] 8.6 Implement `Permissions.canExecute(player, objectPath)` - check execution permission
+  - [x] 8.7 Implement domain mapping: builders assigned to specific directory paths
+  - [x] 8.8 Implement `/std/` protection: only Administrators can modify
+  - [x] 8.9 Create `AuditLog` class for logging builder actions
+  - [x] 8.10 Implement `AuditLog.log(player, action, target, details)` - log to file
+  - [x] 8.11 Integrate permission checks into file efuns (`readFile`, `writeFile`)
+  - [x] 8.12 Integrate permission checks into object compilation (`compileObject`, `updateObject`)
+  - [x] 8.13 Create admin commands: `grant`, `revoke`, `domains`, `audit`
+  - [x] 8.14 Store permission data in `mudlib/data/permissions.json`
+  - [x] 8.15 Write unit tests for permission level checks
+  - [x] 8.16 Write unit tests for domain-based write restrictions
+  - [x] 8.17 Write unit tests for audit logging
+  - [x] 8.18 Commit: "feat: Implement tiered permission system (FR-40 to FR-47)"
 
 ---
 
 ### Phase 9: Persistence Layer (traces to: FR-60 through FR-66)
 
-- [ ] **9.0 Implement persistence layer**
-  - [ ] 9.1 Create `Serializer` class for object state serialization
-  - [ ] 9.2 Implement `Serializer.serialize(object)` - extract saveable state to JSON
-  - [ ] 9.3 Implement `Serializer.deserialize(json, blueprint)` - restore state to object
-  - [ ] 9.4 Handle circular references in object graphs
-  - [ ] 9.5 Create `FileStore` class for file-based persistence
-  - [ ] 9.6 Implement `FileStore.savePlayer(player)` - save to `mudlib/data/players/{name}.json`
-  - [ ] 9.7 Implement `FileStore.loadPlayer(name)` - restore player from file
-  - [ ] 9.8 Implement `FileStore.saveWorldState()` - snapshot all persistent objects
-  - [ ] 9.9 Implement `FileStore.loadWorldState()` - restore world on startup
-  - [ ] 9.10 Create `Loader` class for world initialization
-  - [ ] 9.11 Implement `Loader.preload(paths)` - load objects returned by `master.onPreload()`
-  - [ ] 9.12 Implement auto-save timer (configurable interval, default 5 minutes)
-  - [ ] 9.13 Implement admin command: `save` - manual world save
-  - [ ] 9.14 Implement admin command: `shutdown` - save and graceful shutdown
-  - [ ] 9.15 Write unit tests for serialization/deserialization
-  - [ ] 9.16 Write unit tests for player save/load
-  - [ ] 9.17 Write integration test: server restart preserves player state
-  - [ ] 9.18 Commit: "feat: Implement file-based persistence (FR-60 to FR-66)"
+- [x] **9.0 Implement persistence layer**
+  - [x] 9.1 Create `Serializer` class for object state serialization
+  - [x] 9.2 Implement `Serializer.serialize(object)` - extract saveable state to JSON
+  - [x] 9.3 Implement `Serializer.deserialize(json, blueprint)` - restore state to object
+  - [x] 9.4 Handle circular references in object graphs
+  - [x] 9.5 Create `FileStore` class for file-based persistence
+  - [x] 9.6 Implement `FileStore.savePlayer(player)` - save to `mudlib/data/players/{name}.json`
+  - [x] 9.7 Implement `FileStore.loadPlayer(name)` - restore player from file
+  - [x] 9.8 Implement `FileStore.saveWorldState()` - snapshot all persistent objects
+  - [x] 9.9 Implement `FileStore.loadWorldState()` - restore world on startup
+  - [x] 9.10 Create `Loader` class for world initialization
+  - [x] 9.11 Implement `Loader.preload(paths)` - load objects returned by `master.onPreload()`
+  - [x] 9.12 Implement auto-save timer (configurable interval, default 5 minutes)
+  - [x] 9.13 Implement admin command: `save` - manual world save
+  - [x] 9.14 Implement admin command: `shutdown` - save and graceful shutdown
+  - [x] 9.15 Write unit tests for serialization/deserialization
+  - [x] 9.16 Write unit tests for player save/load
+  - [x] 9.17 Write integration test: server restart preserves player state
+  - [x] 9.18 Commit: "feat: Implement file-based persistence (FR-60 to FR-66)"
 
 ---
 

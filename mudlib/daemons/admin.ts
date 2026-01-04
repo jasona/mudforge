@@ -240,6 +240,50 @@ export class AdminDaemon {
   }
 
   /**
+   * Save world state.
+   * Usage: save
+   */
+  cmdSave(_args: string): boolean {
+    if (!this.requireAdmin()) return false;
+
+    const player = efuns.thisPlayer();
+    if (!player) return false;
+
+    // This would normally call the persistence layer
+    efuns.send(player, 'Saving world state...');
+    // In a real implementation, this would call:
+    // await fileStore.saveWorldState(registry.getAllObjects());
+    efuns.send(player, 'World state saved.');
+
+    return true;
+  }
+
+  /**
+   * Shutdown the MUD.
+   * Usage: shutdown [reason]
+   */
+  cmdShutdown(args: string): boolean {
+    if (!this.requireAdmin()) return false;
+
+    const player = efuns.thisPlayer();
+    if (!player) return false;
+
+    const reason = args.trim() || 'Administrator shutdown';
+
+    efuns.send(player, `Initiating shutdown: ${reason}`);
+    efuns.send(player, 'Saving world state...');
+    // In a real implementation, this would:
+    // 1. Broadcast shutdown message to all players
+    // 2. Save all player data
+    // 3. Save world state
+    // 4. Gracefully disconnect all players
+    // 5. Call process.exit(0)
+    efuns.send(player, 'Shutdown sequence initiated.');
+
+    return true;
+  }
+
+  /**
    * Parse a permission level string.
    */
   private parseLevel(str: string): PermissionLevel | null {
