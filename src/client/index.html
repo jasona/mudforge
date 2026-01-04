@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MudForge</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app">
+    <header id="header">
+      <h1>MudForge</h1>
+      <span id="status" class="disconnected">Disconnected</span>
+    </header>
+
+    <main id="terminal-container">
+      <div id="terminal" role="log" aria-live="polite" aria-label="Game output"></div>
+    </main>
+
+    <footer id="input-container">
+      <label for="input" class="sr-only">Enter command</label>
+      <input
+        type="text"
+        id="input"
+        placeholder="Enter command..."
+        autocomplete="off"
+        autocapitalize="none"
+        spellcheck="false"
+        aria-label="Command input"
+      >
+      <button id="send-btn" aria-label="Send command">Send</button>
+    </footer>
+  </div>
+
+  <script type="module" src="client.js"></script>
+</body>
+</html>

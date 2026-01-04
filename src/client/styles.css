@@ -1,0 +1,302 @@
+/* MudForge Client Styles */
+
+:root {
+  /* Colors */
+  --bg-primary: #1a1a2e;
+  --bg-secondary: #16213e;
+  --bg-terminal: #0f0f1a;
+  --text-primary: #e0e0e0;
+  --text-secondary: #a0a0a0;
+  --accent: #00d9ff;
+  --accent-hover: #00b3d4;
+  --error: #ff4444;
+  --success: #44ff44;
+  --warning: #ffaa00;
+
+  /* ANSI Colors */
+  --ansi-black: #1a1a1a;
+  --ansi-red: #ff5555;
+  --ansi-green: #50fa7b;
+  --ansi-yellow: #f1fa8c;
+  --ansi-blue: #6272a4;
+  --ansi-magenta: #ff79c6;
+  --ansi-cyan: #8be9fd;
+  --ansi-white: #f8f8f2;
+  --ansi-bright-black: #6272a4;
+  --ansi-bright-red: #ff6e6e;
+  --ansi-bright-green: #69ff94;
+  --ansi-bright-yellow: #ffffa5;
+  --ansi-bright-blue: #d6acff;
+  --ansi-bright-magenta: #ff92df;
+  --ansi-bright-cyan: #a4ffff;
+  --ansi-bright-white: #ffffff;
+
+  /* Spacing */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+
+  /* Typography */
+  --font-mono: 'Consolas', 'Monaco', 'Courier New', monospace;
+  --font-size-base: 14px;
+  --line-height: 1.5;
+
+  /* Layout */
+  --header-height: 50px;
+  --input-height: 50px;
+}
+
+/* Reset */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* Base */
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-base);
+  line-height: var(--line-height);
+  color: var(--text-primary);
+  background-color: var(--bg-primary);
+}
+
+/* Layout */
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+/* Header */
+#header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: var(--header-height);
+  padding: 0 var(--spacing-md);
+  background-color: var(--bg-secondary);
+  border-bottom: 1px solid var(--accent);
+}
+
+#header h1 {
+  font-size: 1.25rem;
+  font-weight: bold;
+  color: var(--accent);
+}
+
+#status {
+  font-size: 0.875rem;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: 4px;
+}
+
+#status.connected {
+  color: var(--success);
+  background-color: rgba(68, 255, 68, 0.1);
+}
+
+#status.disconnected {
+  color: var(--error);
+  background-color: rgba(255, 68, 68, 0.1);
+}
+
+#status.connecting {
+  color: var(--warning);
+  background-color: rgba(255, 170, 0, 0.1);
+}
+
+/* Terminal */
+#terminal-container {
+  flex: 1;
+  overflow: hidden;
+  background-color: var(--bg-terminal);
+}
+
+#terminal {
+  height: 100%;
+  padding: var(--spacing-md);
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+#terminal::-webkit-scrollbar {
+  width: 8px;
+}
+
+#terminal::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+}
+
+#terminal::-webkit-scrollbar-thumb {
+  background: var(--accent);
+  border-radius: 4px;
+}
+
+#terminal::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-hover);
+}
+
+/* Terminal lines */
+.line {
+  display: block;
+  min-height: 1em;
+}
+
+.line.input {
+  color: var(--accent);
+}
+
+.line.system {
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.line.error {
+  color: var(--error);
+}
+
+/* ANSI color classes */
+.ansi-bold { font-weight: bold; }
+.ansi-dim { opacity: 0.7; }
+.ansi-italic { font-style: italic; }
+.ansi-underline { text-decoration: underline; }
+.ansi-blink { animation: blink 1s infinite; }
+.ansi-reverse { filter: invert(1); }
+.ansi-hidden { visibility: hidden; }
+.ansi-strikethrough { text-decoration: line-through; }
+
+.ansi-fg-black { color: var(--ansi-black); }
+.ansi-fg-red { color: var(--ansi-red); }
+.ansi-fg-green { color: var(--ansi-green); }
+.ansi-fg-yellow { color: var(--ansi-yellow); }
+.ansi-fg-blue { color: var(--ansi-blue); }
+.ansi-fg-magenta { color: var(--ansi-magenta); }
+.ansi-fg-cyan { color: var(--ansi-cyan); }
+.ansi-fg-white { color: var(--ansi-white); }
+
+.ansi-fg-bright-black { color: var(--ansi-bright-black); }
+.ansi-fg-bright-red { color: var(--ansi-bright-red); }
+.ansi-fg-bright-green { color: var(--ansi-bright-green); }
+.ansi-fg-bright-yellow { color: var(--ansi-bright-yellow); }
+.ansi-fg-bright-blue { color: var(--ansi-bright-blue); }
+.ansi-fg-bright-magenta { color: var(--ansi-bright-magenta); }
+.ansi-fg-bright-cyan { color: var(--ansi-bright-cyan); }
+.ansi-fg-bright-white { color: var(--ansi-bright-white); }
+
+.ansi-bg-black { background-color: var(--ansi-black); }
+.ansi-bg-red { background-color: var(--ansi-red); }
+.ansi-bg-green { background-color: var(--ansi-green); }
+.ansi-bg-yellow { background-color: var(--ansi-yellow); }
+.ansi-bg-blue { background-color: var(--ansi-blue); }
+.ansi-bg-magenta { background-color: var(--ansi-magenta); }
+.ansi-bg-cyan { background-color: var(--ansi-cyan); }
+.ansi-bg-white { background-color: var(--ansi-white); }
+
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+/* Input */
+#input-container {
+  display: flex;
+  height: var(--input-height);
+  padding: var(--spacing-sm);
+  background-color: var(--bg-secondary);
+  border-top: 1px solid var(--accent);
+  gap: var(--spacing-sm);
+}
+
+#input {
+  flex: 1;
+  padding: var(--spacing-sm) var(--spacing-md);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-base);
+  color: var(--text-primary);
+  background-color: var(--bg-terminal);
+  border: 1px solid var(--text-secondary);
+  border-radius: 4px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+#input:focus {
+  border-color: var(--accent);
+}
+
+#input::placeholder {
+  color: var(--text-secondary);
+}
+
+#send-btn {
+  padding: var(--spacing-sm) var(--spacing-md);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-base);
+  color: var(--bg-primary);
+  background-color: var(--accent);
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+#send-btn:hover {
+  background-color: var(--accent-hover);
+}
+
+#send-btn:active {
+  transform: scale(0.98);
+}
+
+/* Accessibility */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  :root {
+    --font-size-base: 12px;
+  }
+
+  #header h1 {
+    font-size: 1rem;
+  }
+
+  #terminal {
+    padding: var(--spacing-sm);
+  }
+}
+
+/* Print styles - hide for printing */
+@media print {
+  #header,
+  #input-container {
+    display: none;
+  }
+
+  #terminal {
+    height: auto;
+    overflow: visible;
+  }
+}

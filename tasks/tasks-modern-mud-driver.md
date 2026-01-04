@@ -265,29 +265,29 @@ Update the file after completing each sub-task, not just after completing an ent
 
 ### Phase 7: Network Layer (traces to: FR-50 through FR-57)
 
-- [ ] **7.0 Implement network layer (WebSocket server and web client)**
-  - [ ] 7.1 Create `Server` class using Fastify for HTTP
-  - [ ] 7.2 Configure Fastify with `@fastify/static` to serve web client files
-  - [ ] 7.3 Configure Fastify with `@fastify/websocket` for WebSocket upgrade
-  - [ ] 7.4 Create `Connection` class abstracting a single WebSocket connection
-  - [ ] 7.5 Implement `Connection.send(message)` - send styled text to client
-  - [ ] 7.6 Implement `Connection.receive()` - handle incoming commands
-  - [ ] 7.7 Implement `Connection.close()` - graceful disconnect
-  - [ ] 7.8 Create `ConnectionManager` class to track all active connections
-  - [ ] 7.9 Implement connection lifecycle: connect → authenticate → bind to Player → play → disconnect
-  - [ ] 7.10 Implement calling `master.onPlayerConnect()` when new WebSocket connects
-  - [ ] 7.11 Implement calling `master.onPlayerDisconnect()` on disconnect
-  - [ ] 7.12 Create `src/client/index.html` - minimal HTML shell loading client JS
-  - [ ] 7.13 Create `src/client/terminal.ts` - terminal emulator rendering styled text (ANSI colors)
-  - [ ] 7.14 Create `src/client/websocket-client.ts` - WebSocket connection to server
-  - [ ] 7.15 Create `src/client/input-handler.ts` - command input with history (up/down arrows)
-  - [ ] 7.16 Implement text styling: bold, colors, reset codes rendering
-  - [ ] 7.17 Create `src/client/styles.css` - terminal styling (monospace font, dark theme)
-  - [ ] 7.18 Configure esbuild to bundle client code for browser
-  - [ ] 7.19 Write unit tests for `Connection` class
-  - [ ] 7.20 Write unit tests for `ConnectionManager`
-  - [ ] 7.21 Write integration test: client connects, sends command, receives response
-  - [ ] 7.22 Commit: "feat: Implement WebSocket server and web client (FR-50 to FR-57)"
+- [x] **7.0 Implement network layer (WebSocket server and web client)**
+  - [x] 7.1 Create `Server` class using Fastify for HTTP
+  - [x] 7.2 Configure Fastify with `@fastify/static` to serve web client files
+  - [x] 7.3 Configure Fastify with `@fastify/websocket` for WebSocket upgrade
+  - [x] 7.4 Create `Connection` class abstracting a single WebSocket connection
+  - [x] 7.5 Implement `Connection.send(message)` - send styled text to client
+  - [x] 7.6 Implement `Connection.receive()` - handle incoming commands
+  - [x] 7.7 Implement `Connection.close()` - graceful disconnect
+  - [x] 7.8 Create `ConnectionManager` class to track all active connections
+  - [x] 7.9 Implement connection lifecycle: connect → authenticate → bind to Player → play → disconnect
+  - [x] 7.10 Implement calling `master.onPlayerConnect()` when new WebSocket connects
+  - [x] 7.11 Implement calling `master.onPlayerDisconnect()` on disconnect
+  - [x] 7.12 Create `src/client/index.html` - minimal HTML shell loading client JS
+  - [x] 7.13 Create `src/client/terminal.ts` - terminal emulator rendering styled text (ANSI colors)
+  - [x] 7.14 Create `src/client/websocket-client.ts` - WebSocket connection to server
+  - [x] 7.15 Create `src/client/input-handler.ts` - command input with history (up/down arrows)
+  - [x] 7.16 Implement text styling: bold, colors, reset codes rendering
+  - [x] 7.17 Create `src/client/styles.css` - terminal styling (monospace font, dark theme)
+  - [x] 7.18 Configure esbuild to bundle client code for browser
+  - [x] 7.19 Write unit tests for `Connection` class
+  - [x] 7.20 Write unit tests for `ConnectionManager`
+  - [x] 7.21 Write integration test: client connects, sends command, receives response
+  - [x] 7.22 Commit: "feat: Implement WebSocket server and web client (FR-50 to FR-57)"
 
 ---
 
