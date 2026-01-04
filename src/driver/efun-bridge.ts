@@ -8,9 +8,10 @@
 
 import { getRegistry, type ObjectRegistry } from './object-registry.js';
 import { getScheduler, type Scheduler } from './scheduler.js';
+import { getPermissions, resetPermissions, type Permissions } from './permissions.js';
 import type { MudObject } from './types.js';
 import { readFile, writeFile, access, readdir, stat, mkdir } from 'fs/promises';
-import { join, dirname, normalize, resolve } from 'path';
+import { dirname, normalize, resolve } from 'path';
 import { constants } from 'fs';
 
 export interface EfunBridgeConfig {
@@ -35,6 +36,7 @@ export class EfunBridge {
   private config: EfunBridgeConfig;
   private registry: ObjectRegistry;
   private scheduler: Scheduler;
+  private permissions: Permissions;
   private context: EfunContext = { thisObject: null, thisPlayer: null };
 
   constructor(config: Partial<EfunBridgeConfig> = {}) {
@@ -43,6 +45,7 @@ export class EfunBridge {
     };
     this.registry = getRegistry();
     this.scheduler = getScheduler();
+    this.permissions = getPermissions();
   }
 
   /**
@@ -190,6 +193,11 @@ export class EfunBridge {
    * @param path The file path (relative to mudlib)
    */
   async readFile(path: string): Promise<string> {
+    // Check read permission
+    const player = this.context.thisPlayer;
+    if (!this.permissions.canRead(player, path)) {
+      throw new Error(`Permission denied: cannot read ${path}`);
+    }
     const fullPath = this.resolveMudlibPath(path);
     return readFile(fullPath, 'utf-8');
   }
@@ -200,6 +208,11 @@ export class EfunBridge {
    * @param content The content to write
    */
   async writeFile(path: string, content: string): Promise<void> {
+    // Check write permission
+    const player = this.context.thisPlayer;
+    if (!this.permissions.canWrite(player, path)) {
+      throw new Error(`Permission denied: cannot write ${path}`);
+    }
     const fullPath = this.resolveMudlibPath(path);
     // Ensure directory exists
     await mkdir(dirname(fullPath), { recursive: true });
@@ -211,6 +224,11 @@ export class EfunBridge {
    * @param path The file path (relative to mudlib)
    */
   async fileExists(path: string): Promise<boolean> {
+    // Check read permission
+    const player = this.context.thisPlayer;
+    if (!this.permissions.canRead(player, path)) {
+      return false;
+    }
     try {
       const fullPath = this.resolveMudlibPath(path);
       await access(fullPath, constants.F_OK);
@@ -225,6 +243,11 @@ export class EfunBridge {
    * @param path The directory path (relative to mudlib)
    */
   async readDir(path: string): Promise<string[]> {
+    // Check read permission
+    const player = this.context.thisPlayer;
+    if (!this.permissions.canRead(player, path)) {
+      throw new Error(`Permission denied: cannot read ${path}`);
+    }
     const fullPath = this.resolveMudlibPath(path);
     return readdir(fullPath);
   }
@@ -321,6 +344,62 @@ export class EfunBridge {
     return str.toUpperCase();
   }
 
+  // ========== Permission Efuns ==========
+
+  /**
+   * Check if a player can read a path.
+   * @param path The file path
+   */
+  checkReadPermission(path: string): boolean {
+    return this.permissions.canRead(this.context.thisPlayer, path);
+  }
+
+  /**
+   * Check if a player can write to a path.
+   * @param path The file path
+   */
+  checkWritePermission(path: string): boolean {
+    return this.permissions.canWrite(this.context.thisPlayer, path);
+  }
+
+  /**
+   * Check if the current player is an administrator.
+   */
+  isAdmin(): boolean {
+    const player = this.context.thisPlayer;
+    if (!player) return false;
+    return this.permissions.isAdmin(player);
+  }
+
+  /**
+   * Check if the current player is a builder.
+   */
+  isBuilder(): boolean {
+    const player = this.context.thisPlayer;
+    if (!player) return false;
+    return this.permissions.isBuilder(player);
+  }
+
+  /**
+   * Get the current player's permission level.
+   */
+  getPermissionLevel(): number {
+    const player = this.context.thisPlayer;
+    if (!player) return 0;
+    return this.permissions.getLevel(player);
+  }
+
+  /**
+   * Get the current player's domains.
+   */
+  getDomains(): string[] {
+    const player = this.context.thisPlayer;
+    if (!player) return [];
+    const p = player as MudObject & { name?: string };
+    if (!p.name) return [];
+    return this.permissions.getDomains(p.name);
+  }
+
   // ========== Scheduler Efuns ==========
 
   /**
@@ -389,6 +468,14 @@ export class EfunBridge {
       lower: this.lower.bind(this),
       upper: this.upper.bind(this),
 
+      // Permission
+      checkReadPermission: this.checkReadPermission.bind(this),
+      checkWritePermission: this.checkWritePermission.bind(this),
+      isAdmin: this.isAdmin.bind(this),
+      isBuilder: this.isBuilder.bind(this),
+      getPermissionLevel: this.getPermissionLevel.bind(this),
+      getDomains: this.getDomains.bind(this),
+
       // Scheduler
       setHeartbeat: this.setHeartbeat.bind(this),
       callOut: this.callOut.bind(this),
@@ -418,4 +505,5 @@ export function resetEfunBridge(): void {
     bridgeInstance.clearContext();
   }
   bridgeInstance = null;
+  resetPermissions();
 }
