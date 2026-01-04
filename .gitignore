@@ -5,6 +5,7 @@ dist/
 
 # Test fixtures
 test-mudlib*/
+test-data*/
 
 # .NET build output
 bin/
