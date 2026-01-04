@@ -222,44 +222,44 @@ Update the file after completing each sub-task, not just after completing an ent
 
 ### Phase 6: Standard Mudlib Library (traces to: FR-5, FR-10, FR-32, FR-33)
 
-- [ ] **6.0 Create standard mudlib library**
-  - [ ] 6.1 Create `mudlib/std/object.ts` - base `MudObject` class implementation
-  - [ ] 6.2 Implement `MudObject` lifecycle methods with default (empty) implementations
-  - [ ] 6.3 Implement `MudObject.id(name)` with default matching against `shortDesc`
-  - [ ] 6.4 Implement `MudObject.addAction()` / `removeAction()` for command binding
-  - [ ] 6.5 Create `mudlib/std/room.ts` - `Room` class extending `MudObject`
-  - [ ] 6.6 Implement `Room.addExit(direction, destination)` and `Room.getExit(direction)`
-  - [ ] 6.7 Implement `Room.broadcast(message, options)` to send to all contents
-  - [ ] 6.8 Implement `Room.onEnter(obj)` / `Room.onLeave(obj)` hooks
-  - [ ] 6.9 Create `mudlib/std/item.ts` - `Item` class extending `MudObject`
-  - [ ] 6.10 Implement `Item.weight`, `Item.value` properties
-  - [ ] 6.11 Implement `Item.onTake(taker)` / `Item.onDrop(dropper)` hooks
-  - [ ] 6.12 Create `mudlib/std/container.ts` - `Container` class extending `Item`
-  - [ ] 6.13 Implement `Container.canHold(item)` capacity/weight checks
-  - [ ] 6.14 Create `mudlib/std/living.ts` - `Living` class extending `MudObject`
-  - [ ] 6.15 Implement `Living.command(input)` - parse and execute command
-  - [ ] 6.16 Implement `Living.receive(message)` - receive output
-  - [ ] 6.17 Implement `Living.say(message)` / `Living.emote(action)` communication
-  - [ ] 6.18 Implement `Living.moveTo(room)` with enter/leave hooks
-  - [ ] 6.19 Create `mudlib/std/player.ts` - `Player` class extending `Living`
-  - [ ] 6.20 Implement `Player` connection binding (link to WebSocket connection)
-  - [ ] 6.21 Implement `Player.save()` / `Player.restore()` for persistence
-  - [ ] 6.22 Create `mudlib/std/npc.ts` - `NPC` class extending `Living`
-  - [ ] 6.23 Create `mudlib/std/weapon.ts` - `Weapon` class extending `Item`
-  - [ ] 6.24 Implement `Weapon.damage`, `Weapon.damageType`, `Weapon.onWield()`, `Weapon.onUnwield()`
-  - [ ] 6.25 Create `mudlib/std/armor.ts` - `Armor` class extending `Item`
-  - [ ] 6.26 Create `mudlib/master.ts` - Master object with all required hooks
-  - [ ] 6.27 Implement `master.onPlayerConnect()` returning login daemon path
-  - [ ] 6.28 Implement `master.validRead()` / `master.validWrite()` permission hooks
-  - [ ] 6.29 Implement `master.onRuntimeError()` for error logging
-  - [ ] 6.30 Create `mudlib/simul_efun.ts` - mudlib-provided efun extensions
-  - [ ] 6.31 Create `mudlib/daemons/login.ts` - Login daemon for new connections
-  - [ ] 6.32 Create `mudlib/areas/void/void.ts` - Starting room (the Void)
-  - [ ] 6.33 Write unit tests for `MudObject` base class
-  - [ ] 6.34 Write unit tests for `Room` (exits, broadcast, enter/leave)
-  - [ ] 6.35 Write unit tests for `Living` (command parsing, movement)
-  - [ ] 6.36 Write unit tests for `Item` and `Container`
-  - [ ] 6.37 Commit: "feat: Create standard mudlib library (FR-5, FR-10, FR-32, FR-33)"
+- [x] **6.0 Create standard mudlib library**
+  - [x] 6.1 Create `mudlib/std/object.ts` - base `MudObject` class implementation
+  - [x] 6.2 Implement `MudObject` lifecycle methods with default (empty) implementations
+  - [x] 6.3 Implement `MudObject.id(name)` with default matching against `shortDesc`
+  - [x] 6.4 Implement `MudObject.addAction()` / `removeAction()` for command binding
+  - [x] 6.5 Create `mudlib/std/room.ts` - `Room` class extending `MudObject`
+  - [x] 6.6 Implement `Room.addExit(direction, destination)` and `Room.getExit(direction)`
+  - [x] 6.7 Implement `Room.broadcast(message, options)` to send to all contents
+  - [x] 6.8 Implement `Room.onEnter(obj)` / `Room.onLeave(obj)` hooks
+  - [x] 6.9 Create `mudlib/std/item.ts` - `Item` class extending `MudObject`
+  - [x] 6.10 Implement `Item.weight`, `Item.value` properties
+  - [x] 6.11 Implement `Item.onTake(taker)` / `Item.onDrop(dropper)` hooks
+  - [x] 6.12 Create `mudlib/std/container.ts` - `Container` class extending `Item`
+  - [x] 6.13 Implement `Container.canHold(item)` capacity/weight checks
+  - [x] 6.14 Create `mudlib/std/living.ts` - `Living` class extending `MudObject`
+  - [x] 6.15 Implement `Living.command(input)` - parse and execute command
+  - [x] 6.16 Implement `Living.receive(message)` - receive output
+  - [x] 6.17 Implement `Living.say(message)` / `Living.emote(action)` communication
+  - [x] 6.18 Implement `Living.moveTo(room)` with enter/leave hooks
+  - [x] 6.19 Create `mudlib/std/player.ts` - `Player` class extending `Living`
+  - [x] 6.20 Implement `Player` connection binding (link to WebSocket connection)
+  - [x] 6.21 Implement `Player.save()` / `Player.restore()` for persistence
+  - [x] 6.22 Create `mudlib/std/npc.ts` - `NPC` class extending `Living`
+  - [x] 6.23 Create `mudlib/std/weapon.ts` - `Weapon` class extending `Item`
+  - [x] 6.24 Implement `Weapon.damage`, `Weapon.damageType`, `Weapon.onWield()`, `Weapon.onUnwield()`
+  - [x] 6.25 Create `mudlib/std/armor.ts` - `Armor` class extending `Item`
+  - [x] 6.26 Create `mudlib/master.ts` - Master object with all required hooks
+  - [x] 6.27 Implement `master.onPlayerConnect()` returning login daemon path
+  - [x] 6.28 Implement `master.validRead()` / `master.validWrite()` permission hooks
+  - [x] 6.29 Implement `master.onRuntimeError()` for error logging
+  - [x] 6.30 Create `mudlib/simul_efun.ts` - mudlib-provided efun extensions
+  - [x] 6.31 Create `mudlib/daemons/login.ts` - Login daemon for new connections
+  - [x] 6.32 Create `mudlib/areas/void/void.ts` - Starting room (the Void)
+  - [x] 6.33 Write unit tests for `MudObject` base class
+  - [x] 6.34 Write unit tests for `Room` (exits, broadcast, enter/leave)
+  - [x] 6.35 Write unit tests for `Living` (command parsing, movement)
+  - [x] 6.36 Write unit tests for `Item` and `Container`
+  - [x] 6.37 Commit: "feat: Create standard mudlib library (FR-5, FR-10, FR-32, FR-33)"
 
 ---
 
