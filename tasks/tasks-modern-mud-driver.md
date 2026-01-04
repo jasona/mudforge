@@ -341,22 +341,22 @@ Update the file after completing each sub-task, not just after completing an ent
 
 ### Phase 10: In-Game Code Editor (traces to: FR-34 through FR-37)
 
-- [ ] **10.0 Build in-game code editor**
-  - [ ] 10.1 Create `src/client/editor.ts` - code editor component
-  - [ ] 10.2 Integrate CodeMirror or Monaco (lightweight) for syntax highlighting
-  - [ ] 10.3 Configure editor for TypeScript syntax highlighting
-  - [ ] 10.4 Implement editor open/close via builder command: `edit <object-path>`
-  - [ ] 10.5 Implement file loading: fetch object source via WebSocket request
-  - [ ] 10.6 Implement file saving: send updated source via WebSocket
-  - [ ] 10.7 Implement server-side compile on save with error response
-  - [ ] 10.8 Display TypeScript errors inline in editor (line numbers, messages)
-  - [ ] 10.9 Implement hot-reload trigger after successful save
-  - [ ] 10.10 Implement permission check before allowing edit (must be Builder+)
-  - [ ] 10.11 Implement domain check: builders can only edit files in their domain
-  - [ ] 10.12 Add basic autocomplete for common mudlib APIs (optional/stretch)
-  - [ ] 10.13 Write unit tests for editor WebSocket commands (load, save)
-  - [ ] 10.14 Write integration test: builder edits object, sees it update in game
-  - [ ] 10.15 Commit: "feat: Implement in-game code editor (FR-34 to FR-37)"
+- [x] **10.0 Build in-game code editor**
+  - [x] 10.1 Create `src/client/editor.ts` - code editor component
+  - [x] 10.2 Integrate CodeMirror or Monaco (lightweight) for syntax highlighting
+  - [x] 10.3 Configure editor for TypeScript syntax highlighting
+  - [x] 10.4 Implement editor open/close via builder command: `edit <object-path>`
+  - [x] 10.5 Implement file loading: fetch object source via WebSocket request
+  - [x] 10.6 Implement file saving: send updated source via WebSocket
+  - [x] 10.7 Implement server-side compile on save with error response
+  - [x] 10.8 Display TypeScript errors inline in editor (line numbers, messages)
+  - [x] 10.9 Implement hot-reload trigger after successful save
+  - [x] 10.10 Implement permission check before allowing edit (must be Builder+)
+  - [x] 10.11 Implement domain check: builders can only edit files in their domain
+  - [x] 10.12 Add basic autocomplete for common mudlib APIs (optional/stretch)
+  - [x] 10.13 Write unit tests for editor WebSocket commands (load, save)
+  - [x] 10.14 Write integration test: builder edits object, sees it update in game
+  - [x] 10.15 Commit: "feat: Implement in-game code editor (FR-34 to FR-37)"
 
 ---
 

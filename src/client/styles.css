@@ -288,10 +288,166 @@ body {
   }
 }
 
+/* Code Editor */
+.code-editor-wrapper {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-primary);
+  z-index: 1000;
+}
+
+.code-editor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-sm) var(--spacing-md);
+  background-color: var(--bg-secondary);
+  border-bottom: 1px solid var(--accent);
+}
+
+.code-editor-filepath {
+  font-weight: bold;
+  color: var(--accent);
+}
+
+.code-editor-buttons {
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
+.code-editor-buttons button {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  border: 1px solid var(--text-secondary);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.code-editor-save {
+  color: var(--bg-primary);
+  background-color: var(--accent);
+  border-color: var(--accent) !important;
+}
+
+.code-editor-save:hover {
+  background-color: var(--accent-hover);
+}
+
+.code-editor-close {
+  color: var(--text-primary);
+  background-color: transparent;
+}
+
+.code-editor-close:hover {
+  background-color: var(--bg-secondary);
+  border-color: var(--accent) !important;
+}
+
+.code-editor-area {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+.code-editor-lines {
+  width: 50px;
+  padding: var(--spacing-sm) var(--spacing-xs);
+  background-color: var(--bg-secondary);
+  text-align: right;
+  overflow: hidden;
+  user-select: none;
+}
+
+.code-editor-line-number {
+  height: 20px;
+  line-height: 20px;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.code-editor-textarea {
+  flex: 1;
+  padding: var(--spacing-sm);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-base);
+  line-height: 20px;
+  color: var(--text-primary);
+  background-color: var(--bg-terminal);
+  border: none;
+  outline: none;
+  resize: none;
+  white-space: pre;
+  overflow: auto;
+  tab-size: 2;
+}
+
+.code-editor-textarea::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.code-editor-textarea::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+}
+
+.code-editor-textarea::-webkit-scrollbar-thumb {
+  background: var(--accent);
+  border-radius: 4px;
+}
+
+.code-editor-errors {
+  max-height: 150px;
+  padding: var(--spacing-sm);
+  background-color: rgba(255, 68, 68, 0.1);
+  border-top: 1px solid var(--error);
+  overflow-y: auto;
+}
+
+.code-editor-error-title {
+  font-weight: bold;
+  color: var(--error);
+  margin-bottom: var(--spacing-xs);
+}
+
+.code-editor-error-item {
+  padding: var(--spacing-xs) 0;
+  cursor: pointer;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.code-editor-error-item:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.code-editor-error-location {
+  color: var(--warning);
+  margin-right: var(--spacing-sm);
+}
+
+.code-editor-error-message {
+  color: var(--text-primary);
+}
+
+.code-editor-status {
+  padding: var(--spacing-xs) var(--spacing-md);
+  background-color: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  border-top: 1px solid var(--text-secondary);
+}
+
 /* Print styles - hide for printing */
 @media print {
   #header,
-  #input-container {
+  #input-container,
+  .code-editor-wrapper {
     display: none;
   }
 
