@@ -104,7 +104,7 @@ export class Serializer {
   deserialize(state: SerializedState, object: MudObject): void {
     // Restore custom properties
     for (const [key, value] of Object.entries(state.properties)) {
-      const target = object as Record<string, unknown>;
+      const target = object as unknown as Record<string, unknown>;
       target[key] = this.deserializeValue(value);
     }
   }
@@ -141,7 +141,7 @@ export class Serializer {
    */
   private extractProperties(object: MudObject): Record<string, unknown> {
     const properties: Record<string, unknown> = {};
-    const obj = object as Record<string, unknown>;
+    const obj = object as unknown as Record<string, unknown>;
 
     // List of internal properties to skip
     const skip = new Set([

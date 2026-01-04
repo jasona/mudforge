@@ -300,7 +300,7 @@ export class Permissions {
       action,
       target,
       success,
-      details,
+      ...(details !== undefined ? { details } : {}),
     };
 
     this.auditLog.push(entry);

@@ -54,14 +54,14 @@ export class Server extends EventEmitter {
       port: config.port ?? 3000,
       host: config.host ?? '0.0.0.0',
       clientPath: config.clientPath ?? join(process.cwd(), 'dist', 'client'),
-      logger: config.logger,
+      ...(config.logger ? { logger: config.logger } : {}),
     };
 
     this.connectionManager = getConnectionManager();
 
     // Create Fastify instance
     this.fastify = Fastify({
-      logger: this.config.logger || false,
+      logger: this.config.logger ? true : false,
     });
 
     this.setupRoutes();
