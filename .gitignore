@@ -3,6 +3,9 @@ node_modules/
 dist/
 *.tsbuildinfo
 
+# Test fixtures
+test-mudlib*/
+
 # .NET build output
 bin/
 obj/
