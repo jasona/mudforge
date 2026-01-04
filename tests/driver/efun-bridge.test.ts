@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { EfunBridge, resetEfunBridge } from '../../src/driver/efun-bridge.js';
 import { resetRegistry } from '../../src/driver/object-registry.js';
 import { resetScheduler } from '../../src/driver/scheduler.js';

@@ -4,7 +4,6 @@
  * Handles compilation, execution, timeout enforcement, and error capture.
  */
 
-import ivm from 'isolated-vm';
 import { IsolatePool, getIsolatePool, type PooledIsolate } from './isolate-pool.js';
 import { Sandbox, type ExposedFunction } from './sandbox.js';
 

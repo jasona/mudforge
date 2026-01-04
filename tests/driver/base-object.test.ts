@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { BaseMudObject } from '../../src/driver/base-object.js';
-import type { MudObject } from '../../src/driver/types.js';
 
 // Test fixture: Room class
 class TestRoom extends BaseMudObject {

@@ -21,6 +21,7 @@ export default [
         setInterval: 'readonly',
         clearInterval: 'readonly',
         Buffer: 'readonly',
+        NodeJS: 'readonly',
       },
     },
     plugins: {
@@ -34,6 +35,26 @@ export default [
       'no-console': 'off',
       'prefer-const': 'error',
       'no-var': 'error',
+      'no-control-regex': 'off',
+    },
+  },
+  // Browser environment for client files
+  {
+    files: ['src/client/**/*.ts', 'tests/client/**/*.ts'],
+    languageOptions: {
+      globals: {
+        document: 'readonly',
+        window: 'readonly',
+        HTMLElement: 'readonly',
+        HTMLInputElement: 'readonly',
+        HTMLTextAreaElement: 'readonly',
+        HTMLDivElement: 'readonly',
+        HTMLButtonElement: 'readonly',
+        KeyboardEvent: 'readonly',
+        WebSocket: 'readonly',
+        confirm: 'readonly',
+        afterEach: 'readonly',
+      },
     },
   },
   prettier,

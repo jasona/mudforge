@@ -6,9 +6,9 @@
  */
 
 import { watch, type FSWatcher } from 'fs';
-import { Compiler, type CompileResult } from './compiler.js';
+import { Compiler } from './compiler.js';
 import { ObjectRegistry, getRegistry } from './object-registry.js';
-import type { MudObject, BlueprintInfo } from './types.js';
+import type { BlueprintInfo } from './types.js';
 
 export interface HotReloadConfig {
   /** Root directory for mudlib files */

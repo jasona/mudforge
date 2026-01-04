@@ -204,7 +204,7 @@ export class WebSocketClient {
     if (this.socket) {
       try {
         this.socket.close(1000, 'Client disconnect');
-      } catch (error) {
+      } catch {
         // Ignore close errors
       }
       this.socket = null;

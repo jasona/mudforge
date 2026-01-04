@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { Driver, resetDriver, type DriverState } from '../../src/driver/driver.js';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { Driver, resetDriver } from '../../src/driver/driver.js';
 import { mkdir, writeFile, rm } from 'fs/promises';
 import { join } from 'path';
 import { randomUUID } from 'crypto';
@@ -225,7 +225,7 @@ describe('Driver', () => {
         mudlibPath: testMudlibPath,
         masterObject: '/master',
       });
-      const registry1 = driver1.getRegistry();
+      driver1.getRegistry(); // Ensure registry is created
 
       resetDriver();
 

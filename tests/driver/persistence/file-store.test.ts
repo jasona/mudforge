@@ -3,7 +3,6 @@ import { FileStore, getFileStore, resetFileStore } from '../../../src/driver/per
 import { resetSerializer } from '../../../src/driver/persistence/serializer.js';
 import type { MudObject } from '../../../src/driver/types.js';
 import { rm, mkdir } from 'fs/promises';
-import { join } from 'path';
 
 // Test data directory
 const TEST_DATA_PATH = './test-data-persistence';

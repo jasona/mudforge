@@ -191,7 +191,7 @@ export class Permissions {
    * @param player The player (null for driver)
    * @param objectPath The object path
    */
-  canExecute(player: MudObject | null, objectPath: string): boolean {
+  canExecute(player: MudObject | null, _objectPath: string): boolean {
     // Driver always has access
     if (!player) return true;
 

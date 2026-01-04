@@ -7,7 +7,7 @@
 import * as esbuild from 'esbuild';
 import { readFile } from 'fs/promises';
 import { existsSync } from 'fs';
-import { dirname, resolve, join } from 'path';
+import { resolve, join } from 'path';
 
 export interface CompileResult {
   /** Whether compilation succeeded */
