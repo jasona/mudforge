@@ -195,28 +195,28 @@ Update the file after completing each sub-task, not just after completing an ent
 
 ### Phase 5: Driver Core (traces to: FR-22 through FR-24, FR-29)
 
-- [ ] **5.0 Implement driver core (Master, efuns, scheduler)**
-  - [ ] 5.1 Create `Driver` class as main orchestrator of all subsystems
-  - [ ] 5.2 Implement driver startup sequence: load config, init isolates, load Master
-  - [ ] 5.3 Define `Master` interface with all required hooks (see PRD Section 6.4)
-  - [ ] 5.4 Implement driver calling `master.onDriverStart()` on boot
-  - [ ] 5.5 Implement driver calling `master.onPreload()` to get preload list
-  - [ ] 5.6 Create `EfunBridge` class to expose efuns to mudlib isolate
-  - [ ] 5.7 Implement object management efuns: `cloneObject`, `destruct`, `loadObject`, `findObject`
-  - [ ] 5.8 Implement hierarchy efuns: `allInventory`, `environment`, `move`
-  - [ ] 5.9 Implement player efuns: `thisPlayer`, `thisObject`, `allPlayers`, `send`, `input`
-  - [ ] 5.10 Implement file efuns: `readFile`, `writeFile`, `fileExists`, `readDir` (sandboxed paths)
-  - [ ] 5.11 Implement utility efuns: `time`, `random`, `capitalize`, `explode`, `implode`
-  - [ ] 5.12 Create `Scheduler` class for heartbeat and delayed calls
-  - [ ] 5.13 Implement `Scheduler.setHeartbeat(obj, enable)` - register/unregister for heartbeat
-  - [ ] 5.14 Implement `Scheduler.callOut(callback, delay)` - schedule delayed execution
-  - [ ] 5.15 Implement `Scheduler.removeCallOut(id)` - cancel scheduled call
-  - [ ] 5.16 Implement heartbeat loop (configurable interval, default 2 seconds)
-  - [ ] 5.17 Implement driver shutdown sequence: call `master.onShutdown()`, save state, cleanup
-  - [ ] 5.18 Write unit tests for efun bridge (each efun category)
-  - [ ] 5.19 Write unit tests for scheduler (heartbeat, callOut, removeCallOut)
-  - [ ] 5.20 Write integration test for driver startup with mock Master
-  - [ ] 5.21 Commit: "feat: Implement driver core with efuns and scheduler (FR-22 to FR-29)"
+- [x] **5.0 Implement driver core (Master, efuns, scheduler)**
+  - [x] 5.1 Create `Driver` class as main orchestrator of all subsystems
+  - [x] 5.2 Implement driver startup sequence: load config, init isolates, load Master
+  - [x] 5.3 Define `Master` interface with all required hooks (see PRD Section 6.4)
+  - [x] 5.4 Implement driver calling `master.onDriverStart()` on boot
+  - [x] 5.5 Implement driver calling `master.onPreload()` to get preload list
+  - [x] 5.6 Create `EfunBridge` class to expose efuns to mudlib isolate
+  - [x] 5.7 Implement object management efuns: `cloneObject`, `destruct`, `loadObject`, `findObject`
+  - [x] 5.8 Implement hierarchy efuns: `allInventory`, `environment`, `move`
+  - [x] 5.9 Implement player efuns: `thisPlayer`, `thisObject`, `allPlayers`, `send`, `input`
+  - [x] 5.10 Implement file efuns: `readFile`, `writeFile`, `fileExists`, `readDir` (sandboxed paths)
+  - [x] 5.11 Implement utility efuns: `time`, `random`, `capitalize`, `explode`, `implode`
+  - [x] 5.12 Create `Scheduler` class for heartbeat and delayed calls
+  - [x] 5.13 Implement `Scheduler.setHeartbeat(obj, enable)` - register/unregister for heartbeat
+  - [x] 5.14 Implement `Scheduler.callOut(callback, delay)` - schedule delayed execution
+  - [x] 5.15 Implement `Scheduler.removeCallOut(id)` - cancel scheduled call
+  - [x] 5.16 Implement heartbeat loop (configurable interval, default 2 seconds)
+  - [x] 5.17 Implement driver shutdown sequence: call `master.onShutdown()`, save state, cleanup
+  - [x] 5.18 Write unit tests for efun bridge (each efun category)
+  - [x] 5.19 Write unit tests for scheduler (heartbeat, callOut, removeCallOut)
+  - [x] 5.20 Write integration test for driver startup with mock Master
+  - [x] 5.21 Commit: "feat: Implement driver core with efuns and scheduler (FR-22 to FR-29)"
 
 ---
 
