@@ -133,23 +133,23 @@ Update the file after completing each sub-task, not just after completing an ent
 
 ### Phase 2: Core Object System (traces to: FR-1 through FR-10)
 
-- [ ] **2.0 Implement core object system and registry**
-  - [ ] 2.1 Define `MudObject` interface with identity properties: `objectPath`, `objectId`, `isClone`, `blueprint`
-  - [ ] 2.2 Define `MudObject` interface with lifecycle hooks: `onCreate`, `onDestroy`, `onClone`, `onReset`
-  - [ ] 2.3 Define `MudObject` interface with hierarchy: `environment`, `inventory`, `moveTo()`
-  - [ ] 2.4 Define `MudObject` interface with interaction: `id()`, `shortDesc`, `longDesc`
-  - [ ] 2.5 Define `MudObject` interface with actions: `addAction()`, `removeAction()`
-  - [ ] 2.6 Create `ObjectRegistry` class to store all object instances by path/ID
-  - [ ] 2.7 Implement `ObjectRegistry.register(object)` - add object to registry
-  - [ ] 2.8 Implement `ObjectRegistry.find(pathOrId)` - lookup object by path or ID
-  - [ ] 2.9 Implement `ObjectRegistry.clone(blueprintPath)` - create clone with unique ID (e.g., `/std/sword#47`)
-  - [ ] 2.10 Implement `ObjectRegistry.destroy(object)` - remove from registry, call `onDestroy()`
-  - [ ] 2.11 Implement clone counter per blueprint for generating unique clone IDs
-  - [ ] 2.12 Implement `moveTo()` logic: remove from old environment, add to new, update references
-  - [ ] 2.13 Write unit tests for `MudObject` interface compliance
-  - [ ] 2.14 Write unit tests for `ObjectRegistry` (register, find, clone, destroy)
-  - [ ] 2.15 Write unit tests for object movement between environments
-  - [ ] 2.16 Commit: "feat: Implement core object system and registry (FR-1 to FR-10)"
+- [x] **2.0 Implement core object system and registry**
+  - [x] 2.1 Define `MudObject` interface with identity properties: `objectPath`, `objectId`, `isClone`, `blueprint`
+  - [x] 2.2 Define `MudObject` interface with lifecycle hooks: `onCreate`, `onDestroy`, `onClone`, `onReset`
+  - [x] 2.3 Define `MudObject` interface with hierarchy: `environment`, `inventory`, `moveTo()`
+  - [x] 2.4 Define `MudObject` interface with interaction: `id()`, `shortDesc`, `longDesc`
+  - [x] 2.5 Define `MudObject` interface with actions: `addAction()`, `removeAction()`
+  - [x] 2.6 Create `ObjectRegistry` class to store all object instances by path/ID
+  - [x] 2.7 Implement `ObjectRegistry.register(object)` - add object to registry
+  - [x] 2.8 Implement `ObjectRegistry.find(pathOrId)` - lookup object by path or ID
+  - [x] 2.9 Implement `ObjectRegistry.clone(blueprintPath)` - create clone with unique ID (e.g., `/std/sword#47`)
+  - [x] 2.10 Implement `ObjectRegistry.destroy(object)` - remove from registry, call `onDestroy()`
+  - [x] 2.11 Implement clone counter per blueprint for generating unique clone IDs
+  - [x] 2.12 Implement `moveTo()` logic: remove from old environment, add to new, update references
+  - [x] 2.13 Write unit tests for `MudObject` interface compliance
+  - [x] 2.14 Write unit tests for `ObjectRegistry` (register, find, clone, destroy)
+  - [x] 2.15 Write unit tests for object movement between environments
+  - [x] 2.16 Commit: "feat: Implement core object system and registry (FR-1 to FR-10)"
 
 ---
 
