@@ -382,7 +382,7 @@ Update the file after completing each sub-task, not just after completing an ent
 
 ### Phase 12: Testing and Documentation (traces to: TASKS-4, CODE-6)
 
-- [ ] **12.0 Write tests and documentation**
+- [x] **12.0 Write tests and documentation**
   - [x] 12.1 Review and fill gaps in unit test coverage (target: 80%+ on driver code) - Coverage at 80.31%
   - [x] 12.2 Write integration test: full player flow (connect → login → move → quit)
   - [x] 12.3 Write integration test: builder creates room via in-game editor
@@ -396,8 +396,8 @@ Update the file after completing each sub-task, not just after completing an ent
   - [x] 12.11 Create `docs/permissions.md` explaining the permission system
   - [x] 12.12 Add JSDoc comments to all public APIs in driver code - Already comprehensive
   - [x] 12.13 Run full test suite and fix any failures - 496 tests passing
-  - [ ] 12.14 Run linter and fix any issues
-  - [ ] 12.15 Commit: "docs: Add comprehensive documentation and tests"
+  - [x] 12.14 Run linter and fix any issues - 0 errors
+  - [x] 12.15 Commit: "test: Add comprehensive integration tests"
 
 ---
 
