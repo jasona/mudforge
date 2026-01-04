@@ -1,288 +1,198 @@
-# AI Tools
+# MudForge
 
-A collection of AI prompt templates for structured software development, content creation, and design workflows. These prompts guide AI assistants through a systematic **Research → Create → Generate → Execute** process.
+A modern MUD (Multi-User Dungeon) driver inspired by LDMud, built with Node.js and TypeScript.
 
 ## Overview
 
-This toolkit helps you break down complex projects into manageable pieces by:
+MudForge brings the architectural elegance of classic LPMud drivers into the modern era. It replaces the traditional LPC scripting language with TypeScript, enables real-time in-game scripting without server restarts, and provides browser-based connectivity via WebSocket.
 
-1. **Researching** the landscape (codebase, best practices, constraints) before writing requirements
-2. **Creating** detailed requirement documents (PRD, CRD, or DRD) informed by research
-3. **Generating** actionable task lists from those requirements
-4. **Executing** tasks one-by-one with built-in checkpoints
+### Key Features
 
-All outputs are saved to a `/tasks` directory for tracking and reference.
+- **TypeScript Scripting** - Write game content in TypeScript with full IDE support, type safety, and modern syntax
+- **Runtime Hot-Reload** - Create and modify objects while the game is running without server restarts
+- **Web-Based Client** - Players connect through modern web browsers (no telnet required)
+- **V8 Isolate Sandboxing** - Scripts run in isolated V8 contexts via `isolated-vm` for security and stability
+- **LDMud-Inspired Architecture** - Everything is an object with consistent inheritance hierarchy
+- **Tiered Permission System** - Player, Builder, Senior Builder, and Administrator roles
+- **File-Based Persistence** - Human-readable TypeScript/JSON files that work with version control
 
-## Workflow
+## Design Philosophy
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        RESEARCH PHASE                           │
-│  Gather context before writing requirements:                    │
-│  • Internal: codebase, existing docs, patterns, constraints     │
-│  • External: best practices, reference implementations          │
-│  • Output: Research Summary Document (RSD)                      │
-└─────────────────────────────────────────────────────────────────┘
-                              ↓
-┌─────────────────────────────────────────────────────────────────┐
-│                         CREATE PHASE                            │
-│  Choose the appropriate requirements document:                  │
-│  • PRD (Product) - Features & functionality                     │
-│  • CRD (Content) - Copy, messaging, articles                    │
-│  • DRD (Design)  - UI, visuals, components                      │
-└─────────────────────────────────────────────────────────────────┘
-                              ↓
-┌─────────────────────────────────────────────────────────────────┐
-│                        GENERATE PHASE                           │
-│  Convert requirements into a structured task list               │
-│  • Parent tasks with sub-tasks                                  │
-│  • Relevant files identified                                    │
-│  • Checkboxes for progress tracking                             │
-└─────────────────────────────────────────────────────────────────┘
-                              ↓
-┌─────────────────────────────────────────────────────────────────┐
-│                        EXECUTE PHASE                            │
-│  Work through tasks systematically                              │
-│  • One sub-task at a time                                       │
-│  • User approval between steps                                  │
-│  • Auto-commit on parent task completion                        │
-└─────────────────────────────────────────────────────────────────┘
-```
+Following LDMud's proven architecture, MudForge embraces the principle that **everything is an object**:
 
-## Prompt Files
+- **Consistency** - All objects respond to the same base protocols
+- **Flexibility** - Any object can be extended, cloned, or replaced at runtime
+- **Discoverability** - Builders learn one object model that applies everywhere
+- **Hot-reloading** - Objects can be updated without restarting the driver
 
-| File | Purpose | Output |
-|------|---------|--------|
-| `research.md` | Research Summary Document | `tasks/rsd-[project-name]-[version].md` |
-| `create-prd.md` | Product Requirements Document | `tasks/prd-[feature-name]-[version].md` |
-| `create-crd.md` | Content Requirements Document | `tasks/crd-[content-name]-[version].md` |
-| `create-drd.md` | Design Requirements Document | `tasks/drd-[design-name]-[version].md` |
-| `generate-tasks.md` | Task list generation | `tasks/tasks-[feature-name].md` |
-| `execute-tasks.md` | Task execution guidelines | Updates the task list in place |
-
-## Usage
-
-### Step 0: Research (Recommended First Step)
-
-Before writing requirements, use `research.md` to gather context about your project. This ensures your requirements are grounded in reality—existing patterns, technical constraints, and best practices.
-
-**Example:**
-
-NOTE: Most AI tools allow you to directly reference your file with the "@" preface. But, if not, you can paste in the contents as stated below.
+## Architecture
 
 ```
-[Paste contents of research.md]
-
-I want to add a user authentication system with email/password login and OAuth support.
++-----------------------------------------------------------------+
+|                        Web Browser                              |
+|  +-----------------------------------------------------------+  |
+|  |                 Web Client (Terminal UI)                  |  |
+|  +-----------------------------------------------------------+  |
++-----------------------------------------------------------------+
+                              | WebSocket
+                              v
++-----------------------------------------------------------------+
+|                     MUD Driver (Node.js)                        |
+|  +-------------+  +-------------+  +-------------+              |
+|  | Connection  |  |   Object    |  |  Scheduler  |              |
+|  |  Manager    |  |  Registry   |  | (heartbeat) |              |
+|  +-------------+  +-------------+  +-------------+              |
+|  +-----------------------------------------------------------+  |
+|  |           V8 Isolate Pool (isolated-vm)                   |  |
+|  |  +-----------------------------------------------------+  |  |
+|  |  |              Mudlib Execution Context               |  |  |
+|  |  |  +---------+  +-------------+  +---------------+   |  |  |
+|  |  |  | Master  |  | Sim Efuns   |  | Object Pool   |   |  |  |
+|  |  |  +---------+  +-------------+  +---------------+   |  |  |
+|  |  +-----------------------------------------------------+  |  |
+|  +-----------------------------------------------------------+  |
++-----------------------------------------------------------------+
+                              |
+                              v
++-----------------------------------------------------------------+
+|                      File System (Mudlib)                       |
+|  /mudlib/                                                       |
+|  +-- master.ts              # Master object                     |
+|  +-- std/                   # Standard library                  |
+|  |   +-- room.ts, living.ts, player.ts, item.ts, ...           |
+|  +-- areas/                 # Game world content                |
+|  +-- data/                  # Persistent state (JSON)           |
++-----------------------------------------------------------------+
 ```
 
-The AI will:
-1. Ask 4-7 clarifying questions about research scope, depth, and focus
-2. Analyze internal codebase for existing patterns, constraints, and reusable components
-3. Research external best practices, reference implementations, and standards
-4. Generate a Research Summary Document (RSD)
-5. Save it to `/tasks/rsd-user-auth-v1.md`
-
-The RSD includes:
-- Existing context and assets in your codebase
-- Best practices and reference implementations
-- Constraints, risks, and dependencies
-- Recommendations for which requirements doc to create next
-
-### Step 1: Create a Requirements Document
-
-Copy the contents of the appropriate `create-*.md` file into your AI assistant, then describe what you want to build. Reference your RSD if you completed the research phase.
-
-**Example - Creating a PRD:**
+## Object Hierarchy
 
 ```
-[Paste contents of create-prd.md]
-
-Based on the research in tasks/rsd-user-auth-v1.md, I want to add a user authentication system with email/password login and OAuth support.
+MudObject                          # Root of all objects
++-- Master                         # World bootstrap, global hooks
++-- Room                           # Locations
++-- Item                           # Carryable objects
+|   +-- Weapon, Armor, Container
++-- Living                         # Entities that can act
+|   +-- Player                     # Human players
+|   +-- NPC                        # Non-player characters
++-- Daemon                         # Background services
 ```
 
-The AI will:
-1. Ask 3-5 clarifying questions with multiple-choice options
-2. Generate a detailed requirements document
-3. Save it to `/tasks/prd-user-auth-v1.md`
+## Technology Stack
 
-**Example - Creating a CRD:**
+| Component | Technology |
+|-----------|------------|
+| Runtime | Node.js 22+ LTS |
+| Language | TypeScript 5.x |
+| Script Isolation | isolated-vm (V8 isolates) |
+| WebSocket | ws |
+| Web Server | Fastify |
+| Compilation | esbuild |
+| Testing | Vitest |
 
-```
-[Paste contents of create-crd.md]
+## Quick Start
 
-I need onboarding email copy for new users who sign up for our SaaS product.
-```
+```bash
+# Install dependencies
+npm install
 
-**Example - Creating a DRD:**
+# Run in development mode
+npm run dev
 
-```
-[Paste contents of create-drd.md]
+# Run tests
+npm test
 
-Design a settings page with toggles for notifications, theme preferences, and account management.
-```
+# Build for production
+npm run build
 
-### Step 2: Generate Tasks
-
-Once you have a requirements document, use `generate-tasks.md` to create an actionable task list.
-
-**Example:**
-
-```
-[Paste contents of generate-tasks.md]
-
-Generate tasks based on: tasks/prd-user-auth-v1.md
+# Start production server
+npm start
 ```
 
-The AI will:
-1. Analyze the requirements document
-2. Generate high-level parent tasks (including "Create feature branch")
-3. Wait for your approval ("Go")
-4. Break down each parent into detailed sub-tasks
-5. Identify relevant files to create/modify
-6. Save to `/tasks/tasks-user-auth.md`
-
-**Sample output structure:**
-
-```markdown
-## Tasks
-
-- [ ] 0.0 Create feature branch
-  - [ ] 0.1 Create and checkout `feature/user-auth`
-- [ ] 1.0 Set up authentication database schema
-  - [ ] 1.1 Create users table migration
-  - [ ] 1.2 Add email and password_hash columns
-  - [ ] 1.3 Create sessions table migration
-- [ ] 2.0 Implement email/password authentication
-  - [ ] 2.1 Create signup endpoint
-  - [ ] 2.2 Create login endpoint
-  - [ ] 2.3 Add password hashing utility
-...
-```
-
-### Step 3: Execute Tasks
-
-Use `execute-tasks.md` to work through the task list systematically.
-
-**Example:**
+## Project Structure
 
 ```
-[Paste contents of execute-tasks.md]
+src/
++-- driver/           # Core driver implementation
+|   +-- object-registry.ts
+|   +-- scheduler.ts
+|   +-- efun-bridge.ts
+|   +-- ...
++-- isolation/        # V8 isolate sandboxing
++-- network/          # WebSocket server
++-- client/           # Web client UI
 
-Execute the tasks in: tasks/tasks-user-auth.md
+mudlib/
++-- master.ts         # Master object
++-- std/              # Standard library
++-- daemons/          # Background services
++-- areas/            # Game world
++-- data/             # Persistent state
+
+tests/
 ```
 
-The AI will:
-1. Read the task list and find the next uncompleted sub-task
-2. Implement that sub-task
-3. Mark it complete (`[x]`)
-4. **Stop and wait for your approval** before continuing
-5. Commit and push when a parent task is fully complete
+## User Roles
 
-**Interaction flow:**
+| Role | Capabilities |
+|------|-------------|
+| **Player** | Connect, play the game |
+| **Builder** | Create/modify objects in assigned domains |
+| **Senior Builder** | Cross-domain building, advanced APIs |
+| **Administrator** | Full access, permission management |
 
-```
-AI: I've completed sub-task 1.1 (Create users table migration).
-    Ready for the next sub-task?
+## Example: Creating a Room
 
-You: y
+```typescript
+// /mudlib/areas/town/tavern.ts
+import { Room } from '../../std/room';
+import { efun } from '../../driver/efuns';
 
-AI: Working on sub-task 1.2 (Add email and password_hash columns)...
-```
+export class Tavern extends Room {
+  override shortDesc = 'The Rusty Tankard';
 
-## Corporate Standards (Team Scaling)
+  override get longDesc(): string {
+    return `You stand in a cozy tavern. A fire crackles in the hearth,
+and the smell of roasting meat fills the air.`;
+  }
 
-The `/standards/` directory contains organizational standards that ensure consistency across team members. When rolling this out to a team:
+  override onCreate(): void {
+    super.onCreate();
+    this.addExit('south', '/areas/town/market');
+    this.addAction('order', this.handleOrder.bind(this));
+  }
 
-### Standards Structure
-
-```
-standards/
-├── standards-manifest.yml    # Central config + version
-├── README.md                 # How to use standards
-├── global/                   # Apply to ALL phases
-│   ├── principles.md         # Core values
-│   ├── security-privacy.md   # Security rules
-│   ├── accessibility.md      # A11y requirements
-│   └── terminology.md        # Approved terms
-├── domains/                  # Domain-specific
-│   ├── code-architecture.md  # Code standards
-│   ├── content-voice.md      # Voice/tone
-│   └── design-ui.md          # Design system
-├── phases/                   # Phase-specific
-│   └── [phase].md            # Per-phase rules
-└── teams/                    # Team overlays
-    └── [team].md             # Team-specific
+  private handleOrder(player: Player, args: string): boolean {
+    player.receive('The bartender pours you a frothy ale.');
+    return true;
+  }
+}
 ```
 
-### How Standards Work
+## Deployment
 
-1. **Each prompt file references applicable standards** from `/standards/`
-2. **AI outputs include compliance info** (version, applied rules, deviations)
-3. **Teams customize** by editing standard files or adding team overlays
-4. **Version control** tracks changes centrally
+### Docker
 
-### Getting Started with Standards
-
-1. **Review and customize** `/standards/global/` for your organization
-2. **Update domain standards** in `/standards/domains/` for your tech stack and brand
-3. **Distribute** the entire repo to your team
-4. **Update centrally** and pull changes to keep everyone aligned
-
-See `/standards/README.md` for detailed setup instructions.
-
-## Quick Reference
-
-| What you want to do | Use this file |
-|---------------------|---------------|
-| Research before requirements | `research.md` |
-| Plan a new feature | `create-prd.md` |
-| Plan content/copy | `create-crd.md` |
-| Plan a design | `create-drd.md` |
-| Break requirements into tasks | `generate-tasks.md` |
-| Execute tasks step-by-step | `execute-tasks.md` |
-| Customize team standards | `/standards/` directory |
-
-## Directory Structure
-
-```
-ai-tools/
-├── README.md
-├── research.md          # Research summary template (Step 0)
-├── create-prd.md        # Product requirements template
-├── create-crd.md        # Content requirements template
-├── create-drd.md        # Design requirements template
-├── generate-tasks.md    # Task generation rules
-├── execute-tasks.md     # Task execution rules
-├── standards/           # Corporate standards (for teams)
-│   ├── standards-manifest.yml
-│   ├── README.md
-│   ├── global/          # Global standards
-│   ├── domains/         # Domain-specific standards
-│   ├── phases/          # Phase-specific standards
-│   └── teams/           # Team overlays
-└── tasks/               # Output directory (created automatically)
-    ├── rsd-*.md         # Research summary docs
-    ├── prd-*.md         # Product requirement docs
-    ├── crd-*.md         # Content requirement docs
-    ├── drd-*.md         # Design requirement docs
-    └── tasks-*.md       # Generated task lists
+```bash
+docker build -t mudforge .
+docker run -p 3000:3000 mudforge
 ```
 
-## Tips
+### PM2
 
-- **Start with research**: The Research phase surfaces constraints and patterns early, leading to better requirements
-- **Customize your standards**: Edit `/standards/` files to match your organization's conventions before team rollout
-- **Version your documents**: All docs are versioned (`-v1`, `-v2`) so you can iterate without losing history
-- **Don't skip the clarifying questions**: They help produce more accurate research and requirements
-- **Review parent tasks before proceeding**: Say "Go" only when the high-level plan looks right
-- **Take your time during execution**: The pause-and-approve pattern prevents runaway changes
-- **Keep the task file updated**: It serves as documentation of what was done
-- **Document deviations**: When you must deviate from standards, document why in your PR
+```bash
+pm2 start ecosystem.config.js
+```
 
-## Credits
+## Status
 
-Huge credits to Ryan Carson (ryancarson.com) who did most of this foundational work, and his demo on the "How I AI" podcast for lighting me on fire for this stuff.
+This project is under active development. See [tasks/tasks-modern-mud-driver.md](tasks/tasks-modern-mud-driver.md) for the implementation roadmap.
+
+## Inspiration
+
+MudForge draws inspiration from:
+- [LDMud](https://github.com/ldmud/ldmud) - The classic LPMud driver
 
 ## License
 
