@@ -1,0 +1,43 @@
+# MudForge Production Docker Compose
+version: '3.8'
+
+services:
+  mudforge:
+    image: mudforge:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "80:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - LOG_LEVEL=info
+      - MUDLIB_PATH=/app/mudlib
+    volumes:
+      # Persist player data and world state
+      - mudforge-data:/app/mudlib/data
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 30s
+
+volumes:
+  mudforge-data:
+    driver: local

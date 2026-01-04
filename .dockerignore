@@ -1,0 +1,47 @@
+# Node modules
+node_modules/
+
+# Build output (we build inside Docker)
+dist/
+
+# Development files
+.git/
+.gitignore
+.env
+.env.*
+!.env.example
+
+# IDE/Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Test files and data
+tests/
+test-mudlib*/
+test-data*/
+coverage/
+
+# Documentation (not needed at runtime)
+docs/
+*.md
+!README.md
+
+# Docker files (don't include in context)
+docker-compose*.yml
+Dockerfile
+
+# Logs
+logs/
+*.log
+
+# TypeScript build info
+*.tsbuildinfo
+
+# PM2 files
+ecosystem.config.js

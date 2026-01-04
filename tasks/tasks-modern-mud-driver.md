@@ -362,21 +362,21 @@ Update the file after completing each sub-task, not just after completing an ent
 
 ### Phase 11: Deployment Configuration (traces to: FR-70 through FR-75)
 
-- [ ] **11.0 Create deployment configuration**
-  - [ ] 11.1 Create `Dockerfile` with Node.js LTS base image
-  - [ ] 11.2 Configure Dockerfile to install dependencies and build
-  - [ ] 11.3 Configure Dockerfile to copy mudlib and run driver
-  - [ ] 11.4 Create `docker-compose.yml` for local development
-  - [ ] 11.5 Create `docker-compose.prod.yml` with production settings
-  - [ ] 11.6 Create `ecosystem.config.js` for PM2 process management
-  - [ ] 11.7 Configure PM2 for cluster mode (optional), auto-restart, log rotation
-  - [ ] 11.8 Add health check endpoint: `GET /health` returning `{ status: "ok", uptime, players }`
-  - [ ] 11.9 Add readiness check endpoint: `GET /ready` (for Kubernetes)
-  - [ ] 11.10 Document environment variables in `.env.example`
-  - [ ] 11.11 Create `scripts/start.sh` for production startup
-  - [ ] 11.12 Test Docker build and run
-  - [ ] 11.13 Test PM2 deployment locally
-  - [ ] 11.14 Commit: "feat: Add deployment configuration (FR-70 to FR-75)"
+- [x] **11.0 Create deployment configuration**
+  - [x] 11.1 Create `Dockerfile` with Node.js LTS base image
+  - [x] 11.2 Configure Dockerfile to install dependencies and build
+  - [x] 11.3 Configure Dockerfile to copy mudlib and run driver
+  - [x] 11.4 Create `docker-compose.yml` for local development
+  - [x] 11.5 Create `docker-compose.prod.yml` with production settings
+  - [x] 11.6 Create `ecosystem.config.js` for PM2 process management
+  - [x] 11.7 Configure PM2 for cluster mode (optional), auto-restart, log rotation
+  - [x] 11.8 Add health check endpoint: `GET /health` returning `{ status: "ok", uptime, players }`
+  - [x] 11.9 Add readiness check endpoint: `GET /ready` (for Kubernetes)
+  - [x] 11.10 Document environment variables in `.env.example`
+  - [x] 11.11 Create `scripts/start.sh` for production startup
+  - [x] 11.12 Test Docker build and run
+  - [x] 11.13 Test PM2 deployment locally
+  - [x] 11.14 Commit: "feat: Add deployment configuration (FR-70 to FR-75)"
 
 ---
 
