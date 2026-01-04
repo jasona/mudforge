@@ -91,23 +91,83 @@ MudObject                          # Root of all objects
 | Compilation | esbuild |
 | Testing | Vitest |
 
-## Quick Start
+## Getting Started
+
+### Prerequisites
+
+- **Node.js 20+** (LTS recommended)
+- **npm** (comes with Node.js)
+
+### Installation
 
 ```bash
+# Clone the repository
+git clone https://github.com/jasona/mudforge.git
+cd mudforge
+
 # Install dependencies
 npm install
 
-# Run in development mode
+# Copy environment configuration (optional - defaults work fine)
+cp .env.example .env
+```
+
+### Starting the Server
+
+```bash
+# Development mode (with hot-reload and auto-restart)
 npm run dev
 
-# Run tests
-npm test
-
-# Build for production
+# Or for production
 npm run build
-
-# Start production server
 npm start
+```
+
+You should see output like:
+```
+[INFO] MudForge Driver starting...
+[INFO] Loading mudlib from ./mudlib
+[INFO] WebSocket server listening on http://localhost:3000
+```
+
+### Connecting to the Game
+
+1. **Open your web browser** and go to:
+   ```
+   http://localhost:3000
+   ```
+
+2. **The web client loads automatically** - you'll see a terminal-style interface
+
+3. **Create a new character** or log in:
+   - Enter a character name when prompted
+   - If the name is new, you'll be guided through character creation
+   - If returning, enter your password
+
+That's it! You're now connected to the MUD.
+
+### Default Configuration
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| Port | `3000` | HTTP/WebSocket server port |
+| Host | `0.0.0.0` | Bind address (all interfaces) |
+| Mudlib Path | `./mudlib` | Game content directory |
+
+To change these, edit `.env` or set environment variables:
+```bash
+PORT=8080 npm run dev
+```
+
+### Development Commands
+
+```bash
+npm run dev        # Start with hot-reload (recommended for development)
+npm run build      # Compile TypeScript to JavaScript
+npm start          # Run compiled production build
+npm test           # Run test suite (496 tests)
+npm run lint       # Check code style
+npm run typecheck  # TypeScript type checking
 ```
 
 ## Project Structure

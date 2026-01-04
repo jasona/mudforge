@@ -19,7 +19,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/jasona/DWMud.git"
+    "url": "git+https://github.com/jasona/mudforge.git"
   },
   "keywords": [
     "mud",
@@ -32,9 +32,9 @@
   "author": "",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/jasona/DWMud/issues"
+    "url": "https://github.com/jasona/mudforge/issues"
   },
-  "homepage": "https://github.com/jasona/DWMud#readme",
+  "homepage": "https://github.com/jasona/mudforge#readme",
   "engines": {
     "node": ">=20.0.0"
   },
