@@ -175,21 +175,21 @@ Update the file after completing each sub-task, not just after completing an ent
 
 ### Phase 4: TypeScript Compilation (traces to: FR-21, FR-25, FR-38)
 
-- [ ] **4.0 Build TypeScript compilation and hot-reload pipeline**
-  - [ ] 4.1 Create `Compiler` class wrapping esbuild for TypeScript-to-JavaScript transpilation
-  - [ ] 4.2 Implement `Compiler.compile(filePath)` - compile single `.ts` file to JS string
-  - [ ] 4.3 Implement `Compiler.compileBundle(entryPath)` - bundle with dependencies
-  - [ ] 4.4 Implement source map support for better error messages
-  - [ ] 4.5 Implement syntax error capture with line/column information
-  - [ ] 4.6 Create `HotReload` class to manage object definition updates
-  - [ ] 4.7 Implement file watcher for mudlib directory (optional, for dev mode)
-  - [ ] 4.8 Implement `HotReload.update(objectPath)` - recompile and update blueprint
-  - [ ] 4.9 Implement state preservation: existing clones get new methods but keep state
-  - [ ] 4.10 Implement dependency tracking: know which files import which
-  - [ ] 4.11 Write unit tests for single file compilation
-  - [ ] 4.12 Write unit tests for compilation error handling
-  - [ ] 4.13 Write unit tests for hot-reload with state preservation
-  - [ ] 4.14 Commit: "feat: Implement TypeScript compilation and hot-reload (FR-21, FR-25, FR-38)"
+- [x] **4.0 Build TypeScript compilation and hot-reload pipeline**
+  - [x] 4.1 Create `Compiler` class wrapping esbuild for TypeScript-to-JavaScript transpilation
+  - [x] 4.2 Implement `Compiler.compile(filePath)` - compile single `.ts` file to JS string
+  - [x] 4.3 Implement `Compiler.compileBundle(entryPath)` - bundle with dependencies
+  - [x] 4.4 Implement source map support for better error messages
+  - [x] 4.5 Implement syntax error capture with line/column information
+  - [x] 4.6 Create `HotReload` class to manage object definition updates
+  - [x] 4.7 Implement file watcher for mudlib directory (optional, for dev mode)
+  - [x] 4.8 Implement `HotReload.update(objectPath)` - recompile and update blueprint
+  - [x] 4.9 Implement state preservation: existing clones get new methods but keep state
+  - [x] 4.10 Implement dependency tracking: know which files import which
+  - [x] 4.11 Write unit tests for single file compilation
+  - [x] 4.12 Write unit tests for compilation error handling
+  - [x] 4.13 Write unit tests for hot-reload with state preservation
+  - [x] 4.14 Commit: "feat: Implement TypeScript compilation and hot-reload (FR-21, FR-25, FR-38)"
 
 ---
 
