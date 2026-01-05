@@ -9,14 +9,14 @@
       "email": "jason.alexander@gmail.com",
       "permissionLevel": 3
     },
-    "timestamp": 1767588318389,
+    "timestamp": 1767588720696,
     "environment": {
       "__type": "object_ref",
       "path": "/areas/town/center",
       "isClone": false
     }
   },
-  "savedAt": 1767588318389,
+  "savedAt": 1767588720696,
   "title": "",
   "gender": "neutral",
   "level": 1,
@@ -41,7 +41,7 @@
     "permissionLevel": 3
   },
   "createdAt": 1767588015729,
-  "lastLogin": 1767588318,
+  "lastLogin": 1767588720,
   "playTime": 151,
   "monitorEnabled": true
 }

@@ -49,6 +49,16 @@ type ExecuteCommandCallback = (player: MudObject, input: string, level: number) 
  */
 type AllPlayersCallback = () => MudObject[];
 
+/**
+ * Callback to find a connected player by name (set by Driver).
+ */
+type FindConnectedPlayerCallback = (name: string) => MudObject | undefined;
+
+/**
+ * Callback to transfer a connection to an existing player (set by Driver).
+ */
+type TransferConnectionCallback = (connection: unknown, player: MudObject) => void;
+
 export class EfunBridge {
   private config: EfunBridgeConfig;
   private registry: ObjectRegistry;
@@ -58,6 +68,8 @@ export class EfunBridge {
   private bindPlayerCallback: BindPlayerCallback | null = null;
   private executeCommandCallback: ExecuteCommandCallback | null = null;
   private allPlayersCallback: AllPlayersCallback | null = null;
+  private findConnectedPlayerCallback: FindConnectedPlayerCallback | null = null;
+  private transferConnectionCallback: TransferConnectionCallback | null = null;
 
   constructor(config: Partial<EfunBridgeConfig> = {}) {
     this.config = {
@@ -90,6 +102,22 @@ export class EfunBridge {
    */
   setAllPlayersCallback(callback: AllPlayersCallback): void {
     this.allPlayersCallback = callback;
+  }
+
+  /**
+   * Set the callback for finding a connected player by name.
+   * Called by the Driver after initialization.
+   */
+  setFindConnectedPlayerCallback(callback: FindConnectedPlayerCallback): void {
+    this.findConnectedPlayerCallback = callback;
+  }
+
+  /**
+   * Set the callback for transferring a connection to an existing player.
+   * Called by the Driver after initialization.
+   */
+  setTransferConnectionCallback(callback: TransferConnectionCallback): void {
+    this.transferConnectionCallback = callback;
   }
 
   /**
@@ -488,6 +516,30 @@ export class EfunBridge {
   }
 
   /**
+   * Find a connected player by name.
+   * @param name The player name to search for (case-insensitive)
+   * @returns The player object if found, undefined otherwise
+   */
+  findConnectedPlayer(name: string): MudObject | undefined {
+    if (this.findConnectedPlayerCallback) {
+      return this.findConnectedPlayerCallback(name);
+    }
+    return undefined;
+  }
+
+  /**
+   * Transfer a connection to an existing player (session takeover).
+   * Used when a player reconnects while already logged in.
+   * @param connection The new connection
+   * @param player The existing player object to take over
+   */
+  transferConnection(connection: unknown, player: MudObject): void {
+    if (this.transferConnectionCallback) {
+      this.transferConnectionCallback(connection, player);
+    }
+  }
+
+  /**
    * Execute a command through the command manager.
    * @param player The player executing the command
    * @param input The command input string
@@ -595,6 +647,8 @@ export class EfunBridge {
 
       // Connection
       bindPlayerToConnection: this.bindPlayerToConnection.bind(this),
+      findConnectedPlayer: this.findConnectedPlayer.bind(this),
+      transferConnection: this.transferConnection.bind(this),
       executeCommand: this.executeCommand.bind(this),
 
       // Persistence

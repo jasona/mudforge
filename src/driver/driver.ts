@@ -123,6 +123,16 @@ export class Driver {
       return this.getAllPlayers();
     });
 
+    // Set up the find connected player callback for session takeover
+    this.efunBridge.setFindConnectedPlayerCallback((name) => {
+      return this.findConnectedPlayer(name);
+    });
+
+    // Set up the transfer connection callback for session takeover
+    this.efunBridge.setTransferConnectionCallback((connection, player) => {
+      this.transferConnection(connection as Connection, player);
+    });
+
     this.mudlibLoader = getMudlibLoader({
       mudlibPath: this.config.mudlibPath,
     });
@@ -410,6 +420,54 @@ export class Driver {
       }
     }
     return players;
+  }
+
+  /**
+   * Find a connected player by name.
+   * @param name The player name to search for (case-insensitive)
+   * @returns The player object if found, undefined otherwise
+   */
+  findConnectedPlayer(name: string): MudObject | undefined {
+    const lowerName = name.toLowerCase();
+    for (const handler of this.connectionHandlers.values()) {
+      if (handler === this.loginDaemon) continue;
+      const player = handler as MudObject & { name?: string };
+      if (player.name?.toLowerCase() === lowerName) {
+        return handler;
+      }
+    }
+    return undefined;
+  }
+
+  /**
+   * Transfer a connection to a different player, disconnecting the old connection.
+   * Used for session takeover when a player reconnects.
+   */
+  transferConnection(newConnection: Connection, existingPlayer: MudObject): void {
+    // Find and disconnect the old connection
+    for (const [oldConnection, handler] of this.connectionHandlers.entries()) {
+      if (handler === existingPlayer) {
+        // Notify the old connection
+        oldConnection.send('\nAnother connection has taken over this session.\n');
+        // Remove the old connection binding
+        this.connectionHandlers.delete(oldConnection);
+        // Close the old connection
+        oldConnection.close();
+        break;
+      }
+    }
+
+    // Bind the new connection to the existing player
+    this.connectionHandlers.set(newConnection, existingPlayer);
+    newConnection.bindPlayer(existingPlayer);
+
+    // Update the player's connection reference
+    const playerWithBind = existingPlayer as MudObject & {
+      bindConnection?: (conn: Connection) => void;
+    };
+    if (playerWithBind.bindConnection) {
+      playerWithBind.bindConnection(newConnection);
+    }
   }
 
   /**

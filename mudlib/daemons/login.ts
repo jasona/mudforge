@@ -43,6 +43,8 @@ declare const efuns: {
   send(target: MudObject, message: string): void;
   time(): number;
   bindPlayerToConnection(connection: Connection, player: MudObject): void;
+  findConnectedPlayer(name: string): MudObject | undefined;
+  transferConnection(connection: Connection, player: MudObject): void;
   // Persistence efuns
   playerExists(name: string): Promise<boolean>;
   loadPlayerData(name: string): Promise<PlayerSaveData | null>;
@@ -380,6 +382,38 @@ export class LoginDaemon extends MudObject {
    */
   private async completeLogin(session: LoginSession, newPlayer?: Player): Promise<void> {
     let player: Player;
+    let isReconnect = false;
+
+    // Check if player is already connected (session takeover)
+    if (!newPlayer && typeof efuns !== 'undefined' && efuns.findConnectedPlayer) {
+      const existingPlayer = efuns.findConnectedPlayer(session.name) as Player | undefined;
+      if (existingPlayer) {
+        // Session takeover - transfer connection to existing player
+        player = existingPlayer;
+        isReconnect = true;
+
+        // Transfer the connection to the existing player
+        efuns.transferConnection(session.connection, player);
+
+        // Notify the player
+        player.receive('\n{yellow}Reconnecting...{/}\n');
+        player.receive('Your previous session has been resumed.\n\n');
+
+        // Look at the room
+        const roomWithLook = player.environment as MudObject & { look?: (viewer: MudObject) => void };
+        if (roomWithLook && typeof roomWithLook.look === 'function') {
+          roomWithLook.look(player);
+        }
+
+        // Send prompt
+        player.sendPrompt();
+
+        // Update session state and clean up
+        session.state = 'playing';
+        this._sessions.delete(session.connection);
+        return;
+      }
+    }
 
     if (newPlayer) {
       // New player just created
