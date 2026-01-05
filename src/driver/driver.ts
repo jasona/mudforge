@@ -13,6 +13,7 @@ import { ObjectRegistry, getRegistry, resetRegistry } from './object-registry.js
 import { Scheduler, getScheduler, resetScheduler } from './scheduler.js';
 import { EfunBridge, getEfunBridge, resetEfunBridge } from './efun-bridge.js';
 import { MudlibLoader, getMudlibLoader, resetMudlibLoader } from './mudlib-loader.js';
+import { CommandManager, getCommandManager, resetCommandManager, PermissionLevel } from './command-manager.js';
 import { Compiler } from './compiler.js';
 import { HotReload } from './hot-reload.js';
 import { getIsolatePool, resetIsolatePool } from '../isolation/isolate-pool.js';
@@ -20,6 +21,7 @@ import { resetScriptRunner } from '../isolation/script-runner.js';
 import pino, { type Logger } from 'pino';
 import type { MudObject } from './types.js';
 import type { Connection } from '../network/connection.js';
+import { join } from 'path';
 
 /**
  * Master object interface.
@@ -72,6 +74,7 @@ export class Driver {
   private scheduler: Scheduler;
   private efunBridge: EfunBridge;
   private mudlibLoader: MudlibLoader;
+  private commandManager: CommandManager;
   private compiler: Compiler;
   private hotReload: HotReload;
   private master: MasterObject | null = null;
@@ -118,6 +121,17 @@ export class Driver {
     this.mudlibLoader = getMudlibLoader({
       mudlibPath: this.config.mudlibPath,
     });
+    this.commandManager = getCommandManager({
+      cmdsPath: join(this.config.mudlibPath, 'cmds'),
+      logger: this.logger,
+      watchEnabled: this.config.hotReload,
+    });
+
+    // Set up the execute command callback so mudlib can use the command system
+    this.efunBridge.setExecuteCommandCallback(async (player, input, level) => {
+      return this.commandManager.execute(player, input, level);
+    });
+
     this.compiler = new Compiler({
       mudlibPath: this.config.mudlibPath,
     });
@@ -163,6 +177,9 @@ export class Driver {
 
       // Load login daemon
       await this.loadLoginDaemon();
+
+      // Initialize command manager
+      await this.commandManager.initialize();
 
       // Start scheduler
       this.scheduler.start();
@@ -434,6 +451,13 @@ export class Driver {
   }
 
   /**
+   * Get the command manager.
+   */
+  getCommandManager(): CommandManager {
+    return this.commandManager;
+  }
+
+  /**
    * Get the logger.
    */
   getLogger(): Logger {
@@ -478,4 +502,5 @@ export function resetDriver(): void {
   resetIsolatePool();
   resetScriptRunner();
   resetMudlibLoader();
+  resetCommandManager();
 }

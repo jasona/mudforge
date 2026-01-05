@@ -37,6 +37,11 @@ export interface EfunContext {
  */
 type BindPlayerCallback = (connection: unknown, player: MudObject) => void;
 
+/**
+ * Callback to execute a command (set by Driver).
+ */
+type ExecuteCommandCallback = (player: MudObject, input: string, level: number) => Promise<boolean>;
+
 export class EfunBridge {
   private config: EfunBridgeConfig;
   private registry: ObjectRegistry;
@@ -44,6 +49,7 @@ export class EfunBridge {
   private permissions: Permissions;
   private context: EfunContext = { thisObject: null, thisPlayer: null };
   private bindPlayerCallback: BindPlayerCallback | null = null;
+  private executeCommandCallback: ExecuteCommandCallback | null = null;
 
   constructor(config: Partial<EfunBridgeConfig> = {}) {
     this.config = {
@@ -60,6 +66,14 @@ export class EfunBridge {
    */
   setBindPlayerCallback(callback: BindPlayerCallback): void {
     this.bindPlayerCallback = callback;
+  }
+
+  /**
+   * Set the callback for executing commands.
+   * Called by the Driver after initialization.
+   */
+  setExecuteCommandCallback(callback: ExecuteCommandCallback): void {
+    this.executeCommandCallback = callback;
   }
 
   /**
@@ -457,6 +471,20 @@ export class EfunBridge {
   }
 
   /**
+   * Execute a command through the command manager.
+   * @param player The player executing the command
+   * @param input The command input string
+   * @param level The player's permission level (0=player, 1=builder, 2=senior, 3=admin)
+   * @returns true if command was found and executed
+   */
+  async executeCommand(player: MudObject, input: string, level: number = 0): Promise<boolean> {
+    if (this.executeCommandCallback) {
+      return this.executeCommandCallback(player, input, level);
+    }
+    return false;
+  }
+
+  /**
    * Get all efuns as an object for exposing to sandbox.
    */
   getEfuns(): Record<string, unknown> {
@@ -511,6 +539,7 @@ export class EfunBridge {
 
       // Connection
       bindPlayerToConnection: this.bindPlayerToConnection.bind(this),
+      executeCommand: this.executeCommand.bind(this),
     };
   }
 }

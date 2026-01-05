@@ -13,6 +13,7 @@ import { MudObject } from './object.js';
 declare const efuns: {
   send(target: MudObject, message: string): void;
   time(): number;
+  executeCommand(player: MudObject, input: string, level: number): Promise<boolean>;
 };
 
 /**
@@ -55,6 +56,7 @@ export class Player extends Living {
   private _inputHandler: ((input: string) => void | Promise<void>) | null = null;
   private _promptEnabled: boolean = true;
   private _prompt: string = '> ';
+  private _permissionLevel: number = 0; // 0=player, 1=builder, 2=senior, 3=admin
 
   constructor() {
     super();
@@ -148,10 +150,19 @@ export class Player extends Living {
       return;
     }
 
-    // Otherwise, process as a command
+    // First, try the command manager (cmds/ directory commands)
+    if (typeof efuns !== 'undefined' && efuns.executeCommand) {
+      const handled = await efuns.executeCommand(this, input, this._permissionLevel);
+      if (handled) {
+        this.sendPrompt();
+        return;
+      }
+    }
+
+    // Fall back to object-based actions (addAction system)
     const handled = await this.command(input);
     if (!handled) {
-      this.receive("What?");
+      this.receive("What?\n");
     }
 
     // Send prompt after command
@@ -186,6 +197,20 @@ export class Player extends Living {
    */
   set promptEnabled(value: boolean) {
     this._promptEnabled = value;
+  }
+
+  /**
+   * Get the permission level (0=player, 1=builder, 2=senior, 3=admin).
+   */
+  get permissionLevel(): number {
+    return this._permissionLevel;
+  }
+
+  /**
+   * Set the permission level.
+   */
+  set permissionLevel(value: number) {
+    this._permissionLevel = value;
   }
 
   // ========== Account ==========

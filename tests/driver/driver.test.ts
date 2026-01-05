@@ -14,6 +14,10 @@ describe('Driver', () => {
     testMudlibPath = join(process.cwd(), `test-mudlib-${randomUUID()}`);
     await mkdir(testMudlibPath, { recursive: true });
     await mkdir(join(testMudlibPath, 'daemons'), { recursive: true });
+    await mkdir(join(testMudlibPath, 'cmds', 'player'), { recursive: true });
+    await mkdir(join(testMudlibPath, 'cmds', 'builder'), { recursive: true });
+    await mkdir(join(testMudlibPath, 'cmds', 'senior'), { recursive: true });
+    await mkdir(join(testMudlibPath, 'cmds', 'admin'), { recursive: true });
 
     // Create a minimal master object
     const masterContent = `
