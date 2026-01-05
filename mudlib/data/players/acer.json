@@ -1,6 +1,6 @@
 {
   "name": "Acer",
-  "location": "/areas/town/tavern",
+  "location": "/areas/town/center",
   "state": {
     "objectPath": "",
     "isClone": false,
@@ -9,16 +9,18 @@
       "email": "jason.alexander@gmail.com",
       "permissionLevel": 3,
       "_prevCwd": "/areas",
-      "config.brief": true
+      "config.brief": false,
+      "config.screenWidth": 100,
+      "config.prompt": "%d >"
     },
-    "timestamp": 1767656330564,
+    "timestamp": 1767657451100,
     "environment": {
       "__type": "object_ref",
-      "path": "/areas/town/tavern",
+      "path": "/areas/town/center",
       "isClone": false
     }
   },
-  "savedAt": 1767656330564,
+  "savedAt": 1767657451100,
   "title": "",
   "gender": "neutral",
   "level": 1,
@@ -42,11 +44,13 @@
     "email": "jason.alexander@gmail.com",
     "permissionLevel": 3,
     "_prevCwd": "/areas",
-    "config.brief": true
+    "config.brief": false,
+    "config.screenWidth": 100,
+    "config.prompt": "%d >"
   },
   "createdAt": 1767588015729,
-  "lastLogin": 1767656310,
-  "playTime": 843,
+  "lastLogin": 1767657451,
+  "playTime": 1049,
   "monitorEnabled": true,
   "displayName": "Sir {yellow}$N{/} is really digging this AI stuff.",
   "cwd": "/areas/town"

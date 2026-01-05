@@ -6,6 +6,7 @@
  */
 
 import { MudObject } from './object.js';
+import { reflowText } from '../lib/colors.js';
 
 // Efuns are injected by the driver at runtime
 declare const efuns: {
@@ -231,8 +232,9 @@ export class Room extends MudObject {
   getFullDescription(): string {
     const lines: string[] = [];
 
-    // Room description
-    lines.push(this.longDesc);
+    // Room description - reflow to remove manual line breaks
+    // This allows screenWidth config to wrap properly
+    lines.push(reflowText(this.longDesc));
     lines.push('');
 
     // Exits

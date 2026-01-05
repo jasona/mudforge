@@ -271,6 +271,138 @@ export function padStart(text: string, length: number, char: string = ' '): stri
   return char.repeat(length - visible) + text;
 }
 
+/**
+ * Reflow text by joining lines within paragraphs.
+ * Single newlines become spaces, double newlines (paragraph breaks) are preserved.
+ * @param text The text to reflow
+ * @returns Reflowed text with paragraphs intact
+ */
+export function reflowText(text: string): string {
+  // Split on paragraph breaks (blank lines)
+  const paragraphs = text.split(/\n\s*\n/);
+
+  // Within each paragraph, join lines with spaces
+  const reflowed = paragraphs.map((para) => {
+    // Replace single newlines with spaces, collapse multiple spaces
+    return para.replace(/\n/g, ' ').replace(/  +/g, ' ').trim();
+  });
+
+  // Rejoin paragraphs with double newlines
+  return reflowed.join('\n\n');
+}
+
+/**
+ * Word wrap text to a specified width, preserving ANSI codes.
+ * Only wraps lines that exceed the width - does not reflow/join lines.
+ * Pre-formatted content (ASCII art, tables) is preserved.
+ * @param text The text to wrap
+ * @param width Maximum line width (visible characters)
+ * @returns Wrapped text with newlines inserted
+ */
+export function wordWrap(text: string, width: number): string {
+  if (width <= 0) return text;
+
+  const lines = text.split('\n');
+  const wrappedLines: string[] = [];
+
+  for (const line of lines) {
+    if (visibleLength(line) <= width) {
+      wrappedLines.push(line);
+      continue;
+    }
+
+    // Split line into words while preserving ANSI codes
+    // First, mark ANSI codes with placeholders, split on spaces, then restore
+    const words: string[] = [];
+    let currentWord = '';
+    let i = 0;
+
+    while (i < line.length) {
+      // Check for ANSI escape sequence
+      if (line[i] === '\x1b' && i + 1 < line.length && line[i + 1] === '[') {
+        const match = line.slice(i).match(/^\x1b\[[0-9;]*m/);
+        if (match) {
+          currentWord += match[0];
+          i += match[0].length;
+          continue;
+        }
+      }
+
+      if (line[i] === ' ') {
+        if (currentWord.length > 0) {
+          words.push(currentWord);
+          currentWord = '';
+        }
+        i++;
+        continue;
+      }
+
+      currentWord += line[i];
+      i++;
+    }
+    if (currentWord.length > 0) {
+      words.push(currentWord);
+    }
+
+    // Now wrap words, tracking active color codes
+    let activeCode = '';
+    let currentLine = '';
+    let currentWidth = 0;
+
+    for (const word of words) {
+      const wordVisibleLength = visibleLength(word);
+
+      // Update activeCode based on ANSI codes in the word
+      // But save the code at the START of the word for line continuation
+      const codeAtWordStart = activeCode;
+
+      // Find all ANSI codes in word and update activeCode
+      let match;
+      const wordAnsiRegex = /\x1b\[[0-9;]*m/g;
+      while ((match = wordAnsiRegex.exec(word)) !== null) {
+        if (match[0] === ANSI.reset) {
+          activeCode = '';
+        } else {
+          activeCode += match[0];
+        }
+      }
+
+      // Check if word fits on current line
+      const spaceNeeded = currentWidth > 0 ? 1 : 0;
+      if (currentWidth + spaceNeeded + wordVisibleLength > width && currentWidth > 0) {
+        // Word doesn't fit - push current line and start new one
+        wrappedLines.push(currentLine + ANSI.reset);
+        // New line starts with the color that was active at the start of this word
+        currentLine = codeAtWordStart + word;
+        currentWidth = wordVisibleLength;
+      } else {
+        // Word fits on current line
+        if (currentWidth > 0) {
+          currentLine += ' ';
+          currentWidth++;
+        }
+        currentLine += word;
+        currentWidth += wordVisibleLength;
+      }
+
+      // Handle very long words that exceed width
+      if (currentWidth > width && words.length === 1) {
+        // Single word that's too long - just push it
+        wrappedLines.push(currentLine);
+        currentLine = '';
+        currentWidth = 0;
+      }
+    }
+
+    // Push final line
+    if (currentLine.length > 0) {
+      wrappedLines.push(currentLine);
+    }
+  }
+
+  return wrappedLines.join('\n');
+}
+
 export default {
   ANSI,
   colorize,
@@ -281,4 +413,6 @@ export default {
   visibleLength,
   padEnd,
   padStart,
+  reflowText,
+  wordWrap,
 };
