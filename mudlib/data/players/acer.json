@@ -9,14 +9,14 @@
       "email": "jason.alexander@gmail.com",
       "permissionLevel": 3
     },
-    "timestamp": 1767590563581,
+    "timestamp": 1767591991909,
     "environment": {
       "__type": "object_ref",
       "path": "/areas/town/center",
       "isClone": false
     }
   },
-  "savedAt": 1767590563581,
+  "savedAt": 1767591991909,
   "title": "",
   "gender": "neutral",
   "level": 1,
@@ -41,7 +41,8 @@
     "permissionLevel": 3
   },
   "createdAt": 1767588015729,
-  "lastLogin": 1767590559,
-  "playTime": 281,
-  "monitorEnabled": true
+  "lastLogin": 1767591981,
+  "playTime": 352,
+  "monitorEnabled": true,
+  "displayName": "Sir {yellow}$N{/} is really digging this AI stuff."
 }

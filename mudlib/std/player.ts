@@ -51,6 +51,7 @@ export interface PlayerSaveData {
   lastLogin: number;
   playTime: number;
   monitorEnabled?: boolean;
+  displayName?: string | null;
 }
 
 /**
@@ -73,6 +74,7 @@ export class Player extends Living {
   private _ipAddress: string = 'unknown';
   private _resolvedHostname: string | null = null;
   private _hasQuit: boolean = false; // True if player quit properly (vs disconnected)
+  private _displayName: string | null = null; // Custom display name with colors/formatting
 
   constructor() {
     super();
@@ -157,6 +159,55 @@ export class Player extends Living {
       return `${this._resolvedHostname} (${this._ipAddress})`;
     }
     return this._ipAddress;
+  }
+
+  // ========== Display Name ==========
+
+  /**
+   * Get the raw display name template (with $N placeholder).
+   * Returns null if no custom display name is set.
+   */
+  get displayName(): string | null {
+    return this._displayName;
+  }
+
+  /**
+   * Set a custom display name template.
+   * Use $N as a placeholder for the player's actual name.
+   * Use color codes like {blue}, {green}, {bold}, etc.
+   * Example: "Sir {blue}$N{/} says {green}NI{/} all the time!"
+   * Set to null to clear the custom display name.
+   */
+  set displayName(value: string | null) {
+    this._displayName = value;
+  }
+
+  /**
+   * Get the formatted display name for showing to other players.
+   * If a custom display name is set, $N is replaced with the player's name.
+   * Otherwise, returns the player's name.
+   */
+  getDisplayName(): string {
+    if (this._displayName) {
+      return this._displayName.replace(/\$N/gi, this.name);
+    }
+    return this.name;
+  }
+
+  /**
+   * Override shortDesc to return the formatted display name.
+   * This is what other players see when looking at the room.
+   */
+  override get shortDesc(): string {
+    return this.getDisplayName();
+  }
+
+  /**
+   * Set the short description (still allows direct setting).
+   */
+  override set shortDesc(value: string) {
+    // Store in parent's shortDesc - but getDisplayName will override for display
+    super.shortDesc = value;
   }
 
   // ========== Input/Output ==========
@@ -537,6 +588,7 @@ export class Player extends Living {
       lastLogin: this._lastLogin,
       playTime: this.playTime,
       monitorEnabled: this._monitorEnabled,
+      displayName: this._displayName,
     };
   }
 
@@ -585,6 +637,11 @@ export class Player extends Living {
     // Restore monitor setting (if present - for backwards compatibility)
     if (data.monitorEnabled !== undefined) {
       this.monitorEnabled = data.monitorEnabled;
+    }
+
+    // Restore display name (if present)
+    if (data.displayName !== undefined) {
+      this._displayName = data.displayName;
     }
 
     // Note: Location and inventory need to be handled by the driver
