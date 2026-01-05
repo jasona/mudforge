@@ -1,8 +1,23 @@
 /**
- * Help command - Display available commands.
+ * Help command - Access the in-game help system.
+ *
+ * Usage:
+ *   help              - Show help index
+ *   help <topic>      - View help on a specific topic
+ *   help <category>   - List topics in a category
+ *   help search <term> - Search for help topics
+ *   help commands     - List available commands
  */
 
 import type { MudObject } from '../../std/object.js';
+import { getHelpDaemon, CATEGORY_INFO, type HelpCategory } from '../../daemons/help.js';
+
+interface HelpPlayer extends MudObject {
+  name: string;
+  receive(message: string): void;
+  getProperty(key: string): unknown;
+  permissionLevel?: number;
+}
 
 interface CommandContext {
   player: MudObject;
@@ -12,75 +27,72 @@ interface CommandContext {
 }
 
 export const name = ['help', 'commands', '?'];
-export const description = 'Display help and available commands';
-export const usage = 'help [command]';
+export const description = 'Access the in-game help system';
+export const usage = 'help [topic|category|search <term>]';
 
 export function execute(ctx: CommandContext): void {
   const { args } = ctx;
+  const helpDaemon = getHelpDaemon();
+  const player = ctx.player as HelpPlayer;
+  const parts = args.trim().split(/\s+/);
+  const command = parts[0]?.toLowerCase() || '';
 
-  if (!args) {
-    ctx.sendLine('=== Available Commands ===');
-    ctx.sendLine('');
-    ctx.sendLine('Communication:');
-    ctx.sendLine('  say <message>    - Speak to others in the room');
-    ctx.sendLine("  ' <message>      - Short form of say");
-    ctx.sendLine('');
-    ctx.sendLine('Looking:');
-    ctx.sendLine('  look [target]    - Look at your surroundings or something');
-    ctx.sendLine('  l                - Short form of look');
-    ctx.sendLine('  inventory        - See what you are carrying');
-    ctx.sendLine('  i                - Short form of inventory');
-    ctx.sendLine('');
-    ctx.sendLine('Movement:');
-    ctx.sendLine('  go <direction>   - Move in a direction');
-    ctx.sendLine('  north, south, east, west, up, down');
-    ctx.sendLine('  n, s, e, w, u, d - Short forms');
-    ctx.sendLine('');
-    ctx.sendLine('System:');
-    ctx.sendLine('  help [command]   - Show this help or help for a command');
-    ctx.sendLine('  quit             - Disconnect from the game');
-    ctx.sendLine('');
-    ctx.sendLine('Type "help <command>" for more info on a specific command.');
-  } else {
-    // Show help for a specific command
-    const cmd = args.toLowerCase();
-    switch (cmd) {
-      case 'look':
-      case 'l':
-        ctx.sendLine('LOOK - Examine your surroundings');
-        ctx.sendLine('Usage: look [target]');
-        ctx.sendLine('');
-        ctx.sendLine('Without arguments, shows the room description.');
-        ctx.sendLine('With a target, examines that object.');
-        break;
-      case 'say':
-      case "'":
-        ctx.sendLine('SAY - Speak to others');
-        ctx.sendLine("Usage: say <message> or '<message>");
-        ctx.sendLine('');
-        ctx.sendLine('Everyone in the same room will hear you.');
-        break;
-      case 'quit':
-      case 'logout':
-        ctx.sendLine('QUIT - Disconnect from the game');
-        ctx.sendLine('Usage: quit');
-        ctx.sendLine('');
-        ctx.sendLine('Saves your character and disconnects.');
-        break;
-      case 'inventory':
-      case 'i':
-        ctx.sendLine('INVENTORY - See what you are carrying');
-        ctx.sendLine('Usage: inventory or i');
-        break;
-      case 'go':
-        ctx.sendLine('GO - Move in a direction');
-        ctx.sendLine('Usage: go <direction>');
-        ctx.sendLine('');
-        ctx.sendLine('Directions: north, south, east, west, up, down');
-        ctx.sendLine('Or just type the direction name directly.');
-        break;
-      default:
-        ctx.sendLine(`No help available for "${args}".`);
+  // No arguments - show index
+  if (!command) {
+    ctx.send('\n' + helpDaemon.formatIndex(player));
+    return;
+  }
+
+  // Search command
+  if (command === 'search') {
+    const query = parts.slice(1).join(' ');
+    if (!query) {
+      ctx.sendLine('\n{red}Usage: help search <term>{/}');
+      return;
+    }
+
+    const results = helpDaemon.searchTopics(player, query);
+    ctx.send('\n' + helpDaemon.formatSearchResults(results, query));
+    return;
+  }
+
+  // Check if it's a category name
+  const categoryNames = Object.keys(CATEGORY_INFO) as HelpCategory[];
+  const matchedCategory = categoryNames.find(cat => {
+    const info = CATEGORY_INFO[cat];
+    return cat === command || info.name.toLowerCase() === command;
+  });
+
+  if (matchedCategory) {
+    ctx.send('\n' + helpDaemon.formatCategory(player, matchedCategory));
+    return;
+  }
+
+  // Try to find a topic
+  const topicName = parts.join(' ');
+  const topic = helpDaemon.getTopic(topicName);
+
+  if (topic) {
+    // Check access
+    if (!helpDaemon.canAccess(player, topic)) {
+      ctx.sendLine('\n{red}You do not have access to that help topic.{/}');
+      return;
+    }
+
+    ctx.send('\n' + helpDaemon.formatTopic(topic));
+    return;
+  }
+
+  // No match found - suggest search
+  ctx.sendLine(`\n{yellow}No help found for "${topicName}".{/}`);
+  ctx.sendLine(`Try {cyan}help search ${topicName}{/} to search for related topics.`);
+
+  // Show suggestions if we got close matches
+  const suggestions = helpDaemon.searchTopics(player, command);
+  if (suggestions.length > 0 && suggestions.length <= 5) {
+    ctx.sendLine('\n{dim}Did you mean:{/}');
+    for (const s of suggestions) {
+      ctx.sendLine(`  {yellow}${s.name}{/} - ${s.title}`);
     }
   }
 }

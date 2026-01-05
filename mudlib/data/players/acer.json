@@ -1,6 +1,6 @@
 {
   "name": "Acer",
-  "location": "/areas/town/center",
+  "location": "/areas/town/castle",
   "state": {
     "objectPath": "",
     "isClone": false,
@@ -9,12 +9,12 @@
       "email": "jason.alexander@gmail.com",
       "permissionLevel": 3
     },
-    "timestamp": 1767581602778,
+    "timestamp": 1767582445146,
     "environment": {
       "__type": "object_ref",
-      "path": "/areas/town/center",
+      "path": "/areas/town/castle",
       "isClone": false
     }
   },
-  "savedAt": 1767581602778
+  "savedAt": 1767582445146
 }
