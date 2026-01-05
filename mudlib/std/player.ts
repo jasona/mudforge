@@ -16,6 +16,7 @@ declare const efuns: {
   time(): number;
   executeCommand(player: MudObject, input: string, level: number): Promise<boolean>;
   savePlayer(player: MudObject): Promise<void>;
+  setHeartbeat(object: MudObject, enable: boolean): void;
 };
 
 /**
@@ -65,6 +66,7 @@ export class Player extends Living {
   private _prompt: string = '> ';
   private _permissionLevel: number = 0; // 0=player, 1=builder, 2=senior, 3=admin
   private _experience: number = 0;
+  private _monitorEnabled: boolean = false;
 
   constructor() {
     super();
@@ -221,6 +223,67 @@ export class Player extends Living {
    */
   set permissionLevel(value: number) {
     this._permissionLevel = value;
+  }
+
+  // ========== Monitor ==========
+
+  /**
+   * Check if the vitals monitor is enabled.
+   */
+  get monitorEnabled(): boolean {
+    return this._monitorEnabled;
+  }
+
+  /**
+   * Enable or disable the vitals monitor.
+   * Automatically registers/unregisters for heartbeats.
+   */
+  set monitorEnabled(value: boolean) {
+    this._monitorEnabled = value;
+    // Register/unregister for heartbeats
+    if (typeof efuns !== 'undefined' && efuns.setHeartbeat) {
+      efuns.setHeartbeat(this, value);
+    }
+  }
+
+  /**
+   * Generate a bar visualization for the monitor.
+   */
+  private _makeBar(current: number, max: number, width: number, color: string): string {
+    const percentage = Math.max(0, Math.min(1, current / max));
+    const filled = Math.round(percentage * width);
+    const empty = width - filled;
+    return `{${color}}${'█'.repeat(filled)}{/}{dim}${'░'.repeat(empty)}{/}`;
+  }
+
+  /**
+   * Called each heartbeat. Shows vitals monitor if enabled.
+   */
+  override heartbeat(): void {
+    super.heartbeat();
+
+    // Show vitals monitor if enabled
+    if (!this._monitorEnabled || !this._connection) return;
+
+    // Don't display if both HP and MP are at max
+    if (this.health >= this.maxHealth && this.mana >= this.maxMana) return;
+
+    // Determine HP bar color based on percentage
+    const hpPercent = this.health / this.maxHealth;
+    let hpColor = 'green';
+    if (hpPercent <= 0.25) hpColor = 'red';
+    else if (hpPercent <= 0.5) hpColor = 'yellow';
+
+    // Determine MP bar color based on percentage
+    const mpPercent = this.mana / this.maxMana;
+    let mpColor = 'blue';
+    if (mpPercent <= 0.25) mpColor = 'BLUE';
+    else if (mpPercent <= 0.5) mpColor = 'cyan';
+
+    const hpBar = this._makeBar(this.health, this.maxHealth, 15, hpColor);
+    const mpBar = this._makeBar(this.mana, this.maxMana, 15, mpColor);
+
+    this.receive(`HP: ${hpBar} (${this.health}/${this.maxHealth})  MP: ${mpBar} (${this.mana}/${this.maxMana})\n`);
   }
 
   // ========== Account ==========

@@ -620,6 +620,16 @@ export class Living extends MudObject {
     this._health = health !== undefined ? health : this._maxHealth;
   }
 
+  /**
+   * Called each heartbeat by the scheduler.
+   * Override this for periodic behavior (regeneration, AI, etc.)
+   */
+  heartbeat(): void {
+    // Default: do nothing
+    // NPCs can override for AI behavior
+    // Players override for monitor display
+  }
+
   // ========== Core Stats ==========
 
   /**
