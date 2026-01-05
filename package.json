@@ -7,7 +7,7 @@
   "scripts": {
     "build": "tsc && npm run build:client",
     "build:client": "esbuild src/client/index.ts --bundle --outfile=dist/client/client.js --sourcemap && node -e \"require('fs').cpSync('src/client/index.html', 'dist/client/index.html')\" && node -e \"require('fs').cpSync('src/client/styles.css', 'dist/client/styles.css')\"",
-    "dev": "tsx watch src/driver/index.ts",
+    "dev": "tsx watch --ignore ./mudlib/** src/driver/index.ts",
     "start": "node dist/driver/index.js",
     "test": "vitest run",
     "test:watch": "vitest",

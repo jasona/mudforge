@@ -51,6 +51,7 @@ export interface AuditEntry {
  */
 interface PermissionPlayer extends MudObject {
   name?: string;
+  permissionLevel?: number;
 }
 
 /**
@@ -77,8 +78,22 @@ export class Permissions {
    * @param player The player or player name
    */
   getLevel(player: MudObject | string): PermissionLevel {
+    // First check the internal levels map
     const name = this.getPlayerName(player);
-    return this.levels.get(name) ?? PermissionLevel.Player;
+    const storedLevel = this.levels.get(name);
+    if (storedLevel !== undefined) {
+      return storedLevel;
+    }
+
+    // Fall back to the player object's permissionLevel property
+    if (typeof player !== 'string') {
+      const p = player as PermissionPlayer;
+      if (p.permissionLevel !== undefined) {
+        return p.permissionLevel as PermissionLevel;
+      }
+    }
+
+    return PermissionLevel.Player;
   }
 
   /**

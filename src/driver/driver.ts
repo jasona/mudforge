@@ -162,7 +162,14 @@ export class Driver {
 
     // Set up the execute command callback so mudlib can use the command system
     this.efunBridge.setExecuteCommandCallback(async (player, input, level) => {
-      return this.commandManager.execute(player, input, level);
+      // Set efun context so commands can use efuns that need player context
+      this.efunBridge.setContext({ thisPlayer: player, thisObject: player });
+      try {
+        return await this.commandManager.execute(player, input, level);
+      } finally {
+        // Clear context after command execution
+        this.efunBridge.clearContext();
+      }
     });
 
     this.compiler = new Compiler({
