@@ -48,14 +48,6 @@ export const CONFIG_OPTIONS: ConfigOption[] = [
     category: 'display',
   },
   {
-    key: 'compact',
-    name: 'Compact Mode',
-    description: 'Reduce blank lines in output',
-    type: 'boolean',
-    default: false,
-    category: 'display',
-  },
-  {
     key: 'color',
     name: 'Color',
     description: 'Enable colored text output',
