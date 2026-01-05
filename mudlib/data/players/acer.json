@@ -11,14 +11,14 @@
       "_prevCwd": "/areas",
       "config.brief": true
     },
-    "timestamp": 1767655019679,
+    "timestamp": 1767656330564,
     "environment": {
       "__type": "object_ref",
       "path": "/areas/town/tavern",
       "isClone": false
     }
   },
-  "savedAt": 1767655019679,
+  "savedAt": 1767656330564,
   "title": "",
   "gender": "neutral",
   "level": 1,
@@ -45,8 +45,8 @@
     "config.brief": true
   },
   "createdAt": 1767588015729,
-  "lastLogin": 1767655019,
-  "playTime": 823,
+  "lastLogin": 1767656310,
+  "playTime": 843,
   "monitorEnabled": true,
   "displayName": "Sir {yellow}$N{/} is really digging this AI stuff.",
   "cwd": "/areas/town"

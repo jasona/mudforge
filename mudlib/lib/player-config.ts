@@ -58,7 +58,7 @@ export const CONFIG_OPTIONS: ConfigOption[] = [
   {
     key: 'prompt',
     name: 'Prompt',
-    description: 'Custom command prompt (use %h for health, %m for mana, %l for location)',
+    description: 'Custom command prompt (%h/%H health, %m/%M mana, %l location, %n name, %d cwd)',
     type: 'string',
     default: '> ',
     category: 'display',

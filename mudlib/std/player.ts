@@ -338,11 +338,62 @@ export class Player extends Living {
 
   /**
    * Send a prompt to the player.
+   * Expands prompt tokens:
+   *   %h - current health
+   *   %H - max health
+   *   %m - current mana
+   *   %M - max mana
+   *   %l - current location (room short desc)
+   *   %d - current working directory (builders+ only)
+   *   %n - player name
+   *   %% - literal %
    */
   sendPrompt(): void {
     if (this._promptEnabled && this._connection) {
-      this._connection.send(this._prompt);
+      const promptTemplate = this.getConfig<string>('prompt');
+      const expanded = this.expandPrompt(promptTemplate);
+      // Check if color is enabled
+      const colorEnabled = this.getConfig<boolean>('color');
+      if (colorEnabled) {
+        this._connection.send(colorize(expanded));
+      } else {
+        this._connection.send(stripColors(expanded));
+      }
     }
+  }
+
+  /**
+   * Expand prompt tokens to their values.
+   */
+  private expandPrompt(template: string): string {
+    return template.replace(/%([hHmMldnN%])/g, (match, token) => {
+      switch (token) {
+        case 'h':
+          return String(this.health);
+        case 'H':
+          return String(this.maxHealth);
+        case 'm':
+          return String(this.mana);
+        case 'M':
+          return String(this.maxMana);
+        case 'l':
+          return this.environment?.shortDesc || 'nowhere';
+        case 'd':
+          // Only show cwd for builders and up
+          if (this._permissionLevel >= 1) {
+            return this._cwd;
+          }
+          return '%d'; // Keep literal for non-builders
+        case 'n':
+          return this.name;
+        case 'N':
+          return this.name.charAt(0).toUpperCase() + this.name.slice(1);
+        case '%':
+          return '%';
+        default:
+          return match;
+      }
+    });
   }
 
   /**
