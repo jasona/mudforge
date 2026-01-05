@@ -291,7 +291,7 @@ export class Player extends Living {
       gender: this.gender,
       health: this.health,
       maxHealth: this.maxHealth,
-      location: this.environment?.objectPath || '/areas/void/void',
+      location: this.environment?.objectPath || '/areas/town/center',
       inventory: this.inventory.map((item) => item.objectPath),
       properties: this._serializeProperties(),
       createdAt: this._createdAt || Date.now(),

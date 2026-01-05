@@ -76,8 +76,14 @@ export class Master extends MudObject {
       '/std/npc',
       '/std/weapon',
       '/std/armor',
-      // Starting area
+      // Starting areas
       '/areas/void/void',
+      '/areas/town/center',
+      '/areas/town/castle',
+      '/areas/town/tavern',
+      '/areas/town/market',
+      '/areas/town/gates',
+      '/areas/town/bakery',
       // Daemons
       '/daemons/login',
     ];

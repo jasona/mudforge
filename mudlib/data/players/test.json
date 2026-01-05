@@ -1,6 +1,6 @@
 {
   "name": "Test",
-  "location": "/areas/void/void",
+  "location": "/areas/town/center",
   "state": {
     "objectPath": "",
     "isClone": false,
@@ -12,7 +12,7 @@
     "timestamp": 1767577682098,
     "environment": {
       "__type": "object_ref",
-      "path": "/areas/void/void",
+      "path": "/areas/town/center",
       "isClone": false
     }
   },

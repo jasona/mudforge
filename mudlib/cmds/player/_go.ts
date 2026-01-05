@@ -12,8 +12,16 @@ interface CommandContext {
   sendLine(message: string): void;
 }
 
+interface Exit {
+  direction: string;
+  destination: string | MudObject;
+  description?: string;
+  canPass?: (who: MudObject) => boolean | Promise<boolean>;
+}
+
 interface Room extends MudObject {
-  getExit?(direction: string): MudObject | null;
+  getExit?(direction: string): Exit | undefined;
+  resolveExit?(exit: Exit): MudObject | undefined;
   look?(viewer: MudObject): void;
 }
 
@@ -73,9 +81,30 @@ export async function execute(ctx: CommandContext): Promise<void> {
     return;
   }
 
-  const destination = room.getExit(direction);
-  if (!destination) {
+  const exit = room.getExit(direction);
+  if (!exit) {
     ctx.sendLine(`You can't go ${direction}.`);
+    return;
+  }
+
+  // Check if exit has a condition
+  if (exit.canPass) {
+    const canPass = await exit.canPass(player);
+    if (!canPass) {
+      ctx.sendLine("Something prevents you from going that way.");
+      return;
+    }
+  }
+
+  // Resolve the exit to get the actual destination room
+  if (!room.resolveExit) {
+    ctx.sendLine("There's nowhere to go.");
+    return;
+  }
+
+  const destination = room.resolveExit(exit);
+  if (!destination) {
+    ctx.sendLine(`The way ${direction} seems blocked.`);
     return;
   }
 

@@ -155,6 +155,11 @@ describe('FileStore', () => {
   });
 
   describe('World State Persistence', () => {
+    it('should return null when no world state exists', async () => {
+      const state = await store.loadWorldState();
+      expect(state).toBeNull();
+    });
+
     it('should save world state', async () => {
       const room = createMockObject('/areas/town/square', { name: 'Town Square' });
       const sword = createMockObject('/std/sword', { name: 'Sword' }, true);
@@ -164,11 +169,6 @@ describe('FileStore', () => {
       const state = await store.loadWorldState();
       expect(state).not.toBeNull();
       expect(state!.objects).toHaveLength(2);
-    });
-
-    it('should return null when no world state exists', async () => {
-      const state = await store.loadWorldState();
-      expect(state).toBeNull();
     });
 
     it('should load world state with version', async () => {
