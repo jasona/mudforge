@@ -12,7 +12,22 @@ type WebSocketClientEvent =
   | 'connected'
   | 'disconnected'
   | 'error'
-  | 'message';
+  | 'message'
+  | 'ide-message';
+
+/**
+ * IDE message structure.
+ */
+export interface IdeMessage {
+  action: string;
+  path?: string;
+  content?: string;
+  readOnly?: boolean;
+  language?: string;
+  success?: boolean;
+  errors?: Array<{ line: number; column: number; message: string }>;
+  message?: string;
+}
 
 /**
  * Event handler type.
@@ -141,7 +156,18 @@ export class WebSocketClient {
       const lines = data.split(/\r?\n/);
       for (const line of lines) {
         if (line.length > 0 || lines.length === 1) {
-          this.emit('message', line);
+          // Check for IDE message prefix
+          if (line.startsWith('\x00[IDE]')) {
+            const jsonStr = line.slice(6); // Remove \x00[IDE] prefix
+            try {
+              const ideMessage = JSON.parse(jsonStr) as IdeMessage;
+              this.emit('ide-message', ideMessage);
+            } catch (error) {
+              console.error('Failed to parse IDE message:', error);
+            }
+          } else {
+            this.emit('message', line);
+          }
         }
       }
     };
@@ -192,6 +218,27 @@ export class WebSocketClient {
       this.socket!.send(message + '\n');
     } catch (error) {
       this.emit('error', `Failed to send: ${error}`);
+    }
+  }
+
+  /**
+   * Send an IDE message to the server.
+   */
+  sendIdeMessage(message: IdeMessage): void {
+    console.log('sendIdeMessage called:', message);
+    if (!this.isConnected) {
+      console.log('sendIdeMessage: not connected, aborting');
+      this.emit('error', 'Not connected');
+      return;
+    }
+
+    try {
+      const jsonStr = JSON.stringify(message);
+      console.log('sendIdeMessage: sending', `\\x00[IDE]${jsonStr}`);
+      this.socket!.send(`\x00[IDE]${jsonStr}\n`);
+    } catch (error) {
+      console.error('sendIdeMessage error:', error);
+      this.emit('error', `Failed to send IDE message: ${error}`);
     }
   }
 

@@ -586,11 +586,149 @@ body {
   border-top: 1px solid var(--border-subtle);
 }
 
+/* IDE Modal */
+.ide-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-primary);
+  z-index: 2000;
+}
+
+.ide-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-sm) var(--spacing-lg);
+  background-color: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-primary);
+  flex-shrink: 0;
+}
+
+.ide-filepath {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.ide-buttons {
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
+.ide-btn {
+  padding: var(--spacing-xs) var(--spacing-md);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  border-radius: var(--border-radius-sm);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.ide-btn-save {
+  color: white;
+  background-color: var(--accent);
+  border: none;
+}
+
+.ide-btn-save:hover {
+  background-color: var(--accent-hover);
+}
+
+.ide-btn-close {
+  color: var(--text-secondary);
+  background-color: transparent;
+  border: 1px solid var(--border-primary);
+}
+
+.ide-btn-close:hover {
+  color: var(--text-primary);
+  background-color: var(--bg-hover);
+}
+
+.ide-editor-container {
+  flex: 1;
+  overflow: hidden;
+  background-color: var(--bg-terminal);
+}
+
+.ide-editor-container .cm-editor {
+  height: 100%;
+}
+
+.ide-editor-container .cm-scroller {
+  overflow: auto;
+}
+
+.ide-error-panel {
+  max-height: 180px;
+  padding: var(--spacing-md);
+  background-color: var(--error-subtle);
+  border-top: 2px solid var(--error);
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+
+.ide-error-title {
+  font-weight: 600;
+  font-size: var(--font-size-sm);
+  color: var(--error);
+  margin-bottom: var(--spacing-sm);
+}
+
+.ide-error-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ide-error-item {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  cursor: pointer;
+  border-radius: var(--border-radius-sm);
+  font-size: var(--font-size-xs);
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-sm);
+}
+
+.ide-error-item:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.ide-error-location {
+  font-family: var(--font-mono);
+  color: var(--warning);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.ide-error-message {
+  color: var(--text-primary);
+  word-break: break-word;
+}
+
+.ide-status {
+  padding: var(--spacing-xs) var(--spacing-lg);
+  background-color: var(--bg-secondary);
+  color: var(--text-tertiary);
+  font-size: var(--font-size-xs);
+  border-top: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+
 /* Print styles - hide for printing */
 @media print {
   #header,
   #input-container,
-  .code-editor-wrapper {
+  .code-editor-wrapper,
+  .ide-modal {
     display: none;
   }
 

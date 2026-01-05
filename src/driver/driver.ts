@@ -371,7 +371,13 @@ export class Driver {
           processInput?: (input: string) => void | Promise<void>;
         };
         if (player.processInput) {
-          await player.processInput(input);
+          // Set efun context so input handlers can use efuns that need player context
+          this.efunBridge.setContext({ thisPlayer: player, thisObject: player });
+          try {
+            await player.processInput(input);
+          } finally {
+            this.efunBridge.clearContext();
+          }
         }
       }
     } catch (error) {

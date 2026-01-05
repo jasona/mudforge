@@ -31,6 +31,20 @@ export interface PageOptions {
   onExit?: () => void;
 }
 
+/**
+ * IDE message types for client communication.
+ */
+export interface IdeMessage {
+  action: 'open' | 'save-result' | 'error';
+  path?: string;
+  content?: string;
+  readOnly?: boolean;
+  language?: string;
+  success?: boolean;
+  errors?: Array<{ line: number; column: number; message: string }>;
+  message?: string;
+}
+
 export interface EfunBridgeConfig {
   /** Root path for file operations */
   mudlibPath: string;
@@ -1202,6 +1216,37 @@ export class EfunBridge {
     this.displayPage(player, state);
   }
 
+  // ========== IDE Efuns ==========
+
+  /**
+   * Send an IDE message to the current player's client.
+   * Messages are prefixed with \x00[IDE] to distinguish from regular text.
+   * This is used to open the visual IDE editor in the browser.
+   *
+   * @param message The IDE message object
+   */
+  ideOpen(message: IdeMessage): void {
+    const player = this.context.thisPlayer;
+    if (!player) {
+      throw new Error('No player context for IDE');
+    }
+
+    // Get the player's connection to send raw message (bypassing colorization)
+    const playerWithConnection = player as MudObject & {
+      connection?: { send: (msg: string) => void };
+      _connection?: { send: (msg: string) => void };
+    };
+
+    const connection = playerWithConnection.connection || playerWithConnection._connection;
+    if (!connection?.send) {
+      throw new Error('Player has no connection');
+    }
+
+    // Send structured message with IDE prefix (no colorization)
+    const jsonStr = JSON.stringify(message);
+    connection.send(`\x00[IDE]${jsonStr}\n`);
+  }
+
   // ========== Hot Reload Efuns ==========
 
   /**
@@ -1314,6 +1359,9 @@ export class EfunBridge {
 
       // Paging
       page: this.page.bind(this),
+
+      // IDE
+      ideOpen: this.ideOpen.bind(this),
     };
   }
 }

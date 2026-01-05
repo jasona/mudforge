@@ -5,8 +5,9 @@
  */
 
 import { Terminal } from './terminal.js';
-import { WebSocketClient } from './websocket-client.js';
+import { WebSocketClient, IdeMessage } from './websocket-client.js';
 import { InputHandler } from './input-handler.js';
+import { IdeEditor } from './ide-editor.js';
 
 /**
  * Main client application.
@@ -15,6 +16,7 @@ class MudClient {
   private terminal: Terminal;
   private wsClient: WebSocketClient;
   private inputHandler: InputHandler;
+  private ideEditor: IdeEditor;
   private statusElement: HTMLElement;
 
   constructor() {
@@ -34,6 +36,7 @@ class MudClient {
     this.terminal = new Terminal(terminalEl);
     this.inputHandler = new InputHandler(inputEl, sendBtn);
     this.wsClient = new WebSocketClient();
+    this.ideEditor = new IdeEditor();
 
     this.setupEventHandlers();
   }
@@ -66,10 +69,39 @@ class MudClient {
       this.terminal.addLine(data);
     });
 
+    // IDE events
+    this.wsClient.on('ide-message', (message: IdeMessage) => {
+      this.handleIdeMessage(message);
+    });
+
     // Input events
     this.inputHandler.on('submit', (command: string) => {
       this.sendCommand(command);
     });
+  }
+
+  /**
+   * Handle IDE messages from server.
+   */
+  private handleIdeMessage(message: IdeMessage): void {
+    if (message.action === 'open') {
+      this.ideEditor.open(message, {
+        onSave: (path, content) => {
+          this.wsClient.sendIdeMessage({
+            action: 'save',
+            path,
+            content,
+          });
+        },
+        onClose: () => {
+          console.log('IDE onClose callback called, sending close message');
+          this.wsClient.sendIdeMessage({ action: 'close' });
+          this.inputHandler.focus();
+        },
+      });
+    } else if (message.action === 'save-result') {
+      this.ideEditor.handleSaveResult(message);
+    }
   }
 
   /**
