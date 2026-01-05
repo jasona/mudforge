@@ -352,8 +352,18 @@ export class Driver {
         // Disconnect during login
         this.loginDaemon.handleDisconnect(connection);
       } else {
-        // Player disconnected
+        // Player disconnected - save their data first
         const player = handler;
+        const playerWithName = player as MudObject & { name?: string };
+
+        // Save player data before disconnect
+        try {
+          await this.efunBridge.savePlayer(player);
+          this.logger.info({ name: playerWithName.name }, 'Player data saved on disconnect');
+        } catch (error) {
+          this.logger.error({ error, name: playerWithName.name }, 'Failed to save player on disconnect');
+        }
+
         if (this.master?.onPlayerDisconnect) {
           await this.master.onPlayerDisconnect(player);
         }

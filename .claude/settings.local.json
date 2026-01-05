@@ -19,7 +19,8 @@
       "Bash(npm run build:client:*)",
       "Bash(timeout 10 npm run dev)",
       "Bash(timeout 8 npm run dev:*)",
-      "Bash(timeout 5 npm run dev:*)"
+      "Bash(timeout 5 npm run dev:*)",
+      "Bash(npx vitest:*)"
     ]
   }
 }

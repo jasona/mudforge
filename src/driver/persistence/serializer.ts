@@ -156,6 +156,7 @@ export class Serializer {
       '_connection',
     ]);
 
+    // Extract public properties from the object itself
     for (const key of Object.keys(obj)) {
       if (skip.has(key)) continue;
       if (typeof obj[key] === 'function') continue;
@@ -163,6 +164,18 @@ export class Serializer {
 
       const value = obj[key];
       properties[key] = this.serializeValue(value);
+    }
+
+    // Also extract properties from the _properties Map (via getPropertyKeys/getProperty)
+    const objWithProps = object as MudObject & {
+      getPropertyKeys?: () => string[];
+      getProperty?: (key: string) => unknown;
+    };
+    if (objWithProps.getPropertyKeys && objWithProps.getProperty) {
+      for (const key of objWithProps.getPropertyKeys()) {
+        const value = objWithProps.getProperty(key);
+        properties[key] = this.serializeValue(value);
+      }
     }
 
     return properties;

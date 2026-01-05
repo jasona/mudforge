@@ -4,6 +4,11 @@
 
 import type { MudObject } from '../../std/object.js';
 
+// Efuns are injected by the driver at runtime
+declare const efuns: {
+  savePlayer(player: MudObject): Promise<void>;
+};
+
 interface CommandContext {
   player: MudObject;
   args: string;
@@ -22,6 +27,12 @@ export const usage = 'quit';
 export async function execute(ctx: CommandContext): Promise<void> {
   const { player } = ctx;
   const playerLike = player as PlayerLike;
+
+  // Save player data before quitting
+  if (typeof efuns !== 'undefined' && efuns.savePlayer) {
+    ctx.sendLine('Saving your character...');
+    await efuns.savePlayer(player);
+  }
 
   ctx.sendLine('Goodbye! See you next time.');
 

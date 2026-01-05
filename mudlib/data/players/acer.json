@@ -1,0 +1,20 @@
+{
+  "name": "Acer",
+  "location": "/areas/void/void",
+  "state": {
+    "objectPath": "",
+    "isClone": false,
+    "properties": {
+      "passwordHash": "c72e41ded2c0687723e6b21ca5438447:026fd9b58eee8515b3ea8e530f599d1a9eb1052b1a99682f49652492c5b05a2f0b56f6204cab099202ddfe3c7cb038814cab07345d41d41e0d328dd7d05b6702",
+      "email": "jason.alexander@gmail.com",
+      "permissionLevel": 3
+    },
+    "timestamp": 1767577638642,
+    "environment": {
+      "__type": "object_ref",
+      "path": "/areas/void/void",
+      "isClone": false
+    }
+  },
+  "savedAt": 1767577638642
+}

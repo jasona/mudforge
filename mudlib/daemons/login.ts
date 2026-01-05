@@ -7,6 +7,34 @@
 
 import { MudObject } from '../std/object.js';
 import { Player } from '../std/player.js';
+import { scrypt, randomBytes, timingSafeEqual } from 'crypto';
+import { promisify } from 'util';
+
+const scryptAsync = promisify(scrypt);
+
+/**
+ * Hash a password using scrypt.
+ * Returns format: salt:hash (both hex encoded)
+ */
+async function hashPassword(password: string): Promise<string> {
+  const salt = randomBytes(16).toString('hex');
+  const hash = (await scryptAsync(password, salt, 64)) as Buffer;
+  return `${salt}:${hash.toString('hex')}`;
+}
+
+/**
+ * Verify a password against a stored hash.
+ */
+async function verifyPassword(password: string, storedHash: string): Promise<boolean> {
+  const [salt, hash] = storedHash.split(':');
+  if (!salt || !hash) return false;
+
+  const hashBuffer = Buffer.from(hash, 'hex');
+  const derivedKey = (await scryptAsync(password, salt, 64)) as Buffer;
+
+  // Use timing-safe comparison to prevent timing attacks
+  return timingSafeEqual(hashBuffer, derivedKey);
+}
 
 // Efuns are injected by the driver at runtime
 declare const efuns: {
@@ -15,7 +43,24 @@ declare const efuns: {
   send(target: MudObject, message: string): void;
   time(): number;
   bindPlayerToConnection(connection: Connection, player: MudObject): void;
+  // Persistence efuns
+  playerExists(name: string): Promise<boolean>;
+  loadPlayerData(name: string): Promise<PlayerSaveData | null>;
+  savePlayer(player: MudObject): Promise<void>;
+  listPlayers(): Promise<string[]>;
 };
+
+/**
+ * Player save data from persistence layer.
+ */
+interface PlayerSaveData {
+  name: string;
+  location: string;
+  state: {
+    properties: Record<string, unknown>;
+  };
+  savedAt: number;
+}
 
 /**
  * Connection interface.
@@ -42,6 +87,7 @@ interface LoginSession {
   password: string;
   email: string;
   isNewPlayer: boolean;
+  savedData?: PlayerSaveData; // Loaded save data for existing players
 }
 
 /**
@@ -49,8 +95,9 @@ interface LoginSession {
  */
 export class LoginDaemon extends MudObject {
   private _sessions: Map<Connection, LoginSession> = new Map();
-  private _players: Map<string, Player> = new Map(); // In-memory player store (would be file-based)
-  private _passwords: Map<string, string> = new Map(); // Player passwords (would be hashed and stored)
+
+  // In-memory fallback for testing (when efuns not available)
+  private _passwords: Map<string, string> = new Map();
 
   constructor() {
     super();
@@ -140,8 +187,20 @@ export class LoginDaemon extends MudObject {
 
     session.name = name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
 
-    // Check if player exists
-    if (this._passwords.has(session.name.toLowerCase())) {
+    // Check if player exists using persistence or in-memory fallback
+    let playerExists = false;
+    if (typeof efuns !== 'undefined' && efuns.playerExists) {
+      // Use persistence system
+      playerExists = await efuns.playerExists(session.name);
+      if (playerExists && efuns.loadPlayerData) {
+        session.savedData = (await efuns.loadPlayerData(session.name)) ?? undefined;
+      }
+    } else {
+      // Fallback to in-memory (for testing)
+      playerExists = this._passwords.has(session.name.toLowerCase());
+    }
+
+    if (playerExists) {
       session.isNewPlayer = false;
       session.connection.send(`Welcome back, ${session.name}.\nPassword: `);
     } else {
@@ -169,9 +228,37 @@ export class LoginDaemon extends MudObject {
       session.connection.send('Please confirm your password: ');
       session.state = 'confirm_password';
     } else {
-      // Existing player - verify password
-      const storedPassword = this._passwords.get(session.name.toLowerCase());
-      if (password !== storedPassword) {
+      // Existing player - verify password from saved data or in-memory fallback
+      let storedHash: string | undefined;
+      if (session.savedData?.state?.properties?.passwordHash) {
+        // From persistence (hashed)
+        storedHash = session.savedData.state.properties.passwordHash as string;
+      } else if (session.savedData?.state?.properties?.password) {
+        // Legacy: plain text password (will be upgraded on next save)
+        const legacyPassword = session.savedData.state.properties.password as string;
+        if (password !== legacyPassword) {
+          session.connection.send('Incorrect password.\n');
+          session.connection.send('Password: ');
+          return;
+        }
+        // Password matches - will be upgraded to hash on login completion
+        session.password = password;
+        await this.completeLogin(session);
+        return;
+      } else {
+        // From in-memory fallback (testing)
+        storedHash = this._passwords.get(session.name.toLowerCase());
+      }
+
+      if (!storedHash) {
+        session.connection.send('Incorrect password.\n');
+        session.connection.send('Password: ');
+        return;
+      }
+
+      // Verify the hashed password
+      const isValid = await verifyPassword(password, storedHash);
+      if (!isValid) {
         session.connection.send('Incorrect password.\n');
         session.connection.send('Password: ');
         return;
@@ -252,36 +339,81 @@ export class LoginDaemon extends MudObject {
    * Create a new player.
    */
   private async createPlayer(session: LoginSession, gender: 'male' | 'female' | 'neutral'): Promise<void> {
-    // Store password
-    this._passwords.set(session.name.toLowerCase(), session.password);
+    // Hash the password
+    const passwordHash = await hashPassword(session.password);
+
+    // Store hashed password in in-memory map (for testing fallback)
+    this._passwords.set(session.name.toLowerCase(), passwordHash);
+
+    // Check if this is the first player (will become admin)
+    let isFirstPlayer = false;
+    if (typeof efuns !== 'undefined' && efuns.listPlayers) {
+      const existingPlayers = await efuns.listPlayers();
+      isFirstPlayer = existingPlayers.length === 0;
+    }
 
     // Create player object
     const player = new Player();
-    player.createAccount(session.name, session.password, session.email);
+    player.createAccount(session.name, passwordHash, session.email);
     player.gender = gender;
     player.shortDesc = session.name;
 
-    // Store player
-    this._players.set(session.name.toLowerCase(), player);
+    // Grant admin permissions to the first player
+    if (isFirstPlayer) {
+      player.permissionLevel = 3; // Administrator
+      session.connection.send('\n*** You are the first player - granting Administrator privileges! ***\n');
+    }
+
+    // Store hashed password in properties so it gets serialized
+    player.setProperty('passwordHash', passwordHash);
+    player.setProperty('email', session.email);
+    player.setProperty('permissionLevel', player.permissionLevel);
 
     session.connection.send(`\nWelcome to the game, ${session.name}!\n\n`);
 
-    // Complete login
+    // Complete login (this will also save the player)
     await this.completeLogin(session, player);
   }
 
   /**
    * Complete the login process.
    */
-  private async completeLogin(session: LoginSession, existingPlayer?: Player): Promise<void> {
+  private async completeLogin(session: LoginSession, newPlayer?: Player): Promise<void> {
     let player: Player;
 
-    if (existingPlayer) {
-      player = existingPlayer;
+    if (newPlayer) {
+      // New player just created
+      player = newPlayer;
     } else {
-      // Load existing player
-      player = this._players.get(session.name.toLowerCase()) || new Player();
+      // Existing player - restore from saved data
+      player = new Player();
       player.name = session.name;
+      player.shortDesc = session.name;
+
+      // Restore saved properties
+      if (session.savedData?.state?.properties) {
+        for (const [key, value] of Object.entries(session.savedData.state.properties)) {
+          // Skip legacy plain-text password - we'll upgrade it below
+          if (key === 'password') continue;
+          player.setProperty(key, value);
+        }
+
+        // Restore specific fields from properties
+        const props = session.savedData.state.properties;
+        if (props.gender) player.gender = props.gender as 'male' | 'female' | 'neutral';
+        if (props.title) player.title = props.title as string;
+        if (props.health !== undefined) player.health = props.health as number;
+        if (props.maxHealth !== undefined) player.maxHealth = props.maxHealth as number;
+        if (props.permissionLevel !== undefined) player.permissionLevel = props.permissionLevel as number;
+
+        // Upgrade legacy plain-text password to hash
+        if (props.password && !props.passwordHash && session.password) {
+          const newHash = await hashPassword(session.password);
+          player.setProperty('passwordHash', newHash);
+          // Update in-memory fallback too
+          this._passwords.set(session.name.toLowerCase(), newHash);
+        }
+      }
     }
 
     // Bind connection to player (both at player level and driver level)
@@ -290,20 +422,28 @@ export class LoginDaemon extends MudObject {
       efuns.bindPlayerToConnection(session.connection, player);
     }
 
-    // Move to starting room
-    const voidRoom =
-      typeof efuns !== 'undefined' ? efuns.findObject('/areas/void/void') : undefined;
-    if (voidRoom) {
-      await player.moveTo(voidRoom);
+    // Move to starting room (or last location for returning players)
+    let startLocation = '/areas/void/void';
+    if (session.savedData?.location) {
+      startLocation = session.savedData.location;
+    }
+    const room = typeof efuns !== 'undefined' ? efuns.findObject(startLocation) : undefined;
+    if (room) {
+      await player.moveTo(room);
     }
 
     // Call onConnect
     await player.onConnect();
 
     // Look at the room
-    const room = player.environment as MudObject & { look?: (viewer: MudObject) => void };
-    if (room && typeof room.look === 'function') {
-      room.look(player);
+    const roomWithLook = player.environment as MudObject & { look?: (viewer: MudObject) => void };
+    if (roomWithLook && typeof roomWithLook.look === 'function') {
+      roomWithLook.look(player);
+    }
+
+    // Save the player (update last login time, etc.)
+    if (typeof efuns !== 'undefined' && efuns.savePlayer) {
+      await efuns.savePlayer(player);
     }
 
     // Send prompt

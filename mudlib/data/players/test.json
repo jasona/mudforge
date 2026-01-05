@@ -1,0 +1,20 @@
+{
+  "name": "Test",
+  "location": "/areas/void/void",
+  "state": {
+    "objectPath": "",
+    "isClone": false,
+    "properties": {
+      "passwordHash": "b629c054b3f7c5e5e056c1eab1a888e2:be7c4d5467799032b5c34ddcf9e83a77173ebfff51ef07fad9d86a0fdc8a22b48ef98a4cda0ea11a0f5d4ac10fc621d47f494f336fc6ecdc4206fd5a5f531ec2",
+      "email": "test@test.com",
+      "permissionLevel": 0
+    },
+    "timestamp": 1767577682098,
+    "environment": {
+      "__type": "object_ref",
+      "path": "/areas/void/void",
+      "isClone": false
+    }
+  },
+  "savedAt": 1767577682098
+}

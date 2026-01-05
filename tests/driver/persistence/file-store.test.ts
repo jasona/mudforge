@@ -166,6 +166,11 @@ describe('FileStore', () => {
       expect(state!.objects).toHaveLength(2);
     });
 
+    it('should return null when no world state exists', async () => {
+      const state = await store.loadWorldState();
+      expect(state).toBeNull();
+    });
+
     it('should load world state with version', async () => {
       const room = createMockObject('/areas/town/square', {});
       await store.saveWorldState([room]);
@@ -175,14 +180,14 @@ describe('FileStore', () => {
       expect(state!.version).toBe(1);
       expect(state!.timestamp).toBeLessThanOrEqual(Date.now());
     });
-
-    it('should return null when no world state exists', async () => {
-      const state = await store.loadWorldState();
-      expect(state).toBeNull();
-    });
   });
 
   describe('Permissions Persistence', () => {
+    it('should return null when no permissions exist', async () => {
+      const loaded = await store.loadPermissions();
+      expect(loaded).toBeNull();
+    });
+
     it('should save permissions', async () => {
       const data = {
         levels: { admin: 3, builder: 1 },
@@ -193,11 +198,6 @@ describe('FileStore', () => {
 
       const loaded = await store.loadPermissions();
       expect(loaded).toEqual(data);
-    });
-
-    it('should return null when no permissions exist', async () => {
-      const loaded = await store.loadPermissions();
-      expect(loaded).toBeNull();
     });
   });
 

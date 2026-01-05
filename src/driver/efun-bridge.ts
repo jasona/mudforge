@@ -9,6 +9,8 @@
 import { getRegistry, type ObjectRegistry } from './object-registry.js';
 import { getScheduler, type Scheduler } from './scheduler.js';
 import { getPermissions, resetPermissions, type Permissions } from './permissions.js';
+import { getFileStore } from './persistence/file-store.js';
+import type { PlayerSaveData } from './persistence/serializer.js';
 import type { MudObject } from './types.js';
 import { readFile, writeFile, access, readdir, stat, mkdir } from 'fs/promises';
 import { dirname, normalize, resolve } from 'path';
@@ -484,6 +486,45 @@ export class EfunBridge {
     return false;
   }
 
+  // ========== Persistence Efuns ==========
+
+  /**
+   * Save a player to disk.
+   * @param player The player object to save
+   */
+  async savePlayer(player: MudObject): Promise<void> {
+    const fileStore = getFileStore({ dataPath: this.config.mudlibPath + '/data' });
+    await fileStore.savePlayer(player);
+  }
+
+  /**
+   * Load a player's saved data.
+   * @param name The player's name
+   * @returns The player save data, or null if not found
+   */
+  async loadPlayerData(name: string): Promise<PlayerSaveData | null> {
+    const fileStore = getFileStore({ dataPath: this.config.mudlibPath + '/data' });
+    return fileStore.loadPlayer(name);
+  }
+
+  /**
+   * Check if a player save exists.
+   * @param name The player's name
+   */
+  async playerExists(name: string): Promise<boolean> {
+    const fileStore = getFileStore({ dataPath: this.config.mudlibPath + '/data' });
+    return fileStore.playerExists(name);
+  }
+
+  /**
+   * List all saved player names.
+   * @returns Array of player names
+   */
+  async listPlayers(): Promise<string[]> {
+    const fileStore = getFileStore({ dataPath: this.config.mudlibPath + '/data' });
+    return fileStore.listPlayers();
+  }
+
   /**
    * Get all efuns as an object for exposing to sandbox.
    */
@@ -540,6 +581,12 @@ export class EfunBridge {
       // Connection
       bindPlayerToConnection: this.bindPlayerToConnection.bind(this),
       executeCommand: this.executeCommand.bind(this),
+
+      // Persistence
+      savePlayer: this.savePlayer.bind(this),
+      loadPlayerData: this.loadPlayerData.bind(this),
+      playerExists: this.playerExists.bind(this),
+      listPlayers: this.listPlayers.bind(this),
     };
   }
 }
