@@ -130,6 +130,7 @@ export class Driver {
       cmdsPath: join(this.config.mudlibPath, 'cmds'),
       logger: this.logger,
       watchEnabled: this.config.hotReload,
+      savePlayer: (player) => this.efunBridge.savePlayer(player),
     });
 
     // Set up the execute command callback so mudlib can use the command system

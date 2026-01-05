@@ -181,13 +181,21 @@ export class Loader {
       return null;
     }
 
-    // Restore state
+    // Restore state from serializer
     const serializer = getSerializer();
     serializer.deserialize(saveData.state, player);
 
-    // Set name
-    const p = player as MudObject & { name?: string };
-    p.name = saveData.name;
+    // Call the player's restore() method if it exists (passes full save data)
+    const p = player as MudObject & {
+      name?: string;
+      restore?: (data: PlayerSaveData) => void;
+    };
+    if (p.restore) {
+      p.restore(saveData);
+    } else {
+      // Fallback: just set the name
+      p.name = saveData.name;
+    }
 
     // Try to restore to last location
     if (saveData.location) {

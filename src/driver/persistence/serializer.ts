@@ -46,6 +46,8 @@ export interface PlayerSaveData {
   state: SerializedState;
   /** Last save time */
   savedAt: number;
+  /** Additional fields from player.save() */
+  [key: string]: unknown;
 }
 
 /**
@@ -114,13 +116,20 @@ export class Serializer {
    * @param player The player object
    */
   serializePlayer(player: MudObject): PlayerSaveData {
-    const p = player as MudObject & { name?: string };
+    const p = player as MudObject & {
+      name?: string;
+      save?: () => Record<string, unknown>;
+    };
+
+    // If the player has a save() method, use it to get additional data
+    const playerSaveData = p.save ? p.save() : {};
 
     return {
       name: p.name ?? 'unknown',
       location: player.environment?.objectPath ?? '/areas/town/center',
       state: this.serialize(player, false), // Don't save inventory in player file
       savedAt: Date.now(),
+      ...playerSaveData, // Include data from player's save() method
     };
   }
 

@@ -170,6 +170,68 @@ Remove an exit from the current room.
 - Consider temporarily blocking instead`,
     seeAlso: ['building', 'blink', 'bdig'],
   },
+  {
+    name: 'patch',
+    title: 'Patching Living Objects',
+    category: 'building',
+    aliases: ['bpatch'],
+    keywords: ['modify', 'living', 'health', 'mana', 'stats', 'debug', 'test'],
+    content: `{bold}patch Command:{/}
+Call methods or set properties on living objects in real-time.
+
+{bold}Usage:{/}
+  {yellow}patch <target> <method/property> [args...]{/}
+
+{bold}Targets:{/}
+  {cyan}me{/}, {cyan}self{/}, {cyan}myself{/} - Yourself
+  {cyan}<name>{/}              - Any living in the room by name
+
+{bold}Getting Values:{/}
+  {yellow}patch me health{/}        - Show current health
+  {yellow}patch me level{/}         - Show current level
+  {yellow}patch goblin alive{/}     - Check if goblin is alive
+
+{bold}Setting Properties:{/}
+  {yellow}patch me health 50{/}     - Set HP to 50
+  {yellow}patch me mana 25{/}       - Set MP to 25
+  {yellow}patch me maxHealth 200{/} - Set max HP
+  {yellow}patch me level 10{/}      - Set level to 10
+  {yellow}patch me experience 500{/} - Set XP
+
+{bold}Calling Methods:{/}
+  {yellow}patch me setBaseStat strength 15{/}
+  {yellow}patch me setStatModifier dexterity 5{/}
+  {yellow}patch me heal 25{/}
+  {yellow}patch me gainExperience 100{/}
+  {yellow}patch goblin takeDamage 10{/}
+
+{bold}Value Types:{/}
+  Numbers:  {cyan}50{/}, {cyan}3.14{/}, {cyan}-10{/}
+  Booleans: {cyan}true{/}, {cyan}false{/}
+  Strings:  {cyan}hello{/} or {cyan}"hello world"{/}
+
+{bold}Common Properties:{/}
+  {cyan}health{/}     - Current hit points
+  {cyan}maxHealth{/}  - Maximum hit points
+  {cyan}mana{/}       - Current mana points
+  {cyan}maxMana{/}    - Maximum mana points
+  {cyan}level{/}      - Character level
+  {cyan}experience{/} - Experience points
+  {cyan}alive{/}      - Living/dead status (read-only)
+
+{bold}Common Methods:{/}
+  {cyan}heal(amount){/}           - Restore health
+  {cyan}takeDamage(amount){/}     - Deal damage
+  {cyan}setBaseStat(stat, val){/} - Set a base stat
+  {cyan}setStatModifier(stat, val){/} - Set stat bonus
+  {cyan}gainExperience(amount){/} - Add XP
+
+{bold}Tips:{/}
+- Use this for testing and debugging
+- Changes take effect immediately
+- Be careful modifying other players`,
+    seeAlso: ['building', 'bstat', 'bset'],
+  },
 ];
 
 export default topics;

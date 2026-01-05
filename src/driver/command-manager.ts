@@ -44,6 +44,8 @@ export interface CommandContext {
   send(message: string): void;
   /** Send a line with newline */
   sendLine(message: string): void;
+  /** Save the player's state */
+  savePlayer(): Promise<void>;
 }
 
 /**
@@ -80,6 +82,8 @@ export interface CommandManagerConfig {
   logger?: Logger | undefined;
   /** Enable hot-reload watching */
   watchEnabled?: boolean | undefined;
+  /** Callback to save a player */
+  savePlayer?: (player: MudObject) => Promise<void>;
 }
 
 /**
@@ -102,6 +106,7 @@ export class CommandManager {
   private commandsByFile: Map<string, LoadedCommand> = new Map();
   private watchers: FSWatcher[] = [];
   private initialized: boolean = false;
+  private savePlayerCallback: ((player: MudObject) => Promise<void>) | undefined;
 
   constructor(config: CommandManagerConfig) {
     this.config = {
@@ -109,6 +114,7 @@ export class CommandManager {
       watchEnabled: config.watchEnabled ?? true,
     };
     this.logger = config.logger;
+    this.savePlayerCallback = config.savePlayer;
   }
 
   /**
@@ -306,6 +312,7 @@ export class CommandManager {
 
     // Create context
     const playerWithReceive = player as MudObject & { receive?: (msg: string) => void };
+    const savePlayerCallback = this.savePlayerCallback;
     const ctx: CommandContext = {
       player,
       input: trimmed,
@@ -319,6 +326,11 @@ export class CommandManager {
       sendLine: (message: string) => {
         if (playerWithReceive.receive) {
           playerWithReceive.receive(message + '\n');
+        }
+      },
+      savePlayer: async () => {
+        if (savePlayerCallback) {
+          await savePlayerCallback(player);
         }
       },
     };

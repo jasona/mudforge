@@ -5,16 +5,43 @@
     "objectPath": "",
     "isClone": false,
     "properties": {
-      "passwordHash": "6aa641de4938e22c1057a6860ae71cd0:ea0af2687a1e9a8e9a2a40d32be56ff57b073c1f1f407165b290f1e28cc69810de1d5e1541f15965a1669bf8caae34c8e843fd0d03406a8c65bab26b38435900",
+      "passwordHash": "348155bff644f9f2807c98e3a88a69ce:0fd1f799586fcdec83bdc0c5627b796ec8b4e6e3bbb6ae9eb7f9b0b601492a9b52ee971e92dd38da8f83385ac2ccd979ad69b4bc6f0aa4562557aacfc50e0df8",
       "email": "jason.alexander@gmail.com",
       "permissionLevel": 3
     },
-    "timestamp": 1767585713302,
+    "timestamp": 1767588318389,
     "environment": {
       "__type": "object_ref",
       "path": "/areas/town/center",
       "isClone": false
     }
   },
-  "savedAt": 1767585713302
+  "savedAt": 1767588318389,
+  "title": "",
+  "gender": "neutral",
+  "level": 1,
+  "experience": 0,
+  "health": 50,
+  "maxHealth": 100,
+  "mana": 100,
+  "maxMana": 100,
+  "stats": {
+    "strength": 1,
+    "intelligence": 1,
+    "wisdom": 1,
+    "charisma": 1,
+    "dexterity": 1,
+    "constitution": 1,
+    "luck": 1
+  },
+  "inventory": [],
+  "properties": {
+    "passwordHash": "348155bff644f9f2807c98e3a88a69ce:0fd1f799586fcdec83bdc0c5627b796ec8b4e6e3bbb6ae9eb7f9b0b601492a9b52ee971e92dd38da8f83385ac2ccd979ad69b4bc6f0aa4562557aacfc50e0df8",
+    "email": "jason.alexander@gmail.com",
+    "permissionLevel": 3
+  },
+  "createdAt": 1767588015729,
+  "lastLogin": 1767588318,
+  "playTime": 151,
+  "monitorEnabled": true
 }

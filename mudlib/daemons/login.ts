@@ -6,7 +6,7 @@
  */
 
 import { MudObject } from '../std/object.js';
-import { Player } from '../std/player.js';
+import { Player, type PlayerSaveData } from '../std/player.js';
 import { scrypt, randomBytes, timingSafeEqual } from 'crypto';
 import { promisify } from 'util';
 
@@ -387,10 +387,16 @@ export class LoginDaemon extends MudObject {
     } else {
       // Existing player - restore from saved data
       player = new Player();
-      player.name = session.name;
-      player.shortDesc = session.name;
 
-      // Restore saved properties
+      // Call player.restore() with the full save data
+      if (session.savedData) {
+        player.restore(session.savedData as PlayerSaveData);
+      } else {
+        player.name = session.name;
+        player.shortDesc = session.name;
+      }
+
+      // Restore properties from state (for passwordHash, email, permissionLevel, etc.)
       if (session.savedData?.state?.properties) {
         for (const [key, value] of Object.entries(session.savedData.state.properties)) {
           // Skip legacy plain-text password - we'll upgrade it below
@@ -398,12 +404,8 @@ export class LoginDaemon extends MudObject {
           player.setProperty(key, value);
         }
 
-        // Restore specific fields from properties
+        // Restore permission level from properties
         const props = session.savedData.state.properties;
-        if (props.gender) player.gender = props.gender as 'male' | 'female' | 'neutral';
-        if (props.title) player.title = props.title as string;
-        if (props.health !== undefined) player.health = props.health as number;
-        if (props.maxHealth !== undefined) player.maxHealth = props.maxHealth as number;
         if (props.permissionLevel !== undefined) player.permissionLevel = props.permissionLevel as number;
 
         // Upgrade legacy plain-text password to hash

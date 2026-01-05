@@ -48,6 +48,7 @@ export interface PlayerSaveData {
   createdAt: number;
   lastLogin: number;
   playTime: number;
+  monitorEnabled?: boolean;
 }
 
 /**
@@ -489,6 +490,7 @@ export class Player extends Living {
       createdAt: this._createdAt || Date.now(),
       lastLogin: this._lastLogin,
       playTime: this.playTime,
+      monitorEnabled: this._monitorEnabled,
     };
   }
 
@@ -532,6 +534,11 @@ export class Player extends Living {
       for (const [key, value] of Object.entries(data.properties)) {
         this.setProperty(key, value);
       }
+    }
+
+    // Restore monitor setting (if present - for backwards compatibility)
+    if (data.monitorEnabled !== undefined) {
+      this.monitorEnabled = data.monitorEnabled;
     }
 
     // Note: Location and inventory need to be handled by the driver
