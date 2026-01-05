@@ -44,13 +44,19 @@ export class Terminal {
    * Add a line of output.
    */
   addLine(text: string, className?: string): void {
-    const line = document.createElement('div');
-    line.className = 'line' + (className ? ` ${className}` : '');
+    // Handle both actual newlines and literal \n strings
+    // First replace literal \n with actual newlines, then split
+    const normalizedText = text.replace(/\\n/g, '\n');
+    const lines = normalizedText.split(/\r?\n/);
+    for (const lineText of lines) {
+      const line = document.createElement('div');
+      line.className = 'line' + (className ? ` ${className}` : '');
 
-    // Parse ANSI escape sequences
-    line.innerHTML = this.parseAnsi(text);
+      // Parse ANSI escape sequences
+      line.innerHTML = this.parseAnsi(lineText);
 
-    this.element.appendChild(line);
+      this.element.appendChild(line);
+    }
     this.trimLines();
     this.scrollToBottom();
   }

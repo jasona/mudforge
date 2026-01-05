@@ -17,17 +17,17 @@ export class CenterOfTown extends Room {
     this.longDesc = `You stand in the heart of a bustling medieval town square. {dim}Cobblestones worn
 smooth by countless feet spread out in all directions{/}, and a magnificent {cyan}stone
 fountain{/} dominates the center, its {CYAN}crystal waters{/} catching the sunlight.
-\n\
+
 {yellow}Merchants{/} hawk their wares from colorful stalls lining the square's edges, their
 voices mingling with the clatter of horse hooves and the chatter of townsfolk.
 The aroma of {yellow}fresh bread{/} wafts from a nearby bakery, competing with the earthy
 scent of the {red}blacksmith's forge{/}.
-\n\
+
 To the {green}north{/}, the imposing walls of the {bold}castle{/} rise above the rooftops. An old
 {yellow}tavern{/} with a weathered sign creaks in the breeze to the {green}east{/}. The {green}western{/} road
 leads toward the merchant district, while {green}southward{/} lies the town gates and the
 wilderness beyond.
-\n\
+
 A {magenta}town crier{/} stands near the fountain, occasionally announcing the day's news to
 anyone who will listen.`;
 

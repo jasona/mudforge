@@ -90,6 +90,10 @@ const TOKEN_MAP: Record<string, string> = {
   '/': ANSI.reset,
   reset: ANSI.reset,
 
+  // Newline
+  n: '\n',
+  newline: '\n',
+
   // Styles
   bold: ANSI.bold,
   b: ANSI.bold,

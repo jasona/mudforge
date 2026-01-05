@@ -154,20 +154,23 @@ export class WebSocketClient {
       const data = event.data.toString();
       // Split on newlines to handle multiple messages
       const lines = data.split(/\r?\n/);
-      for (const line of lines) {
-        if (line.length > 0 || lines.length === 1) {
-          // Check for IDE message prefix
-          if (line.startsWith('\x00[IDE]')) {
-            const jsonStr = line.slice(6); // Remove \x00[IDE] prefix
-            try {
-              const ideMessage = JSON.parse(jsonStr) as IdeMessage;
-              this.emit('ide-message', ideMessage);
-            } catch (error) {
-              console.error('Failed to parse IDE message:', error);
-            }
-          } else {
-            this.emit('message', line);
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        // Skip the last empty line (trailing newline) but keep empty lines in the middle
+        if (i === lines.length - 1 && line.length === 0) {
+          continue;
+        }
+        // Check for IDE message prefix
+        if (line.startsWith('\x00[IDE]')) {
+          const jsonStr = line.slice(6); // Remove \x00[IDE] prefix
+          try {
+            const ideMessage = JSON.parse(jsonStr) as IdeMessage;
+            this.emit('ide-message', ideMessage);
+          } catch (error) {
+            console.error('Failed to parse IDE message:', error);
           }
+        } else {
+          this.emit('message', line);
         }
       }
     };
