@@ -13,7 +13,7 @@ describe('Living Stats', () => {
   });
 
   describe('default stats', () => {
-    it('should have default stats of 10', () => {
+    it('should have default stats of 1', () => {
       expect(living.strength).toBe(DEFAULT_STAT);
       expect(living.intelligence).toBe(DEFAULT_STAT);
       expect(living.wisdom).toBe(DEFAULT_STAT);

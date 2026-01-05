@@ -45,7 +45,7 @@ export interface Stats {
 /**
  * Default stat value for new characters.
  */
-export const DEFAULT_STAT = 10;
+export const DEFAULT_STAT = 1;
 
 /**
  * Minimum and maximum stat values.
