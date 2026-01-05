@@ -23,7 +23,8 @@ The mudlib is the game content written in TypeScript:
 
 - **Standard Library** (`/std/`) - Base classes for objects, rooms, items, etc.
 - **Master Object** (`/master.ts`) - Driver hooks and global configuration
-- **Daemons** (`/daemons/`) - Background services (login, admin)
+- **Daemons** (`/daemons/`) - Background services (login, channels, help, admin). See [Daemons](daemons.md) for details.
+- **Commands** (`/cmds/`) - Player, builder, and admin commands. See [Commands](commands.md) for details.
 - **Areas** (`/areas/`) - Game world content
 
 ## Object Model
@@ -157,7 +158,8 @@ mudforge/
 │   │   ├── server.ts
 │   │   ├── connection.ts
 │   │   └── connection-manager.ts
-│   └── client/
+│   └── client/              # Web client (Linear.app-inspired). See [Client](client.md).
+│       ├── client.ts
 │       ├── terminal.ts
 │       ├── editor.ts
 │       └── websocket-client.ts
