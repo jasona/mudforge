@@ -190,20 +190,44 @@ export class ObjectRegistry {
   /**
    * Update a blueprint's constructor and instance without destroying clones.
    * Existing clones keep their old behavior; new clones use the new constructor.
-   * This is the traditional LPMud-style hot-reload.
+   * Objects in the old instance are migrated to the new instance for live reload.
    * @param path The blueprint path
    * @param constructor The new constructor
    * @param instance The new blueprint instance
-   * @returns Number of existing clones (still using old code)
+   * @returns Object with clones count and migrated objects count
    */
-  updateBlueprint(
+  async updateBlueprint(
     path: string,
     constructor: MudObjectConstructor,
     instance: MudObject
-  ): number {
+  ): Promise<{ existingClones: number; migratedObjects: number }> {
     const existing = this.blueprints.get(path);
 
     if (existing) {
+      const oldInstance = existing.instance;
+
+      // Migrate all objects from old instance to new instance (live reload)
+      const objectsToMigrate = [...oldInstance.inventory];
+      let migratedCount = 0;
+
+      for (const obj of objectsToMigrate) {
+        // Directly update the object's environment reference
+        // This avoids triggering exit/enter hooks during reload
+        const objWithEnv = obj as MudObject & { _environment?: MudObject | null };
+
+        // Remove from old instance's inventory
+        const oldInv = oldInstance.inventory as MudObject[];
+        const idx = oldInv.indexOf(obj);
+        if (idx >= 0) {
+          oldInv.splice(idx, 1);
+        }
+
+        // Add to new instance's inventory
+        objWithEnv._environment = instance;
+        (instance.inventory as MudObject[]).push(obj);
+        migratedCount++;
+      }
+
       // Remove old blueprint instance from objects map
       this.objects.delete(path);
 
@@ -215,11 +239,11 @@ export class ObjectRegistry {
       // Register new instance
       this.objects.set(path, instance);
 
-      return existing.clones.size;
+      return { existingClones: existing.clones.size, migratedObjects: migratedCount };
     } else {
       // No existing blueprint - just register normally
       this.registerBlueprint(path, constructor, instance);
-      return 0;
+      return { existingClones: 0, migratedObjects: 0 };
     }
   }
 

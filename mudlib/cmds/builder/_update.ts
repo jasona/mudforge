@@ -17,6 +17,7 @@ declare const efuns: {
     success: boolean;
     error?: string;
     existingClones: number;
+    migratedObjects: number;
   }>;
 };
 
@@ -81,6 +82,9 @@ export async function execute(ctx: CommandContext): Promise<void> {
 
   if (result.success) {
     ctx.sendLine(`{green}Successfully reloaded ${objectPath}{/}`);
+    if (result.migratedObjects > 0) {
+      ctx.sendLine(`{cyan}Migrated ${result.migratedObjects} object(s) to the new instance.{/}`);
+    }
     if (result.existingClones > 0) {
       ctx.sendLine(`{yellow}Note: ${result.existingClones} existing clone(s) still use old code.{/}`);
       ctx.sendLine('{dim}New clones will use the updated code.{/}');

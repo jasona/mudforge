@@ -165,6 +165,7 @@ export class MudlibLoader {
     success: boolean;
     error?: string;
     existingClones: number;
+    migratedObjects: number;
   }> {
     try {
       // Clear the module from our cache
@@ -197,6 +198,7 @@ export class MudlibLoader {
           success: false,
           error: `No class found in mudlib module: ${mudlibPath}`,
           existingClones: 0,
+          migratedObjects: 0,
         };
       }
 
@@ -214,8 +216,8 @@ export class MudlibLoader {
         (instance as unknown as { _objectId: string })._objectId = mudlibPath;
       }
 
-      // Update (or register) the blueprint
-      const existingClones = this.registry.updateBlueprint(mudlibPath, ObjectClass, instance);
+      // Update (or register) the blueprint - this also migrates objects from old to new instance
+      const updateResult = await this.registry.updateBlueprint(mudlibPath, ObjectClass, instance);
 
       // Call onCreate lifecycle hook
       if (typeof instance.onCreate === 'function') {
@@ -227,13 +229,15 @@ export class MudlibLoader {
 
       return {
         success: true,
-        existingClones,
+        existingClones: updateResult.existingClones,
+        migratedObjects: updateResult.migratedObjects,
       };
     } catch (error) {
       return {
         success: false,
         error: error instanceof Error ? error.message : String(error),
         existingClones: 0,
+        migratedObjects: 0,
       };
     }
   }
