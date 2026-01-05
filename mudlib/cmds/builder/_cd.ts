@@ -10,7 +10,7 @@
  */
 
 import type { MudObject } from '../../std/object.js';
-import { resolvePath, normalizePath } from '../../lib/path-utils.js';
+import { resolvePath, getHomeDir } from '../../lib/path-utils.js';
 
 // Efuns are injected by the driver at runtime
 declare const efuns: {
@@ -21,6 +21,7 @@ declare const efuns: {
 
 interface PlayerWithCwd extends MudObject {
   cwd: string;
+  name: string;
   setProperty(key: string, value: unknown): void;
   getProperty(key: string): unknown;
 }
@@ -39,12 +40,20 @@ export const usage = 'cd [path]';
 export async function execute(ctx: CommandContext): Promise<void> {
   const player = ctx.player as PlayerWithCwd;
   const currentCwd = player.cwd || '/';
+  const homeDir = getHomeDir(player.name);
   let targetPath = ctx.args.trim();
 
-  // Handle empty path, ~, or no args -> go to root
-  if (!targetPath || targetPath === '~') {
-    player.cwd = '/';
-    ctx.sendLine('/');
+  // Handle empty path or no args -> go to home directory
+  if (!targetPath) {
+    player.cwd = homeDir;
+    ctx.sendLine(homeDir);
+    return;
+  }
+
+  // Handle ~ -> go to home directory
+  if (targetPath === '~') {
+    player.cwd = homeDir;
+    ctx.sendLine(homeDir);
     return;
   }
 
@@ -62,7 +71,7 @@ export async function execute(ctx: CommandContext): Promise<void> {
   }
 
   // Resolve the path
-  const resolvedPath = resolvePath(currentCwd, targetPath);
+  const resolvedPath = resolvePath(currentCwd, targetPath, homeDir);
 
   // Check read permission
   if (!efuns.checkReadPermission(resolvedPath)) {

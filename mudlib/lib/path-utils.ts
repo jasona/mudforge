@@ -35,9 +35,10 @@ export function normalizePath(path: string): string {
  * Resolve a path relative to a current working directory.
  * @param cwd Current working directory (absolute path starting with /)
  * @param path Path to resolve (can be relative or absolute)
+ * @param homeDir Optional home directory for ~ expansion (e.g., '/users/playername')
  * @returns Resolved absolute path
  */
-export function resolvePath(cwd: string, path: string): string {
+export function resolvePath(cwd: string, path: string, homeDir?: string): string {
   // Handle empty or null path
   if (!path || path.trim() === '') {
     return normalizePath(cwd);
@@ -46,11 +47,12 @@ export function resolvePath(cwd: string, path: string): string {
   path = path.trim();
 
   // Handle home directory shortcut ~
+  const home = homeDir || '/';
   if (path === '~') {
-    return '/';
+    return normalizePath(home);
   }
   if (path.startsWith('~/')) {
-    path = '/' + path.slice(2);
+    path = home + path.slice(1); // Replace ~ with home, keep the /
   }
 
   // If path is absolute, just normalize it
@@ -61,6 +63,15 @@ export function resolvePath(cwd: string, path: string): string {
   // Relative path - combine with cwd
   const combined = cwd.endsWith('/') ? cwd + path : cwd + '/' + path;
   return normalizePath(combined);
+}
+
+/**
+ * Get the home directory path for a player.
+ * @param playerName The player's name
+ * @returns The home directory path (e.g., '/users/hero')
+ */
+export function getHomeDir(playerName: string): string {
+  return `/users/${playerName.toLowerCase()}`;
 }
 
 /**
@@ -111,6 +122,7 @@ export function isSafePath(path: string): boolean {
 export default {
   normalizePath,
   resolvePath,
+  getHomeDir,
   dirname,
   basename,
   joinPath,

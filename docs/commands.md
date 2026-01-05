@@ -241,6 +241,8 @@ This is **true runtime hot-reload** - the object is recompiled from the TypeScri
 
 Builders have access to a full set of file system commands that emulate Linux. Each builder maintains their own current working directory (cwd).
 
+The `~` character expands to the player's home directory at `/users/<playername>/`. For example, if logged in as "Hero", `~` expands to `/users/hero/`.
+
 #### pwd
 Print current working directory.
 
@@ -255,7 +257,9 @@ Change directory.
 cd /areas/town      # Absolute path
 cd ..               # Parent directory
 cd subdir           # Relative path
-cd ~                # Go to root
+cd                  # Go to home directory (~)
+cd ~                # Go to home directory (/users/<name>/)
+cd ~/projects       # Go to ~/projects
 cd -                # Go to previous directory
 ```
 

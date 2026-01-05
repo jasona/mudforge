@@ -6,7 +6,7 @@
  */
 
 import type { MudObject } from '../../std/object.js';
-import { resolvePath, basename, joinPath } from '../../lib/path-utils.js';
+import { resolvePath, basename, joinPath, getHomeDir } from '../../lib/path-utils.js';
 
 // Efuns are injected by the driver at runtime
 declare const efuns: {
@@ -18,6 +18,7 @@ declare const efuns: {
 
 interface PlayerWithCwd extends MudObject {
   cwd: string;
+  name: string;
 }
 
 interface CommandContext {
@@ -34,6 +35,7 @@ export const usage = 'mv <source> <destination>';
 export async function execute(ctx: CommandContext): Promise<void> {
   const player = ctx.player as PlayerWithCwd;
   const currentCwd = player.cwd || '/';
+  const homeDir = getHomeDir(player.name);
 
   // Parse arguments - split by space (simple parsing)
   const args = ctx.args.trim();
@@ -48,8 +50,8 @@ export async function execute(ctx: CommandContext): Promise<void> {
   const destArg = parts.slice(1).join(' ');
 
   // Resolve paths
-  const srcPath = resolvePath(currentCwd, srcArg);
-  let destPath = resolvePath(currentCwd, destArg);
+  const srcPath = resolvePath(currentCwd, srcArg, homeDir);
+  let destPath = resolvePath(currentCwd, destArg, homeDir);
 
   // Check write permission on source
   if (!efuns.checkWritePermission(srcPath)) {

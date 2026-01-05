@@ -7,7 +7,7 @@
  */
 
 import type { MudObject } from '../../std/object.js';
-import { resolvePath, basename } from '../../lib/path-utils.js';
+import { resolvePath, basename, getHomeDir } from '../../lib/path-utils.js';
 
 // Efuns are injected by the driver at runtime
 declare const efuns: {
@@ -19,6 +19,7 @@ declare const efuns: {
 
 interface PlayerWithCwd extends MudObject {
   cwd: string;
+  name: string;
 }
 
 interface CommandContext {
@@ -35,6 +36,7 @@ export const usage = 'rm [-f] <file>';
 export async function execute(ctx: CommandContext): Promise<void> {
   const player = ctx.player as PlayerWithCwd;
   const currentCwd = player.cwd || '/';
+  const homeDir = getHomeDir(player.name);
 
   // Parse arguments
   let args = ctx.args.trim();
@@ -52,7 +54,7 @@ export async function execute(ctx: CommandContext): Promise<void> {
   }
 
   // Resolve the path
-  const resolvedPath = resolvePath(currentCwd, args);
+  const resolvedPath = resolvePath(currentCwd, args, homeDir);
 
   // Safety check - don't allow removing critical files
   const fileName = basename(resolvedPath);
