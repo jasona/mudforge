@@ -11,23 +11,23 @@ import { MudObject } from '../../std/object.js';
 export class MarketSquare extends Room {
   constructor() {
     super();
-    this.shortDesc = 'Market Square';
+    this.shortDesc = '{bold}{yellow}Market Square{/}';
     this.longDesc = `You find yourself in the heart of the merchant district, a sprawling open-air
-market that stretches in every direction. Colorful awnings shade countless
-stalls and carts, each vendor crying out to attract customers to their wares.
+market that stretches in every direction. {YELLOW}Colorful awnings{/} shade countless
+{yellow}stalls{/} and carts, each {magenta}vendor{/} crying out to attract customers to their wares.
 
-The air is alive with competing scents: exotic spices from the east, fresh-cut
-flowers, tanned leather, and the occasional whiff of something less pleasant
+The air is alive with competing scents: exotic {red}spices{/} from the east, fresh-cut
+{magenta}flowers{/}, tanned leather, and the occasional whiff of something less pleasant
 from the livestock pens nearby. Haggling voices rise and fall in an endless
 symphony of commerce.
 
-To your left, a row of permanent shops lines the street - a tailor, an
-apothecary, and a jeweler with iron bars across its windows. To your right,
-farmers display baskets of fresh produce while a butcher hawks cuts of meat
+To your left, a row of permanent shops lines the street - a {cyan}tailor{/}, an
+{green}apothecary{/}, and a {YELLOW}jeweler{/} with iron bars across its windows. To your right,
+farmers display baskets of fresh {green}produce{/} while a {red}butcher{/} hawks cuts of meat
 from a bloody stall.
 
-A narrow alley to the north leads to the bakery, its warm aromas wafting
-enticingly. The town center lies to the east.`;
+A narrow alley to the {green}north{/} leads to the {yellow}bakery{/}, its warm aromas wafting
+enticingly. The town center lies to the {green}east{/}.`;
 
     this.setupRoom();
   }

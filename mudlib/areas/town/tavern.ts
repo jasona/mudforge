@@ -11,23 +11,23 @@ import { MudObject } from '../../std/object.js';
 export class Tavern extends Room {
   constructor() {
     super();
-    this.shortDesc = 'The Foaming Flagon';
-    this.longDesc = `You step into the warmth and noise of The Foaming Flagon, the town's most
-popular tavern. A great stone fireplace dominates one wall, its crackling
-flames casting dancing shadows across the room. Rough-hewn oak tables and
-benches fill the common room, most occupied by locals nursing tankards of ale.
+    this.shortDesc = '{bold}{yellow}The Foaming Flagon{/}';
+    this.longDesc = `You step into the warmth and noise of {bold}{yellow}The Foaming Flagon{/}, the town's most
+popular tavern. A great stone {red}fireplace{/} dominates one wall, its {RED}crackling
+flames{/} casting dancing shadows across the room. Rough-hewn oak tables and
+benches fill the common room, most occupied by locals nursing tankards of {yellow}ale{/}.
 
-The bar stretches along the back wall, behind which a stout innkeeper polishes
+The bar stretches along the back wall, behind which a stout {magenta}innkeeper{/} polishes
 glasses while keeping a watchful eye on the crowd. Shelves behind him display
-an impressive array of bottles, casks, and kegs. A chalkboard lists the day's
+an impressive array of bottles, casks, and kegs. A {dim}chalkboard{/} lists the day's
 fare and drink prices.
 
-A wooden staircase in the corner leads up to the guest rooms, while a doorway
+A wooden {dim}staircase{/} in the corner leads up to the guest rooms, while a doorway
 near the bar offers glimpses of a busy kitchen. The air is thick with the
-scent of roasting meat, spilled ale, and pipe smoke. A bard in the corner
+scent of roasting meat, spilled ale, and pipe smoke. A {magenta}bard{/} in the corner
 strums a lute, adding melody to the general din.
 
-The exit to the town square lies to the west.`;
+The exit to the town square lies to the {green}west{/}.`;
 
     this.setupRoom();
   }

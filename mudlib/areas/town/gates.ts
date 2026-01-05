@@ -11,22 +11,22 @@ import { MudObject } from '../../std/object.js';
 export class TownGates extends Room {
   constructor() {
     super();
-    this.shortDesc = 'Town Gates';
-    this.longDesc = `You stand at the town's southern gates, a massive stone archway flanked by
-sturdy guard towers. The great wooden doors stand open during daylight hours,
-allowing a steady stream of travelers, merchants, and farmers to pass through.
+    this.shortDesc = '{bold}{cyan}Town Gates{/}';
+    this.longDesc = `You stand at the town's southern gates, a massive {dim}stone archway{/} flanked by
+sturdy {cyan}guard towers{/}. The great {yellow}wooden doors{/} stand open during daylight hours,
+allowing a steady stream of travelers, {magenta}merchants{/}, and farmers to pass through.
 
-Guards in leather armor check the occasional wagon, collecting tolls and
-inspecting cargo for contraband. A weathered signpost points the way to
-various destinations: "North Road - Capital, 3 days" and "East Road -
-Coastal Villages, 1 day."
+{magenta}Guards{/} in leather armor check the occasional wagon, collecting tolls and
+inspecting cargo for contraband. A weathered {yellow}signpost{/} points the way to
+various destinations: "{white}North Road - Capital, 3 days{/}" and "{white}East Road -
+Coastal Villages, 1 day{/}."
 
 Beyond the gates, the cobblestones give way to a dusty dirt road that winds
-through farmland toward distant hills. You can see travelers on the road,
+through {green}farmland{/} toward distant {blue}hills{/}. You can see travelers on the road,
 their figures small against the vast landscape.
 
-A small guardhouse sits beside the gate, and a stable offers services to
-those arriving on horseback. The bustle of the town center lies to the north.`;
+A small {dim}guardhouse{/} sits beside the gate, and a {yellow}stable{/} offers services to
+those arriving on horseback. The bustle of the town center lies to the {green}north{/}.`;
 
     this.setupRoom();
   }

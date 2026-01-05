@@ -11,18 +11,18 @@ import { MudObject } from '../../std/object.js';
 export class CastleGate extends Room {
   constructor() {
     super();
-    this.shortDesc = 'Castle Gate';
-    this.longDesc = `You stand before the massive iron-bound gates of the castle. Twin towers flank
-the entrance, their crenellated tops patrolled by watchful guards in gleaming
-armor. The portcullis is raised, revealing a glimpse of the cobblestone
-courtyard beyond, though stern-faced sentries bar casual entry.
+    this.shortDesc = '{bold}{cyan}Castle Gate{/}';
+    this.longDesc = `You stand before the massive {dim}iron-bound gates{/} of the {bold}castle{/}. {cyan}Twin towers{/} flank
+the entrance, their crenellated tops patrolled by watchful {magenta}guards{/} in gleaming
+armor. The {dim}portcullis{/} is raised, revealing a glimpse of the cobblestone
+courtyard beyond, though stern-faced {magenta}sentries{/} bar casual entry.
 
 The castle walls stretch away to either side, ancient stones fitted together
-with masterful precision. Colorful banners bearing the lord's heraldry - a
-golden lion on a field of blue - snap in the breeze from atop the towers.
+with masterful precision. Colorful {yellow}banners{/} bearing the lord's heraldry - a
+{YELLOW}golden lion{/} on a field of {blue}blue{/} - snap in the breeze from atop the towers.
 
-A weathered notice board stands beside the gate, covered in official
-proclamations and wanted posters. The town square lies to the south, its
+A weathered {yellow}notice board{/} stands beside the gate, covered in official
+proclamations and wanted posters. The town square lies to the {green}south{/}, its
 distant fountain visible past the crowds of petitioners waiting to enter.`;
 
     this.setupRoom();

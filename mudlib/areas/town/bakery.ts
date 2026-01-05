@@ -11,21 +11,21 @@ import { MudObject } from '../../std/object.js';
 export class Bakery extends Room {
   constructor() {
     super();
-    this.shortDesc = 'The Bakery';
+    this.shortDesc = '{bold}{yellow}The Bakery{/}';
     this.longDesc = `You step into a small but cozy bakery, immediately enveloped by the heavenly
-aroma of fresh-baked bread. The warmth from the great stone oven in the back
+aroma of {yellow}fresh-baked bread{/}. The warmth from the great stone {red}oven{/} in the back
 provides a welcome respite from the outside air.
 
-Wooden shelves line the walls, displaying the baker's wares: crusty loaves of
-various sizes, sweet pastries glistening with honey glaze, meat pies with
-golden crusts, and delicate cakes decorated with candied fruits.
+Wooden {dim}shelves{/} line the walls, displaying the baker's wares: crusty {yellow}loaves{/} of
+various sizes, sweet {YELLOW}pastries{/} glistening with honey glaze, {yellow}meat pies{/} with
+golden crusts, and delicate {magenta}cakes{/} decorated with candied fruits.
 
 A flour-dusted counter separates the shop from the kitchen area, where you
-can see the baker - a plump, cheerful woman with rosy cheeks - pulling a
-fresh batch of rolls from the oven. Her young apprentice kneads dough at
+can see the {magenta}baker{/} - a plump, cheerful woman with rosy cheeks - pulling a
+fresh batch of rolls from the oven. Her young {cyan}apprentice{/} kneads dough at
 a wooden table, flour up to his elbows.
 
-A narrow alley leads south back to the market square.`;
+A narrow alley leads {green}south{/} back to the market square.`;
 
     this.setupRoom();
   }

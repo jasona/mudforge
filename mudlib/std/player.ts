@@ -8,6 +8,7 @@
 
 import { Living } from './living.js';
 import { MudObject } from './object.js';
+import { colorize } from '../lib/colors.js';
 
 // Efuns are injected by the driver at runtime
 declare const efuns: {
@@ -107,11 +108,13 @@ export class Player extends Living {
 
   /**
    * Receive a message (send to connection).
+   * Automatically processes color tokens like {red}, {bold}, etc.
    * @param message The message to receive
    */
   override receive(message: string): void {
     if (this._connection) {
-      this._connection.send(message);
+      // Process color tokens to ANSI codes
+      this._connection.send(colorize(message));
     }
   }
 

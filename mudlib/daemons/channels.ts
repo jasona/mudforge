@@ -334,11 +334,12 @@ export class ChannelDaemon extends MudObject {
   }
 
   /**
-   * Format a channel message.
+   * Format a channel message with colors.
    */
   private formatMessage(channel: ChannelConfig, sender: string, message: string): string {
-    // Simple format: [Channel] Sender: message
-    return `[${channel.displayName}] ${sender}: ${message}\n`;
+    // Apply channel color if defined
+    const color = channel.color ?? 'white';
+    return `{${color}}[${channel.displayName}]{/} {bold}${sender}{/}: ${message}\n`;
   }
 
   /**
@@ -462,18 +463,21 @@ export class ChannelDaemon extends MudObject {
       return 'No channels available.\n';
     }
 
-    const lines: string[] = ['Available channels:'];
-    lines.push('-'.repeat(50));
+    const lines: string[] = ['{bold}Available channels:{/}'];
+    lines.push('{dim}' + '-'.repeat(50) + '{/}');
 
     for (const channel of available) {
-      const status = this.isChannelOn(player, channel.name) ? 'ON ' : 'OFF';
-      const access = channel.accessType === 'public' ? '' : ` (${channel.accessType})`;
-      lines.push(`  [${status}] ${channel.displayName.padEnd(15)} - ${channel.description}${access}`);
+      const status = this.isChannelOn(player, channel.name)
+        ? '{green}ON {/}'
+        : '{red}OFF{/}';
+      const color = channel.color ?? 'white';
+      const access = channel.accessType === 'public' ? '' : ` {dim}(${channel.accessType}){/}`;
+      lines.push(`  [${status}] {${color}}${channel.displayName.padEnd(15)}{/} - ${channel.description}${access}`);
     }
 
-    lines.push('-'.repeat(50));
-    lines.push('Use "channel <name> on/off" to toggle channels.');
-    lines.push('Use "<channel> <message>" to send a message.');
+    lines.push('{dim}' + '-'.repeat(50) + '{/}');
+    lines.push('{dim}Use "channel <name> on/off" to toggle channels.{/}');
+    lines.push('{dim}Use "<channel> <message>" to send a message.{/}');
 
     return lines.join('\n') + '\n';
   }
