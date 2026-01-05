@@ -8,7 +8,7 @@
 
 import { Living, type Stats, type StatName, MAX_STAT } from './living.js';
 import { MudObject } from './object.js';
-import { colorize } from '../lib/colors.js';
+import { colorize, stripColors } from '../lib/colors.js';
 import { getChannelDaemon } from '../daemons/channels.js';
 import {
   getConfigOption,
@@ -319,12 +319,20 @@ export class Player extends Living {
   /**
    * Receive a message (send to connection).
    * Automatically processes color tokens like {red}, {bold}, etc.
+   * If color config is disabled, strips color tokens instead.
    * @param message The message to receive
    */
   override receive(message: string): void {
     if (this._connection) {
-      // Process color tokens to ANSI codes
-      this._connection.send(colorize(message));
+      // Check if color is enabled (default true)
+      const colorEnabled = this.getConfig<boolean>('color');
+      if (colorEnabled) {
+        // Process color tokens to ANSI codes
+        this._connection.send(colorize(message));
+      } else {
+        // Strip color tokens for plain text
+        this._connection.send(stripColors(message));
+      }
     }
   }
 
