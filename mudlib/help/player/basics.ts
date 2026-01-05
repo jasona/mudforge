@@ -168,6 +168,122 @@ Mana is the magical energy used to cast spells and use magical abilities.
 - Non-casters still use mana for special abilities`,
     seeAlso: ['score', 'healing', 'magic'],
   },
+  {
+    name: 'levels',
+    title: 'Character Levels',
+    category: 'gameplay',
+    aliases: ['level', 'leveling', 'levelup'],
+    keywords: ['advancement', 'progress', 'grow', 'stronger'],
+    content: `{bold}Character Levels:{/}
+Your level represents your overall power and experience in the world.
+
+{bold}Understanding Levels:{/}
+- All characters start at level 1
+- Higher levels unlock new abilities and content
+- Leveling up increases your HP and MP
+- NPCs also have levels that indicate their strength
+
+{bold}How to Level Up:{/}
+1. Gain experience points (XP) through various activities
+2. Accumulate enough XP to meet the level requirement
+3. Spend your XP to level up
+
+{bold}XP Requirements:{/}
+The XP needed for each level follows this formula:
+  Level 2:  400 XP
+  Level 3:  900 XP
+  Level 5:  2,500 XP
+  Level 10: 10,000 XP
+
+{bold}Level Up Benefits:{/}
+- +10 Maximum HP
+- +5 Maximum MP
+- Access to new areas and quests
+- Stronger abilities
+
+{bold}Tips:{/}
+- Check your XP progress with {yellow}score{/}
+- Save XP for either leveling or raising stats
+- Higher-level enemies give more XP`,
+    seeAlso: ['experience', 'score', 'training'],
+  },
+  {
+    name: 'experience',
+    title: 'Experience Points (XP)',
+    category: 'gameplay',
+    aliases: ['xp', 'exp'],
+    keywords: ['points', 'gain', 'earn', 'spend'],
+    content: `{bold}Experience Points (XP):{/}
+XP is the currency of character advancement.
+
+{bold}Earning XP:{/}
+- Defeating enemies in combat
+- Completing quests
+- Exploring new areas
+- Solving puzzles
+- Special achievements
+
+{bold}Spending XP:{/}
+You can spend your XP on:
+
+  {cyan}Leveling Up{/}
+  - Increases your character level
+  - Grants bonus HP and MP
+  - Cost: level^2 * 100 XP
+
+  {cyan}Raising Stats{/}
+  - Increase any base stat by 1 point
+  - Cost: current_stat * 50 XP
+  - Example: Raising STR from 10 to 11 costs 500 XP
+
+{bold}XP Strategy:{/}
+- Balance between levels and stats
+- Early levels are cheap - level up first
+- Later, raising key stats may be better value
+- Stats can go up to 100 (before modifiers)
+
+{bold}Viewing XP:{/}
+- {yellow}score{/} shows your current XP and progress
+- {yellow}score brief{/} shows a quick XP summary`,
+    seeAlso: ['levels', 'training', 'score'],
+  },
+  {
+    name: 'training',
+    title: 'Training and Advancement',
+    category: 'gameplay',
+    aliases: ['train', 'advance', 'improve'],
+    keywords: ['stats', 'raise', 'increase', 'strengthen'],
+    content: `{bold}Training Your Character:{/}
+Spend your hard-earned XP to become stronger.
+
+{bold}Raising Stats:{/}
+Use the {yellow}train{/} command to improve your attributes:
+  {yellow}train strength{/}     - Increase STR by 1
+  {yellow}train intelligence{/} - Increase INT by 1
+  {yellow}train <stat>{/}       - Any stat name works
+
+{bold}Stat Training Costs:{/}
+The cost to raise a stat is: current_value * 50 XP
+  From 1 to 2:   50 XP
+  From 10 to 11: 500 XP
+  From 50 to 51: 2,500 XP
+  From 99 to 100: 4,950 XP
+
+{bold}Leveling Up:{/}
+Use the {yellow}levelup{/} command when you have enough XP:
+  {yellow}levelup{/} - Spend XP to gain a level
+
+{bold}Level Costs:{/}
+  Level 2:  400 XP
+  Level 5:  2,500 XP
+  Level 10: 10,000 XP
+
+{bold}Tips:{/}
+- Focus on stats that match your playstyle
+- STR for melee, INT for magic, CON for survival
+- Don't neglect Luck - it affects many things!`,
+    seeAlso: ['levels', 'experience', 'score'],
+  },
 ];
 
 export default topics;

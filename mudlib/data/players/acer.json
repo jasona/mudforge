@@ -1,20 +1,20 @@
 {
   "name": "Acer",
-  "location": "/areas/town/castle",
+  "location": "/areas/town/center",
   "state": {
     "objectPath": "",
     "isClone": false,
     "properties": {
-      "passwordHash": "b30a903e5e662030098486d56edd09c8:a8fb284b8e92892f9eaac3f845092523a564cedcc54559b6ed15a5eaa42601502d315d47e36b4f23a08e08684598d6231484f5efef00337fcccb90e76317fe48",
+      "passwordHash": "6aa641de4938e22c1057a6860ae71cd0:ea0af2687a1e9a8e9a2a40d32be56ff57b073c1f1f407165b290f1e28cc69810de1d5e1541f15965a1669bf8caae34c8e843fd0d03406a8c65bab26b38435900",
       "email": "jason.alexander@gmail.com",
       "permissionLevel": 3
     },
-    "timestamp": 1767583673938,
+    "timestamp": 1767585036892,
     "environment": {
       "__type": "object_ref",
-      "path": "/areas/town/castle",
+      "path": "/areas/town/center",
       "isClone": false
     }
   },
-  "savedAt": 1767583673938
+  "savedAt": 1767585036893
 }

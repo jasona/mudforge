@@ -103,39 +103,30 @@ describe('Living Stats', () => {
   });
 
   describe('stat bonuses', () => {
-    it('should calculate bonus correctly for stat 10', () => {
-      living.strength = 10;
+    it('should have zero bonus by default', () => {
       expect(living.getStatBonus('strength')).toBe(0);
+      expect(living.getStatBonus('intelligence')).toBe(0);
     });
 
-    it('should calculate bonus correctly for high stats', () => {
-      living.strength = 14;
-      expect(living.getStatBonus('strength')).toBe(2);
-
-      living.strength = 18;
-      expect(living.getStatBonus('strength')).toBe(4);
-
-      living.strength = 20;
+    it('should return bonus from equipment/buff modifiers', () => {
+      living.setStatModifier('strength', 5);
       expect(living.getStatBonus('strength')).toBe(5);
+
+      living.setStatModifier('dexterity', -2);
+      expect(living.getStatBonus('dexterity')).toBe(-2);
     });
 
-    it('should calculate penalty for low stats', () => {
-      living.strength = 8;
-      expect(living.getStatBonus('strength')).toBe(-1);
-
-      living.strength = 6;
-      expect(living.getStatBonus('strength')).toBe(-2);
-
-      living.strength = 4;
-      expect(living.getStatBonus('strength')).toBe(-3);
+    it('should be an alias for getStatModifier', () => {
+      living.setStatModifier('wisdom', 10);
+      expect(living.getStatBonus('wisdom')).toBe(living.getStatModifier('wisdom'));
     });
 
-    it('should round down for odd stats', () => {
-      living.strength = 11;
-      expect(living.getStatBonus('strength')).toBe(0);
+    it('should not be affected by base stat value', () => {
+      living.strength = 50;
+      expect(living.getStatBonus('strength')).toBe(0); // No auto-bonus from stat value
 
-      living.strength = 13;
-      expect(living.getStatBonus('strength')).toBe(1);
+      living.strength = 100;
+      expect(living.getStatBonus('strength')).toBe(0); // Still no auto-bonus
     });
   });
 
@@ -155,12 +146,12 @@ describe('Living Stats', () => {
       expect(result.roll).toBeLessThanOrEqual(20);
     });
 
-    it('should include stat bonus in total', () => {
-      living.strength = 14; // +2 bonus
+    it('should include equipment bonus in total', () => {
+      living.setStatModifier('strength', 3); // +3 from equipment
       const result = living.statCheck('strength', 10);
 
-      expect(result.bonus).toBe(2);
-      expect(result.total).toBe(result.roll + 2);
+      expect(result.bonus).toBe(3);
+      expect(result.total).toBe(result.roll + 3);
     });
   });
 

@@ -98,6 +98,9 @@ export class Living extends MudObject {
   private _mana: number = 100;
   private _maxMana: number = 100;
 
+  // Level
+  private _level: number = 1;
+
   // Core stats - base values (before modifiers)
   private _baseStats: Stats = {
     strength: DEFAULT_STAT,
@@ -364,6 +367,22 @@ export class Living extends MudObject {
   get healthPercent(): number {
     if (this._maxHealth === 0) return 0;
     return Math.round((this._health / this._maxHealth) * 100);
+  }
+
+  // ========== Level ==========
+
+  /**
+   * Get current level.
+   */
+  get level(): number {
+    return this._level;
+  }
+
+  /**
+   * Set current level.
+   */
+  set level(value: number) {
+    this._level = Math.max(1, value);
   }
 
   // ========== Communication ==========
@@ -700,12 +719,12 @@ export class Living extends MudObject {
   }
 
   /**
-   * Get the stat bonus/penalty (modifier from average).
-   * Standard formula: (stat - 10) / 2, rounded down
+   * Get the stat bonus from equipment, buffs, etc.
+   * This is an alias for getStatModifier for convenience.
    * @param stat The stat name
    */
   getStatBonus(stat: StatName): number {
-    return Math.floor((this.getStat(stat) - 10) / 2);
+    return this._statModifiers[stat];
   }
 
   /**
@@ -789,6 +808,7 @@ export class Living extends MudObject {
     name?: string;
     title?: string;
     gender?: 'male' | 'female' | 'neutral';
+    level?: number;
     health?: number;
     maxHealth?: number;
     mana?: number;
@@ -798,6 +818,7 @@ export class Living extends MudObject {
     if (options.name) this.name = options.name;
     if (options.title) this.title = options.title;
     if (options.gender) this.gender = options.gender;
+    if (options.level !== undefined) this.level = options.level;
     if (options.maxHealth) this.maxHealth = options.maxHealth;
     if (options.health !== undefined) this.health = options.health;
     if (options.maxMana) this.maxMana = options.maxMana;

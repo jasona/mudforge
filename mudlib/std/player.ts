@@ -6,7 +6,7 @@
  * beyond regular Living beings.
  */
 
-import { Living, type Stats } from './living.js';
+import { Living, type Stats, type StatName, MAX_STAT } from './living.js';
 import { MudObject } from './object.js';
 import { colorize } from '../lib/colors.js';
 
@@ -34,6 +34,8 @@ export interface PlayerSaveData {
   name: string;
   title: string;
   gender: 'male' | 'female' | 'neutral';
+  level: number;
+  experience: number;
   health: number;
   maxHealth: number;
   mana: number;
@@ -62,6 +64,7 @@ export class Player extends Living {
   private _promptEnabled: boolean = true;
   private _prompt: string = '> ';
   private _permissionLevel: number = 0; // 0=player, 1=builder, 2=senior, 3=admin
+  private _experience: number = 0;
 
   constructor() {
     super();
@@ -279,6 +282,120 @@ export class Player extends Living {
     return total;
   }
 
+  // ========== Experience & Leveling ==========
+
+  /**
+   * Get current experience points.
+   */
+  get experience(): number {
+    return this._experience;
+  }
+
+  /**
+   * Set experience points.
+   */
+  set experience(value: number) {
+    this._experience = Math.max(0, value);
+  }
+
+  /**
+   * Calculate XP required for a specific level.
+   * Uses a quadratic formula: level^2 * 100
+   * Level 2 = 400 XP, Level 3 = 900 XP, Level 10 = 10000 XP, etc.
+   * @param level The target level
+   */
+  static xpForLevel(level: number): number {
+    if (level <= 1) return 0;
+    return level * level * 100;
+  }
+
+  /**
+   * Get XP required for the next level.
+   */
+  get xpForNextLevel(): number {
+    return Player.xpForLevel(this.level + 1);
+  }
+
+  /**
+   * Get XP needed to reach the next level (remaining XP).
+   */
+  get xpToNextLevel(): number {
+    return Math.max(0, this.xpForNextLevel - this._experience);
+  }
+
+  /**
+   * Calculate XP cost to raise a stat by 1 point.
+   * Cost increases with current stat value: currentStat * 50
+   * @param stat The stat to check
+   */
+  xpToRaiseStat(stat: StatName): number {
+    const currentValue = this.getBaseStat(stat);
+    return currentValue * 50;
+  }
+
+  /**
+   * Gain experience points.
+   * @param amount Amount of XP to gain
+   */
+  gainExperience(amount: number): void {
+    if (amount <= 0) return;
+    this._experience += amount;
+    this.receive(`{yellow}You gain ${amount} experience points!{/}\n`);
+  }
+
+  /**
+   * Spend XP to level up.
+   * @returns true if level up succeeded, false if not enough XP
+   */
+  levelUp(): boolean {
+    const cost = this.xpForNextLevel;
+    if (this._experience < cost) {
+      return false;
+    }
+
+    this._experience -= cost;
+    this.level++;
+    this.receive(`{bold}{yellow}Congratulations! You are now level ${this.level}!{/}\n`);
+    this.onLevelUp();
+    return true;
+  }
+
+  /**
+   * Spend XP to raise a stat by 1 point.
+   * @param stat The stat to raise
+   * @returns true if stat was raised, false if not enough XP or at max
+   */
+  raiseStat(stat: StatName): boolean {
+    const currentValue = this.getBaseStat(stat);
+    if (currentValue >= MAX_STAT) {
+      this.receive(`{red}Your ${stat} is already at maximum!{/}\n`);
+      return false;
+    }
+
+    const cost = this.xpToRaiseStat(stat);
+    if (this._experience < cost) {
+      this.receive(`{red}You need ${cost} XP to raise ${stat}. You have ${this._experience}.{/}\n`);
+      return false;
+    }
+
+    this._experience -= cost;
+    this.setBaseStat(stat, currentValue + 1);
+    this.receive(`{green}You raise your ${stat} to ${currentValue + 1}! (Cost: ${cost} XP){/}\n`);
+    return true;
+  }
+
+  /**
+   * Called when the player levels up.
+   * Override for custom level-up behavior (bonus HP, mana, etc.)
+   */
+  onLevelUp(): void {
+    // Default: increase max HP and mana slightly
+    this.maxHealth += 10;
+    this.health += 10;
+    this.maxMana += 5;
+    this.mana += 5;
+  }
+
   // ========== Persistence ==========
 
   /**
@@ -296,6 +413,8 @@ export class Player extends Living {
       name: this.name,
       title: this.title,
       gender: this.gender,
+      level: this.level,
+      experience: this._experience,
       health: this.health,
       maxHealth: this.maxHealth,
       mana: this.mana,
@@ -323,6 +442,14 @@ export class Player extends Living {
     this._createdAt = data.createdAt;
     this._lastLogin = data.lastLogin;
     this._playTime = data.playTime;
+
+    // Restore level and experience (if present - for backwards compatibility)
+    if (data.level !== undefined) {
+      this.level = data.level;
+    }
+    if (data.experience !== undefined) {
+      this._experience = data.experience;
+    }
 
     // Restore mana (if present - for backwards compatibility)
     if (data.maxMana !== undefined) {
