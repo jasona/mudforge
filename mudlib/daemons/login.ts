@@ -72,6 +72,9 @@ declare const efuns: {
   bindPlayerToConnection(connection: Connection, player: MudObject): void;
   findConnectedPlayer(name: string): MudObject | undefined;
   transferConnection(connection: Connection, player: MudObject): void;
+  findActivePlayer(name: string): MudObject | undefined;
+  registerActivePlayer(player: MudObject): void;
+  unregisterActivePlayer(player: MudObject): void;
   // Persistence efuns
   playerExists(name: string): Promise<boolean>;
   loadPlayerData(name: string): Promise<PlayerSaveData | null>;
@@ -409,15 +412,13 @@ export class LoginDaemon extends MudObject {
    */
   private async completeLogin(session: LoginSession, newPlayer?: Player): Promise<void> {
     let player: Player;
-    let isReconnect = false;
 
-    // Check if player is already connected (session takeover)
-    if (!newPlayer && typeof efuns !== 'undefined' && efuns.findConnectedPlayer) {
-      const existingPlayer = efuns.findConnectedPlayer(session.name) as Player | undefined;
+    // Check if player is already in the game world (active but possibly disconnected)
+    if (!newPlayer && typeof efuns !== 'undefined' && efuns.findActivePlayer) {
+      const existingPlayer = efuns.findActivePlayer(session.name) as Player | undefined;
       if (existingPlayer) {
-        // Session takeover - transfer connection to existing player
+        // Reconnecting to existing player in game world
         player = existingPlayer;
-        isReconnect = true;
 
         // Get new IP and resolve hostname
         const newIp = session.connection.getRemoteAddress();
@@ -425,8 +426,17 @@ export class LoginDaemon extends MudObject {
         player.ipAddress = newIp;
         player.resolvedHostname = await resolveHostname(newIp);
 
-        // Transfer the connection to the existing player
-        efuns.transferConnection(session.connection, player);
+        // Check if they're currently connected (session takeover) or disconnected (reconnect)
+        const isConnected = efuns.findConnectedPlayer?.(session.name) !== undefined;
+
+        if (isConnected) {
+          // Session takeover - transfer connection from old to new
+          efuns.transferConnection(session.connection, player);
+        } else {
+          // Reconnecting after disconnect - just bind the new connection
+          player.bindConnection(session.connection);
+          efuns.bindPlayerToConnection(session.connection, player);
+        }
 
         // Send reconnect notification to notify channel
         const channelDaemon = getChannelDaemon();
@@ -496,6 +506,8 @@ export class LoginDaemon extends MudObject {
     player.bindConnection(session.connection);
     if (typeof efuns !== 'undefined') {
       efuns.bindPlayerToConnection(session.connection, player);
+      // Register as active player in the game world
+      efuns.registerActivePlayer(player);
     }
 
     // Get IP address and resolve hostname

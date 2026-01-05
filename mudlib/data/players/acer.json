@@ -9,19 +9,19 @@
       "email": "jason.alexander@gmail.com",
       "permissionLevel": 3
     },
-    "timestamp": 1767589861167,
+    "timestamp": 1767590563581,
     "environment": {
       "__type": "object_ref",
       "path": "/areas/town/center",
       "isClone": false
     }
   },
-  "savedAt": 1767589861167,
+  "savedAt": 1767590563581,
   "title": "",
   "gender": "neutral",
   "level": 1,
   "experience": 0,
-  "health": 50,
+  "health": 100,
   "maxHealth": 100,
   "mana": 100,
   "maxMana": 100,
@@ -41,7 +41,7 @@
     "permissionLevel": 3
   },
   "createdAt": 1767588015729,
-  "lastLogin": 1767589861,
-  "playTime": 151,
+  "lastLogin": 1767590559,
+  "playTime": 281,
   "monitorEnabled": true
 }

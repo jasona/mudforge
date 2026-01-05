@@ -59,6 +59,16 @@ type FindConnectedPlayerCallback = (name: string) => MudObject | undefined;
  */
 type TransferConnectionCallback = (connection: unknown, player: MudObject) => void;
 
+/**
+ * Callback to find an active player by name (in game world, possibly disconnected).
+ */
+type FindActivePlayerCallback = (name: string) => MudObject | undefined;
+
+/**
+ * Callback to register/unregister active players.
+ */
+type RegisterActivePlayerCallback = (player: MudObject) => void;
+
 export class EfunBridge {
   private config: EfunBridgeConfig;
   private registry: ObjectRegistry;
@@ -70,6 +80,9 @@ export class EfunBridge {
   private allPlayersCallback: AllPlayersCallback | null = null;
   private findConnectedPlayerCallback: FindConnectedPlayerCallback | null = null;
   private transferConnectionCallback: TransferConnectionCallback | null = null;
+  private findActivePlayerCallback: FindActivePlayerCallback | null = null;
+  private registerActivePlayerCallback: RegisterActivePlayerCallback | null = null;
+  private unregisterActivePlayerCallback: RegisterActivePlayerCallback | null = null;
 
   constructor(config: Partial<EfunBridgeConfig> = {}) {
     this.config = {
@@ -118,6 +131,30 @@ export class EfunBridge {
    */
   setTransferConnectionCallback(callback: TransferConnectionCallback): void {
     this.transferConnectionCallback = callback;
+  }
+
+  /**
+   * Set the callback for finding an active player (in game world, possibly disconnected).
+   * Called by the Driver after initialization.
+   */
+  setFindActivePlayerCallback(callback: FindActivePlayerCallback): void {
+    this.findActivePlayerCallback = callback;
+  }
+
+  /**
+   * Set the callback for registering an active player.
+   * Called by the Driver after initialization.
+   */
+  setRegisterActivePlayerCallback(callback: RegisterActivePlayerCallback): void {
+    this.registerActivePlayerCallback = callback;
+  }
+
+  /**
+   * Set the callback for unregistering an active player.
+   * Called by the Driver after initialization.
+   */
+  setUnregisterActivePlayerCallback(callback: RegisterActivePlayerCallback): void {
+    this.unregisterActivePlayerCallback = callback;
   }
 
   /**
@@ -540,6 +577,40 @@ export class EfunBridge {
   }
 
   /**
+   * Find an active player by name (in game world, possibly disconnected).
+   * @param name The player name to search for (case-insensitive)
+   * @returns The player object if found, undefined otherwise
+   */
+  findActivePlayer(name: string): MudObject | undefined {
+    if (this.findActivePlayerCallback) {
+      return this.findActivePlayerCallback(name);
+    }
+    return undefined;
+  }
+
+  /**
+   * Register a player as active in the game world.
+   * Called when a player successfully logs in.
+   * @param player The player object
+   */
+  registerActivePlayer(player: MudObject): void {
+    if (this.registerActivePlayerCallback) {
+      this.registerActivePlayerCallback(player);
+    }
+  }
+
+  /**
+   * Unregister a player from the active players list.
+   * Called when a player quits properly.
+   * @param player The player object
+   */
+  unregisterActivePlayer(player: MudObject): void {
+    if (this.unregisterActivePlayerCallback) {
+      this.unregisterActivePlayerCallback(player);
+    }
+  }
+
+  /**
    * Execute a command through the command manager.
    * @param player The player executing the command
    * @param input The command input string
@@ -649,6 +720,9 @@ export class EfunBridge {
       bindPlayerToConnection: this.bindPlayerToConnection.bind(this),
       findConnectedPlayer: this.findConnectedPlayer.bind(this),
       transferConnection: this.transferConnection.bind(this),
+      findActivePlayer: this.findActivePlayer.bind(this),
+      registerActivePlayer: this.registerActivePlayer.bind(this),
+      unregisterActivePlayer: this.unregisterActivePlayer.bind(this),
       executeCommand: this.executeCommand.bind(this),
 
       // Persistence

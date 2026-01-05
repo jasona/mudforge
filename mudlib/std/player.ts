@@ -18,6 +18,7 @@ declare const efuns: {
   executeCommand(player: MudObject, input: string, level: number): Promise<boolean>;
   savePlayer(player: MudObject): Promise<void>;
   setHeartbeat(object: MudObject, enable: boolean): void;
+  unregisterActivePlayer(player: MudObject): void;
 };
 
 /**
@@ -659,6 +660,11 @@ export class Player extends Living {
     // Save the player's current location before quitting
     if (typeof efuns !== 'undefined' && efuns.savePlayer) {
       await efuns.savePlayer(this);
+    }
+
+    // Unregister from active players (allows clean login next time)
+    if (typeof efuns !== 'undefined' && efuns.unregisterActivePlayer) {
+      efuns.unregisterActivePlayer(this);
     }
 
     this.receive('Goodbye!');

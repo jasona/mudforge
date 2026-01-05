@@ -84,6 +84,10 @@ export class Driver {
   // Track connections to their handlers (login daemon or player)
   private connectionHandlers: Map<Connection, MudObject> = new Map();
 
+  // Track active players in the game world (by lowercase name)
+  // Players remain here even when disconnected, until they quit properly
+  private activePlayers: Map<string, MudObject> = new Map();
+
   constructor(config?: Partial<DriverConfig>) {
     this.config = config ? { ...loadConfig(), ...config } : loadConfig();
 
@@ -131,6 +135,19 @@ export class Driver {
     // Set up the transfer connection callback for session takeover
     this.efunBridge.setTransferConnectionCallback((connection, player) => {
       this.transferConnection(connection as Connection, player);
+    });
+
+    // Set up the find active player callback for reconnection
+    this.efunBridge.setFindActivePlayerCallback((name) => {
+      return this.findActivePlayer(name);
+    });
+
+    // Set up the register/unregister active player callbacks
+    this.efunBridge.setRegisterActivePlayerCallback((player) => {
+      this.registerActivePlayer(player);
+    });
+    this.efunBridge.setUnregisterActivePlayerCallback((player) => {
+      this.unregisterActivePlayer(player);
     });
 
     this.mudlibLoader = getMudlibLoader({
@@ -241,6 +258,7 @@ export class Driver {
       // Clean up
       this.scheduler.clear();
       this.connectionHandlers.clear();
+      this.activePlayers.clear();
 
       this.state = 'stopped';
       this.logger.info('MudForge Driver stopped');
@@ -467,6 +485,37 @@ export class Driver {
     };
     if (playerWithBind.bindConnection) {
       playerWithBind.bindConnection(newConnection);
+    }
+  }
+
+  /**
+   * Find an active player by name (in the game world, possibly disconnected).
+   * @param name The player name to search for (case-insensitive)
+   * @returns The player object if found, undefined otherwise
+   */
+  findActivePlayer(name: string): MudObject | undefined {
+    return this.activePlayers.get(name.toLowerCase());
+  }
+
+  /**
+   * Register a player as active in the game world.
+   * Called when a player successfully logs in.
+   */
+  registerActivePlayer(player: MudObject): void {
+    const p = player as MudObject & { name?: string };
+    if (p.name) {
+      this.activePlayers.set(p.name.toLowerCase(), player);
+    }
+  }
+
+  /**
+   * Unregister a player from the active players list.
+   * Called when a player quits properly.
+   */
+  unregisterActivePlayer(player: MudObject): void {
+    const p = player as MudObject & { name?: string };
+    if (p.name) {
+      this.activePlayers.delete(p.name.toLowerCase());
     }
   }
 
