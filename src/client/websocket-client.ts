@@ -228,19 +228,15 @@ export class WebSocketClient {
    * Send an IDE message to the server.
    */
   sendIdeMessage(message: IdeMessage): void {
-    console.log('sendIdeMessage called:', message);
     if (!this.isConnected) {
-      console.log('sendIdeMessage: not connected, aborting');
       this.emit('error', 'Not connected');
       return;
     }
 
     try {
       const jsonStr = JSON.stringify(message);
-      console.log('sendIdeMessage: sending', `\\x00[IDE]${jsonStr}`);
       this.socket!.send(`\x00[IDE]${jsonStr}\n`);
     } catch (error) {
-      console.error('sendIdeMessage error:', error);
       this.emit('error', `Failed to send IDE message: ${error}`);
     }
   }

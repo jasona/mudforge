@@ -652,6 +652,26 @@ body {
   background-color: var(--bg-hover);
 }
 
+.ide-theme-select {
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-xs);
+  color: var(--text-primary);
+  background-color: var(--bg-tertiary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--border-radius-sm);
+  cursor: pointer;
+  outline: none;
+}
+
+.ide-theme-select:hover {
+  background-color: var(--bg-hover);
+}
+
+.ide-theme-select:focus {
+  border-color: var(--accent);
+}
+
 .ide-editor-container {
   flex: 1;
   overflow: hidden;

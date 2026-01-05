@@ -94,7 +94,6 @@ class MudClient {
           });
         },
         onClose: () => {
-          console.log('IDE onClose callback called, sending close message');
           this.wsClient.sendIdeMessage({ action: 'close' });
           this.inputHandler.focus();
         },

@@ -13,7 +13,7 @@ import { MudObject } from '../../std/object.js';
 export class CenterOfTown extends Room {
   constructor() {
     super();
-    this.shortDesc = 'Center of Town';
+    this.shortDesc = 'Center of Town!';
     this.longDesc = `You stand in the heart of a bustling medieval town square. {dim}Cobblestones worn
 smooth by countless feet spread out in all directions{/}, and a magnificent {cyan}stone
 fountain{/} dominates the center, its {CYAN}crystal waters{/} catching the sunlight.
