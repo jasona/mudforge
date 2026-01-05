@@ -10,6 +10,13 @@ import { Living, type Stats, type StatName, MAX_STAT } from './living.js';
 import { MudObject } from './object.js';
 import { colorize } from '../lib/colors.js';
 import { getChannelDaemon } from '../daemons/channels.js';
+import {
+  getConfigOption,
+  validateConfigValue,
+  getDefaultConfig,
+  CONFIG_OPTIONS,
+  type ConfigOption,
+} from '../lib/player-config.js';
 
 // Efuns are injected by the driver at runtime
 declare const efuns: {
@@ -205,6 +212,78 @@ export class Player extends Living {
       normalized = normalized.slice(0, -1);
     }
     this._cwd = normalized;
+  }
+
+  // ========== Player Configuration ==========
+
+  /**
+   * Get a configuration value.
+   * Returns the player's setting, or the default if not set.
+   * @param key The config key
+   */
+  getConfig<T = unknown>(key: string): T {
+    const option = getConfigOption(key);
+    if (!option) {
+      throw new Error(`Unknown config key: ${key}`);
+    }
+    const stored = this.getProperty(`config.${key}`);
+    if (stored !== undefined) {
+      return stored as T;
+    }
+    return option.default as T;
+  }
+
+  /**
+   * Set a configuration value.
+   * Validates the value before storing.
+   * @param key The config key
+   * @param value The value to set
+   * @returns Object with success status and optional error message
+   */
+  setConfig(key: string, value: unknown): { success: boolean; error?: string } {
+    const result = validateConfigValue(key, value);
+    if (!result.valid) {
+      return { success: false, error: result.error };
+    }
+    this.setProperty(`config.${key}`, result.normalizedValue);
+    return { success: true };
+  }
+
+  /**
+   * Reset a configuration to its default value.
+   * @param key The config key
+   */
+  resetConfig(key: string): boolean {
+    const option = getConfigOption(key);
+    if (!option) {
+      return false;
+    }
+    this.deleteProperty(`config.${key}`);
+    return true;
+  }
+
+  /**
+   * Reset all configurations to defaults.
+   */
+  resetAllConfig(): void {
+    for (const option of CONFIG_OPTIONS) {
+      this.deleteProperty(`config.${option.key}`);
+    }
+  }
+
+  /**
+   * Get all configuration values (including defaults).
+   */
+  getAllConfig(): Record<string, unknown> {
+    const config = getDefaultConfig();
+    // Override with stored values
+    for (const option of CONFIG_OPTIONS) {
+      const stored = this.getProperty(`config.${option.key}`);
+      if (stored !== undefined) {
+        config[option.key] = stored;
+      }
+    }
+    return config;
   }
 
   /**

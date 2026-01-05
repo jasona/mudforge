@@ -23,6 +23,11 @@ interface Room extends MudObject {
   getExit?(direction: string): Exit | undefined;
   resolveExit?(exit: Exit): MudObject | undefined;
   look?(viewer: MudObject): void;
+  glance?(viewer: MudObject): void;
+}
+
+interface Player extends MudObject {
+  getConfig?<T = unknown>(key: string): T;
 }
 
 // Direction aliases
@@ -115,9 +120,14 @@ export async function execute(ctx: CommandContext): Promise<void> {
     return;
   }
 
-  // Look at the new room
+  // Look at the new room (brief mode shows glance, normal shows full look)
   const newRoom = destination as Room;
-  if (newRoom.look) {
+  const playerWithConfig = player as Player;
+  const briefMode = playerWithConfig.getConfig?.('brief') ?? false;
+
+  if (briefMode && newRoom.glance) {
+    newRoom.glance(player);
+  } else if (newRoom.look) {
     newRoom.look(player);
   } else {
     ctx.sendLine(newRoom.shortDesc);

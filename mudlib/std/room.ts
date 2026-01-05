@@ -273,6 +273,24 @@ export class Room extends MudObject {
       efuns.send(viewer, `${this.shortDesc}\n\n${desc}`);
     }
   }
+
+  /**
+   * Quick glance at the room (brief mode - just name and exits).
+   * Used when brief mode is enabled.
+   * @param viewer The object glancing at the room
+   */
+  glance(viewer: MudObject): void {
+    const receiver = viewer as MudObject & { receive?: (msg: string) => void };
+    const exitDirs = this.getExitDirections();
+    const exitsStr = exitDirs.length > 0 ? ` {dim}[${exitDirs.join(', ')}]{/}` : '';
+    const message = `{bold}${this.shortDesc}{/}${exitsStr}\n`;
+
+    if (typeof receiver.receive === 'function') {
+      receiver.receive(message);
+    } else if (typeof efuns !== 'undefined') {
+      efuns.send(viewer, message);
+    }
+  }
 }
 
 export default Room;

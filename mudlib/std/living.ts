@@ -587,8 +587,13 @@ export class Living extends MudObject {
       if (typeof newEnv.onEnter === 'function') {
         await newEnv.onEnter(this, env);
       }
-      // Show room description
-      if (typeof newEnv.look === 'function') {
+      // Show room description (brief mode shows glance, normal shows full look)
+      const self = this as Living & { getConfig?: <T>(key: string) => T };
+      const briefMode = typeof self.getConfig === 'function' ? self.getConfig<boolean>('brief') : false;
+
+      if (briefMode && typeof newEnv.glance === 'function') {
+        newEnv.glance(this);
+      } else if (typeof newEnv.look === 'function') {
         newEnv.look(this);
       }
     }

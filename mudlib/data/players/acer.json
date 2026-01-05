@@ -1,6 +1,6 @@
 {
   "name": "Acer",
-  "location": "/areas/town/center",
+  "location": "/areas/town/tavern",
   "state": {
     "objectPath": "",
     "isClone": false,
@@ -8,16 +8,17 @@
       "passwordHash": "348155bff644f9f2807c98e3a88a69ce:0fd1f799586fcdec83bdc0c5627b796ec8b4e6e3bbb6ae9eb7f9b0b601492a9b52ee971e92dd38da8f83385ac2ccd979ad69b4bc6f0aa4562557aacfc50e0df8",
       "email": "jason.alexander@gmail.com",
       "permissionLevel": 3,
-      "_prevCwd": "/areas"
+      "_prevCwd": "/areas",
+      "config.brief": true
     },
-    "timestamp": 1767650584863,
+    "timestamp": 1767654067091,
     "environment": {
       "__type": "object_ref",
-      "path": "/areas/town/center",
+      "path": "/areas/town/tavern",
       "isClone": false
     }
   },
-  "savedAt": 1767650584863,
+  "savedAt": 1767654067091,
   "title": "",
   "gender": "neutral",
   "level": 1,
@@ -40,11 +41,12 @@
     "passwordHash": "348155bff644f9f2807c98e3a88a69ce:0fd1f799586fcdec83bdc0c5627b796ec8b4e6e3bbb6ae9eb7f9b0b601492a9b52ee971e92dd38da8f83385ac2ccd979ad69b4bc6f0aa4562557aacfc50e0df8",
     "email": "jason.alexander@gmail.com",
     "permissionLevel": 3,
-    "_prevCwd": "/areas"
+    "_prevCwd": "/areas",
+    "config.brief": true
   },
   "createdAt": 1767588015729,
-  "lastLogin": 1767650398,
-  "playTime": 596,
+  "lastLogin": 1767654067,
+  "playTime": 823,
   "monitorEnabled": true,
   "displayName": "Sir {yellow}$N{/} is really digging this AI stuff.",
   "cwd": "/areas/town"
