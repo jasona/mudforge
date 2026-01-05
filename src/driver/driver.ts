@@ -118,6 +118,11 @@ export class Driver {
       this.bindPlayerToConnection(connection as Connection, player);
     });
 
+    // Set up the all players callback so mudlib can get connected players
+    this.efunBridge.setAllPlayersCallback(() => {
+      return this.getAllPlayers();
+    });
+
     this.mudlibLoader = getMudlibLoader({
       mudlibPath: this.config.mudlibPath,
     });
@@ -390,6 +395,20 @@ export class Driver {
   bindPlayerToConnection(connection: Connection, player: MudObject): void {
     this.connectionHandlers.set(connection, player);
     connection.bindPlayer(player);
+  }
+
+  /**
+   * Get all connected players (not including login daemon sessions).
+   */
+  getAllPlayers(): MudObject[] {
+    const players: MudObject[] = [];
+    for (const handler of this.connectionHandlers.values()) {
+      // Skip the login daemon - only include actual players
+      if (handler !== this.loginDaemon) {
+        players.push(handler);
+      }
+    }
+    return players;
   }
 
   /**

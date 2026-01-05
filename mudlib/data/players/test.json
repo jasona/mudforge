@@ -1,0 +1,20 @@
+{
+  "name": "Test",
+  "location": "/areas/town/castle",
+  "state": {
+    "objectPath": "",
+    "isClone": false,
+    "properties": {
+      "passwordHash": "91e2bad15126dc73216563d6e6d3a254:86b12ef21e42848c3683d576c5cb05b34f4b9bed4dcc55d1f3017bb933ad2e5f611fcc96bcc5b215a30616a74c80db2da565250d8d3867d1bd1f54f17f0bd47f",
+      "email": "test@test.com",
+      "permissionLevel": 0
+    },
+    "timestamp": 1767581000947,
+    "environment": {
+      "__type": "object_ref",
+      "path": "/areas/town/castle",
+      "isClone": false
+    }
+  },
+  "savedAt": 1767581000947
+}

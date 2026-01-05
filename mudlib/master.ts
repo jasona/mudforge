@@ -86,6 +86,7 @@ export class Master extends MudObject {
       '/areas/town/bakery',
       // Daemons
       '/daemons/login',
+      '/daemons/channels',
     ];
   }
 

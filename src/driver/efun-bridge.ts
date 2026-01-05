@@ -44,6 +44,11 @@ type BindPlayerCallback = (connection: unknown, player: MudObject) => void;
  */
 type ExecuteCommandCallback = (player: MudObject, input: string, level: number) => Promise<boolean>;
 
+/**
+ * Callback to get all connected players (set by Driver).
+ */
+type AllPlayersCallback = () => MudObject[];
+
 export class EfunBridge {
   private config: EfunBridgeConfig;
   private registry: ObjectRegistry;
@@ -52,6 +57,7 @@ export class EfunBridge {
   private context: EfunContext = { thisObject: null, thisPlayer: null };
   private bindPlayerCallback: BindPlayerCallback | null = null;
   private executeCommandCallback: ExecuteCommandCallback | null = null;
+  private allPlayersCallback: AllPlayersCallback | null = null;
 
   constructor(config: Partial<EfunBridgeConfig> = {}) {
     this.config = {
@@ -76,6 +82,14 @@ export class EfunBridge {
    */
   setExecuteCommandCallback(callback: ExecuteCommandCallback): void {
     this.executeCommandCallback = callback;
+  }
+
+  /**
+   * Set the callback for getting all connected players.
+   * Called by the Driver after initialization.
+   */
+  setAllPlayersCallback(callback: AllPlayersCallback): void {
+    this.allPlayersCallback = callback;
   }
 
   /**
@@ -176,10 +190,11 @@ export class EfunBridge {
 
   /**
    * Get all connected players.
-   * This will be implemented when the network layer is added.
    */
   allPlayers(): MudObject[] {
-    // TODO: Implement when network layer is added
+    if (this.allPlayersCallback) {
+      return this.allPlayersCallback();
+    }
     return [];
   }
 
