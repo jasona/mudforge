@@ -837,6 +837,88 @@ If you die, you'll respawn at your bind point.
 You may lose some experience and items.`,
       seeAlso: ['classes', 'skills', 'death'],
     });
+
+    // === STATS ===
+    this.registerTopic({
+      name: 'stats',
+      title: 'Character Statistics',
+      category: 'gameplay',
+      aliases: ['statistics', 'attributes', 'abilities'],
+      keywords: ['strength', 'intelligence', 'wisdom', 'charisma', 'dexterity', 'constitution', 'luck'],
+      content: `{bold}Character Stats:{/}
+Your character has seven core statistics that affect gameplay:
+
+{bold}{cyan}STR{/} {bold}Strength{/}
+  Physical power. Affects melee damage, carrying capacity,
+  and feats of strength like breaking doors.
+
+{bold}{cyan}INT{/} {bold}Intelligence{/}
+  Mental acuity. Affects magic power, mana pool size,
+  and learning speed for skills.
+
+{bold}{cyan}WIS{/} {bold}Wisdom{/}
+  Perception and insight. Affects magic resistance,
+  mana regeneration, and detecting hidden things.
+
+{bold}{cyan}CHA{/} {bold}Charisma{/}
+  Social influence. Affects NPC reactions, shop prices,
+  and leadership abilities.
+
+{bold}{cyan}DEX{/} {bold}Dexterity{/}
+  Agility and coordination. Affects accuracy, dodge chance,
+  stealth, and ranged attacks.
+
+{bold}{cyan}CON{/} {bold}Constitution{/}
+  Physical toughness. Affects health points, resistance
+  to poison/disease, and stamina.
+
+{bold}{cyan}LUK{/} {bold}Luck{/}
+  Fortune and fate. Affects critical hits, rare drops,
+  and random beneficial events.
+
+{bold}Stat Bonuses:{/}
+Each stat provides a bonus (or penalty) calculated as:
+  {yellow}(stat - 10) / 2{/}, rounded down
+
+For example:
+  Stat 10 = +0 bonus
+  Stat 14 = +2 bonus
+  Stat 18 = +4 bonus
+  Stat 6  = -2 penalty
+
+Use {yellow}score{/} or {yellow}score stats{/} to view your stats.`,
+      seeAlso: ['score', 'classes', 'combat'],
+    });
+
+    this.registerTopic({
+      name: 'score',
+      title: 'Score Command',
+      category: 'commands',
+      aliases: ['sc'],
+      keywords: ['character', 'sheet', 'info', 'status'],
+      content: `{bold}Score Command:{/}
+View your character's statistics and status.
+
+{bold}Usage:{/}
+  {yellow}score{/}        - Full character sheet
+  {yellow}score stats{/}  - View only your stats
+  {yellow}score brief{/}  - Condensed one-line summary
+
+{bold}Information Shown:{/}
+  {cyan}Name & Title{/}  - Your character's identity
+  {cyan}Gender{/}        - Male, female, or neutral
+  {cyan}Class{/}         - Your character class (if set)
+  {cyan}Health{/}        - Current and maximum HP
+  {cyan}Stats{/}         - All seven core statistics
+  {cyan}Play Time{/}     - Total time played
+
+{bold}Stat Display:{/}
+Stats are shown with their current value and bonus:
+  {cyan}STR{/} 14 ({green}+2{/})
+
+The bonus is used for skill checks and combat.`,
+      seeAlso: ['stats', 'classes'],
+    });
   }
 }
 

@@ -6,7 +6,7 @@
  * beyond regular Living beings.
  */
 
-import { Living } from './living.js';
+import { Living, type Stats } from './living.js';
 import { MudObject } from './object.js';
 import { colorize } from '../lib/colors.js';
 
@@ -36,6 +36,9 @@ export interface PlayerSaveData {
   gender: 'male' | 'female' | 'neutral';
   health: number;
   maxHealth: number;
+  mana: number;
+  maxMana: number;
+  stats: Stats;
   location: string;
   inventory: string[];
   properties: Record<string, unknown>;
@@ -295,6 +298,9 @@ export class Player extends Living {
       gender: this.gender,
       health: this.health,
       maxHealth: this.maxHealth,
+      mana: this.mana,
+      maxMana: this.maxMana,
+      stats: this.getBaseStats(),
       location: this.environment?.objectPath || '/areas/town/center',
       inventory: this.inventory.map((item) => item.objectPath),
       properties: this._serializeProperties(),
@@ -317,6 +323,19 @@ export class Player extends Living {
     this._createdAt = data.createdAt;
     this._lastLogin = data.lastLogin;
     this._playTime = data.playTime;
+
+    // Restore mana (if present - for backwards compatibility)
+    if (data.maxMana !== undefined) {
+      this.maxMana = data.maxMana;
+    }
+    if (data.mana !== undefined) {
+      this.mana = data.mana;
+    }
+
+    // Restore stats (if present - for backwards compatibility)
+    if (data.stats) {
+      this.setBaseStats(data.stats);
+    }
 
     // Restore properties
     if (data.properties) {

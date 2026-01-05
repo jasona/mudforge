@@ -25,6 +25,61 @@ export interface ParsedCommand {
 }
 
 /**
+ * Core stat names.
+ */
+export type StatName = 'strength' | 'intelligence' | 'wisdom' | 'charisma' | 'dexterity' | 'constitution' | 'luck';
+
+/**
+ * Stats configuration.
+ */
+export interface Stats {
+  strength: number;
+  intelligence: number;
+  wisdom: number;
+  charisma: number;
+  dexterity: number;
+  constitution: number;
+  luck: number;
+}
+
+/**
+ * Default stat value for new characters.
+ */
+export const DEFAULT_STAT = 10;
+
+/**
+ * Minimum and maximum stat values.
+ */
+export const MIN_STAT = 1;
+export const MAX_STAT = 100;
+
+/**
+ * Stat short names for display.
+ */
+export const STAT_SHORT_NAMES: Record<StatName, string> = {
+  strength: 'STR',
+  intelligence: 'INT',
+  wisdom: 'WIS',
+  charisma: 'CHA',
+  dexterity: 'DEX',
+  constitution: 'CON',
+  luck: 'LUK',
+};
+
+/**
+ * Stat descriptions.
+ */
+export const STAT_DESCRIPTIONS: Record<StatName, string> = {
+  strength: 'Physical power, melee damage, carry capacity',
+  intelligence: 'Mental acuity, magic power, mana pool',
+  wisdom: 'Perception, magic resistance, mana regeneration',
+  charisma: 'Social influence, prices, leadership',
+  dexterity: 'Agility, accuracy, dodge chance, stealth',
+  constitution: 'Toughness, health points, resistance to ailments',
+  luck: 'Fortune, critical hits, rare drops, random events',
+};
+
+/**
  * Base class for living beings.
  */
 export class Living extends MudObject {
@@ -38,6 +93,32 @@ export class Living extends MudObject {
   private _health: number = 100;
   private _maxHealth: number = 100;
   private _alive: boolean = true;
+
+  // Magic points
+  private _mana: number = 100;
+  private _maxMana: number = 100;
+
+  // Core stats - base values (before modifiers)
+  private _baseStats: Stats = {
+    strength: DEFAULT_STAT,
+    intelligence: DEFAULT_STAT,
+    wisdom: DEFAULT_STAT,
+    charisma: DEFAULT_STAT,
+    dexterity: DEFAULT_STAT,
+    constitution: DEFAULT_STAT,
+    luck: DEFAULT_STAT,
+  };
+
+  // Stat modifiers (from equipment, buffs, etc.)
+  private _statModifiers: Stats = {
+    strength: 0,
+    intelligence: 0,
+    wisdom: 0,
+    charisma: 0,
+    dexterity: 0,
+    constitution: 0,
+    luck: 0,
+  };
 
   constructor() {
     super();
@@ -205,6 +286,84 @@ export class Living extends MudObject {
     if (this._alive) {
       this.health -= amount;
     }
+  }
+
+  // ========== Mana ==========
+
+  /**
+   * Get current mana.
+   */
+  get mana(): number {
+    return this._mana;
+  }
+
+  /**
+   * Set current mana.
+   */
+  set mana(value: number) {
+    this._mana = Math.max(0, Math.min(value, this._maxMana));
+  }
+
+  /**
+   * Get maximum mana.
+   */
+  get maxMana(): number {
+    return this._maxMana;
+  }
+
+  /**
+   * Set maximum mana.
+   */
+  set maxMana(value: number) {
+    this._maxMana = Math.max(0, value);
+    if (this._mana > this._maxMana) {
+      this._mana = this._maxMana;
+    }
+  }
+
+  /**
+   * Restore mana.
+   * @param amount Amount to restore
+   */
+  restoreMana(amount: number): void {
+    this.mana = Math.min(this._mana + amount, this._maxMana);
+  }
+
+  /**
+   * Use mana for a spell or ability.
+   * @param amount Amount of mana to use
+   * @returns true if mana was successfully used, false if not enough mana
+   */
+  useMana(amount: number): boolean {
+    if (this._mana >= amount) {
+      this._mana -= amount;
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Check if the living has enough mana.
+   * @param amount Amount of mana required
+   */
+  hasMana(amount: number): boolean {
+    return this._mana >= amount;
+  }
+
+  /**
+   * Get mana as a percentage (0-100).
+   */
+  get manaPercent(): number {
+    if (this._maxMana === 0) return 0;
+    return Math.round((this._mana / this._maxMana) * 100);
+  }
+
+  /**
+   * Get health as a percentage (0-100).
+   */
+  get healthPercent(): number {
+    if (this._maxHealth === 0) return 0;
+    return Math.round((this._health / this._maxHealth) * 100);
   }
 
   // ========== Communication ==========
@@ -442,6 +601,185 @@ export class Living extends MudObject {
     this._health = health !== undefined ? health : this._maxHealth;
   }
 
+  // ========== Core Stats ==========
+
+  /**
+   * Get a stat's effective value (base + modifiers).
+   * @param stat The stat name
+   */
+  getStat(stat: StatName): number {
+    const base = this._baseStats[stat];
+    const modifier = this._statModifiers[stat];
+    return Math.max(MIN_STAT, Math.min(MAX_STAT, base + modifier));
+  }
+
+  /**
+   * Get a stat's base value (without modifiers).
+   * @param stat The stat name
+   */
+  getBaseStat(stat: StatName): number {
+    return this._baseStats[stat];
+  }
+
+  /**
+   * Set a stat's base value.
+   * @param stat The stat name
+   * @param value The new base value
+   */
+  setBaseStat(stat: StatName, value: number): void {
+    this._baseStats[stat] = Math.max(MIN_STAT, Math.min(MAX_STAT, value));
+  }
+
+  /**
+   * Get a stat's modifier value.
+   * @param stat The stat name
+   */
+  getStatModifier(stat: StatName): number {
+    return this._statModifiers[stat];
+  }
+
+  /**
+   * Set a stat's modifier value.
+   * @param stat The stat name
+   * @param value The modifier value (can be negative)
+   */
+  setStatModifier(stat: StatName, value: number): void {
+    this._statModifiers[stat] = value;
+  }
+
+  /**
+   * Add to a stat's modifier.
+   * @param stat The stat name
+   * @param value The amount to add (can be negative)
+   */
+  addStatModifier(stat: StatName, value: number): void {
+    this._statModifiers[stat] += value;
+  }
+
+  /**
+   * Reset all stat modifiers to zero.
+   */
+  resetStatModifiers(): void {
+    for (const stat of Object.keys(this._statModifiers) as StatName[]) {
+      this._statModifiers[stat] = 0;
+    }
+  }
+
+  /**
+   * Get all base stats.
+   */
+  getBaseStats(): Stats {
+    return { ...this._baseStats };
+  }
+
+  /**
+   * Get all effective stats (base + modifiers).
+   */
+  getStats(): Stats {
+    return {
+      strength: this.getStat('strength'),
+      intelligence: this.getStat('intelligence'),
+      wisdom: this.getStat('wisdom'),
+      charisma: this.getStat('charisma'),
+      dexterity: this.getStat('dexterity'),
+      constitution: this.getStat('constitution'),
+      luck: this.getStat('luck'),
+    };
+  }
+
+  /**
+   * Set all base stats at once.
+   * @param stats The stats to set
+   */
+  setBaseStats(stats: Partial<Stats>): void {
+    for (const [stat, value] of Object.entries(stats) as [StatName, number][]) {
+      if (value !== undefined) {
+        this.setBaseStat(stat, value);
+      }
+    }
+  }
+
+  /**
+   * Get the stat bonus/penalty (modifier from average).
+   * Standard formula: (stat - 10) / 2, rounded down
+   * @param stat The stat name
+   */
+  getStatBonus(stat: StatName): number {
+    return Math.floor((this.getStat(stat) - 10) / 2);
+  }
+
+  /**
+   * Perform a stat check (roll against a difficulty).
+   * @param stat The stat to check
+   * @param difficulty The difficulty (default 10)
+   * @returns Object with success, roll, and total
+   */
+  statCheck(stat: StatName, difficulty: number = 10): { success: boolean; roll: number; total: number; bonus: number } {
+    const roll = Math.floor(Math.random() * 20) + 1; // d20
+    const bonus = this.getStatBonus(stat);
+    const total = roll + bonus;
+    const success = total >= difficulty;
+    return { success, roll, total, bonus };
+  }
+
+  // Individual stat getters for convenience
+  get strength(): number {
+    return this.getStat('strength');
+  }
+
+  get intelligence(): number {
+    return this.getStat('intelligence');
+  }
+
+  get wisdom(): number {
+    return this.getStat('wisdom');
+  }
+
+  get charisma(): number {
+    return this.getStat('charisma');
+  }
+
+  get dexterity(): number {
+    return this.getStat('dexterity');
+  }
+
+  get constitution(): number {
+    return this.getStat('constitution');
+  }
+
+  get luck(): number {
+    return this.getStat('luck');
+  }
+
+  // Individual stat setters for convenience (sets base stat)
+  set strength(value: number) {
+    this.setBaseStat('strength', value);
+  }
+
+  set intelligence(value: number) {
+    this.setBaseStat('intelligence', value);
+  }
+
+  set wisdom(value: number) {
+    this.setBaseStat('wisdom', value);
+  }
+
+  set charisma(value: number) {
+    this.setBaseStat('charisma', value);
+  }
+
+  set dexterity(value: number) {
+    this.setBaseStat('dexterity', value);
+  }
+
+  set constitution(value: number) {
+    this.setBaseStat('constitution', value);
+  }
+
+  set luck(value: number) {
+    this.setBaseStat('luck', value);
+  }
+
   // ========== Setup ==========
 
   /**
@@ -453,12 +791,67 @@ export class Living extends MudObject {
     gender?: 'male' | 'female' | 'neutral';
     health?: number;
     maxHealth?: number;
+    mana?: number;
+    maxMana?: number;
+    stats?: Partial<Stats>;
   }): void {
     if (options.name) this.name = options.name;
     if (options.title) this.title = options.title;
     if (options.gender) this.gender = options.gender;
     if (options.maxHealth) this.maxHealth = options.maxHealth;
     if (options.health !== undefined) this.health = options.health;
+    if (options.maxMana) this.maxMana = options.maxMana;
+    if (options.mana !== undefined) this.mana = options.mana;
+    if (options.stats) this.setBaseStats(options.stats);
+  }
+
+  /**
+   * Generate random stats using 3d6 method.
+   * Generates values between 3 and 18.
+   */
+  rollStats(): void {
+    const roll3d6 = () => {
+      let total = 0;
+      for (let i = 0; i < 3; i++) {
+        total += Math.floor(Math.random() * 6) + 1;
+      }
+      return total;
+    };
+
+    this._baseStats = {
+      strength: roll3d6(),
+      intelligence: roll3d6(),
+      wisdom: roll3d6(),
+      charisma: roll3d6(),
+      dexterity: roll3d6(),
+      constitution: roll3d6(),
+      luck: roll3d6(),
+    };
+  }
+
+  /**
+   * Generate random stats using 4d6-drop-lowest method.
+   * Generally produces higher stats (10-18 range is common).
+   */
+  rollStatsHeroic(): void {
+    const roll4d6DropLowest = () => {
+      const rolls = [];
+      for (let i = 0; i < 4; i++) {
+        rolls.push(Math.floor(Math.random() * 6) + 1);
+      }
+      rolls.sort((a, b) => b - a); // Sort descending
+      return rolls[0] + rolls[1] + rolls[2]; // Sum top 3
+    };
+
+    this._baseStats = {
+      strength: roll4d6DropLowest(),
+      intelligence: roll4d6DropLowest(),
+      wisdom: roll4d6DropLowest(),
+      charisma: roll4d6DropLowest(),
+      dexterity: roll4d6DropLowest(),
+      constitution: roll4d6DropLowest(),
+      luck: roll4d6DropLowest(),
+    };
   }
 }
 
