@@ -5,7 +5,7 @@
  */
 
 import { getFileStore, type FileStore } from './file-store.js';
-import { getSerializer, type ObjectReference } from './serializer.js';
+import { getSerializer, type ObjectReference, type PlayerSaveData } from './serializer.js';
 import type { MudObject } from '../types.js';
 
 /**

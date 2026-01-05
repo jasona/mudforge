@@ -1,0 +1,47 @@
+{
+  "name": "Test",
+  "location": "/areas/town/center",
+  "state": {
+    "objectPath": "",
+    "isClone": false,
+    "properties": {
+      "passwordHash": "46010548860d04ad879562b75b7e5c80:e6df18323f5a8e0a49f120cbbdde3994961defce313c1a4d7a9d1ab8c7d63a7bbe3a74189153753261bab0ba70685efa9a8a4bdf4c6d120e6c00b06c603ab501",
+      "email": "test@test.com",
+      "permissionLevel": 0
+    },
+    "timestamp": 1767589945553,
+    "environment": {
+      "__type": "object_ref",
+      "path": "/areas/town/center",
+      "isClone": false
+    }
+  },
+  "savedAt": 1767589945553,
+  "title": "",
+  "gender": "male",
+  "level": 1,
+  "experience": 0,
+  "health": 100,
+  "maxHealth": 100,
+  "mana": 100,
+  "maxMana": 100,
+  "stats": {
+    "strength": 1,
+    "intelligence": 1,
+    "wisdom": 1,
+    "charisma": 1,
+    "dexterity": 1,
+    "constitution": 1,
+    "luck": 1
+  },
+  "inventory": [],
+  "properties": {
+    "passwordHash": "46010548860d04ad879562b75b7e5c80:e6df18323f5a8e0a49f120cbbdde3994961defce313c1a4d7a9d1ab8c7d63a7bbe3a74189153753261bab0ba70685efa9a8a4bdf4c6d120e6c00b06c603ab501",
+    "email": "test@test.com",
+    "permissionLevel": 0
+  },
+  "createdAt": 1767589633,
+  "lastLogin": 1767589943,
+  "playTime": 87,
+  "monitorEnabled": false
+}

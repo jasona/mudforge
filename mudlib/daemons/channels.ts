@@ -131,6 +131,17 @@ export class ChannelDaemon extends MudObject {
       color: 'red',
       description: 'Private channel for administrators.',
     });
+
+    // System notification channel
+    this.registerChannel({
+      name: 'notify',
+      displayName: 'Notify',
+      accessType: 'permission',
+      minPermission: 1, // Builder level and up
+      defaultOn: true,
+      color: 'YELLOW',
+      description: 'System notifications (logins, logouts, disconnects).',
+    });
   }
 
   /**
@@ -370,6 +381,32 @@ export class ChannelDaemon extends MudObject {
         player.receive(message);
       }
     }
+  }
+
+  /**
+   * Send a system notification to a channel (no sender, just message).
+   * Used for login/logout/disconnect notifications.
+   * @param channelName The channel to send to
+   * @param message The notification message
+   */
+  sendNotification(channelName: string, message: string): void {
+    const channel = this.getChannel(channelName);
+    if (!channel) return;
+
+    // Format as system notification
+    const color = channel.color ?? 'yellow';
+    const formattedMessage = `{${color}}[${channel.displayName}]{/} ${message}\n`;
+
+    // Add to history
+    this.addToHistory(channelName, {
+      channel: channelName,
+      sender: 'SYSTEM',
+      message: message,
+      timestamp: Date.now(),
+    });
+
+    // Broadcast to all eligible players
+    this.broadcast(channelName, formattedMessage);
   }
 
   /**

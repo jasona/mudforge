@@ -3,6 +3,7 @@
  */
 
 import type { MudObject } from '../../std/object.js';
+import { getChannelDaemon } from '../../daemons/channels.js';
 
 // Efuns are injected by the driver at runtime
 declare const efuns: {
@@ -17,6 +18,8 @@ interface CommandContext {
 }
 
 interface PlayerLike extends MudObject {
+  name?: string;
+  getDisplayAddress?(): string;
   quit?(): Promise<void>;
 }
 
@@ -33,6 +36,14 @@ export async function execute(ctx: CommandContext): Promise<void> {
     ctx.sendLine('Saving your character...');
     await efuns.savePlayer(player);
   }
+
+  // Send logout notification
+  const channelDaemon = getChannelDaemon();
+  const address = playerLike.getDisplayAddress?.() ?? 'unknown';
+  channelDaemon.sendNotification(
+    'notify',
+    `{bold}${playerLike.name}{/} logged out from ${address}`
+  );
 
   ctx.sendLine('Goodbye! See you next time.');
 

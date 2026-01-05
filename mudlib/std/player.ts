@@ -9,6 +9,7 @@
 import { Living, type Stats, type StatName, MAX_STAT } from './living.js';
 import { MudObject } from './object.js';
 import { colorize } from '../lib/colors.js';
+import { getChannelDaemon } from '../daemons/channels.js';
 
 // Efuns are injected by the driver at runtime
 declare const efuns: {
@@ -68,6 +69,9 @@ export class Player extends Living {
   private _permissionLevel: number = 0; // 0=player, 1=builder, 2=senior, 3=admin
   private _experience: number = 0;
   private _monitorEnabled: boolean = false;
+  private _ipAddress: string = 'unknown';
+  private _resolvedHostname: string | null = null;
+  private _hasQuit: boolean = false; // True if player quit properly (vs disconnected)
 
   constructor() {
     super();
@@ -111,6 +115,47 @@ export class Player extends Living {
    */
   isConnected(): boolean {
     return this._connection !== null && this._connection.isConnected();
+  }
+
+  // ========== IP Address / Hostname ==========
+
+  /**
+   * Get the player's IP address.
+   */
+  get ipAddress(): string {
+    return this._ipAddress;
+  }
+
+  /**
+   * Set the player's IP address.
+   */
+  set ipAddress(value: string) {
+    this._ipAddress = value;
+  }
+
+  /**
+   * Get the resolved hostname for the player's IP.
+   * Returns null if not yet resolved or resolution failed.
+   */
+  get resolvedHostname(): string | null {
+    return this._resolvedHostname;
+  }
+
+  /**
+   * Set the resolved hostname.
+   */
+  set resolvedHostname(value: string | null) {
+    this._resolvedHostname = value;
+  }
+
+  /**
+   * Get the display address (hostname if available, otherwise IP).
+   */
+  getDisplayAddress(): string {
+    if (this._resolvedHostname && this._resolvedHostname !== this._ipAddress) {
+      return `${this._resolvedHostname} (${this._ipAddress})`;
+    }
+    return this._ipAddress;
   }
 
   // ========== Input/Output ==========
@@ -592,13 +637,25 @@ export class Player extends Living {
    * @param reason Optional disconnect reason
    */
   onDisconnect(reason?: string): void | Promise<void> {
-    // Default: do nothing
+    // Only send disconnect notification if player didn't quit properly
+    // (i.e., they closed the client unexpectedly)
+    if (!this._hasQuit) {
+      const channelDaemon = getChannelDaemon();
+      const reasonText = reason ? ` (${reason})` : '';
+      channelDaemon.sendNotification(
+        'notify',
+        `{bold}${this.name}{/} disconnected from ${this.getDisplayAddress()}${reasonText}`
+      );
+    }
   }
 
   /**
    * Called when the player quits.
    */
   async quit(): Promise<void> {
+    // Mark as properly quit (prevents disconnect notification)
+    this._hasQuit = true;
+
     // Save the player's current location before quitting
     if (typeof efuns !== 'undefined' && efuns.savePlayer) {
       await efuns.savePlayer(this);

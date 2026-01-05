@@ -7,10 +7,37 @@
 
 import { MudObject } from '../std/object.js';
 import { Player, type PlayerSaveData } from '../std/player.js';
+import { getChannelDaemon } from './channels.js';
 import { scrypt, randomBytes, timingSafeEqual } from 'crypto';
 import { promisify } from 'util';
+import * as dns from 'dns';
 
 const scryptAsync = promisify(scrypt);
+const dnsReverse = promisify(dns.reverse);
+
+/**
+ * Resolve an IP address to a hostname.
+ * Returns the hostname if found, or null if resolution fails.
+ */
+async function resolveHostname(ip: string): Promise<string | null> {
+  // Skip resolution for localhost/loopback addresses
+  if (ip === '127.0.0.1' || ip === '::1' || ip === 'localhost') {
+    return 'localhost';
+  }
+
+  // Skip resolution for unknown addresses
+  if (ip === 'unknown' || !ip) {
+    return null;
+  }
+
+  try {
+    const hostnames = await dnsReverse(ip);
+    return hostnames[0] || null;
+  } catch {
+    // DNS resolution failed (common for many IPs)
+    return null;
+  }
+}
 
 /**
  * Hash a password using scrypt.
@@ -392,8 +419,21 @@ export class LoginDaemon extends MudObject {
         player = existingPlayer;
         isReconnect = true;
 
+        // Get new IP and resolve hostname
+        const newIp = session.connection.getRemoteAddress();
+        const oldAddress = player.getDisplayAddress();
+        player.ipAddress = newIp;
+        player.resolvedHostname = await resolveHostname(newIp);
+
         // Transfer the connection to the existing player
         efuns.transferConnection(session.connection, player);
+
+        // Send reconnect notification to notify channel
+        const channelDaemon = getChannelDaemon();
+        channelDaemon.sendNotification(
+          'notify',
+          `{bold}${player.name}{/} reconnected from ${player.getDisplayAddress()} (was: ${oldAddress})`
+        );
 
         // Notify the player
         player.receive('\n{yellow}Reconnecting...{/}\n');
@@ -456,6 +496,25 @@ export class LoginDaemon extends MudObject {
     player.bindConnection(session.connection);
     if (typeof efuns !== 'undefined') {
       efuns.bindPlayerToConnection(session.connection, player);
+    }
+
+    // Get IP address and resolve hostname
+    const ipAddress = session.connection.getRemoteAddress();
+    player.ipAddress = ipAddress;
+    player.resolvedHostname = await resolveHostname(ipAddress);
+
+    // Send login notification to notify channel
+    const channelDaemon = getChannelDaemon();
+    if (newPlayer) {
+      channelDaemon.sendNotification(
+        'notify',
+        `{bold}${player.name}{/} (NEW) logged in from ${player.getDisplayAddress()}`
+      );
+    } else {
+      channelDaemon.sendNotification(
+        'notify',
+        `{bold}${player.name}{/} logged in from ${player.getDisplayAddress()}`
+      );
     }
 
     // Move to starting room (or last location for returning players)
