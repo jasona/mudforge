@@ -32,12 +32,18 @@ export interface EfunContext {
 /**
  * Bridge providing efuns to mudlib code.
  */
+/**
+ * Callback to bind a player to a connection (set by Driver).
+ */
+type BindPlayerCallback = (connection: unknown, player: MudObject) => void;
+
 export class EfunBridge {
   private config: EfunBridgeConfig;
   private registry: ObjectRegistry;
   private scheduler: Scheduler;
   private permissions: Permissions;
   private context: EfunContext = { thisObject: null, thisPlayer: null };
+  private bindPlayerCallback: BindPlayerCallback | null = null;
 
   constructor(config: Partial<EfunBridgeConfig> = {}) {
     this.config = {
@@ -46,6 +52,14 @@ export class EfunBridge {
     this.registry = getRegistry();
     this.scheduler = getScheduler();
     this.permissions = getPermissions();
+  }
+
+  /**
+   * Set the callback for binding players to connections.
+   * Called by the Driver after initialization.
+   */
+  setBindPlayerCallback(callback: BindPlayerCallback): void {
+    this.bindPlayerCallback = callback;
   }
 
   /**
@@ -428,6 +442,20 @@ export class EfunBridge {
     return this.scheduler.removeCallOut(id);
   }
 
+  // ========== Connection Efuns ==========
+
+  /**
+   * Bind a player object to a connection.
+   * Called by login daemon after successful login.
+   * @param connection The connection object
+   * @param player The player object
+   */
+  bindPlayerToConnection(connection: unknown, player: MudObject): void {
+    if (this.bindPlayerCallback) {
+      this.bindPlayerCallback(connection, player);
+    }
+  }
+
   /**
    * Get all efuns as an object for exposing to sandbox.
    */
@@ -480,6 +508,9 @@ export class EfunBridge {
       setHeartbeat: this.setHeartbeat.bind(this),
       callOut: this.callOut.bind(this),
       removeCallOut: this.removeCallOut.bind(this),
+
+      // Connection
+      bindPlayerToConnection: this.bindPlayerToConnection.bind(this),
     };
   }
 }

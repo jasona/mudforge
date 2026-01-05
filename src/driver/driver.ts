@@ -3,22 +3,23 @@
  *
  * Coordinates all subsystems:
  * - Object Registry
- * - Script Isolation
- * - Compiler and Hot-Reload
+ * - Mudlib Loading
  * - Scheduler
- * - Network (when implemented)
+ * - Network connections
  */
 
 import { loadConfig, validateConfig, type DriverConfig } from './config.js';
 import { ObjectRegistry, getRegistry, resetRegistry } from './object-registry.js';
 import { Scheduler, getScheduler, resetScheduler } from './scheduler.js';
 import { EfunBridge, getEfunBridge, resetEfunBridge } from './efun-bridge.js';
+import { MudlibLoader, getMudlibLoader, resetMudlibLoader } from './mudlib-loader.js';
 import { Compiler } from './compiler.js';
 import { HotReload } from './hot-reload.js';
 import { getIsolatePool, resetIsolatePool } from '../isolation/isolate-pool.js';
 import { resetScriptRunner } from '../isolation/script-runner.js';
 import pino, { type Logger } from 'pino';
 import type { MudObject } from './types.js';
+import type { Connection } from '../network/connection.js';
 
 /**
  * Master object interface.
@@ -35,7 +36,7 @@ export interface MasterObject extends MudObject {
   onShutdown?(): void | Promise<void>;
 
   /** Called when a new player connects */
-  onPlayerConnect?(connection: unknown): string | Promise<string>;
+  onPlayerConnect?(connection: Connection): string | Promise<string>;
 
   /** Called when a player disconnects */
   onPlayerDisconnect?(player: MudObject): void | Promise<void>;
@@ -50,6 +51,15 @@ export interface MasterObject extends MudObject {
   onRuntimeError?(error: Error, object: MudObject | null): void | Promise<void>;
 }
 
+/**
+ * Login daemon interface.
+ */
+export interface LoginDaemon extends MudObject {
+  startSession(connection: Connection): void;
+  processInput(connection: Connection, input: string): void | Promise<void>;
+  handleDisconnect(connection: Connection): void;
+}
+
 export type DriverState = 'stopped' | 'starting' | 'running' | 'stopping';
 
 /**
@@ -61,10 +71,15 @@ export class Driver {
   private registry: ObjectRegistry;
   private scheduler: Scheduler;
   private efunBridge: EfunBridge;
+  private mudlibLoader: MudlibLoader;
   private compiler: Compiler;
   private hotReload: HotReload;
   private master: MasterObject | null = null;
+  private loginDaemon: LoginDaemon | null = null;
   private state: DriverState = 'stopped';
+
+  // Track connections to their handlers (login daemon or player)
+  private connectionHandlers: Map<Connection, MudObject> = new Map();
 
   constructor(config?: Partial<DriverConfig>) {
     this.config = config ? { ...loadConfig(), ...config } : loadConfig();
@@ -94,6 +109,15 @@ export class Driver {
     this.efunBridge = getEfunBridge({
       mudlibPath: this.config.mudlibPath,
     });
+
+    // Set up the bind player callback so login daemon can bind players
+    this.efunBridge.setBindPlayerCallback((connection, player) => {
+      this.bindPlayerToConnection(connection as Connection, player);
+    });
+
+    this.mudlibLoader = getMudlibLoader({
+      mudlibPath: this.config.mudlibPath,
+    });
     this.compiler = new Compiler({
       mudlibPath: this.config.mudlibPath,
     });
@@ -118,7 +142,7 @@ export class Driver {
     this.logger.info('Starting MudForge Driver...');
 
     try {
-      // Initialize isolate pool
+      // Initialize isolate pool (for future sandbox use)
       getIsolatePool({
         memoryLimitMb: this.config.isolateMemoryMb,
       });
@@ -136,6 +160,9 @@ export class Driver {
         const preloadList = await this.master.onPreload();
         await this.preloadObjects(preloadList);
       }
+
+      // Load login daemon
+      await this.loadLoginDaemon();
 
       // Start scheduler
       this.scheduler.start();
@@ -180,6 +207,7 @@ export class Driver {
 
       // Clean up
       this.scheduler.clear();
+      this.connectionHandlers.clear();
 
       this.state = 'stopped';
       this.logger.info('MudForge Driver stopped');
@@ -197,20 +225,30 @@ export class Driver {
     const masterPath = this.config.masterObject;
     this.logger.info({ masterPath }, 'Loading Master object');
 
-    // Compile the Master object
-    const result = await this.compiler.compile(masterPath);
-    if (!result.success) {
-      throw new Error(`Failed to compile Master object: ${result.error}`);
+    try {
+      this.master = await this.mudlibLoader.loadObject<MasterObject>(masterPath);
+      this.logger.info('Master object loaded successfully');
+    } catch (error) {
+      throw new Error(
+        `Failed to load Master object: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
+  }
 
-    // For now, we'll note that the Master loading is incomplete
-    // In a full implementation, we would:
-    // 1. Execute the compiled code in the sandbox
-    // 2. Instantiate the Master class
-    // 3. Register it in the object registry
+  /**
+   * Load the login daemon.
+   */
+  private async loadLoginDaemon(): Promise<void> {
+    this.logger.info('Loading login daemon');
 
-    this.logger.info('Master object loaded (stub)');
-    // this.master = instantiated master object
+    try {
+      this.loginDaemon = await this.mudlibLoader.loadObject<LoginDaemon>('/daemons/login');
+      this.logger.info('Login daemon loaded successfully');
+    } catch (error) {
+      throw new Error(
+        `Failed to load login daemon: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
   }
 
   /**
@@ -221,16 +259,107 @@ export class Driver {
 
     for (const path of paths) {
       try {
-        const result = await this.compiler.compile(path);
-        if (result.success) {
-          this.logger.debug({ path }, 'Preloaded object');
-        } else {
-          this.logger.warn({ path, error: result.error }, 'Failed to preload object');
-        }
+        await this.mudlibLoader.loadObject(path);
+        this.logger.debug({ path }, 'Preloaded object');
       } catch (error) {
-        this.logger.warn({ path, error }, 'Error preloading object');
+        this.logger.warn({ path, error }, 'Failed to preload object');
       }
     }
+  }
+
+  /**
+   * Handle a new player connection.
+   */
+  async onPlayerConnect(connection: Connection): Promise<void> {
+    this.logger.info(
+      { id: connection.id, address: connection.getRemoteAddress() },
+      'New player connection'
+    );
+
+    // Call master's onPlayerConnect if available
+    if (this.master?.onPlayerConnect) {
+      await this.master.onPlayerConnect(connection);
+    }
+
+    // Start login session
+    if (this.loginDaemon) {
+      this.connectionHandlers.set(connection, this.loginDaemon);
+      this.loginDaemon.startSession(connection);
+    } else {
+      this.logger.error('No login daemon available');
+      connection.send('Server error: Login system not available.\n');
+      connection.close();
+    }
+  }
+
+  /**
+   * Handle player input.
+   */
+  async onPlayerInput(connection: Connection, input: string): Promise<void> {
+    const handler = this.connectionHandlers.get(connection);
+
+    if (!handler) {
+      this.logger.warn({ id: connection.id }, 'Input from connection with no handler');
+      return;
+    }
+
+    try {
+      // Check if handler is login daemon
+      if (handler === this.loginDaemon) {
+        await this.loginDaemon.processInput(connection, input);
+      } else {
+        // Handler is a player object - process input
+        const player = handler as MudObject & {
+          processInput?: (input: string) => void | Promise<void>;
+        };
+        if (player.processInput) {
+          await player.processInput(input);
+        }
+      }
+    } catch (error) {
+      this.logger.error({ error, id: connection.id }, 'Error processing input');
+      await this.handleError(error as Error, handler);
+    }
+  }
+
+  /**
+   * Handle player disconnect.
+   */
+  async onPlayerDisconnect(connection: Connection): Promise<void> {
+    this.logger.info({ id: connection.id }, 'Player disconnected');
+
+    const handler = this.connectionHandlers.get(connection);
+
+    if (handler) {
+      if (handler === this.loginDaemon) {
+        // Disconnect during login
+        this.loginDaemon.handleDisconnect(connection);
+      } else {
+        // Player disconnected
+        const player = handler;
+        if (this.master?.onPlayerDisconnect) {
+          await this.master.onPlayerDisconnect(player);
+        }
+
+        // Call player's onDisconnect if available
+        const playerWithHook = player as MudObject & {
+          onDisconnect?: () => void | Promise<void>;
+        };
+        if (playerWithHook.onDisconnect) {
+          await playerWithHook.onDisconnect();
+        }
+      }
+    }
+
+    this.connectionHandlers.delete(connection);
+  }
+
+  /**
+   * Bind a player object to a connection (called after successful login).
+   */
+  bindPlayerToConnection(connection: Connection, player: MudObject): void {
+    this.connectionHandlers.set(connection, player);
+    connection.bindPlayer(player);
   }
 
   /**
@@ -284,6 +413,13 @@ export class Driver {
   }
 
   /**
+   * Get the mudlib loader.
+   */
+  getMudlibLoader(): MudlibLoader {
+    return this.mudlibLoader;
+  }
+
+  /**
    * Get the compiler.
    */
   getCompiler(): Compiler {
@@ -302,6 +438,13 @@ export class Driver {
    */
   getLogger(): Logger {
     return this.logger;
+  }
+
+  /**
+   * Get the master object.
+   */
+  getMaster(): MasterObject | null {
+    return this.master;
   }
 }
 
@@ -334,4 +477,5 @@ export function resetDriver(): void {
   resetEfunBridge();
   resetIsolatePool();
   resetScriptRunner();
+  resetMudlibLoader();
 }

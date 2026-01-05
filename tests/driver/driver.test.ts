@@ -13,6 +13,7 @@ describe('Driver', () => {
     // Create a unique test mudlib directory
     testMudlibPath = join(process.cwd(), `test-mudlib-${randomUUID()}`);
     await mkdir(testMudlibPath, { recursive: true });
+    await mkdir(join(testMudlibPath, 'daemons'), { recursive: true });
 
     // Create a minimal master object
     const masterContent = `
@@ -31,6 +32,26 @@ describe('Driver', () => {
       }
     `;
     await writeFile(join(testMudlibPath, 'master.ts'), masterContent);
+
+    // Create a minimal login daemon
+    const loginContent = `
+      export class LoginDaemon {
+        startSession(connection: unknown) {
+          // Start login session
+        }
+
+        processInput(connection: unknown, input: string) {
+          // Process input
+        }
+
+        handleDisconnect(connection: unknown) {
+          // Handle disconnect
+        }
+      }
+
+      export default LoginDaemon;
+    `;
+    await writeFile(join(testMudlibPath, 'daemons', 'login.ts'), loginContent);
   });
 
   afterEach(async () => {

@@ -366,6 +366,28 @@ export class MudObject {
     this._isClone = isClone;
     this._blueprint = blueprint;
   }
+
+  /**
+   * Set up this object as a blueprint (called by driver).
+   * @internal
+   */
+  _setupAsBlueprint(objectPath: string): void {
+    this._objectPath = objectPath;
+    this._objectId = objectPath;
+    this._isClone = false;
+    this._blueprint = undefined;
+  }
+
+  /**
+   * Set up this object as a clone (called by driver).
+   * @internal
+   */
+  _setupAsClone(objectPath: string, objectId: string, blueprint: MudObject): void {
+    this._objectPath = objectPath;
+    this._objectId = objectId;
+    this._isClone = true;
+    this._blueprint = blueprint;
+  }
 }
 
 export default MudObject;

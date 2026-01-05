@@ -63,8 +63,6 @@ export class Server extends EventEmitter {
     this.fastify = Fastify({
       logger: this.config.logger ? true : false,
     });
-
-    this.setupRoutes();
   }
 
   /**
@@ -144,6 +142,7 @@ export class Server extends EventEmitter {
     }
 
     try {
+      await this.setupRoutes();
       await this.fastify.listen({
         port: this.config.port,
         host: this.config.host,

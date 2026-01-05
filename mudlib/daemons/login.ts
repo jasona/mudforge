@@ -14,6 +14,7 @@ declare const efuns: {
   cloneObject(path: string): Promise<MudObject | undefined>;
   send(target: MudObject, message: string): void;
   time(): number;
+  bindPlayerToConnection(connection: Connection, player: MudObject): void;
 };
 
 /**
@@ -283,8 +284,11 @@ export class LoginDaemon extends MudObject {
       player.name = session.name;
     }
 
-    // Bind connection to player
+    // Bind connection to player (both at player level and driver level)
     player.bindConnection(session.connection);
+    if (typeof efuns !== 'undefined') {
+      efuns.bindPlayerToConnection(session.connection, player);
+    }
 
     // Move to starting room
     const voidRoom =
