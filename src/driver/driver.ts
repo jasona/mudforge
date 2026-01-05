@@ -352,16 +352,19 @@ export class Driver {
         // Disconnect during login
         this.loginDaemon.handleDisconnect(connection);
       } else {
-        // Player disconnected - save their data first
+        // Player disconnected - save their data first (only if they have a valid location)
         const player = handler;
         const playerWithName = player as MudObject & { name?: string };
 
-        // Save player data before disconnect
-        try {
-          await this.efunBridge.savePlayer(player);
-          this.logger.info({ name: playerWithName.name }, 'Player data saved on disconnect');
-        } catch (error) {
-          this.logger.error({ error, name: playerWithName.name }, 'Failed to save player on disconnect');
+        // Only save if player still has an environment (wasn't properly quit)
+        // If environment is null, they already quit properly and were saved
+        if (player.environment) {
+          try {
+            await this.efunBridge.savePlayer(player);
+            this.logger.info({ name: playerWithName.name }, 'Player data saved on disconnect');
+          } catch (error) {
+            this.logger.error({ error, name: playerWithName.name }, 'Failed to save player on disconnect');
+          }
         }
 
         if (this.master?.onPlayerDisconnect) {

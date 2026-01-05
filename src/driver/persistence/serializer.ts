@@ -118,7 +118,7 @@ export class Serializer {
 
     return {
       name: p.name ?? 'unknown',
-      location: player.environment?.objectPath ?? '/areas/void/void',
+      location: player.environment?.objectPath ?? '/areas/town/center',
       state: this.serialize(player, false), // Don't save inventory in player file
       savedAt: Date.now(),
     };

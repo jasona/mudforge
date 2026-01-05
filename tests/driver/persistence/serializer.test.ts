@@ -340,7 +340,7 @@ describe('Serializer', () => {
 
       const saveData = serializer.serializePlayer(player);
 
-      expect(saveData.location).toBe('/areas/void/void');
+      expect(saveData.location).toBe('/areas/town/center');
     });
   });
 

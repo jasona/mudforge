@@ -14,6 +14,7 @@ declare const efuns: {
   send(target: MudObject, message: string): void;
   time(): number;
   executeCommand(player: MudObject, input: string, level: number): Promise<boolean>;
+  savePlayer(player: MudObject): Promise<void>;
 };
 
 /**
@@ -379,6 +380,11 @@ export class Player extends Living {
    * Called when the player quits.
    */
   async quit(): Promise<void> {
+    // Save the player's current location before quitting
+    if (typeof efuns !== 'undefined' && efuns.savePlayer) {
+      await efuns.savePlayer(this);
+    }
+
     this.receive('Goodbye!');
 
     // Disconnect
