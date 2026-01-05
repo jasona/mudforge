@@ -454,6 +454,67 @@ export class EfunBridge {
     return str.toUpperCase();
   }
 
+  /**
+   * Convert a timestamp to seconds (handles both seconds and milliseconds).
+   * If timestamp > 10 billion, assume it's in milliseconds and convert.
+   * @param timestamp The timestamp to convert
+   */
+  toSeconds(timestamp: number): number {
+    if (timestamp > 10000000000) {
+      return Math.floor(timestamp / 1000);
+    }
+    return timestamp;
+  }
+
+  /**
+   * Convert a timestamp to milliseconds (handles both seconds and milliseconds).
+   * If timestamp <= 10 billion, assume it's in seconds and convert.
+   * @param timestamp The timestamp to convert
+   */
+  toMilliseconds(timestamp: number): number {
+    if (timestamp > 10000000000) {
+      return timestamp;
+    }
+    return timestamp * 1000;
+  }
+
+  /**
+   * Format a duration in seconds to a human-readable string.
+   * @param seconds The duration in seconds
+   * @returns A string like "2 days, 3 hours, 15 minutes"
+   */
+  formatDuration(seconds: number): string {
+    const days = Math.floor(seconds / 86400);
+    const hours = Math.floor((seconds % 86400) / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+
+    const parts: string[] = [];
+    if (days > 0) parts.push(`${days} day${days !== 1 ? 's' : ''}`);
+    if (hours > 0) parts.push(`${hours} hour${hours !== 1 ? 's' : ''}`);
+    if (minutes > 0) parts.push(`${minutes} minute${minutes !== 1 ? 's' : ''}`);
+
+    if (parts.length === 0) return 'less than a minute';
+    return parts.join(', ');
+  }
+
+  /**
+   * Format a timestamp to a human-readable date string.
+   * Automatically handles both seconds and milliseconds timestamps.
+   * @param timestamp The timestamp (seconds or milliseconds)
+   * @returns A formatted date string
+   */
+  formatDate(timestamp: number): string {
+    const date = new Date(this.toMilliseconds(timestamp));
+    return date.toLocaleDateString('en-US', {
+      weekday: 'short',
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  }
+
   // ========== Permission Efuns ==========
 
   /**
@@ -702,6 +763,10 @@ export class EfunBridge {
       trim: this.trim.bind(this),
       lower: this.lower.bind(this),
       upper: this.upper.bind(this),
+      toSeconds: this.toSeconds.bind(this),
+      toMilliseconds: this.toMilliseconds.bind(this),
+      formatDuration: this.formatDuration.bind(this),
+      formatDate: this.formatDate.bind(this),
 
       // Permission
       checkReadPermission: this.checkReadPermission.bind(this),

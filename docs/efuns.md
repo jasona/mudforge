@@ -226,6 +226,43 @@ Convert to uppercase.
 efuns.upper('hello'); // 'HELLO'
 ```
 
+### toSeconds(timestamp)
+
+Convert a timestamp to seconds. Handles both seconds and milliseconds formats automatically.
+
+```typescript
+efuns.toSeconds(1767588015729); // 1767588015 (was milliseconds)
+efuns.toSeconds(1767632321);     // 1767632321 (already seconds)
+```
+
+### toMilliseconds(timestamp)
+
+Convert a timestamp to milliseconds. Handles both seconds and milliseconds formats automatically.
+
+```typescript
+efuns.toMilliseconds(1767632321);     // 1767632321000 (was seconds)
+efuns.toMilliseconds(1767588015729);  // 1767588015729 (already milliseconds)
+```
+
+### formatDuration(seconds)
+
+Format a duration in seconds to a human-readable string.
+
+```typescript
+efuns.formatDuration(3661);   // '1 hour, 1 minute'
+efuns.formatDuration(90061);  // '1 day, 1 hour, 1 minute'
+efuns.formatDuration(45);     // 'less than a minute'
+```
+
+### formatDate(timestamp)
+
+Format a timestamp to a human-readable date string. Automatically handles both seconds and milliseconds timestamps.
+
+```typescript
+efuns.formatDate(1767632321);      // 'Sun, Jan 5, 2026, 10:30 AM'
+efuns.formatDate(1767588015729);   // 'Sun, Jan 5, 2026, 10:30 AM'
+```
+
 ## Scheduler
 
 ### setHeartbeat(object, enable)

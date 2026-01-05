@@ -107,6 +107,24 @@ Shows:
 - Player list with display names and levels/ranks
 - Total player count
 
+#### finger
+View detailed information about a player (online or offline).
+
+```
+finger Hero
+finger <player>
+```
+
+Shows:
+- Name and display name
+- Level and role (Player/Builder/Admin)
+- Account age and creation date
+- Online status or last login time
+- Total play time
+- Plan file (for builders+, if `/users/<name>/user.plan` exists)
+
+Works for both online players and offline players by loading their saved data.
+
 #### help
 Access the in-game help system.
 

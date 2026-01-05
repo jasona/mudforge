@@ -129,6 +129,49 @@ View all connected players with the `who` command.
 
 Players are sorted with admins first, then by level.
 
+## Finger Command
+
+Look up detailed information about any player with the `finger` command:
+
+```
+finger Hero
+```
+
+### Information Displayed
+
+```
+╔══════════════════════════════════════════════════════════════╗
+║                        Player Info                           ║
+╠══════════════════════════════════════════════════════════════╣
+║  Name:          Hero
+║  Display Name:  Sir Hero the Bold
+║  Level:         15
+║  Role:          Builder
+╠══════════════════════════════════════════════════════════════╣
+║  Account Age:   45 days, 3 hours
+║  Created:       Wed, Nov 20, 2024, 10:30 AM
+║  Status:        Online
+║  Logged In:     2 hours, 15 minutes ago
+║  Play Time:     72 hours, 30 minutes
+╚══════════════════════════════════════════════════════════════╝
+```
+
+### Features
+
+- Works for **online** or **offline** players
+- Shows last login time for offline players
+- For **builders and above**, displays their plan file if one exists at `/users/<name>/user.plan`
+
+### Plan Files
+
+Builders can create a `user.plan` file in their user directory to share information:
+
+```
+/users/hero/user.plan
+```
+
+This file's contents are displayed when someone fingers them, similar to the classic Unix finger command.
+
 ## Communication Channels
 
 MudForge includes several communication channels.
