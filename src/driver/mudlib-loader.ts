@@ -154,6 +154,91 @@ export class MudlibLoader {
   }
 
   /**
+   * Reload an object from disk, updating the blueprint.
+   * Existing clones keep their old behavior; new clones use the updated code.
+   * This is true runtime hot-reload without server restart.
+   *
+   * @param mudlibPath The path to the object (e.g., "/std/room")
+   * @returns Object with success status and details
+   */
+  async reloadObject(mudlibPath: string): Promise<{
+    success: boolean;
+    error?: string;
+    existingClones: number;
+  }> {
+    try {
+      // Clear the module from our cache
+      this.loadedModules.delete(mudlibPath);
+
+      // Bust the Node module cache by using a unique query param
+      const fileUrl = this.resolvePath(mudlibPath);
+      const cacheBustUrl = `${fileUrl}?update=${Date.now()}`;
+
+      // Dynamic import with cache busting
+      const module = await import(cacheBustUrl);
+
+      // Find the class to instantiate
+      let ObjectClass: MudObjectConstructor | undefined;
+
+      if (module.default && typeof module.default === 'function') {
+        ObjectClass = module.default as MudObjectConstructor;
+      } else {
+        for (const key of Object.keys(module)) {
+          const value = module[key];
+          if (typeof value === 'function' && value.prototype) {
+            ObjectClass = value as MudObjectConstructor;
+            break;
+          }
+        }
+      }
+
+      if (!ObjectClass) {
+        return {
+          success: false,
+          error: `No class found in mudlib module: ${mudlibPath}`,
+          existingClones: 0,
+        };
+      }
+
+      // Create new instance
+      const instance = new ObjectClass() as MudObject;
+
+      // Set up object path
+      const instanceWithPath = instance as MudObject & {
+        _setupAsBlueprint?: (objectPath: string) => void;
+      };
+      if (instanceWithPath._setupAsBlueprint) {
+        instanceWithPath._setupAsBlueprint(mudlibPath);
+      } else {
+        (instance as unknown as { _objectPath: string })._objectPath = mudlibPath;
+        (instance as unknown as { _objectId: string })._objectId = mudlibPath;
+      }
+
+      // Update (or register) the blueprint
+      const existingClones = this.registry.updateBlueprint(mudlibPath, ObjectClass, instance);
+
+      // Call onCreate lifecycle hook
+      if (typeof instance.onCreate === 'function') {
+        await instance.onCreate();
+      }
+
+      // Store in our cache (so subsequent calls use this version until next reload)
+      this.loadedModules.set(mudlibPath, module);
+
+      return {
+        success: true,
+        existingClones,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+        existingClones: 0,
+      };
+    }
+  }
+
+  /**
    * Preload a list of mudlib objects.
    */
   async preload(paths: string[]): Promise<void> {

@@ -150,6 +150,49 @@ const stat = await efuns.fileStat('/std/sword.ts');
 // Returns: { isFile, isDirectory, size, mtime }
 ```
 
+### makeDir(path, recursive?)
+
+Create a directory. Requires write permission.
+
+```typescript
+await efuns.makeDir('/areas/newzone');
+await efuns.makeDir('/areas/newzone/rooms/deep', true); // Create parents
+```
+
+### removeDir(path, recursive?)
+
+Remove a directory. Requires write permission.
+
+```typescript
+await efuns.removeDir('/areas/oldzone'); // Must be empty
+await efuns.removeDir('/areas/oldzone', true); // Remove contents too
+```
+
+### removeFile(path)
+
+Remove a file. Requires write permission.
+
+```typescript
+await efuns.removeFile('/areas/zone/old.ts');
+```
+
+### moveFile(srcPath, destPath)
+
+Move or rename a file/directory. Requires write permission on both paths.
+
+```typescript
+await efuns.moveFile('/areas/zone/old.ts', '/areas/zone/new.ts'); // Rename
+await efuns.moveFile('/areas/zone/file.ts', '/backup/file.ts');   // Move
+```
+
+### copyFileTo(srcPath, destPath)
+
+Copy a file. Requires read permission on source, write on destination.
+
+```typescript
+await efuns.copyFileTo('/std/room.ts', '/areas/myzone/room.ts');
+```
+
 ## Utility Functions
 
 ### time()
@@ -262,6 +305,34 @@ Format a timestamp to a human-readable date string. Automatically handles both s
 efuns.formatDate(1767632321);      // 'Sun, Jan 5, 2026, 10:30 AM'
 efuns.formatDate(1767588015729);   // 'Sun, Jan 5, 2026, 10:30 AM'
 ```
+
+## Hot Reload
+
+### reloadObject(objectPath)
+
+Reload an object from disk, updating the blueprint in memory. This is true runtime hot-reload without server restart. **Requires builder permission or higher.**
+
+```typescript
+const result = await efuns.reloadObject('/areas/town/tavern');
+// result: { success: true, existingClones: 3 }
+
+const result2 = await efuns.reloadObject('/std/room');
+// result2: { success: true, existingClones: 0 }
+
+const result3 = await efuns.reloadObject('/nonexistent');
+// result3: { success: false, error: 'File not found...', existingClones: 0 }
+```
+
+**Behavior:**
+- The TypeScript file is recompiled from disk
+- The blueprint's constructor is updated in the registry
+- Existing clones keep their old behavior (traditional LPMud style)
+- New clones created after the update use the new code
+
+**Returns:**
+- `success: boolean` - Whether the reload succeeded
+- `error?: string` - Error message if failed
+- `existingClones: number` - Number of existing clones (still using old code)
 
 ## Scheduler
 

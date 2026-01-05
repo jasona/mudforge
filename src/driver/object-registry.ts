@@ -188,6 +188,42 @@ export class ObjectRegistry {
   }
 
   /**
+   * Update a blueprint's constructor and instance without destroying clones.
+   * Existing clones keep their old behavior; new clones use the new constructor.
+   * This is the traditional LPMud-style hot-reload.
+   * @param path The blueprint path
+   * @param constructor The new constructor
+   * @param instance The new blueprint instance
+   * @returns Number of existing clones (still using old code)
+   */
+  updateBlueprint(
+    path: string,
+    constructor: MudObjectConstructor,
+    instance: MudObject
+  ): number {
+    const existing = this.blueprints.get(path);
+
+    if (existing) {
+      // Remove old blueprint instance from objects map
+      this.objects.delete(path);
+
+      // Update the blueprint info with new constructor and instance
+      // but preserve the clone tracking
+      existing.constructor = constructor;
+      existing.instance = instance;
+
+      // Register new instance
+      this.objects.set(path, instance);
+
+      return existing.clones.size;
+    } else {
+      // No existing blueprint - just register normally
+      this.registerBlueprint(path, constructor, instance);
+      return 0;
+    }
+  }
+
+  /**
    * Get all registered objects.
    */
   getAllObjects(): IterableIterator<MudObject> {

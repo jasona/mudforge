@@ -219,6 +219,128 @@ Target can be:
 - Player name - another player
 - NPC name - an NPC in your room
 
+### Object Manipulation
+
+#### update
+Reload a mudlib object from disk (true hot-reload).
+
+```
+update /std/room          # Reload a standard library object
+update /areas/town/tavern # Reload a specific room
+update here               # Reload the room you're in
+```
+
+This is **true runtime hot-reload** - the object is recompiled from the TypeScript source and the blueprint is updated in memory. No server restart required!
+
+**Behavior:**
+- Existing clones keep their old behavior (traditional LPMud style)
+- New clones created after the update use the new code
+- Use `destruct` + `clone` to force an existing clone to use new code
+
+### File System Commands
+
+Builders have access to a full set of file system commands that emulate Linux. Each builder maintains their own current working directory (cwd).
+
+#### pwd
+Print current working directory.
+
+```
+pwd
+```
+
+#### cd
+Change directory.
+
+```
+cd /areas/town      # Absolute path
+cd ..               # Parent directory
+cd subdir           # Relative path
+cd ~                # Go to root
+cd -                # Go to previous directory
+```
+
+#### ls (dir)
+List files and directories.
+
+```
+ls                  # List current directory
+ls -l               # Long format with details
+ls -a               # Show hidden files
+ls -la              # Long format with hidden files
+ls /areas           # List specific directory
+```
+
+#### cat (more)
+Display file contents.
+
+```
+cat file.ts         # Display entire file
+cat -n file.ts      # With line numbers
+cat -h 20 file.ts   # First 20 lines (head)
+cat -t 10 file.ts   # Last 10 lines (tail)
+```
+
+#### mkdir
+Create directories.
+
+```
+mkdir newdir        # Create directory
+mkdir -p a/b/c      # Create with parents
+```
+
+#### rmdir
+Remove directories.
+
+```
+rmdir emptydir      # Remove empty directory
+rmdir -r dir        # Remove recursively (careful!)
+```
+
+#### rm (del)
+Remove files.
+
+```
+rm file.ts          # Remove file
+rm -f critical.ts   # Force remove without warning
+```
+
+#### mv (rename)
+Move or rename files and directories.
+
+```
+mv oldname.ts newname.ts   # Rename
+mv file.ts /other/dir/     # Move to directory
+```
+
+#### cp (copy)
+Copy files.
+
+```
+cp original.ts copy.ts     # Copy file
+cp file.ts /backup/        # Copy to directory
+```
+
+#### ed (edit)
+Online line editor for creating and editing files.
+
+```
+ed newfile.ts       # Create/edit a file
+```
+
+Once in the editor:
+- `h` - Show help
+- `p` - Print lines (e.g., `p`, `p 5`, `p 1,10`, `%p`)
+- `a` - Append lines (end with `.` on own line)
+- `i 5` - Insert before line 5
+- `d 5` - Delete line 5
+- `d 3,7` - Delete lines 3-7
+- `c 5` - Change line 5
+- `s/old/new/` - Substitute on current line
+- `s/old/new/g` - Substitute all occurrences
+- `w` - Save file
+- `q` - Quit (warns if unsaved)
+- `wq` - Save and quit
+
 ## Admin Commands
 
 Available only to administrators.

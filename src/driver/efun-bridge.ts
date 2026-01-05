@@ -10,9 +10,10 @@ import { getRegistry, type ObjectRegistry } from './object-registry.js';
 import { getScheduler, type Scheduler } from './scheduler.js';
 import { getPermissions, resetPermissions, type Permissions } from './permissions.js';
 import { getFileStore } from './persistence/file-store.js';
+import { getMudlibLoader, type MudlibLoader } from './mudlib-loader.js';
 import type { PlayerSaveData } from './persistence/serializer.js';
 import type { MudObject } from './types.js';
-import { readFile, writeFile, access, readdir, stat, mkdir } from 'fs/promises';
+import { readFile, writeFile, access, readdir, stat, mkdir, rm, rename, copyFile } from 'fs/promises';
 import { dirname, normalize, resolve } from 'path';
 import { constants } from 'fs';
 
@@ -379,6 +380,101 @@ export class EfunBridge {
     };
   }
 
+  /**
+   * Create a directory.
+   * @param path The directory path (relative to mudlib)
+   * @param recursive Whether to create parent directories
+   */
+  async makeDir(path: string, recursive: boolean = false): Promise<void> {
+    // Check write permission
+    const player = this.context.thisPlayer;
+    if (!this.permissions.canWrite(player, path)) {
+      throw new Error(`Permission denied: cannot create ${path}`);
+    }
+    const fullPath = this.resolveMudlibPath(path);
+    await mkdir(fullPath, { recursive });
+  }
+
+  /**
+   * Remove a directory.
+   * @param path The directory path (relative to mudlib)
+   * @param recursive Whether to remove contents recursively
+   */
+  async removeDir(path: string, recursive: boolean = false): Promise<void> {
+    // Check write permission
+    const player = this.context.thisPlayer;
+    if (!this.permissions.canWrite(player, path)) {
+      throw new Error(`Permission denied: cannot remove ${path}`);
+    }
+    const fullPath = this.resolveMudlibPath(path);
+    await rm(fullPath, { recursive });
+  }
+
+  /**
+   * Remove a file.
+   * @param path The file path (relative to mudlib)
+   */
+  async removeFile(path: string): Promise<void> {
+    // Check write permission
+    const player = this.context.thisPlayer;
+    if (!this.permissions.canWrite(player, path)) {
+      throw new Error(`Permission denied: cannot remove ${path}`);
+    }
+    const fullPath = this.resolveMudlibPath(path);
+    const stats = await stat(fullPath);
+    if (stats.isDirectory()) {
+      throw new Error(`Is a directory: ${path}`);
+    }
+    await rm(fullPath);
+  }
+
+  /**
+   * Move/rename a file or directory.
+   * @param srcPath Source path (relative to mudlib)
+   * @param destPath Destination path (relative to mudlib)
+   */
+  async moveFile(srcPath: string, destPath: string): Promise<void> {
+    // Check write permission on both paths
+    const player = this.context.thisPlayer;
+    if (!this.permissions.canWrite(player, srcPath)) {
+      throw new Error(`Permission denied: cannot move ${srcPath}`);
+    }
+    if (!this.permissions.canWrite(player, destPath)) {
+      throw new Error(`Permission denied: cannot write to ${destPath}`);
+    }
+    const srcFull = this.resolveMudlibPath(srcPath);
+    const destFull = this.resolveMudlibPath(destPath);
+    // Ensure destination directory exists
+    await mkdir(dirname(destFull), { recursive: true });
+    await rename(srcFull, destFull);
+  }
+
+  /**
+   * Copy a file.
+   * @param srcPath Source file path (relative to mudlib)
+   * @param destPath Destination file path (relative to mudlib)
+   */
+  async copyFileTo(srcPath: string, destPath: string): Promise<void> {
+    // Check read permission on source and write permission on destination
+    const player = this.context.thisPlayer;
+    if (!this.permissions.canRead(player, srcPath)) {
+      throw new Error(`Permission denied: cannot read ${srcPath}`);
+    }
+    if (!this.permissions.canWrite(player, destPath)) {
+      throw new Error(`Permission denied: cannot write to ${destPath}`);
+    }
+    const srcFull = this.resolveMudlibPath(srcPath);
+    const destFull = this.resolveMudlibPath(destPath);
+    // Check source is a file
+    const stats = await stat(srcFull);
+    if (stats.isDirectory()) {
+      throw new Error(`Is a directory: ${srcPath}`);
+    }
+    // Ensure destination directory exists
+    await mkdir(dirname(destFull), { recursive: true });
+    await copyFile(srcFull, destFull);
+  }
+
   // ========== Utility Efuns ==========
 
   /**
@@ -724,6 +820,36 @@ export class EfunBridge {
     return fileStore.listPlayers();
   }
 
+  // ========== Hot Reload Efuns ==========
+
+  /**
+   * Reload an object from disk, updating the blueprint in memory.
+   * Existing clones keep their old behavior; new clones use the updated code.
+   * This is true runtime hot-reload without server restart.
+   *
+   * Requires builder permission or higher.
+   *
+   * @param objectPath The mudlib path (e.g., "/std/room", "/areas/town/tavern")
+   * @returns Object with success status and details
+   */
+  async reloadObject(objectPath: string): Promise<{
+    success: boolean;
+    error?: string;
+    existingClones: number;
+  }> {
+    // Check builder permission
+    if (!this.isBuilder()) {
+      return {
+        success: false,
+        error: 'Permission denied: builder required',
+        existingClones: 0,
+      };
+    }
+
+    const loader = getMudlibLoader({ mudlibPath: this.config.mudlibPath });
+    return loader.reloadObject(objectPath);
+  }
+
   /**
    * Get all efuns as an object for exposing to sandbox.
    */
@@ -752,6 +878,11 @@ export class EfunBridge {
       fileExists: this.fileExists.bind(this),
       readDir: this.readDir.bind(this),
       fileStat: this.fileStat.bind(this),
+      makeDir: this.makeDir.bind(this),
+      removeDir: this.removeDir.bind(this),
+      removeFile: this.removeFile.bind(this),
+      moveFile: this.moveFile.bind(this),
+      copyFileTo: this.copyFileTo.bind(this),
 
       // Utility
       time: this.time.bind(this),
@@ -795,6 +926,9 @@ export class EfunBridge {
       loadPlayerData: this.loadPlayerData.bind(this),
       playerExists: this.playerExists.bind(this),
       listPlayers: this.listPlayers.bind(this),
+
+      // Hot Reload
+      reloadObject: this.reloadObject.bind(this),
     };
   }
 }

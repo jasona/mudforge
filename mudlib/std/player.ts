@@ -52,6 +52,7 @@ export interface PlayerSaveData {
   playTime: number;
   monitorEnabled?: boolean;
   displayName?: string | null;
+  cwd?: string;
 }
 
 /**
@@ -75,6 +76,7 @@ export class Player extends Living {
   private _resolvedHostname: string | null = null;
   private _hasQuit: boolean = false; // True if player quit properly (vs disconnected)
   private _displayName: string | null = null; // Custom display name with colors/formatting
+  private _cwd: string = '/'; // Current working directory for file operations (builders+)
 
   constructor() {
     super();
@@ -180,6 +182,29 @@ export class Player extends Living {
    */
   set displayName(value: string | null) {
     this._displayName = value;
+  }
+
+  // ========== Current Working Directory ==========
+
+  /**
+   * Get the current working directory for file operations.
+   * Used by builder commands (ls, cd, cat, etc.)
+   */
+  get cwd(): string {
+    return this._cwd;
+  }
+
+  /**
+   * Set the current working directory.
+   * @param value The new directory path (must be absolute, starting with /)
+   */
+  set cwd(value: string) {
+    // Normalize: ensure starts with / and doesn't end with / (except root)
+    let normalized = value.startsWith('/') ? value : '/' + value;
+    if (normalized.length > 1 && normalized.endsWith('/')) {
+      normalized = normalized.slice(0, -1);
+    }
+    this._cwd = normalized;
   }
 
   /**
@@ -589,6 +614,7 @@ export class Player extends Living {
       playTime: this.playTime,
       monitorEnabled: this._monitorEnabled,
       displayName: this._displayName,
+      cwd: this._cwd,
     };
   }
 
@@ -642,6 +668,11 @@ export class Player extends Living {
     // Restore display name (if present)
     if (data.displayName !== undefined) {
       this._displayName = data.displayName;
+    }
+
+    // Restore cwd (if present - for backwards compatibility)
+    if (data.cwd !== undefined) {
+      this._cwd = data.cwd;
     }
 
     // Note: Location and inventory need to be handled by the driver
