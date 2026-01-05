@@ -10,14 +10,14 @@
       "permissionLevel": 3,
       "_prevCwd": "/areas"
     },
-    "timestamp": 1767640591746,
+    "timestamp": 1767641611525,
     "environment": {
       "__type": "object_ref",
       "path": "/areas/town/center",
       "isClone": false
     }
   },
-  "savedAt": 1767640591746,
+  "savedAt": 1767641611525,
   "title": "",
   "gender": "neutral",
   "level": 1,
@@ -43,8 +43,8 @@
     "_prevCwd": "/areas"
   },
   "createdAt": 1767588015729,
-  "lastLogin": 1767640591,
-  "playTime": 382,
+  "lastLogin": 1767641611,
+  "playTime": 410,
   "monitorEnabled": true,
   "displayName": "Sir {yellow}$N{/} is really digging this AI stuff.",
   "cwd": "/areas/town"

@@ -17,6 +17,20 @@ import { readFile, writeFile, access, readdir, stat, mkdir, rm, rename, copyFile
 import { dirname, normalize, resolve } from 'path';
 import { constants } from 'fs';
 
+/**
+ * Pager options for the page efun.
+ */
+export interface PageOptions {
+  /** Lines per page (default: 20) */
+  linesPerPage?: number;
+  /** Title to display at top */
+  title?: string;
+  /** Show line numbers */
+  showLineNumbers?: boolean;
+  /** Callback when pager exits */
+  onExit?: () => void;
+}
+
 export interface EfunBridgeConfig {
   /** Root path for file operations */
   mudlibPath: string;
@@ -820,6 +834,374 @@ export class EfunBridge {
     return fileStore.listPlayers();
   }
 
+  // ========== Paging Efuns ==========
+
+  /**
+   * Display content with Linux-style paging.
+   * Allows page-by-page navigation for long content.
+   *
+   * @param content The content to display (string or array of lines)
+   * @param options Pager options (linesPerPage, title, showLineNumbers)
+   */
+  page(content: string | string[], options: PageOptions = {}): void {
+    const player = this.context.thisPlayer;
+    if (!player) {
+      throw new Error('No player context for paging');
+    }
+
+    // Get the player with required methods
+    const pagerPlayer = player as MudObject & {
+      setInputHandler: (handler: ((input: string) => void | Promise<void>) | null) => void;
+      receive: (message: string) => void;
+    };
+
+    if (typeof pagerPlayer.setInputHandler !== 'function') {
+      throw new Error('Player does not support input handling');
+    }
+
+    // Parse content into lines
+    const lines = Array.isArray(content) ? content : content.split('\n');
+    const linesPerPage = options.linesPerPage ?? 20;
+
+    // Pager state
+    const state = {
+      lines,
+      currentLine: 0,
+      linesPerPage,
+      title: options.title ?? null,
+      showLineNumbers: options.showLineNumbers ?? false,
+      searchPattern: null as string | null,
+      searchMatches: [] as number[],
+      searchIndex: -1,
+      onExit: options.onExit ?? null,
+    };
+
+    // If content fits on one page, just display it without paging
+    if (lines.length <= linesPerPage) {
+      this.displayAllContent(pagerPlayer, state);
+      if (state.onExit) {
+        state.onExit();
+      }
+      return;
+    }
+
+    // Show first page and set up handler
+    this.displayPage(pagerPlayer, state);
+    pagerPlayer.setInputHandler((input: string) => {
+      this.handlePagerInput(pagerPlayer, state, input);
+    });
+  }
+
+  /**
+   * Display all content without paging (for short content).
+   */
+  private displayAllContent(
+    player: MudObject & { receive: (msg: string) => void },
+    state: {
+      lines: string[];
+      title: string | null;
+      showLineNumbers: boolean;
+    }
+  ): void {
+    if (state.title) {
+      player.receive(`{cyan}${state.title}{/}\n`);
+    }
+
+    for (let i = 0; i < state.lines.length; i++) {
+      const line = state.lines[i];
+      if (state.showLineNumbers) {
+        const lineNum = (i + 1).toString().padStart(4);
+        player.receive(`{dim}${lineNum}{/}  ${line}\n`);
+      } else {
+        player.receive(`${line}\n`);
+      }
+    }
+  }
+
+  /**
+   * Display a page of content.
+   */
+  private displayPage(
+    player: MudObject & { receive: (msg: string) => void },
+    state: {
+      lines: string[];
+      currentLine: number;
+      linesPerPage: number;
+      title: string | null;
+      showLineNumbers: boolean;
+    }
+  ): void {
+    // Show title on first page
+    if (state.currentLine === 0 && state.title) {
+      player.receive(`{cyan}${state.title}{/}\n`);
+    }
+
+    // Calculate end line
+    const endLine = Math.min(state.currentLine + state.linesPerPage, state.lines.length);
+
+    // Display lines
+    for (let i = state.currentLine; i < endLine; i++) {
+      const line = state.lines[i];
+      if (state.showLineNumbers) {
+        const lineNum = (i + 1).toString().padStart(4);
+        player.receive(`{dim}${lineNum}{/}  ${line}\n`);
+      } else {
+        player.receive(`${line}\n`);
+      }
+    }
+
+    // Show prompt
+    this.showPagerPrompt(player, state);
+  }
+
+  /**
+   * Show the pager prompt.
+   */
+  private showPagerPrompt(
+    player: MudObject & { receive: (msg: string) => void },
+    state: { lines: string[]; currentLine: number; linesPerPage: number }
+  ): void {
+    const endLine = Math.min(state.currentLine + state.linesPerPage, state.lines.length);
+    const percent = Math.round((endLine / state.lines.length) * 100);
+
+    // Create a visually distinct prompt bar
+    player.receive('\n');
+    if (endLine >= state.lines.length) {
+      player.receive(
+        '{CYAN}{bold}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{/}\n'
+      );
+      player.receive(
+        '{inverse}{bold} (END) {/}  {cyan}[q]{/} quit  {cyan}[b]{/} back  {cyan}[g]{/} top  {cyan}[/]{/} search\n'
+      );
+      player.receive(
+        '{CYAN}{bold}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{/}\n'
+      );
+    } else {
+      player.receive(
+        '{CYAN}{bold}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{/}\n'
+      );
+      player.receive(
+        `{inverse}{bold} --More-- (${percent}%) {/}  {cyan}[j/Enter]{/} next  {cyan}[b]{/} back  {cyan}[q]{/} quit  {cyan}[?]{/} help\n`
+      );
+      player.receive(
+        '{CYAN}{bold}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{/}\n'
+      );
+    }
+    player.receive('{dim}>{/} ');
+  }
+
+  /**
+   * Handle pager input.
+   */
+  private handlePagerInput(
+    player: MudObject & {
+      setInputHandler: (handler: ((input: string) => void | Promise<void>) | null) => void;
+      receive: (msg: string) => void;
+    },
+    state: {
+      lines: string[];
+      currentLine: number;
+      linesPerPage: number;
+      title: string | null;
+      showLineNumbers: boolean;
+      searchPattern: string | null;
+      searchMatches: number[];
+      searchIndex: number;
+      onExit: (() => void) | null;
+    },
+    input: string
+  ): void {
+    const cmd = input.trim().toLowerCase();
+
+    // Quit
+    if (cmd === 'q' || cmd === 'quit') {
+      player.setInputHandler(null);
+      player.receive('\n');
+      if (state.onExit) {
+        state.onExit();
+      }
+      return;
+    }
+
+    // Next page (Enter, Space, j, f)
+    if (cmd === '' || cmd === ' ' || cmd === 'j' || cmd === 'f' || (cmd === 'n' && !state.searchPattern)) {
+      const nextLine = state.currentLine + state.linesPerPage;
+      if (nextLine < state.lines.length) {
+        state.currentLine = nextLine;
+        this.displayPage(player, state);
+      } else {
+        player.receive('\n{yellow}(Already at end - press q to quit){/}\n');
+        this.showPagerPrompt(player, state);
+      }
+      return;
+    }
+
+    // Next line (k for single line advance)
+    if (cmd === 'k') {
+      const nextLine = state.currentLine + 1;
+      if (nextLine < state.lines.length) {
+        state.currentLine = nextLine;
+        this.displayPage(player, state);
+      } else {
+        player.receive('\n{yellow}(Already at end - press q to quit){/}\n');
+        this.showPagerPrompt(player, state);
+      }
+      return;
+    }
+
+    // Previous page
+    if (cmd === 'b' || cmd === 'p') {
+      const prevLine = state.currentLine - state.linesPerPage;
+      state.currentLine = Math.max(0, prevLine);
+      this.displayPage(player, state);
+      return;
+    }
+
+    // Go to beginning
+    if (cmd === 'g') {
+      state.currentLine = 0;
+      this.displayPage(player, state);
+      return;
+    }
+
+    // Go to end (capital G)
+    if (input.trim() === 'G') {
+      state.currentLine = Math.max(0, state.lines.length - state.linesPerPage);
+      this.displayPage(player, state);
+      return;
+    }
+
+    // Search
+    if (cmd.startsWith('/')) {
+      const pattern = input.trim().slice(1);
+      if (pattern) {
+        this.searchPager(player, state, pattern);
+      } else {
+        player.receive('\n{yellow}Empty search pattern{/}\n');
+        this.showPagerPrompt(player, state);
+      }
+      return;
+    }
+
+    // Next search result
+    if (cmd === 'n' && state.searchPattern) {
+      this.nextSearchResult(player, state);
+      return;
+    }
+
+    // Go to line number
+    const lineNum = parseInt(cmd, 10);
+    if (!isNaN(lineNum) && lineNum > 0) {
+      const targetLine = Math.min(lineNum - 1, state.lines.length - 1);
+      state.currentLine = Math.max(0, targetLine);
+      this.displayPage(player, state);
+      return;
+    }
+
+    // Help
+    if (cmd === 'h' || cmd === '?') {
+      player.receive(`
+{cyan}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{/}
+{bold}{cyan}                    Pager Controls{/}
+{cyan}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{/}
+  {bold}j, f, Enter, Space{/}  - Next page
+  {bold}k{/}                   - Next line (scroll by 1)
+  {bold}b, p{/}                - Previous page
+  {bold}g{/}                   - Go to beginning
+  {bold}G{/}                   - Go to end
+  {bold}/<pattern>{/}          - Search for pattern
+  {bold}n{/}                   - Next search result
+  {bold}<number>{/}            - Go to line number
+  {bold}q{/}                   - Quit
+  {bold}?, h{/}                - Show this help
+{cyan}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━{/}
+`);
+      this.showPagerPrompt(player, state);
+      return;
+    }
+
+    // Unknown - just show prompt
+    this.showPagerPrompt(player, state);
+  }
+
+  /**
+   * Search forward in paged content.
+   */
+  private searchPager(
+    player: MudObject & { receive: (msg: string) => void },
+    state: {
+      lines: string[];
+      currentLine: number;
+      linesPerPage: number;
+      title: string | null;
+      showLineNumbers: boolean;
+      searchPattern: string | null;
+      searchMatches: number[];
+      searchIndex: number;
+    },
+    pattern: string
+  ): void {
+    state.searchPattern = pattern;
+    state.searchMatches = [];
+
+    const lowerPattern = pattern.toLowerCase();
+    for (let i = 0; i < state.lines.length; i++) {
+      const line = state.lines[i];
+      if (line && line.toLowerCase().includes(lowerPattern)) {
+        state.searchMatches.push(i);
+      }
+    }
+
+    if (state.searchMatches.length === 0) {
+      player.receive(`\n{yellow}Pattern not found: ${pattern}{/}\n`);
+      this.showPagerPrompt(player, state);
+      return;
+    }
+
+    state.searchIndex = state.searchMatches.findIndex((line) => line >= state.currentLine);
+    if (state.searchIndex === -1) {
+      state.searchIndex = 0;
+    }
+
+    // searchIndex is guaranteed to be valid here since we just set it
+    state.currentLine = state.searchMatches[state.searchIndex] ?? 0;
+    player.receive(
+      `\n{green}Found ${state.searchMatches.length} match(es). Showing match ${state.searchIndex + 1}:{/}\n`
+    );
+    this.displayPage(player, state);
+  }
+
+  /**
+   * Go to next search result in pager.
+   */
+  private nextSearchResult(
+    player: MudObject & { receive: (msg: string) => void },
+    state: {
+      lines: string[];
+      currentLine: number;
+      linesPerPage: number;
+      title: string | null;
+      showLineNumbers: boolean;
+      searchPattern: string | null;
+      searchMatches: number[];
+      searchIndex: number;
+    }
+  ): void {
+    if (!state.searchPattern || state.searchMatches.length === 0) {
+      player.receive('\n{yellow}No previous search{/}\n');
+      this.showPagerPrompt(player, state);
+      return;
+    }
+
+    state.searchIndex = (state.searchIndex + 1) % state.searchMatches.length;
+    // searchIndex is guaranteed to be valid due to modulo
+    state.currentLine = state.searchMatches[state.searchIndex] ?? 0;
+    player.receive(
+      `\n{dim}Match ${state.searchIndex + 1} of ${state.searchMatches.length}{/}\n`
+    );
+    this.displayPage(player, state);
+  }
+
   // ========== Hot Reload Efuns ==========
 
   /**
@@ -929,6 +1311,9 @@ export class EfunBridge {
 
       // Hot Reload
       reloadObject: this.reloadObject.bind(this),
+
+      // Paging
+      page: this.page.bind(this),
     };
   }
 }

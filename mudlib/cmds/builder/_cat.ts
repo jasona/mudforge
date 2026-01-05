@@ -1,11 +1,20 @@
 /**
- * cat command - Display file contents.
+ * cat command - Display file contents with paging support.
  *
  * Usage:
- *   cat <file>          - Display entire file
+ *   cat <file>          - Display entire file (paged if long)
  *   cat -n <file>       - Display with line numbers
  *   cat -h <n> <file>   - Display first n lines (head)
  *   cat -t <n> <file>   - Display last n lines (tail)
+ *   cat -a <file>       - Display all without paging
+ *
+ * Paging Controls:
+ *   Enter/Space  - Next page
+ *   b            - Previous page
+ *   g/G          - Go to beginning/end
+ *   /<pattern>   - Search
+ *   n            - Next search result
+ *   q            - Quit
  */
 
 import type { MudObject } from '../../std/object.js';
@@ -17,6 +26,12 @@ declare const efuns: {
   fileStat(path: string): Promise<{ isFile: boolean; isDirectory: boolean; size: number; mtime: Date }>;
   readFile(path: string): Promise<string>;
   checkReadPermission(path: string): boolean;
+  page(content: string | string[], options?: {
+    linesPerPage?: number;
+    title?: string;
+    showLineNumbers?: boolean;
+    onExit?: () => void;
+  }): void;
 };
 
 interface PlayerWithCwd extends MudObject {
@@ -32,8 +47,8 @@ interface CommandContext {
 }
 
 export const name = ['cat', 'more'];
-export const description = 'Display file contents';
-export const usage = 'cat [-n] [-h <lines>] [-t <lines>] <file>';
+export const description = 'Display file contents with paging';
+export const usage = 'cat [-n] [-a] [-h <lines>] [-t <lines>] <file>';
 
 export async function execute(ctx: CommandContext): Promise<void> {
   const player = ctx.player as PlayerWithCwd;
@@ -41,10 +56,11 @@ export async function execute(ctx: CommandContext): Promise<void> {
   const homeDir = getHomeDir(player.name);
 
   // Parse arguments
-  let args = ctx.args.trim();
+  const args = ctx.args.trim();
   let showLineNumbers = false;
   let headLines: number | null = null;
   let tailLines: number | null = null;
+  let noPaging = false;
 
   // Extract flags
   const parts = args.split(/\s+/);
@@ -54,6 +70,8 @@ export async function execute(ctx: CommandContext): Promise<void> {
     const part = parts[i];
     if (part === '-n') {
       showLineNumbers = true;
+    } else if (part === '-a') {
+      noPaging = true;
     } else if (part === '-h' && i + 1 < parts.length) {
       headLines = parseInt(parts[++i], 10);
       if (isNaN(headLines) || headLines < 1) {
@@ -74,7 +92,11 @@ export async function execute(ctx: CommandContext): Promise<void> {
   const filePath = fileParts.join(' ');
 
   if (!filePath) {
-    ctx.sendLine('Usage: cat [-n] [-h <lines>] [-t <lines>] <file>');
+    ctx.sendLine('Usage: cat [-n] [-a] [-h <lines>] [-t <lines>] <file>');
+    ctx.sendLine('  -n  Show line numbers');
+    ctx.sendLine('  -a  Show all without paging');
+    ctx.sendLine('  -h  Show first N lines (head)');
+    ctx.sendLine('  -t  Show last N lines (tail)');
     return;
   }
 
@@ -101,31 +123,42 @@ export async function execute(ctx: CommandContext): Promise<void> {
       return;
     }
 
-    // Warn about large files
-    if (stat.size > 50000) {
-      ctx.sendLine(`{yellow}Warning: Large file (${stat.size} bytes). Use -h or -t to limit output.{/}`);
-    }
-
     // Read the file
     const content = await efuns.readFile(resolvedPath);
     let lines = content.split('\n');
+    let startLineOffset = 1;
 
     // Apply head/tail limits
     if (headLines !== null) {
       lines = lines.slice(0, headLines);
     } else if (tailLines !== null) {
+      startLineOffset = Math.max(1, content.split('\n').length - tailLines + 1);
       lines = lines.slice(-tailLines);
     }
 
-    // Output with optional line numbers
+    // Format lines with line numbers if requested
+    let displayLines: string[];
     if (showLineNumbers) {
-      const startLine = tailLines !== null ? Math.max(1, content.split('\n').length - tailLines + 1) : 1;
-      lines.forEach((line, index) => {
-        const lineNum = (startLine + index).toString().padStart(4);
-        ctx.sendLine(`{dim}${lineNum}{/}  ${line}`);
+      displayLines = lines.map((line, index) => {
+        const lineNum = (startLineOffset + index).toString().padStart(4);
+        return `{dim}${lineNum}{/}  ${line}`;
       });
     } else {
-      for (const line of lines) {
+      displayLines = lines;
+    }
+
+    // Use pager for long content, unless -a flag or head/tail is used
+    const usePaging = !noPaging && headLines === null && tailLines === null;
+
+    if (usePaging && typeof efuns.page === 'function') {
+      // Use the pager efun
+      efuns.page(displayLines, {
+        title: resolvedPath,
+        linesPerPage: 20,
+      });
+    } else {
+      // Direct output without paging
+      for (const line of displayLines) {
         ctx.sendLine(line);
       }
     }

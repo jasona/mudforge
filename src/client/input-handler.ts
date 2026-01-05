@@ -126,21 +126,21 @@ export class InputHandler {
 
   /**
    * Submit the current input.
+   * Allows empty submissions to support pagers and other input handlers.
    */
   private submit(): void {
-    const command = this.inputElement.value.trim();
+    const command = this.inputElement.value;
+    const trimmedCommand = command.trim();
 
-    if (command.length === 0) {
-      return;
-    }
+    // Add to history only if non-empty (avoid duplicates of last command)
+    if (trimmedCommand.length > 0) {
+      if (this.history.length === 0 || this.history[this.history.length - 1] !== trimmedCommand) {
+        this.history.push(trimmedCommand);
 
-    // Add to history (avoid duplicates of last command)
-    if (this.history.length === 0 || this.history[this.history.length - 1] !== command) {
-      this.history.push(command);
-
-      // Trim history if too long
-      while (this.history.length > this.maxHistory) {
-        this.history.shift();
+        // Trim history if too long
+        while (this.history.length > this.maxHistory) {
+          this.history.shift();
+        }
       }
     }
 
@@ -151,8 +151,8 @@ export class InputHandler {
     // Clear input
     this.inputElement.value = '';
 
-    // Emit event
-    this.emit('submit', command);
+    // Emit event (send trimmed command, empty string for Enter-only)
+    this.emit('submit', trimmedCommand);
   }
 
   /**
