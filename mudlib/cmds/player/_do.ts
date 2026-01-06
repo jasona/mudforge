@@ -31,6 +31,8 @@ interface CommandContext {
 interface PlayerWithExecute extends MudObject {
   name: string;
   executeCommand?(command: string): Promise<boolean>;
+  getConfig?<T>(key: string): T;
+  setConfig?(key: string, value: unknown): { success: boolean; error?: string };
 }
 
 export const name = ['do', 'macro'];
@@ -181,42 +183,58 @@ export async function execute(ctx: CommandContext): Promise<void> {
     return;
   }
 
+  // Check if brief mode is already on; if not, temporarily enable it
+  const hadBriefOn =
+    typeof player.getConfig === 'function' ? player.getConfig<boolean>('brief') : true;
+  const canSetConfig = typeof player.setConfig === 'function';
+
+  if (!hadBriefOn && canSetConfig) {
+    player.setConfig!('brief', true);
+  }
+
   // Execute the commands
   let executionCount = 0;
 
-  for (const cmd of commands) {
-    for (let i = 0; i < cmd.count; i++) {
-      executionCount++;
+  try {
+    for (const cmd of commands) {
+      for (let i = 0; i < cmd.count; i++) {
+        executionCount++;
 
-      // Show progress for repeated commands
-      if (cmd.count > 1) {
-        ctx.sendLine(`{dim}[${executionCount}] ${cmd.command}{/}`);
-      }
+        // Show progress for repeated commands
+        if (cmd.count > 1) {
+          ctx.sendLine(`{dim}[${executionCount}] ${cmd.command}{/}`);
+        }
 
-      try {
-        const success = await efuns.executeCommand(player, cmd.command);
+        try {
+          const success = await efuns.executeCommand(player, cmd.command);
 
-        if (!success) {
-          ctx.sendLine(`{yellow}Command failed: ${cmd.command}{/}`);
+          if (!success) {
+            ctx.sendLine(`{yellow}Command failed: ${cmd.command}{/}`);
+            ctx.sendLine(`{dim}Macro stopped after ${executionCount} execution(s).{/}`);
+            return;
+          }
+        } catch (error) {
+          ctx.sendLine(`{red}Error executing: ${cmd.command}{/}`);
           ctx.sendLine(`{dim}Macro stopped after ${executionCount} execution(s).{/}`);
           return;
         }
-      } catch (error) {
-        ctx.sendLine(`{red}Error executing: ${cmd.command}{/}`);
-        ctx.sendLine(`{dim}Macro stopped after ${executionCount} execution(s).{/}`);
-        return;
-      }
 
-      // Small delay between commands for readability
-      if (executionCount < totalExecutions) {
-        await sleep(COMMAND_DELAY);
+        // Small delay between commands for readability
+        if (executionCount < totalExecutions) {
+          await sleep(COMMAND_DELAY);
+        }
       }
     }
-  }
 
-  // Only show completion message if we did multiple things
-  if (totalExecutions > 1) {
-    ctx.sendLine(`{dim}Macro complete: ${executionCount} command(s) executed.{/}`);
+    // Only show completion message if we did multiple things
+    if (totalExecutions > 1) {
+      ctx.sendLine(`{dim}Macro complete: ${executionCount} command(s) executed.{/}`);
+    }
+  } finally {
+    // Restore brief mode to its original state
+    if (!hadBriefOn && canSetConfig) {
+      player.setConfig!('brief', false);
+    }
   }
 }
 

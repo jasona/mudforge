@@ -58,8 +58,11 @@ export interface Command {
   description: string;
   /** Usage syntax */
   usage?: string;
-  /** Execute the command */
-  execute(ctx: CommandContext): void | Promise<void>;
+  /**
+   * Execute the command.
+   * @returns true/void for success, false for failure (stops macros)
+   */
+  execute(ctx: CommandContext): boolean | void | Promise<boolean | void>;
 }
 
 /**
@@ -337,12 +340,14 @@ export class CommandManager {
 
     // Execute
     try {
-      await loaded.command.execute(ctx);
-      return true;
+      const result = await loaded.command.execute(ctx);
+      // If command explicitly returns false, it failed
+      // void/undefined/true all count as success
+      return result !== false;
     } catch (error) {
       this.logger?.error({ error, verb }, 'Error executing command');
       ctx.sendLine(`Error executing command: ${error instanceof Error ? error.message : String(error)}`);
-      return true; // Command was found, just errored
+      return false; // Command errored = failure
     }
   }
 

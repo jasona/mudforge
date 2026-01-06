@@ -103,13 +103,13 @@ export const name = [
 export const description = 'Move in a direction';
 export const usage = 'go <direction> or just <direction>';
 
-export async function execute(ctx: CommandContext): Promise<void> {
+export async function execute(ctx: CommandContext): Promise<boolean> {
   const { player, verb, args } = ctx;
   const room = player.environment as Room | null;
 
   if (!room) {
     ctx.sendLine("You can't go anywhere from here.");
-    return;
+    return false;
   }
 
   // Determine direction
@@ -117,7 +117,7 @@ export async function execute(ctx: CommandContext): Promise<void> {
   if (verb === 'go') {
     if (!args) {
       ctx.sendLine('Go where?');
-      return;
+      return false;
     }
     direction = args.toLowerCase();
   } else {
@@ -131,13 +131,13 @@ export async function execute(ctx: CommandContext): Promise<void> {
   // Try to find the exit
   if (!room.getExit) {
     ctx.sendLine("There's nowhere to go.");
-    return;
+    return false;
   }
 
   const exit = room.getExit(direction);
   if (!exit) {
     ctx.sendLine(`You can't go ${direction}.`);
-    return;
+    return false;
   }
 
   // Check if exit has a condition
@@ -145,20 +145,20 @@ export async function execute(ctx: CommandContext): Promise<void> {
     const canPass = await exit.canPass(player);
     if (!canPass) {
       ctx.sendLine("Something prevents you from going that way.");
-      return;
+      return false;
     }
   }
 
   // Resolve the exit to get the actual destination room
   if (!room.resolveExit) {
     ctx.sendLine("There's nowhere to go.");
-    return;
+    return false;
   }
 
   const destination = room.resolveExit(exit);
   if (!destination) {
     ctx.sendLine(`The way ${direction} seems blocked.`);
-    return;
+    return false;
   }
 
   // Get player's name for messages
@@ -177,7 +177,7 @@ export async function execute(ctx: CommandContext): Promise<void> {
   const moved = await player.moveTo(destination);
   if (!moved) {
     ctx.sendLine("Something prevents you from going that way.");
-    return;
+    return false;
   }
 
   // Broadcast enter message to new room
@@ -202,6 +202,8 @@ export async function execute(ctx: CommandContext): Promise<void> {
     ctx.sendLine(newRoom.shortDesc);
     ctx.sendLine(newRoom.longDesc);
   }
+
+  return true;
 }
 
 export default { name, description, usage, execute };
