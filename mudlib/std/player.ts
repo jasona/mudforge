@@ -374,6 +374,8 @@ export class Player extends Living {
       const expanded = this.expandPrompt(promptTemplate);
       // Check if color is enabled
       const colorEnabled = this.getConfig<boolean>('color');
+      // Add blank line before prompt for visual separation
+      this._connection.send('\n');
       if (colorEnabled) {
         this._connection.send(colorize(expanded));
       } else {
