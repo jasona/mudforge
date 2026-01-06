@@ -40,6 +40,17 @@ export const usage = 'ls [-la] [path]';
 /** Assumed terminal width for column calculations */
 const TERMINAL_WIDTH = 80;
 
+/** Files that should be hidden from ls (security-critical config files) */
+const HIDDEN_SYSTEM_FILES = [
+  'tsconfig.json',
+  'package.json',
+  'package-lock.json',
+  '.env',
+  '.gitignore',
+  '.git',
+  'node_modules',
+];
+
 export async function execute(ctx: CommandContext): Promise<void> {
   const player = ctx.player as PlayerWithCwd;
   const currentCwd = player.cwd || '/';
@@ -94,6 +105,13 @@ export async function execute(ctx: CommandContext): Promise<void> {
     // Filter hidden files unless -a
     if (!showHidden) {
       entries = entries.filter((e) => !e.startsWith('.'));
+    }
+
+    // Always filter out security-critical system files (regardless of -a flag)
+    // These files should not be visible or editable from in-game
+    const isRootDir = targetPath === '/' || targetPath === '';
+    if (isRootDir) {
+      entries = entries.filter((e) => !HIDDEN_SYSTEM_FILES.includes(e.toLowerCase()));
     }
 
     // Gather stats for all entries

@@ -24,6 +24,8 @@ export interface PermissionsConfig {
   dataPath: string;
   /** Paths that are protected (only Administrators can modify) */
   protectedPaths: string[];
+  /** Files that cannot be modified from in-game at all (security-critical) */
+  forbiddenFiles: string[];
 }
 
 /**
@@ -68,6 +70,13 @@ export class Permissions {
     this.config = {
       dataPath: config.dataPath ?? './mudlib/data/permissions.json',
       protectedPaths: config.protectedPaths ?? ['/std/', '/core/', '/daemon/'],
+      forbiddenFiles: config.forbiddenFiles ?? [
+        '/tsconfig.json',
+        '/package.json',
+        '/package-lock.json',
+        '/.env',
+        '/.gitignore',
+      ],
     };
   }
 
@@ -162,6 +171,12 @@ export class Permissions {
     const level = this.getLevel(player);
     const name = this.getPlayerName(player);
 
+    // Check forbidden files first - these cannot be modified from in-game at all
+    if (this.isForbiddenFile(path)) {
+      this.logAction(player, 'write', path, false, 'File is forbidden (security-critical)');
+      return false;
+    }
+
     // Players can't write at all
     if (level < PermissionLevel.Builder) {
       this.logAction(player, 'write', path, false, 'Insufficient permission level');
@@ -227,6 +242,31 @@ export class Permissions {
       }
     }
     return false;
+  }
+
+  /**
+   * Check if a file is forbidden (cannot be modified from in-game at all).
+   * @param path The file path
+   */
+  isForbiddenFile(path: string): boolean {
+    const normalizedPath = path.toLowerCase();
+    for (const forbidden of this.config.forbiddenFiles) {
+      if (normalizedPath === forbidden.toLowerCase()) {
+        return true;
+      }
+      // Also check if it ends with the forbidden filename (for paths like /tsconfig.json)
+      if (normalizedPath.endsWith(forbidden.toLowerCase())) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Get the list of forbidden files.
+   */
+  getForbiddenFiles(): string[] {
+    return [...this.config.forbiddenFiles];
   }
 
   // ========== Domain Management ==========
