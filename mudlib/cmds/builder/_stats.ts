@@ -72,12 +72,12 @@ export function execute(ctx: CommandContext): void {
 
   // Header
   ctx.sendLine('{bold}{cyan}╔══════════════════════════════════════════════════════════════╗{/}');
-  ctx.sendLine('{bold}{cyan}║{/}               {bold}MudForge Driver Statistics{/}                   {bold}{cyan}║{/}');
+  ctx.sendLine('{bold}{cyan}║{/}               {bold}MudForge Driver Statistics{/}                     {bold}{cyan}║{/}');
   ctx.sendLine('{bold}{cyan}╠══════════════════════════════════════════════════════════════╣{/}');
 
   // System Info
   if (showAll) {
-    ctx.sendLine('{bold}{cyan}║{/} {bold}System{/}                                                      {bold}{cyan}║{/}');
+    ctx.sendLine('{bold}{cyan}║{/} {bold}System{/}                                                       {bold}{cyan}║{/}');
     ctx.sendLine(`{bold}{cyan}║{/}   Uptime:      {green}${result.uptime?.formatted || 'N/A'}{/}`);
     ctx.sendLine(`{bold}{cyan}║{/}   Node.js:     {cyan}${result.nodeVersion || 'N/A'}{/}`);
     ctx.sendLine(`{bold}{cyan}║{/}   Platform:    {dim}${result.platform || 'N/A'}{/}`);
@@ -89,7 +89,7 @@ export function execute(ctx: CommandContext): void {
     const mem = result.memory;
     const heapPercent = ((mem.heapUsed / mem.heapTotal) * 100).toFixed(1);
 
-    ctx.sendLine('{bold}{cyan}║{/} {bold}Memory Usage{/}                                                {bold}{cyan}║{/}');
+    ctx.sendLine('{bold}{cyan}║{/} {bold}Memory Usage{/}                                                 {bold}{cyan}║{/}');
     ctx.sendLine(`{bold}{cyan}║{/}   Heap Used:   ${formatBytes(mem.heapUsed).padEnd(12)} ${makeBar(mem.heapUsed, mem.heapTotal)} {dim}${heapPercent}%{/}`);
     ctx.sendLine(`{bold}{cyan}║{/}   Heap Total:  {cyan}${formatBytes(mem.heapTotal)}{/}`);
     ctx.sendLine(`{bold}{cyan}║{/}   RSS:         {yellow}${formatBytes(mem.rss)}{/}  {dim}(resident set size){/}`);
@@ -104,7 +104,7 @@ export function execute(ctx: CommandContext): void {
   // Objects
   if (showObjects && result.objects) {
     const obj = result.objects;
-    ctx.sendLine('{bold}{cyan}║{/} {bold}Object Registry{/}                                             {bold}{cyan}║{/}');
+    ctx.sendLine('{bold}{cyan}║{/} {bold}Object Registry{/}                                              {bold}{cyan}║{/}');
     ctx.sendLine(`{bold}{cyan}║{/}   Total:       {bold}{green}${obj.total}{/}`);
     ctx.sendLine(`{bold}{cyan}║{/}   Blueprints:  {cyan}${obj.blueprints}{/}  {dim}(loaded modules){/}`);
     ctx.sendLine(`{bold}{cyan}║{/}   Clones:      {yellow}${obj.clones}{/}  {dim}(instantiated objects){/}`);
@@ -117,7 +117,7 @@ export function execute(ctx: CommandContext): void {
   // Scheduler
   if (showScheduler && result.scheduler) {
     const sched = result.scheduler;
-    ctx.sendLine('{bold}{cyan}║{/} {bold}Scheduler{/}                                                   {bold}{cyan}║{/}');
+    ctx.sendLine('{bold}{cyan}║{/} {bold}Scheduler{/}                                                    {bold}{cyan}║{/}');
     ctx.sendLine(`{bold}{cyan}║{/}   Heartbeats:  {magenta}${sched.heartbeats}{/}  {dim}(active objects with heartbeat){/}`);
     ctx.sendLine(`{bold}{cyan}║{/}   Call-outs:   {yellow}${sched.callouts}{/}  {dim}(pending scheduled callbacks){/}`);
     ctx.sendLine(`{bold}{cyan}║{/}   Interval:    {dim}${sched.heartbeatInterval}ms{/}`);
@@ -130,7 +130,7 @@ export function execute(ctx: CommandContext): void {
   // Players
   if (showPlayers && result.players) {
     const players = result.players;
-    ctx.sendLine('{bold}{cyan}║{/} {bold}Players{/}                                                     {bold}{cyan}║{/}');
+    ctx.sendLine('{bold}{cyan}║{/} {bold}Players{/}                                                      {bold}{cyan}║{/}');
     ctx.sendLine(`{bold}{cyan}║{/}   Connected:   {green}${players.connected}{/}`);
     ctx.sendLine(`{bold}{cyan}║{/}   Active:      {cyan}${players.active}{/}  {dim}(including link-dead){/}`);
   }
@@ -138,7 +138,7 @@ export function execute(ctx: CommandContext): void {
   // Commands
   if (showAll && result.commands) {
     ctx.sendLine('{bold}{cyan}╟──────────────────────────────────────────────────────────────╢{/}');
-    ctx.sendLine('{bold}{cyan}║{/} {bold}Commands{/}                                                    {bold}{cyan}║{/}');
+    ctx.sendLine('{bold}{cyan}║{/} {bold}Commands{/}                                                     {bold}{cyan}║{/}');
     ctx.sendLine(`{bold}{cyan}║{/}   Loaded:      {cyan}${result.commands.total}{/}  {dim}(command files){/}`);
   }
 

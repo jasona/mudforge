@@ -184,7 +184,7 @@ export function execute(ctx: CommandContext): void {
   // Full character sheet
   ctx.sendLine('');
   ctx.sendLine('{bold}{cyan}╔══════════════════════════════════════════╗{/}');
-  ctx.sendLine('{bold}{cyan}║{/}          {bold}CHARACTER SHEET{/}               {bold}{cyan}║{/}');
+  ctx.sendLine('{bold}{cyan}║{/}          {bold}CHARACTER SHEET{/}                 {bold}{cyan}║{/}');
   ctx.sendLine('{bold}{cyan}╚══════════════════════════════════════════╝{/}');
   ctx.sendLine('');
 

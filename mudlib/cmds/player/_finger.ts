@@ -156,26 +156,26 @@ async function displayPlayerInfo(
   // Header
   ctx.sendLine('');
   ctx.sendLine(`{cyan}╔══════════════════════════════════════════════════════════════╗{/}`);
-  ctx.sendLine(`{cyan}║{/}                        {bold}Player Info{/}                         {cyan}║{/}`);
+  ctx.sendLine(`                        {bold}Player Info{/}`);
   ctx.sendLine(`{cyan}╠══════════════════════════════════════════════════════════════╣{/}`);
 
   // Name
-  ctx.sendLine(`{cyan}║{/}  ${padLabel('Name:', labelWidth)}{bold}${player.name}{/}`);
+  ctx.sendLine(`   ${padLabel('Name:', labelWidth)}{bold}{blue}${player.name}{/}`);
 
   // Display Name (if different from name)
   const displayName = player.getDisplayName?.() ?? player.displayName?.replace(/\$N/gi, player.name) ?? player.name;
   if (displayName !== player.name) {
-    ctx.sendLine(`{cyan}║{/}  ${padLabel('Display Name:', labelWidth)}${displayName}`);
+    ctx.sendLine(`   ${padLabel('Display:', labelWidth)}${displayName}`);
   }
 
   // Level
   const level = player.level ?? 1;
-  ctx.sendLine(`{cyan}║{/}  ${padLabel('Level:', labelWidth)}{green}${level}{/}`);
+  ctx.sendLine(`   ${padLabel('Level:', labelWidth)}{green}${level}{/}`);
 
   // Role
   const permLevel = player.permissionLevel ?? 0;
   const role = getRoleName(permLevel);
-  ctx.sendLine(`{cyan}║{/}  ${padLabel('Role:', labelWidth)}${role}`);
+  ctx.sendLine(`   ${padLabel('Role:', labelWidth)}${role}`);
 
   // Divider
   ctx.sendLine(`{cyan}╠══════════════════════════════════════════════════════════════╣{/}`);
@@ -183,34 +183,34 @@ async function displayPlayerInfo(
   // Account Age
   if (player.createdAt && player.createdAt > 0) {
     const accountAge = now - efuns.toSeconds(player.createdAt);
-    ctx.sendLine(`{cyan}║{/}  ${padLabel('Account Age:', labelWidth)}{dim}${efuns.formatDuration(accountAge)}{/}`);
-    ctx.sendLine(`{cyan}║{/}  ${padLabel('Created:', labelWidth)}{dim}${efuns.formatDate(player.createdAt)}{/}`);
+    ctx.sendLine(`   ${padLabel('Account Age:', labelWidth)}{dim}${efuns.formatDuration(accountAge)}{/}`);
+    ctx.sendLine(`   ${padLabel('Created:', labelWidth)}{dim}${efuns.formatDate(player.createdAt)}{/}`);
   }
 
   // Online Status / Last Login
   if (isOnline) {
     const isConnected = player.isConnected?.() ?? true;
     if (isConnected) {
-      ctx.sendLine(`{cyan}║{/}  ${padLabel('Status:', labelWidth)}{green}{bold}Online{/}`);
+      ctx.sendLine(`   ${padLabel('Status:', labelWidth)}{green}{bold}Online{/}`);
       if (player.lastLogin && player.lastLogin > 0) {
         const sessionDuration = now - efuns.toSeconds(player.lastLogin);
-        ctx.sendLine(`{cyan}║{/}  ${padLabel('Logged In:', labelWidth)}{dim}${efuns.formatDuration(sessionDuration)} ago{/}`);
+        ctx.sendLine(`   ${padLabel('Logged In:', labelWidth)}{dim}${efuns.formatDuration(sessionDuration)} ago{/}`);
       }
     } else {
-      ctx.sendLine(`{cyan}║{/}  ${padLabel('Status:', labelWidth)}{yellow}Linkdead{/}`);
+      ctx.sendLine(`   ${padLabel('Status:', labelWidth)}{yellow}Linkdead{/}`);
     }
   } else {
-    ctx.sendLine(`{cyan}║{/}  ${padLabel('Status:', labelWidth)}{dim}Offline{/}`);
+    ctx.sendLine(`   ${padLabel('Status:', labelWidth)}{dim}Offline{/}`);
     if (player.lastLogin && player.lastLogin > 0) {
-      ctx.sendLine(`{cyan}║{/}  ${padLabel('Last Login:', labelWidth)}{dim}${efuns.formatDate(player.lastLogin)}{/}`);
+      ctx.sendLine(`   ${padLabel('Last Login:', labelWidth)}{dim}${efuns.formatDate(player.lastLogin)}{/}`);
       const timeSince = now - efuns.toSeconds(player.lastLogin);
-      ctx.sendLine(`{cyan}║{/}  ${padLabel('', labelWidth)}{dim}(${efuns.formatDuration(timeSince)} ago){/}`);
+      ctx.sendLine(`   ${padLabel('', labelWidth)}{dim}(${efuns.formatDuration(timeSince)} ago){/}`);
     }
   }
 
   // Total Play Time
   if (player.playTime && player.playTime > 0) {
-    ctx.sendLine(`{cyan}║{/}  ${padLabel('Play Time:', labelWidth)}{dim}${efuns.formatDuration(player.playTime)}{/}`);
+    ctx.sendLine(`   ${padLabel('Play Time:', labelWidth)}{dim}${efuns.formatDuration(player.playTime)}{/}`);
   }
 
   // Footer
@@ -248,7 +248,7 @@ async function displayPlanFile(ctx: CommandContext, playerName: string): Promise
 
     ctx.sendLine('');
     ctx.sendLine(`{cyan}╔══════════════════════════════════════════════════════════════╗{/}`);
-    ctx.sendLine(`{cyan}║{/}                          {bold}Plan{/}                              {cyan}║{/}`);
+    ctx.sendLine(`                           {bold}Plan{/}`);
     ctx.sendLine(`{cyan}╠══════════════════════════════════════════════════════════════╣{/}`);
 
     // Display plan content (limit to reasonable length)
@@ -259,11 +259,11 @@ async function displayPlanFile(ctx: CommandContext, playerName: string): Promise
     for (const line of displayLines) {
       // Truncate long lines
       const truncated = line.length > 60 ? line.substring(0, 57) + '...' : line;
-      ctx.sendLine(`{cyan}║{/}  ${truncated}`);
+      ctx.sendLine(`   ${truncated}`);
     }
 
     if (lines.length > maxLines) {
-      ctx.sendLine(`{cyan}║{/}  {dim}... (${lines.length - maxLines} more lines){/}`);
+      ctx.sendLine(`   {dim}... (${lines.length - maxLines} more lines){/}`);
     }
 
     ctx.sendLine(`{cyan}╚══════════════════════════════════════════════════════════════╝{/}`);
