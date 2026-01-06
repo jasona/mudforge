@@ -2,6 +2,7 @@
  * InputHandler - Manages command input with history support.
  *
  * Provides command history navigation with up/down arrow keys.
+ * History is persisted to localStorage (max 20 commands, LIFO).
  */
 
 /**
@@ -15,6 +16,11 @@ type InputHandlerEvent = 'submit';
 type EventHandler = (command: string) => void;
 
 /**
+ * localStorage key for command history.
+ */
+const HISTORY_STORAGE_KEY = 'mud-command-history';
+
+/**
  * Handles user input with command history.
  */
 export class InputHandler {
@@ -22,7 +28,7 @@ export class InputHandler {
   private sendButton: HTMLElement;
   private history: string[] = [];
   private historyIndex: number = -1;
-  private maxHistory: number = 100;
+  private maxHistory: number = 20;
   private currentInput: string = '';
   private handlers: Map<InputHandlerEvent, Set<EventHandler>> = new Map();
 
@@ -30,7 +36,38 @@ export class InputHandler {
     this.inputElement = inputElement;
     this.sendButton = sendButton;
 
+    this.loadHistory();
     this.setupEventHandlers();
+  }
+
+  /**
+   * Load command history from localStorage.
+   */
+  private loadHistory(): void {
+    try {
+      const stored = localStorage.getItem(HISTORY_STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          // Take only the last maxHistory items
+          this.history = parsed.slice(-this.maxHistory);
+        }
+      }
+    } catch {
+      // Ignore errors, start with empty history
+      this.history = [];
+    }
+  }
+
+  /**
+   * Save command history to localStorage.
+   */
+  private saveHistory(): void {
+    try {
+      localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(this.history));
+    } catch {
+      // Ignore storage errors (quota exceeded, etc.)
+    }
   }
 
   /**
@@ -68,12 +105,12 @@ export class InputHandler {
 
       case 'ArrowUp':
         event.preventDefault();
-        this.navigateHistory(-1);
+        this.navigateHistory(1);
         break;
 
       case 'ArrowDown':
         event.preventDefault();
-        this.navigateHistory(1);
+        this.navigateHistory(-1);
         break;
 
       case 'Escape':
@@ -137,10 +174,13 @@ export class InputHandler {
       if (this.history.length === 0 || this.history[this.history.length - 1] !== trimmedCommand) {
         this.history.push(trimmedCommand);
 
-        // Trim history if too long
+        // Trim history if too long (LIFO - remove oldest)
         while (this.history.length > this.maxHistory) {
           this.history.shift();
         }
+
+        // Persist to localStorage
+        this.saveHistory();
       }
     }
 
@@ -213,6 +253,7 @@ export class InputHandler {
   clearHistory(): void {
     this.history = [];
     this.historyIndex = -1;
+    this.saveHistory();
   }
 
   /**

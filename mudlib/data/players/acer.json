@@ -13,14 +13,14 @@
       "config.screenWidth": 100,
       "config.prompt": "%d >"
     },
-    "timestamp": 1767657451100,
+    "timestamp": 1767657790319,
     "environment": {
       "__type": "object_ref",
       "path": "/areas/town/center",
       "isClone": false
     }
   },
-  "savedAt": 1767657451100,
+  "savedAt": 1767657790319,
   "title": "",
   "gender": "neutral",
   "level": 1,
@@ -49,7 +49,7 @@
     "config.prompt": "%d >"
   },
   "createdAt": 1767588015729,
-  "lastLogin": 1767657451,
+  "lastLogin": 1767657790,
   "playTime": 1049,
   "monitorEnabled": true,
   "displayName": "Sir {yellow}$N{/} is really digging this AI stuff.",
