@@ -65,33 +65,90 @@ displayname <template>   # Set new display name
 - Must contain either `$N` or your actual name
 - This ensures players can be identified
 
-## Session Reconnection
+## Player Settings
 
-MudForge maintains your game session even if you disconnect unexpectedly.
+Players can customize their game experience with the `settings` command.
+
+### Viewing Settings
+
+```
+settings                    # List all settings by category
+settings <setting>          # View details for a specific setting
+```
+
+### Changing Settings
+
+```
+settings <setting> <value>  # Change a setting
+settings reset <setting>    # Reset a setting to default
+settings reset all          # Reset all settings to defaults
+```
+
+### Available Settings
+
+Settings are organized by category:
+
+| Category | Settings |
+|----------|----------|
+| Display | `brief` - Show brief room descriptions |
+| Communication | Channel preferences |
+| Gameplay | `compact` - Compact inventory display, `autoloot` - Auto-loot defeated enemies |
+
+### Example Usage
+
+```
+settings brief on           # Enable brief room descriptions
+settings autoloot true      # Enable auto-looting
+settings reset brief        # Reset brief to default
+```
+
+Your settings are automatically saved with your character.
+
+## Session Reconnection & Link-Dead Handling
+
+MudForge maintains your game session even if you disconnect unexpectedly, with graceful handling of "link-dead" players.
 
 ### How It Works
 
-1. When you disconnect (network issue, browser close), your character remains in the game world
-2. Other players see you as disconnected but still present
-3. When you reconnect and log in with the same name, you resume your existing session
-4. Your location, inventory, and state are preserved
+**When You Disconnect** (network issue, browser close, etc.):
 
-### Reconnecting
+1. Your character's form "flickers and slowly fades from view" (other players see this message)
+2. Your character is moved to a holding area (the void)
+3. A disconnect timer starts (default: 15 minutes, configurable by admins)
+4. You remain in the active players list (visible in `who`)
+
+**When You Reconnect** (within the timeout):
 
 1. Open the web client
-2. Enter your character name
-3. Enter your password
-4. You'll be back where you left off
+2. Enter your character name and password
+3. Your disconnect timer is cancelled
+4. You "shimmer back into existence" at your original location
+5. Other players in the room see your return
+6. Your inventory and state are fully preserved
+
+**If You Don't Reconnect** (timeout expires):
+
+1. Your character is automatically saved
+2. You are removed from the active players list
+3. Other players see a notification of your disconnection
+
+### Disconnect Timeout
+
+The default disconnect timeout is 15 minutes. Administrators can adjust this using the `config` command:
+
+```
+config disconnect.timeoutMinutes 30    # Set to 30 minutes
+```
 
 ### Quitting Properly
 
-To fully exit the game and remove your character from the world:
+To fully exit the game and remove your character from the world immediately:
 
 ```
 quit
 ```
 
-This saves your character and removes them from the game world.
+This saves your character and removes them from the game world without any timeout period.
 
 ## Who List
 

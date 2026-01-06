@@ -18,6 +18,8 @@ MudForge brings the architectural elegance of classic LPMud drivers into the mod
 - **NPC System** - Non-player characters with chat, responses, and autonomous behavior
 - **Communication Channels** - OOC, shout, builder, admin, and extensible channel system
 - **Session Reconnection** - Seamlessly reconnect to existing game sessions after disconnection
+- **Link-Dead Handling** - Disconnected players fade to a holding area and auto-quit after configurable timeout
+- **Mud-Wide Configuration** - Persistent ConfigDaemon for game-wide settings adjustable by admins
 - **File-Based Persistence** - Human-readable TypeScript/JSON files that work with version control
 
 ## Design Philosophy
@@ -199,7 +201,7 @@ mudlib/
 |   +-- item.ts, weapon.ts, armor.ts, container.ts
 |   +-- npc.ts, equipment.ts
 +-- daemons/          # Background services
-|   +-- login.ts, channels.ts, help.ts, admin.ts
+|   +-- login.ts, channels.ts, help.ts, admin.ts, config.ts
 +-- cmds/             # Player commands
 |   +-- player/       # Commands for all players
 |   +-- builder/      # Builder-only commands
@@ -256,18 +258,25 @@ displayname Sir {blue}$N{/} the {green}Bold{/}
 - `shout <message>` - Broadcast to all players
 - `ooc <message>` - Out-of-character chat channel
 
-### Session Reconnection
+### Session Reconnection & Link-Dead Handling
 
-If you disconnect unexpectedly, simply reconnect and log back in - you'll resume your existing session without losing your place in the game world.
+If you disconnect unexpectedly:
+- Your character's form "fades from view" and is moved to a holding area
+- Other players in the room see a message about your departure
+- You have a configurable timeout (default 15 minutes) to reconnect
+- When you reconnect, you "shimmer back into existence" at your original location
+- If you don't reconnect in time, your character is automatically saved and logged out
+
+Simply reconnect and log back in to resume your session.
 
 ## User Roles
 
 | Role | Capabilities |
 |------|-------------|
-| **Player** | Connect, play the game, customize display name |
-| **Builder** | Create/modify objects in assigned domains, use `goto`, file commands |
+| **Player** | Connect, play the game, customize display name, manage personal `settings` |
+| **Builder** | Create/modify objects in assigned domains, `goto` (players or rooms), file commands |
 | **Senior Builder** | Cross-domain building, advanced APIs |
-| **Administrator** | Full access, permission management, reload objects |
+| **Administrator** | Full access, permission management, mud-wide `config`, reload objects |
 
 ## Example: Creating a Room
 

@@ -251,6 +251,23 @@ displayname Sir {blue}$N{/} the Bold  # Set custom name
 - Maximum 100 characters
 - Must include `$N` or your actual name
 
+#### settings (set)
+View and manage your personal settings.
+
+```
+settings                    # List all settings by category
+settings <setting>          # Show details for a setting
+settings <setting> <value>  # Change a setting
+settings reset <setting>    # Reset a setting to default
+settings reset all          # Reset all settings to defaults
+```
+
+Settings are organized by category (display, communication, gameplay) and include options like:
+- `brief` - Show brief room descriptions
+- `compact` - Compact inventory display
+- `autoloot` - Automatically loot defeated enemies
+- And more
+
 #### mon
 Toggle the vitals monitor display.
 
@@ -277,13 +294,16 @@ Available to players with Builder permission level or higher.
 
 ### Navigation
 
-#### goto
-Teleport to a location.
+#### goto (teleport, tp)
+Teleport to a player's location or to a room by path.
 
 ```
-goto /areas/town/center     # Go to a room by path
-goto Hero                   # Go to a player
+goto Hero                   # Teleport to a player's location
+goto /areas/town/center     # Go to a room by absolute path
+goto tavern                 # Go to a room relative to current directory
 ```
+
+The command first tries to find an active player by name (even if link-dead). If no player is found, it treats the argument as a room path and resolves it relative to your current working directory.
 
 ### Communication
 
@@ -465,6 +485,33 @@ atalk Server restart in 5 minutes
 ```
 
 Only visible to administrators.
+
+### Configuration
+
+#### config (mudconfig)
+View and manage mud-wide configuration settings.
+
+```
+config                      # List all settings with values
+config <key>                # View a specific setting
+config <key> <value>        # Change a setting
+config reset <key>          # Reset a setting to default
+```
+
+Examples:
+```
+config                                  # Show all settings
+config disconnect.timeoutMinutes        # View disconnect timeout
+config disconnect.timeoutMinutes 30     # Set to 30 minutes
+config reset disconnect.timeoutMinutes  # Reset to default (15)
+```
+
+Available settings:
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| `disconnect.timeoutMinutes` | number | 15 | Minutes before disconnected player is force-quit |
+
+Settings are persisted to `/data/config/settings.json` and survive server restarts.
 
 ### System
 

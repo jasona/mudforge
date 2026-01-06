@@ -919,6 +919,145 @@ Stats are shown with their current value and bonus:
 The bonus is used for skill checks and combat.`,
       seeAlso: ['stats', 'classes'],
     });
+
+    // === SETTINGS ===
+    this.registerTopic({
+      name: 'settings',
+      title: 'Player Settings',
+      category: 'commands',
+      aliases: ['set'],
+      keywords: ['config', 'options', 'preferences', 'customize'],
+      content: `{bold}Settings Command:{/}
+Manage your personal game settings.
+
+{bold}Usage:{/}
+  {yellow}settings{/}                    - List all settings by category
+  {yellow}settings <setting>{/}          - View details for a setting
+  {yellow}settings <setting> <value>{/}  - Change a setting
+  {yellow}settings reset <setting>{/}    - Reset a setting to default
+  {yellow}settings reset all{/}          - Reset all settings
+
+{bold}Available Settings:{/}
+Settings are organized by category:
+
+  {cyan}Display{/}
+    {yellow}brief{/}     - Show brief room descriptions
+
+  {cyan}Gameplay{/}
+    {yellow}compact{/}   - Compact inventory display
+    {yellow}autoloot{/}  - Automatically loot defeated enemies
+
+{bold}Examples:{/}
+  {yellow}settings brief on{/}     - Enable brief mode
+  {yellow}settings autoloot true{/} - Enable auto-looting
+  {yellow}settings reset brief{/}   - Reset brief to default
+
+Your settings are saved automatically with your character.`,
+      seeAlso: ['displayname', 'commands'],
+    });
+
+    // === DISCONNECT HANDLING ===
+    this.registerTopic({
+      name: 'linkdead',
+      title: 'Link-Dead and Disconnection',
+      category: 'system',
+      aliases: ['disconnect', 'reconnect', 'linkdeath'],
+      keywords: ['connection', 'timeout', 'void', 'session'],
+      content: `{bold}Link-Dead Handling:{/}
+What happens when you unexpectedly disconnect from the game.
+
+{bold}When You Disconnect:{/}
+1. Your character "flickers and slowly fades from view"
+2. You are moved to a holding area (the void)
+3. A disconnect timer starts (default: 15 minutes)
+4. You remain visible in the {yellow}who{/} list
+
+{bold}Reconnecting:{/}
+1. Log back in with your character name and password
+2. Your timer is cancelled
+3. You "shimmer back into existence" at your original location
+4. All your items and state are preserved
+
+{bold}If You Don't Reconnect:{/}
+If the disconnect timer expires:
+- Your character is automatically saved
+- You are removed from active players
+- Others see a disconnection notification
+
+{bold}Quitting Properly:{/}
+Use {yellow}quit{/} to save and exit immediately without any timeout.
+
+{bold}Note:{/}
+The disconnect timeout is configurable by administrators.`,
+      seeAlso: ['quit', 'who'],
+    });
+
+    // === GOTO (Builder) ===
+    this.registerTopic({
+      name: 'goto',
+      title: 'Goto Command',
+      category: 'building',
+      aliases: ['teleport', 'tp'],
+      access: { minPermission: 1 },
+      keywords: ['teleport', 'move', 'travel', 'builder'],
+      content: `{bold}Goto Command (Builder):{/}
+Teleport to a player or room location.
+
+{bold}Usage:{/}
+  {yellow}goto <player>{/}     - Teleport to a player's location
+  {yellow}goto <room path>{/}  - Teleport to a room by path
+
+{bold}Examples:{/}
+  {yellow}goto Hero{/}                  - Teleport to player Hero
+  {yellow}goto /areas/town/square{/}    - Absolute room path
+  {yellow}goto tavern{/}                - Relative to current directory
+
+{bold}Resolution Order:{/}
+1. First tries to find an active player by name
+2. If no player found, resolves as a room path
+3. Relative paths use your current working directory
+
+{bold}Notes:{/}
+- Works even for link-dead players
+- Use {yellow}pwd{/} to see your current directory
+- Room paths don't need the .ts extension`,
+      seeAlso: ['building', 'pwd', 'cd'],
+    });
+
+    // === CONFIG (Admin) ===
+    this.registerTopic({
+      name: 'config',
+      title: 'Config Command',
+      category: 'admin',
+      aliases: ['mudconfig'],
+      access: { minPermission: 3 },
+      keywords: ['settings', 'configuration', 'admin', 'server'],
+      content: `{bold}Config Command (Admin):{/}
+Manage mud-wide configuration settings.
+
+{bold}Usage:{/}
+  {yellow}config{/}                      - List all settings
+  {yellow}config <key>{/}                - View a specific setting
+  {yellow}config <key> <value>{/}        - Change a setting
+  {yellow}config reset <key>{/}          - Reset to default
+
+{bold}Available Settings:{/}
+  {cyan}disconnect.timeoutMinutes{/}
+    Type: number (1-60)
+    Default: 15
+    Minutes before disconnected player is force-quit
+
+{bold}Examples:{/}
+  {yellow}config disconnect.timeoutMinutes{/}      - View current value
+  {yellow}config disconnect.timeoutMinutes 30{/}   - Set to 30 minutes
+  {yellow}config reset disconnect.timeoutMinutes{/} - Reset to default
+
+{bold}Notes:{/}
+- Settings are persisted across server restarts
+- Changes take effect immediately
+- Saved to /data/config/settings.json`,
+      seeAlso: ['administration', 'linkdead'],
+    });
   }
 }
 

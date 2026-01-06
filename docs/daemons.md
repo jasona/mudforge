@@ -9,7 +9,8 @@ mudlib/daemons/
 ├── login.ts      # Player authentication and session management
 ├── channels.ts   # Communication channels
 ├── help.ts       # Help system
-└── admin.ts      # Administration functions
+├── admin.ts      # Administration functions
+└── config.ts     # Mud-wide configuration settings
 ```
 
 ## Login Daemon
@@ -55,14 +56,29 @@ Connection
 └───────────────┘             └─────────────────┘
 ```
 
-### Session Reconnection
+### Session Reconnection & Link-Dead Handling
 
-When a player reconnects after a disconnect:
+When a player disconnects unexpectedly (not via `quit`):
+
+1. Room is notified with a fade message: "Player's form flickers and slowly fades from view..."
+2. Player is moved to the void (`/areas/void/void`)
+3. A disconnect timer starts (configurable via ConfigDaemon, default 15 minutes)
+4. Player remains in active players list (can be seen in `who`)
+
+When a player reconnects:
 
 1. Login daemon checks for existing active player
-2. If found, transfers the new connection to existing player object
-3. Player resumes in their previous location
-4. No duplicate player is created
+2. If found, cancels any disconnect timer
+3. Transfers the new connection to existing player object
+4. Restores player to their previous location
+5. Room is notified: "Player shimmers back into existence!"
+6. No duplicate player is created
+
+If the disconnect timer expires before reconnection:
+
+1. Player is automatically saved
+2. Player is removed from active players
+3. Server broadcasts a notification of the disconnection
 
 ### Usage in Code
 
@@ -250,6 +266,96 @@ adminDaemon.removeDomain(player, targetPlayer, '/areas/castle/');
 
 // Get audit log
 const log = adminDaemon.getAuditLog(20);
+```
+
+## Config Daemon
+
+The config daemon manages mud-wide configuration settings that persist across server restarts.
+
+### Location
+
+`/mudlib/daemons/config.ts`
+
+### Purpose
+
+- Centralized configuration for game-wide settings
+- Type-safe settings with validation (number, string, boolean)
+- Constraints support (min/max for numbers)
+- Automatic persistence to `/data/config/settings.json`
+- Accessible via efuns from any mudlib code
+
+### Available Settings
+
+| Setting | Type | Default | Description |
+|---------|------|---------|-------------|
+| `disconnect.timeoutMinutes` | number | 15 | Minutes before a disconnected player is force-quit |
+
+### API
+
+```typescript
+// Via efuns (recommended for mudlib code)
+const timeout = efuns.getMudConfig<number>('disconnect.timeoutMinutes');
+efuns.setMudConfig('disconnect.timeoutMinutes', 30);
+
+// Direct daemon access
+const configDaemon = efuns.findObject('/daemons/config');
+
+// Get a setting value
+const value = configDaemon.get<number>('disconnect.timeoutMinutes');
+
+// Set a setting value (validates type and constraints)
+const result = configDaemon.set('disconnect.timeoutMinutes', 30);
+if (!result.success) {
+  console.log(result.error);
+}
+
+// Get all settings with metadata
+const allSettings = configDaemon.getAll();
+
+// Reset a setting to default
+configDaemon.reset('disconnect.timeoutMinutes');
+
+// Check if a setting exists
+const exists = configDaemon.has('disconnect.timeoutMinutes');
+
+// Get setting metadata (without value)
+const info = configDaemon.getSettingInfo('disconnect.timeoutMinutes');
+// { description, type, min?, max? }
+```
+
+### Adding New Settings
+
+To add a new setting, update the `DEFAULT_SETTINGS` in `/mudlib/daemons/config.ts`:
+
+```typescript
+const DEFAULT_SETTINGS: Record<string, ConfigSetting> = {
+  'disconnect.timeoutMinutes': {
+    value: 15,
+    description: 'Minutes before disconnected player is force-quit',
+    type: 'number',
+    min: 1,
+    max: 60,
+  },
+  // Add new settings here
+  'game.maxPlayersPerRoom': {
+    value: 50,
+    description: 'Maximum players allowed in a single room',
+    type: 'number',
+    min: 1,
+    max: 1000,
+  },
+};
+```
+
+### Admin Commands
+
+Administrators can manage settings in-game using the `config` command:
+
+```
+config                              # List all settings
+config disconnect.timeoutMinutes    # View a setting
+config disconnect.timeoutMinutes 30 # Change a setting
+config reset disconnect.timeoutMinutes # Reset to default
 ```
 
 ## Creating a Custom Daemon
