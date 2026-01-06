@@ -229,9 +229,22 @@ export function composeAllMessages(
 
 /**
  * Add "From afar, " prefix for remote emotes.
+ * Handles proper capitalization:
+ * - "You smile at Bob." -> "From afar, you smile at Bob."
+ * - "Bob smiles at You." -> "From afar, Bob smiles at you."
  */
 export function makeRemoteMessage(message: string): string {
-  return `From afar, ${message.charAt(0).toLowerCase()}${message.slice(1)}`;
+  let result = message;
+
+  // If message starts with "You " (actor viewing), lowercase it
+  if (result.startsWith('You ')) {
+    result = 'you ' + result.slice(4);
+  }
+
+  // Replace " You" or " You." or " You," with lowercase (target in middle of sentence)
+  result = result.replace(/ You([.,!?\s]|$)/g, ' you$1');
+
+  return `From afar, ${result}`;
 }
 
 export default {

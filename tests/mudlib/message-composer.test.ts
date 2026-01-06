@@ -214,9 +214,15 @@ describe('Message Composer', () => {
   });
 
   describe('makeRemoteMessage', () => {
-    it('should add "From afar, " prefix and lowercase first letter', () => {
-      expect(makeRemoteMessage('Hero smiles at you.')).toBe('From afar, hero smiles at you.');
+    it('should add "From afar, " prefix with proper capitalization', () => {
+      // Actor viewing their own message - "You" at start becomes lowercase
       expect(makeRemoteMessage('You smile at Acer.')).toBe('From afar, you smile at Acer.');
+
+      // Target viewing - actor name stays capitalized, "You" in middle becomes lowercase
+      expect(makeRemoteMessage('Hero smiles at You.')).toBe('From afar, Hero smiles at you.');
+
+      // Third party message - no "You" to change
+      expect(makeRemoteMessage('Hero smiles at Acer.')).toBe('From afar, Hero smiles at Acer.');
     });
   });
 });
