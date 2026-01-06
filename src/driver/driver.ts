@@ -165,12 +165,15 @@ export class Driver {
       // Set efun context so commands can use efuns that need player context
       this.efunBridge.setContext({ thisPlayer: player, thisObject: player });
       try {
+        // Resolve aliases before executing (but not for alias/unalias commands)
+        const resolvedInput = this.resolveAlias(player, input);
+
         // First try normal commands
-        const handled = await this.commandManager.execute(player, input, level);
+        const handled = await this.commandManager.execute(player, resolvedInput, level);
         if (handled) return true;
 
         // Fall back to emotes (soul daemon)
-        return await this.tryEmote(player, input);
+        return await this.tryEmote(player, resolvedInput);
       } finally {
         // Clear context after command execution
         this.efunBridge.clearContext();
@@ -646,6 +649,44 @@ export class Driver {
    * @param input The full input string
    * @returns true if an emote was executed, false otherwise
    */
+  /**
+   * Resolve an alias to its command.
+   * Returns the original input if no alias matches or if the command is alias/unalias.
+   */
+  private resolveAlias(player: MudObject, input: string): string {
+    const trimmed = input.trim();
+    if (!trimmed) return input;
+
+    // Parse verb
+    const spaceIndex = trimmed.indexOf(' ');
+    const verb = (spaceIndex > 0 ? trimmed.substring(0, spaceIndex) : trimmed).toLowerCase();
+
+    // Don't resolve aliases for alias management commands (prevents confusion)
+    if (verb === 'alias' || verb === 'unalias' || verb === 'aliases') {
+      return input;
+    }
+
+    // Get player's aliases
+    const playerWithProps = player as MudObject & { getProperty?: (key: string) => unknown };
+    if (!playerWithProps.getProperty) {
+      return input;
+    }
+
+    const aliases = playerWithProps.getProperty('aliases') as Record<string, string> | undefined;
+    if (!aliases || !aliases[verb]) {
+      return input;
+    }
+
+    // Found an alias - replace the verb with the aliased command
+    const aliasedCommand = aliases[verb];
+    if (spaceIndex > 0) {
+      // Append any additional arguments
+      const args = trimmed.substring(spaceIndex + 1);
+      return `${aliasedCommand} ${args}`;
+    }
+    return aliasedCommand;
+  }
+
   private async tryEmote(player: MudObject, input: string): Promise<boolean> {
     const trimmed = input.trim();
     if (!trimmed) return false;

@@ -14,7 +14,9 @@ interface CommandContext {
 
 interface PlayerLike extends MudObject {
   name?: string;
+  permissionLevel?: number;
   getDisplayAddress?(): string;
+  getProperty?(key: string): unknown;
   quit?(): Promise<void>;
 }
 
@@ -22,9 +24,34 @@ export const name = ['quit', 'logout'];
 export const description = 'Disconnect from the game';
 export const usage = 'quit';
 
+/**
+ * Execute the player's logout alias if defined.
+ */
+async function executeLogoutAlias(player: PlayerLike): Promise<void> {
+  if (!player.getProperty) return;
+
+  const aliases = player.getProperty('aliases') as Record<string, string> | undefined;
+  if (!aliases || !aliases['logout']) return;
+
+  const logoutCommand = aliases['logout'];
+  if (!logoutCommand) return;
+
+  // Execute the logout alias command
+  if (typeof efuns !== 'undefined' && efuns.executeCommand) {
+    try {
+      await efuns.executeCommand(player as MudObject, logoutCommand, player.permissionLevel ?? 0);
+    } catch (error) {
+      console.error('[Quit] Error executing logout alias:', error);
+    }
+  }
+}
+
 export async function execute(ctx: CommandContext): Promise<void> {
   const { player } = ctx;
   const playerLike = player as PlayerLike;
+
+  // Execute logout alias before quitting
+  await executeLogoutAlias(playerLike);
 
   // Save player data before quitting
   if (typeof efuns !== 'undefined' && efuns.savePlayer) {

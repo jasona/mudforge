@@ -583,11 +583,37 @@ export class LoginDaemon extends MudObject {
     // Send prompt
     player.sendPrompt();
 
+    // Execute login alias if defined
+    await this.executeLoginAlias(player);
+
     // Update session state
     session.state = 'playing';
 
     // Clean up session - player now handles input directly
     this._sessions.delete(session.connection);
+  }
+
+  /**
+   * Execute a player's login alias if defined.
+   */
+  private async executeLoginAlias(player: Player): Promise<void> {
+    const playerWithProps = player as Player & { getProperty?: (key: string) => unknown };
+    if (!playerWithProps.getProperty) return;
+
+    const aliases = playerWithProps.getProperty('aliases') as Record<string, string> | undefined;
+    if (!aliases || !aliases['login']) return;
+
+    const loginCommand = aliases['login'];
+    if (!loginCommand) return;
+
+    // Execute the login alias command
+    if (typeof efuns !== 'undefined' && efuns.executeCommand) {
+      try {
+        await efuns.executeCommand(player, loginCommand, player.permissionLevel);
+      } catch (error) {
+        console.error('[LoginDaemon] Error executing login alias:', error);
+      }
+    }
   }
 
   /**
