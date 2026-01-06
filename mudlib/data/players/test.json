@@ -9,14 +9,14 @@
       "email": "test@test.com",
       "permissionLevel": 0
     },
-    "timestamp": 1767682534260,
+    "timestamp": 1767683434283,
     "environment": {
       "__type": "object_ref",
       "path": "/areas/void/void",
       "isClone": false
     }
   },
-  "savedAt": 1767682534260,
+  "savedAt": 1767683434283,
   "title": "",
   "gender": "male",
   "level": 1,
@@ -46,5 +46,5 @@
   "monitorEnabled": false,
   "displayName": "$N is just here to test.",
   "cwd": "/",
-  "previousLocation": "/areas/town/market"
+  "previousLocation": null
 }
