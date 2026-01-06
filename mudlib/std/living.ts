@@ -9,6 +9,8 @@ import { Room } from './room.js';
 import type { EquipmentSlot } from './equipment.js';
 import type { Weapon } from './weapon.js';
 import type { Armor } from './armor.js';
+import type { CombatStats, CombatStatName, Effect } from './combat/types.js';
+import { DEFAULT_COMBAT_STATS } from './combat/types.js';
 
 /**
  * Command parser result.
@@ -120,6 +122,17 @@ export class Living extends MudObject {
 
   // Equipment tracking
   private _equipment: Map<EquipmentSlot, Weapon | Armor> = new Map();
+
+  // Combat stats modifiers (from equipment, buffs, etc.)
+  private _combatStatModifiers: CombatStats = { ...DEFAULT_COMBAT_STATS };
+
+  // Active effects (buffs/debuffs)
+  private _effects: Map<string, Effect> = new Map();
+
+  // Combat state
+  private _inCombat: boolean = false;
+  private _combatTarget: Living | null = null;
+  private _attackers: Set<Living> = new Set();
 
   constructor() {
     super();
@@ -870,6 +883,365 @@ export class Living extends MudObject {
     const total = roll + bonus;
     const success = total >= difficulty;
     return { success, roll, total, bonus };
+  }
+
+  // ========== Combat Stats ==========
+
+  /**
+   * Get a combat stat's effective value (base + modifiers from effects).
+   * @param stat The combat stat name
+   */
+  getCombatStat(stat: CombatStatName): number {
+    const base = DEFAULT_COMBAT_STATS[stat];
+    const modifier = this._combatStatModifiers[stat];
+    return base + modifier;
+  }
+
+  /**
+   * Get all combat stats.
+   */
+  getCombatStats(): CombatStats {
+    return {
+      toHit: this.getCombatStat('toHit'),
+      toCritical: this.getCombatStat('toCritical'),
+      toBlock: this.getCombatStat('toBlock'),
+      toDodge: this.getCombatStat('toDodge'),
+      attackSpeed: this.getCombatStat('attackSpeed'),
+      damageBonus: this.getCombatStat('damageBonus'),
+      armorBonus: this.getCombatStat('armorBonus'),
+    };
+  }
+
+  /**
+   * Set a combat stat modifier.
+   * @param stat The combat stat name
+   * @param value The modifier value
+   */
+  setCombatStatModifier(stat: CombatStatName, value: number): void {
+    this._combatStatModifiers[stat] = value;
+  }
+
+  /**
+   * Add to a combat stat modifier.
+   * @param stat The combat stat name
+   * @param value The amount to add (can be negative)
+   */
+  addCombatStatModifier(stat: CombatStatName, value: number): void {
+    this._combatStatModifiers[stat] += value;
+  }
+
+  /**
+   * Reset all combat stat modifiers to defaults.
+   */
+  resetCombatStatModifiers(): void {
+    this._combatStatModifiers = { ...DEFAULT_COMBAT_STATS };
+  }
+
+  // ========== Effects (Buffs/Debuffs) ==========
+
+  /**
+   * Add an effect to this living.
+   * @param effect The effect to add
+   */
+  addEffect(effect: Effect): void {
+    const existing = this._effects.get(effect.id);
+
+    // Handle stacking
+    if (existing && effect.maxStacks && existing.stacks) {
+      existing.stacks = Math.min(existing.stacks + 1, effect.maxStacks);
+      existing.duration = effect.duration; // Refresh duration
+      return;
+    }
+
+    // Add new effect
+    const newEffect = { ...effect };
+    if (newEffect.maxStacks && !newEffect.stacks) {
+      newEffect.stacks = 1;
+    }
+    this._effects.set(effect.id, newEffect);
+
+    // Apply stat modifiers immediately
+    if (effect.type === 'stat_modifier' && effect.stat) {
+      this.addStatModifier(effect.stat, effect.magnitude);
+    }
+    if (effect.type === 'combat_modifier' && effect.combatStat) {
+      this.addCombatStatModifier(effect.combatStat, effect.magnitude);
+    }
+  }
+
+  /**
+   * Remove an effect from this living.
+   * @param effectId The effect ID to remove
+   * @returns true if effect was removed
+   */
+  removeEffect(effectId: string): boolean {
+    const effect = this._effects.get(effectId);
+    if (!effect) return false;
+
+    // Remove stat modifiers
+    if (effect.type === 'stat_modifier' && effect.stat) {
+      this.addStatModifier(effect.stat, -effect.magnitude);
+    }
+    if (effect.type === 'combat_modifier' && effect.combatStat) {
+      this.addCombatStatModifier(effect.combatStat, -effect.magnitude);
+    }
+
+    // Call onRemove callback
+    if (effect.onRemove) {
+      effect.onRemove(this, effect);
+    }
+
+    this._effects.delete(effectId);
+    return true;
+  }
+
+  /**
+   * Check if this living has an effect.
+   * @param effectId The effect ID to check
+   */
+  hasEffect(effectId: string): boolean {
+    return this._effects.has(effectId);
+  }
+
+  /**
+   * Get an effect by ID.
+   * @param effectId The effect ID
+   */
+  getEffect(effectId: string): Effect | undefined {
+    return this._effects.get(effectId);
+  }
+
+  /**
+   * Get all active effects.
+   */
+  getEffects(): Effect[] {
+    return Array.from(this._effects.values());
+  }
+
+  /**
+   * Process effect ticks and expirations.
+   * Should be called each heartbeat.
+   * @param deltaMs Time elapsed in milliseconds
+   */
+  tickEffects(deltaMs: number): void {
+    const expiredEffects: string[] = [];
+
+    for (const [id, effect] of this._effects) {
+      // Update duration
+      effect.duration -= deltaMs;
+
+      // Process ticks for DoT/HoT effects
+      if (effect.tickInterval && effect.nextTick !== undefined) {
+        effect.nextTick -= deltaMs;
+        while (effect.nextTick <= 0 && effect.duration > 0) {
+          // Execute tick
+          if (effect.onTick) {
+            effect.onTick(this, effect);
+          } else {
+            // Default tick behavior
+            if (effect.type === 'damage_over_time') {
+              const stacks = effect.stacks || 1;
+              this.damage(effect.magnitude * stacks);
+            } else if (effect.type === 'heal_over_time') {
+              const stacks = effect.stacks || 1;
+              this.heal(effect.magnitude * stacks);
+            }
+          }
+          effect.nextTick += effect.tickInterval;
+        }
+      }
+
+      // Check expiration
+      if (effect.duration <= 0) {
+        expiredEffects.push(id);
+      }
+    }
+
+    // Remove expired effects
+    for (const id of expiredEffects) {
+      const effect = this._effects.get(id);
+      if (effect) {
+        // Remove stat modifiers
+        if (effect.type === 'stat_modifier' && effect.stat) {
+          this.addStatModifier(effect.stat, -effect.magnitude);
+        }
+        if (effect.type === 'combat_modifier' && effect.combatStat) {
+          this.addCombatStatModifier(effect.combatStat, -effect.magnitude);
+        }
+
+        // Call onExpire callback
+        if (effect.onExpire) {
+          effect.onExpire(this, effect);
+        }
+
+        this._effects.delete(id);
+      }
+    }
+  }
+
+  /**
+   * Remove all effects.
+   */
+  clearEffects(): void {
+    for (const effect of this._effects.values()) {
+      // Remove stat modifiers
+      if (effect.type === 'stat_modifier' && effect.stat) {
+        this.addStatModifier(effect.stat, -effect.magnitude);
+      }
+      if (effect.type === 'combat_modifier' && effect.combatStat) {
+        this.addCombatStatModifier(effect.combatStat, -effect.magnitude);
+      }
+    }
+    this._effects.clear();
+  }
+
+  // ========== Combat State ==========
+
+  /**
+   * Check if in combat.
+   */
+  get inCombat(): boolean {
+    return this._inCombat;
+  }
+
+  /**
+   * Get current combat target.
+   */
+  get combatTarget(): Living | null {
+    return this._combatTarget;
+  }
+
+  /**
+   * Get all attackers currently targeting this living.
+   */
+  get attackers(): Living[] {
+    return Array.from(this._attackers);
+  }
+
+  /**
+   * Start combat with a target.
+   * @param target The target to attack
+   */
+  startCombat(target: Living): void {
+    this._inCombat = true;
+    this._combatTarget = target;
+    target.addAttacker(this);
+  }
+
+  /**
+   * End combat (clear target and combat state).
+   */
+  endCombat(): void {
+    // Remove self from target's attackers
+    if (this._combatTarget) {
+      this._combatTarget.removeAttacker(this);
+    }
+    this._inCombat = false;
+    this._combatTarget = null;
+
+    // If no one is attacking us anymore, we're fully out of combat
+    if (this._attackers.size === 0) {
+      this._inCombat = false;
+    }
+  }
+
+  /**
+   * Add an attacker to the list.
+   * @param attacker The attacker
+   */
+  addAttacker(attacker: Living): void {
+    this._attackers.add(attacker);
+    this._inCombat = true;
+  }
+
+  /**
+   * Remove an attacker from the list.
+   * @param attacker The attacker to remove
+   */
+  removeAttacker(attacker: Living): void {
+    this._attackers.delete(attacker);
+
+    // If no more attackers and we have no target, we're out of combat
+    if (this._attackers.size === 0 && !this._combatTarget) {
+      this._inCombat = false;
+    }
+  }
+
+  /**
+   * Check if being attacked.
+   */
+  isBeingAttacked(): boolean {
+    return this._attackers.size > 0;
+  }
+
+  /**
+   * Check if this living is stunned (cannot attack).
+   */
+  isStunned(): boolean {
+    for (const effect of this._effects.values()) {
+      if (effect.type === 'stun') return true;
+    }
+    return false;
+  }
+
+  /**
+   * Check if this living is invulnerable.
+   */
+  isInvulnerable(): boolean {
+    for (const effect of this._effects.values()) {
+      if (effect.type === 'invulnerable') return true;
+    }
+    return false;
+  }
+
+  /**
+   * Get total thorns damage to reflect to attackers.
+   */
+  getThornsDamage(): number {
+    let total = 0;
+    for (const effect of this._effects.values()) {
+      if (effect.type === 'thorns') {
+        total += effect.magnitude * (effect.stacks || 1);
+      }
+    }
+    return total;
+  }
+
+  /**
+   * Get total damage shield absorption remaining.
+   */
+  getDamageShield(): number {
+    let total = 0;
+    for (const effect of this._effects.values()) {
+      if (effect.type === 'damage_shield') {
+        total += effect.magnitude * (effect.stacks || 1);
+      }
+    }
+    return total;
+  }
+
+  /**
+   * Absorb damage with damage shield effects.
+   * @param amount The damage amount
+   * @returns The remaining damage after absorption
+   */
+  absorbDamageShield(amount: number): number {
+    let remaining = amount;
+
+    for (const [id, effect] of this._effects) {
+      if (effect.type === 'damage_shield' && remaining > 0) {
+        const absorbed = Math.min(remaining, effect.magnitude);
+        effect.magnitude -= absorbed;
+        remaining -= absorbed;
+
+        // Remove depleted shields
+        if (effect.magnitude <= 0) {
+          this._effects.delete(id);
+        }
+      }
+    }
+
+    return remaining;
   }
 
   // Individual stat getters for convenience

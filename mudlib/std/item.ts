@@ -136,15 +136,31 @@ export class Item extends MudObject {
 
   /**
    * Set basic item properties all at once.
+   * Can be called with positional args or an options object.
    */
-  setItem(short: string, long: string, weight?: number, value?: number): void {
-    this.shortDesc = short;
-    this.longDesc = long;
-    if (weight !== undefined) {
-      this.weight = weight;
-    }
-    if (value !== undefined) {
-      this.value = value;
+  setItem(
+    shortOrOptions: string | {
+      shortDesc?: string;
+      longDesc?: string;
+      weight?: number;
+      value?: number;
+    },
+    long?: string,
+    weight?: number,
+    value?: number
+  ): void {
+    if (typeof shortOrOptions === 'object') {
+      // Object form
+      if (shortOrOptions.shortDesc) this.shortDesc = shortOrOptions.shortDesc;
+      if (shortOrOptions.longDesc) this.longDesc = shortOrOptions.longDesc;
+      if (shortOrOptions.weight !== undefined) this.weight = shortOrOptions.weight;
+      if (shortOrOptions.value !== undefined) this.value = shortOrOptions.value;
+    } else {
+      // Positional args form
+      this.shortDesc = shortOrOptions;
+      if (long) this.longDesc = long;
+      if (weight !== undefined) this.weight = weight;
+      if (value !== undefined) this.value = value;
     }
   }
 }

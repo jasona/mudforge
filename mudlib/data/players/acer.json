@@ -1,6 +1,6 @@
 {
   "name": "Acer",
-  "location": "/areas/town/center",
+  "location": "/areas/town/castle",
   "state": {
     "objectPath": "",
     "isClone": false,
@@ -12,14 +12,14 @@
       "config.screenWidth": 100,
       "config.prompt": "%d >"
     },
-    "timestamp": 1767674319944,
+    "timestamp": 1767678402536,
     "environment": {
       "__type": "object_ref",
-      "path": "/areas/town/center",
+      "path": "/areas/town/castle",
       "isClone": false
     }
   },
-  "savedAt": 1767674319944,
+  "savedAt": 1767678402536,
   "title": "",
   "gender": "neutral",
   "level": 1,
@@ -60,8 +60,8 @@
     "config.prompt": "%d >"
   },
   "createdAt": 1767588015729,
-  "lastLogin": 1767674319,
-  "playTime": 1263,
+  "lastLogin": 1767678402,
+  "playTime": 1447,
   "monitorEnabled": true,
   "displayName": "Sir {yellow}$N{/} is really digging this AI stuff.",
   "cwd": "/users/acer"

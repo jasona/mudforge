@@ -15,7 +15,27 @@ export type { WeaponHandedness } from './equipment.js';
 /**
  * Damage type for weapons.
  */
-export type DamageType = 'physical' | 'fire' | 'ice' | 'lightning' | 'poison' | 'holy' | 'dark';
+export type DamageType =
+  | 'slashing'
+  | 'piercing'
+  | 'bludgeoning'
+  | 'fire'
+  | 'ice'
+  | 'lightning'
+  | 'poison'
+  | 'holy'
+  | 'dark'
+  | 'physical'; // Legacy, maps to bludgeoning
+
+/**
+ * Special attack callback type.
+ */
+export type SpecialAttackCallback = (attacker: Living, defender: Living) => {
+  triggered: boolean;
+  message?: string;
+  damage?: number;
+  effect?: import('./combat/types.js').Effect;
+} | null;
 
 /**
  * Weapon slot (where it's actually equipped).
@@ -28,12 +48,17 @@ export type WeaponSlot = 'main_hand' | 'off_hand';
 export class Weapon extends Item {
   private _minDamage: number = 1;
   private _maxDamage: number = 3;
-  private _damageType: DamageType = 'physical';
+  private _damageType: DamageType = 'bludgeoning';
   private _handedness: WeaponHandedness = 'one_handed';
   private _slot: WeaponSlot = 'main_hand';
   private _wielder: Living | null = null;
   private _skillRequired: string | null = null;
   private _skillLevel: number = 0;
+
+  // Combat extensions
+  private _attackSpeed: number = 0; // -0.5 (slow) to +0.5 (fast), 0 is normal
+  private _specialAttackChance: number = 0; // 0-100 percentage per round
+  private _specialAttack: SpecialAttackCallback | null = null;
 
   constructor() {
     super();
@@ -166,7 +191,94 @@ export class Weapon extends Item {
     return this._skillLevel;
   }
 
+  // ========== Attack Speed ==========
+
+  /**
+   * Get attack speed modifier.
+   * Positive = faster (-0.5 to +0.5 typical range)
+   */
+  get attackSpeed(): number {
+    return this._attackSpeed;
+  }
+
+  /**
+   * Set attack speed modifier.
+   */
+  set attackSpeed(value: number) {
+    this._attackSpeed = Math.max(-0.5, Math.min(0.5, value));
+  }
+
+  // ========== Special Attacks ==========
+
+  /**
+   * Get special attack chance (0-100).
+   */
+  get specialAttackChance(): number {
+    return this._specialAttackChance;
+  }
+
+  /**
+   * Set special attack chance.
+   */
+  set specialAttackChance(value: number) {
+    this._specialAttackChance = Math.max(0, Math.min(100, value));
+  }
+
+  /**
+   * Get the special attack callback.
+   */
+  get specialAttack(): SpecialAttackCallback | null {
+    return this._specialAttack;
+  }
+
+  /**
+   * Set a special attack for this weapon.
+   * @param chance Chance per round (0-100)
+   * @param callback The special attack function
+   */
+  setSpecialAttack(chance: number, callback: SpecialAttackCallback): void {
+    this._specialAttackChance = Math.max(0, Math.min(100, chance));
+    this._specialAttack = callback;
+  }
+
+  /**
+   * Clear the special attack.
+   */
+  clearSpecialAttack(): void {
+    this._specialAttackChance = 0;
+    this._specialAttack = null;
+  }
+
+  /**
+   * Try to trigger a special attack.
+   * @param attacker The attacker
+   * @param defender The defender
+   * @returns Special attack result, or null if not triggered
+   */
+  trySpecialAttack(attacker: Living, defender: Living): ReturnType<SpecialAttackCallback> {
+    if (!this._specialAttack || this._specialAttackChance <= 0) {
+      return null;
+    }
+
+    const roll = Math.random() * 100;
+    if (roll >= this._specialAttackChance) {
+      return null;
+    }
+
+    return this._specialAttack(attacker, defender);
+  }
+
   // ========== Combat ==========
+
+  /**
+   * Roll damage (random between min and max).
+   * Used by the combat system.
+   */
+  rollDamage(): number {
+    const range = this._maxDamage - this._minDamage;
+    const roll = Math.floor(Math.random() * (range + 1));
+    return this._minDamage + roll;
+  }
 
   /**
    * Calculate damage for an attack.
@@ -175,9 +287,7 @@ export class Weapon extends Item {
    * @param defender The defender
    */
   calculateDamage(attacker: Living, defender: MudObject): number {
-    const range = this._maxDamage - this._minDamage;
-    const roll = Math.floor(Math.random() * (range + 1));
-    return this._minDamage + roll;
+    return this.rollDamage();
   }
 
   // ========== Wield/Unwield ==========
@@ -353,6 +463,8 @@ export class Weapon extends Item {
     slot?: WeaponSlot;
     skillRequired?: string;
     skillLevel?: number;
+    attackSpeed?: number;
+    specialAttackChance?: number;
   }): void {
     if (options.shortDesc) this.shortDesc = options.shortDesc;
     if (options.longDesc) this.longDesc = options.longDesc;
@@ -366,6 +478,8 @@ export class Weapon extends Item {
     if (options.skillRequired !== undefined) {
       this.setSkillRequired(options.skillRequired, options.skillLevel || 0);
     }
+    if (options.attackSpeed !== undefined) this.attackSpeed = options.attackSpeed;
+    if (options.specialAttackChance !== undefined) this.specialAttackChance = options.specialAttackChance;
   }
 }
 

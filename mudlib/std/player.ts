@@ -11,6 +11,8 @@ import { MudObject } from './object.js';
 import { Item } from './item.js';
 import { colorize, stripColors, wordWrap } from '../lib/colors.js';
 import { getChannelDaemon } from '../daemons/channels.js';
+import { getCombatDaemon } from '../daemons/combat.js';
+import { Corpse } from './corpse.js';
 import {
   getConfigOption,
   validateConfigValue,
@@ -84,6 +86,12 @@ export class Player extends Living {
   private _hasQuit: boolean = false; // True if player quit properly (vs disconnected)
   private _displayName: string | null = null; // Custom display name with colors/formatting
   private _cwd: string = '/'; // Current working directory for file operations (builders+)
+
+  // Ghost mode (death)
+  private _isGhost: boolean = false;
+  private _corpse: Corpse | null = null;
+  private _corpseLocation: MudObject | null = null;
+  private _deathLocation: MudObject | null = null;
 
   constructor() {
     super();
@@ -300,10 +308,15 @@ export class Player extends Living {
 
   /**
    * Override shortDesc to return the formatted display name.
+   * Shows ghost status if dead.
    * This is what other players see when looking at the room.
    */
   override get shortDesc(): string {
-    return this.getDisplayName();
+    const baseName = this.getDisplayName();
+    if (this._isGhost) {
+      return `{dim}the ghost of ${baseName}{/}`;
+    }
+    return baseName;
   }
 
   /**
@@ -929,6 +942,239 @@ export class Player extends Living {
       return Object.values(value).every((v) => this._isSerializable(v));
     }
     return false;
+  }
+
+  // ========== Ghost Mode (Death) ==========
+
+  /**
+   * Check if the player is a ghost (dead).
+   */
+  get isGhost(): boolean {
+    return this._isGhost;
+  }
+
+  /**
+   * Get the player's corpse (if dead).
+   */
+  get corpse(): Corpse | null {
+    return this._corpse;
+  }
+
+  /**
+   * Get the location where the corpse is.
+   */
+  get corpseLocation(): MudObject | null {
+    return this._corpseLocation;
+  }
+
+  /**
+   * Override onDeath to handle player ghost mode.
+   */
+  override async onDeath(): Promise<void> {
+    // End all combat
+    const combatDaemon = getCombatDaemon();
+    combatDaemon.endAllCombats(this);
+
+    // Remember death location
+    this._deathLocation = this.environment;
+    this._corpseLocation = this.environment;
+
+    // Create corpse
+    const corpse = new Corpse();
+    corpse.ownerName = this.name;
+    corpse.isPlayerCorpse = true;
+    corpse.ownerId = this.objectId || null;
+
+    // Transfer inventory to corpse (equipment will be unequipped automatically)
+    // First unequip everything
+    const equipped = this.getAllEquipped();
+    for (const [, item] of equipped) {
+      if ('unwield' in item) {
+        (item as import('./weapon.js').Weapon).unwield();
+      }
+      if ('remove' in item) {
+        (item as import('./armor.js').Armor).remove();
+      }
+    }
+
+    // Now move inventory to corpse
+    const items = [...this.inventory];
+    for (const item of items) {
+      await item.moveTo(corpse);
+    }
+
+    // Move corpse to death location
+    if (this._deathLocation) {
+      await corpse.moveTo(this._deathLocation);
+    }
+
+    this._corpse = corpse;
+    this._isGhost = true;
+
+    // Display death message
+    this.receive('\n');
+    this.receive('{RED}{bold}══════════════════════════════════════{/}\n');
+    this.receive('{RED}{bold}           YOU HAVE DIED!             {/}\n');
+    this.receive('{RED}{bold}══════════════════════════════════════{/}\n');
+    this.receive('\n');
+    this.receive('{dim}You are now a ghost. Your corpse lies where you fell.{/}\n');
+    this.receive('{dim}You may resurrect at your corpse or at a shrine.{/}\n');
+    this.receive('\n');
+    this.receive('{yellow}Options:{/}\n');
+    this.receive('  {cyan}resurrect corpse{/}  - Return to your corpse and reclaim your items\n');
+    this.receive('  {cyan}resurrect shrine{/} - Return to the nearest shrine (no items)\n');
+    this.receive('\n');
+
+    // Notify room
+    if (this._deathLocation && 'broadcast' in this._deathLocation) {
+      (this._deathLocation as MudObject & { broadcast: (msg: string, opts?: { exclude?: MudObject[] }) => void })
+        .broadcast(`{RED}${this.name} has died!{/}\n`, { exclude: [this] });
+    }
+  }
+
+  /**
+   * Resurrect the player at their corpse.
+   * Returns true if successful.
+   */
+  async resurrectAtCorpse(): Promise<boolean> {
+    if (!this._isGhost) {
+      this.receive("You're not dead!\n");
+      return false;
+    }
+
+    if (!this._corpse) {
+      this.receive("Your corpse is gone! Use 'resurrect shrine' instead.\n");
+      return false;
+    }
+
+    const corpseRoom = this._corpse.environment;
+    if (!corpseRoom) {
+      this.receive("Your corpse is in an invalid location. Use 'resurrect shrine' instead.\n");
+      return false;
+    }
+
+    // Move player to corpse location
+    await this.moveTo(corpseRoom);
+
+    // Transfer items back from corpse
+    const items = [...this._corpse.inventory];
+    for (const item of items) {
+      await item.moveTo(this);
+    }
+
+    // Get gold back
+    if (this._corpse.gold > 0) {
+      if ('gold' in this) {
+        (this as Player & { gold: number }).gold = (this as Player & { gold?: number }).gold || 0;
+        (this as Player & { gold: number }).gold += this._corpse.gold;
+        this.receive(`{yellow}You recover ${this._corpse.gold} gold coins.{/}\n`);
+      }
+    }
+
+    // Destroy corpse
+    if (typeof efuns !== 'undefined' && efuns.destruct) {
+      await efuns.destruct(this._corpse);
+    }
+
+    // Reset ghost state
+    this._isGhost = false;
+    this._corpse = null;
+    this._corpseLocation = null;
+    this._deathLocation = null;
+
+    // Revive with partial health
+    this.revive(Math.ceil(this.maxHealth * 0.25));
+    this.mana = Math.ceil(this.maxMana * 0.25);
+
+    this.receive('\n');
+    this.receive('{green}{bold}You have been resurrected!{/}\n');
+    this.receive('{dim}You feel weak, but alive. Your items have been recovered.{/}\n');
+    this.receive('\n');
+
+    // Notify room
+    const room = this.environment;
+    if (room && 'broadcast' in room) {
+      (room as MudObject & { broadcast: (msg: string, opts?: { exclude?: MudObject[] }) => void })
+        .broadcast(`{green}${this.name} rises from the dead!{/}\n`, { exclude: [this] });
+    }
+
+    // Show room
+    if (room && 'look' in room) {
+      (room as MudObject & { look: (who: MudObject) => void }).look(this);
+    }
+
+    return true;
+  }
+
+  /**
+   * Resurrect the player at a shrine (no items).
+   * @param shrineRoom The shrine room to resurrect at
+   */
+  async resurrectAtShrine(shrineRoom?: MudObject): Promise<boolean> {
+    if (!this._isGhost) {
+      this.receive("You're not dead!\n");
+      return false;
+    }
+
+    // Find a shrine room if not provided
+    let targetRoom = shrineRoom;
+    if (!targetRoom) {
+      // Default to town center or a known shrine location
+      if (typeof efuns !== 'undefined' && efuns.loadObject) {
+        try {
+          targetRoom = efuns.loadObject('/areas/town/center');
+        } catch {
+          // Fall back to death location
+          targetRoom = this._deathLocation || undefined;
+        }
+      }
+    }
+
+    if (!targetRoom) {
+      this.receive("Cannot find a resurrection point!\n");
+      return false;
+    }
+
+    // Move player to shrine
+    await this.moveTo(targetRoom);
+
+    // Note: Corpse remains where it is - player must go back to get items
+
+    // Reset ghost state
+    this._isGhost = false;
+    // Keep corpse reference so they can find it
+    this._corpseLocation = this._corpse?.environment || null;
+
+    // Revive with minimal health
+    this.revive(Math.ceil(this.maxHealth * 0.1));
+    this.mana = Math.ceil(this.maxMana * 0.1);
+
+    this.receive('\n');
+    this.receive('{green}{bold}You have been resurrected at the shrine!{/}\n');
+    this.receive('{yellow}Your items remain at your corpse. Go retrieve them!{/}\n');
+    if (this._corpseLocation) {
+      const locationDesc = this._corpseLocation.shortDesc || 'an unknown location';
+      this.receive(`{dim}Your corpse is at: ${locationDesc}{/}\n`);
+    }
+    this.receive('\n');
+
+    // Notify room
+    const room = this.environment;
+    if (room && 'broadcast' in room) {
+      (room as MudObject & { broadcast: (msg: string, opts?: { exclude?: MudObject[] }) => void })
+        .broadcast(`{green}${this.name} materializes from thin air!{/}\n`, { exclude: [this] });
+    }
+
+    // Show room
+    if (room && 'look' in room) {
+      (room as MudObject & { look: (who: MudObject) => void }).look(this);
+    }
+
+    // Clear corpse reference after player is alive (so it can decay normally)
+    this._corpse = null;
+    this._deathLocation = null;
+
+    return true;
   }
 
   // ========== Lifecycle ==========

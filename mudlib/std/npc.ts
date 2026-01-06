@@ -8,6 +8,9 @@
 import { Living } from './living.js';
 import { MudObject } from './object.js';
 import { Room } from './room.js';
+import { Corpse } from './corpse.js';
+import { getCombatDaemon } from '../daemons/combat.js';
+import type { NPCCombatConfig, LootEntry, GoldDrop } from './combat/types.js';
 
 /**
  * Chat message definition.
@@ -40,6 +43,10 @@ export class NPC extends Living {
   private _wanderDirections: string[] = [];
   private _respawnTime: number = 0; // 0 = no respawn
   private _spawnRoom: Room | null = null;
+
+  // Combat configuration
+  private _combatConfig: NPCCombatConfig | null = null;
+  private _gold: number = 0;
 
   constructor() {
     super();
@@ -245,6 +252,181 @@ export class NPC extends Living {
     return this._spawnRoom;
   }
 
+  // ========== Combat Configuration ==========
+
+  /**
+   * Get the combat configuration.
+   */
+  get combatConfig(): NPCCombatConfig | null {
+    return this._combatConfig;
+  }
+
+  /**
+   * Set the combat configuration.
+   */
+  set combatConfig(config: NPCCombatConfig | null) {
+    this._combatConfig = config;
+  }
+
+  /**
+   * Get gold amount.
+   */
+  get gold(): number {
+    return this._gold;
+  }
+
+  /**
+   * Set gold amount.
+   */
+  set gold(value: number) {
+    this._gold = Math.max(0, value);
+  }
+
+  /**
+   * Configure combat settings for this NPC.
+   */
+  setCombat(options: {
+    level?: number;
+    baseXP?: number;
+    lootTable?: LootEntry[];
+    goldDrop?: GoldDrop;
+    specialAttackChance?: number;
+    gold?: number;
+  }): void {
+    if (!this._combatConfig) {
+      this._combatConfig = {
+        baseXP: 10,
+        level: 1,
+        lootTable: [],
+      };
+    }
+
+    if (options.level !== undefined) {
+      this._combatConfig.level = options.level;
+      this.level = options.level;
+    }
+    if (options.baseXP !== undefined) {
+      this._combatConfig.baseXP = options.baseXP;
+    }
+    if (options.lootTable !== undefined) {
+      this._combatConfig.lootTable = options.lootTable;
+    }
+    if (options.goldDrop !== undefined) {
+      this._combatConfig.goldDrop = options.goldDrop;
+    }
+    if (options.specialAttackChance !== undefined) {
+      this._combatConfig.specialAttackChance = options.specialAttackChance;
+    }
+    if (options.gold !== undefined) {
+      this._gold = options.gold;
+    }
+  }
+
+  /**
+   * Add an item to the loot table.
+   */
+  addLoot(itemPath: string, chance: number, minQty: number = 1, maxQty: number = 1): void {
+    if (!this._combatConfig) {
+      this._combatConfig = {
+        baseXP: 10,
+        level: 1,
+        lootTable: [],
+      };
+    }
+    this._combatConfig.lootTable.push({
+      itemPath,
+      chance,
+      minQuantity: minQty,
+      maxQuantity: maxQty,
+    });
+  }
+
+  /**
+   * Calculate XP reward for a killer.
+   * Formula: baseXP * levelDiffMultiplier
+   */
+  calculateXPReward(killerLevel: number): number {
+    const config = this._combatConfig;
+    const baseXP = config?.baseXP || this.level * 10;
+    const npcLevel = config?.level || this.level;
+
+    const levelDiff = npcLevel - killerLevel;
+
+    let multiplier: number;
+    if (levelDiff > 0) {
+      // NPC is higher level - bonus XP
+      multiplier = 1 + (levelDiff * 0.10);
+    } else {
+      // NPC is lower level - reduced XP
+      multiplier = Math.max(0.1, 1 + (levelDiff * 0.15));
+    }
+
+    return Math.max(1, Math.round(baseXP * multiplier));
+  }
+
+  /**
+   * Generate gold drop amount.
+   */
+  generateGoldDrop(): number {
+    // If NPC has explicit gold, use that
+    if (this._gold > 0) {
+      return this._gold;
+    }
+
+    // Otherwise use combat config's goldDrop range
+    const goldDrop = this._combatConfig?.goldDrop;
+    if (!goldDrop) return 0;
+
+    const range = goldDrop.max - goldDrop.min;
+    const random = typeof efuns !== 'undefined'
+      ? efuns.random(range + 1)
+      : Math.floor(Math.random() * (range + 1));
+
+    return goldDrop.min + random;
+  }
+
+  /**
+   * Generate loot from loot table.
+   * @returns Array of item paths that dropped
+   */
+  async generateLoot(corpse: Corpse): Promise<string[]> {
+    const lootTable = this._combatConfig?.lootTable || [];
+    const droppedItems: string[] = [];
+
+    for (const entry of lootTable) {
+      const roll = typeof efuns !== 'undefined'
+        ? efuns.random(100)
+        : Math.floor(Math.random() * 100);
+
+      if (roll < entry.chance) {
+        // Determine quantity
+        const minQty = entry.minQuantity || 1;
+        const maxQty = entry.maxQuantity || 1;
+        const qtyRange = maxQty - minQty;
+        const quantity = minQty + (typeof efuns !== 'undefined'
+          ? efuns.random(qtyRange + 1)
+          : Math.floor(Math.random() * (qtyRange + 1)));
+
+        // Clone items
+        for (let i = 0; i < quantity; i++) {
+          try {
+            if (typeof efuns !== 'undefined' && efuns.cloneObject) {
+              const item = await efuns.cloneObject(entry.itemPath);
+              if (item) {
+                await item.moveTo(corpse);
+                droppedItems.push(entry.itemPath);
+              }
+            }
+          } catch {
+            // Skip failed clones
+          }
+        }
+      }
+    }
+
+    return droppedItems;
+  }
+
   // ========== Heartbeat ==========
 
   /**
@@ -274,24 +456,109 @@ export class NPC extends Living {
    * Called when the NPC dies.
    */
   override async onDeath(): Promise<void> {
-    await super.onDeath();
+    const deathRoom = this.environment;
+
+    // End all combat
+    const combatDaemon = getCombatDaemon();
+
+    // Get attackers before ending combat (for XP distribution)
+    const attackers = [...this.attackers];
+    combatDaemon.endAllCombats(this);
+
+    // Create corpse
+    const corpse = new Corpse();
+    corpse.ownerName = this.name;
+    corpse.isPlayerCorpse = false;
+
+    // Transfer NPC's inventory to corpse
+    const items = [...this.inventory];
+    for (const item of items) {
+      await item.moveTo(corpse);
+    }
+
+    // Generate gold
+    const goldAmount = this.generateGoldDrop();
+    if (goldAmount > 0) {
+      corpse.gold = goldAmount;
+    }
+
+    // Generate loot drops
+    await this.generateLoot(corpse);
+
+    // Move corpse to death location
+    if (deathRoom) {
+      await corpse.moveTo(deathRoom);
+    }
+
+    // Distribute XP to all attackers
+    for (const attacker of attackers) {
+      // Check if attacker has gainExperience method (is a Player)
+      if ('gainExperience' in attacker && typeof (attacker as Living & { gainExperience: (xp: number) => void }).gainExperience === 'function') {
+        const xp = this.calculateXPReward(attacker.level);
+        (attacker as Living & { gainExperience: (xp: number) => void }).gainExperience(xp);
+      }
+    }
+
+    // Notify room about death and loot
+    if (deathRoom && 'broadcast' in deathRoom) {
+      const broadcast = (deathRoom as MudObject & { broadcast: (msg: string) => void }).broadcast.bind(deathRoom);
+
+      const name = typeof efuns !== 'undefined' ? efuns.capitalize(this.name) : this.name;
+      broadcast(`{red}${name} has been slain!{/}\n`);
+
+      // Announce corpse
+      if (corpse.inventory.length > 0 || goldAmount > 0) {
+        const lootDesc: string[] = [];
+        if (goldAmount > 0) {
+          lootDesc.push(`${goldAmount} gold`);
+        }
+        if (corpse.inventory.length > 0) {
+          lootDesc.push(`${corpse.inventory.length} item${corpse.inventory.length > 1 ? 's' : ''}`);
+        }
+        broadcast(`{yellow}The corpse of ${this.name} contains: ${lootDesc.join(', ')}.{/}\n`);
+      }
+    }
 
     // Schedule respawn if enabled
-    if (this._respawnTime > 0) {
-      this.callOut(async () => {
-        this.revive();
-        if (this._spawnRoom) {
-          await this.moveTo(this._spawnRoom);
-          const env = this.environment as Room | null;
-          if (env && typeof env.broadcast === 'function') {
-            const name =
-              typeof efuns !== 'undefined'
-                ? efuns.capitalize(this.name)
-                : this.name;
-            env.broadcast(`${name} appears.`);
+    if (this._respawnTime > 0 && this._spawnRoom) {
+      const spawnRoom = this._spawnRoom;
+      const npcPath = this.objectPath;
+
+      if (typeof efuns !== 'undefined' && efuns.callOut) {
+        efuns.callOut(async () => {
+          // Clone a new NPC instead of reviving (cleaner approach)
+          try {
+            if (typeof efuns !== 'undefined' && efuns.cloneObject) {
+              const newNpc = await efuns.cloneObject(npcPath);
+              if (newNpc) {
+                await newNpc.moveTo(spawnRoom);
+                if ('broadcast' in spawnRoom) {
+                  const spawnName = (newNpc as NPC).name;
+                  const name = typeof efuns !== 'undefined' ? efuns.capitalize(spawnName) : spawnName;
+                  (spawnRoom as MudObject & { broadcast: (msg: string) => void })
+                    .broadcast(`{dim}${name} appears.{/}\n`);
+                }
+              }
+            }
+          } catch {
+            // Respawn failed - log if possible
           }
-        }
-      }, this._respawnTime * 1000);
+
+          // Destroy the old NPC
+          if (typeof efuns !== 'undefined' && efuns.destruct) {
+            await efuns.destruct(this);
+          }
+        }, this._respawnTime * 1000);
+      }
+    } else {
+      // No respawn - destroy after a delay to allow for any final operations
+      if (typeof efuns !== 'undefined' && efuns.callOut) {
+        efuns.callOut(async () => {
+          if (typeof efuns !== 'undefined' && efuns.destruct) {
+            await efuns.destruct(this);
+          }
+        }, 1000);
+      }
     }
   }
 
@@ -308,12 +575,18 @@ export class NPC extends Living {
     gender?: 'male' | 'female' | 'neutral';
     health?: number;
     maxHealth?: number;
+    level?: number;
     chats?: Array<{ message: string; type?: 'say' | 'emote'; chance?: number }>;
     chatChance?: number;
     wandering?: boolean;
     wanderChance?: number;
     wanderDirections?: string[];
     respawnTime?: number;
+    // Combat options
+    baseXP?: number;
+    gold?: number;
+    goldDrop?: GoldDrop;
+    lootTable?: LootEntry[];
   }): void {
     if (options.name) this.name = options.name;
     if (options.title) this.title = options.title;
@@ -322,6 +595,7 @@ export class NPC extends Living {
     if (options.gender) this.gender = options.gender;
     if (options.maxHealth) this.maxHealth = options.maxHealth;
     if (options.health !== undefined) this.health = options.health;
+    if (options.level !== undefined) this.level = options.level;
 
     if (options.chats) {
       this.clearChats();
@@ -335,6 +609,19 @@ export class NPC extends Living {
     if (options.wanderChance !== undefined) this._wanderChance = options.wanderChance;
     if (options.wanderDirections) this._wanderDirections = options.wanderDirections;
     if (options.respawnTime !== undefined) this._respawnTime = options.respawnTime;
+
+    // Combat configuration
+    if (options.baseXP !== undefined || options.gold !== undefined ||
+        options.goldDrop !== undefined || options.lootTable !== undefined ||
+        options.level !== undefined) {
+      this.setCombat({
+        level: options.level,
+        baseXP: options.baseXP,
+        gold: options.gold,
+        goldDrop: options.goldDrop,
+        lootTable: options.lootTable,
+      });
+    }
   }
 }
 

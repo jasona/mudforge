@@ -159,6 +159,17 @@ export class MudObject {
   }
 
   /**
+   * Set multiple identifiers, replacing any existing ones.
+   * @param ids Array of identifiers to set
+   */
+  setIds(ids: string[]): void {
+    this._ids.clear();
+    for (const id of ids) {
+      this._ids.add(id.toLowerCase());
+    }
+  }
+
+  /**
    * Remove an identifier from this object.
    * @param id The identifier to remove
    */
