@@ -8,6 +8,7 @@
  */
 
 import { MudObject } from '../lib/std.js';
+import { composeMessage } from '../lib/message-composer.js';
 
 /**
  * Channel access types.
@@ -41,10 +42,26 @@ export interface ChannelConfig {
  */
 interface ChannelPlayer extends MudObject {
   name: string;
+  gender?: 'male' | 'female' | 'neutral';
   receive(message: string): void;
   getProperty(key: string): unknown;
   setProperty(key: string, value: unknown): void;
   permissionLevel?: number;
+}
+
+/**
+ * Emote definition interface.
+ */
+interface EmoteDefinition {
+  [rule: string]: string;
+}
+
+/**
+ * Soul daemon interface for emote operations.
+ */
+interface SoulDaemon {
+  hasEmote(verb: string): boolean;
+  getEmote(verb: string): EmoteDefinition | undefined;
 }
 
 /**
@@ -322,6 +339,11 @@ export class ChannelDaemon extends MudObject {
       return false;
     }
 
+    // Check for emote syntax (message starts with :)
+    if (message.startsWith(':')) {
+      return this.sendEmote(player, channelName, message.slice(1).trim());
+    }
+
     // Format the message
     const formattedMessage = this.formatMessage(channel, player.name, message);
 
@@ -337,6 +359,159 @@ export class ChannelDaemon extends MudObject {
     this.broadcast(channelName, formattedMessage, player);
 
     return true;
+  }
+
+  /**
+   * Send an emote to a channel.
+   * Syntax: :smile or :smile @bob
+   */
+  sendEmote(player: ChannelPlayer, channelName: string, emoteArgs: string): boolean {
+    const channel = this.getChannel(channelName);
+    if (!channel) {
+      return false;
+    }
+
+    if (!emoteArgs) {
+      player.receive(`{yellow}Usage: ${channelName} :emote or ${channelName} :emote @target{/}\n`);
+      return false;
+    }
+
+    // Parse emote and optional @target
+    const parts = emoteArgs.split(/\s+/);
+    const verb = parts[0]!.toLowerCase();
+    let targetName: string | null = null;
+
+    // Check for @target in any position
+    for (let i = 1; i < parts.length; i++) {
+      if (parts[i]!.startsWith('@')) {
+        targetName = parts[i]!.substring(1);
+        break;
+      }
+    }
+
+    // Get the soul daemon
+    const soulDaemon = (typeof efuns !== 'undefined' ? efuns.findObject('/daemons/soul') : null) as SoulDaemon | null;
+
+    if (!soulDaemon) {
+      player.receive(`{red}Error: Soul daemon not available.{/}\n`);
+      return false;
+    }
+
+    // Check if emote exists
+    if (!soulDaemon.hasEmote(verb)) {
+      player.receive(`{red}Unknown emote: {bold}${verb}{/}\n`);
+      return false;
+    }
+
+    const emote = soulDaemon.getEmote(verb);
+    if (!emote) {
+      player.receive(`{red}Unknown emote: {bold}${verb}{/}\n`);
+      return false;
+    }
+
+    // Determine template and find target
+    let template: string | undefined;
+    let target: ChannelPlayer | null = null;
+
+    if (targetName) {
+      // Targeted emote - need LIV rule
+      template = emote['LIV'];
+      if (!template) {
+        player.receive(`{yellow}You cannot ${verb} someone on this channel.{/}\n`);
+        return false;
+      }
+
+      // Find target among channel players
+      const players = (typeof efuns !== 'undefined' && efuns.allPlayers ? efuns.allPlayers() : []) as ChannelPlayer[];
+      for (const p of players) {
+        if (p.name.toLowerCase() === targetName.toLowerCase() ||
+            p.name.toLowerCase().startsWith(targetName.toLowerCase())) {
+          if (this.canAccess(p, channelName) && this.isChannelOn(p, channelName)) {
+            target = p;
+            break;
+          }
+        }
+      }
+
+      if (!target) {
+        player.receive(`{yellow}${targetName} is not on the ${channel.displayName} channel.{/}\n`);
+        return false;
+      }
+
+      if (target === player) {
+        player.receive(`{yellow}You can't target yourself with a channel emote.{/}\n`);
+        return false;
+      }
+    } else {
+      // Solo emote - use no-target rule
+      template = emote[''];
+      if (!template) {
+        // If no solo rule, check if it requires a target
+        if (emote['LIV']) {
+          player.receive(`{yellow}${verb.charAt(0).toUpperCase() + verb.slice(1)} who? Use :${verb} @name{/}\n`);
+          return false;
+        }
+        player.receive(`{yellow}Cannot do that.{/}\n`);
+        return false;
+      }
+    }
+
+    // Store in history (raw emote for replay)
+    this.addToHistory(channelName, {
+      channel: channelName,
+      sender: player.name,
+      message: `:${emoteArgs}`,
+      timestamp: Date.now(),
+    });
+
+    // Broadcast emote to all channel members with viewer-specific messages
+    this.broadcastEmote(channelName, channel, template, player, target);
+
+    return true;
+  }
+
+  /**
+   * Broadcast an emote to all channel members with viewer-specific messages.
+   */
+  private broadcastEmote(
+    channelName: string,
+    channel: ChannelConfig,
+    template: string,
+    actor: ChannelPlayer,
+    target: ChannelPlayer | null
+  ): void {
+    // Get all connected players
+    let players: MudObject[] = [];
+    if (typeof efuns !== 'undefined' && efuns.allPlayers) {
+      players = efuns.allPlayers();
+    }
+
+    const color = channel.color ?? 'white';
+
+    for (const obj of players) {
+      const player = obj as ChannelPlayer;
+
+      // Skip if player can't access channel
+      if (!this.canAccess(player, channelName)) {
+        continue;
+      }
+
+      // Skip if player has channel off
+      if (!this.isChannelOn(player, channelName)) {
+        continue;
+      }
+
+      // Compose viewer-specific message
+      const message = composeMessage(template, player, actor, target, '');
+
+      // Format with channel prefix and emote indicator
+      const formattedMessage = `{${color}}[${channel.displayName}]{/} * ${message}\n`;
+
+      // Send message
+      if (typeof player.receive === 'function') {
+        player.receive(formattedMessage);
+      }
+    }
   }
 
   /**
@@ -510,6 +685,7 @@ export class ChannelDaemon extends MudObject {
     lines.push('{dim}' + '-'.repeat(50) + '{/}');
     lines.push('{dim}Use "channel <name> on/off" to toggle channels.{/}');
     lines.push('{dim}Use "<channel> <message>" to send a message.{/}');
+    lines.push('{dim}Use "<channel> :emote" or ":emote @target" for emotes.{/}');
 
     return lines.join('\n') + '\n';
   }

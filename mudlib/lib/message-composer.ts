@@ -2,13 +2,13 @@
  * Message Composer - Token-based message composition system.
  *
  * Composes viewer-specific messages from templates using tokens:
- *   $N, $n - Actor name (capitalized/lowercase)
- *   $V, $v - Verb (conjugated: "smile" for actor, "smiles" for others)
- *   $T, $t - Target name (capitalized/lowercase)
- *   $P, $p - Actor's possessive ("your" for actor, "Hero's" for others)
+ *   $N, $n - Actor name (capitalized/lowercase), "You/you" for actor
+ *   $V, $v - Verb (base form for actor, conjugated for others)
+ *   $T, $t - Target name (capitalized/lowercase), "You/you" for target
+ *   $P, $p - Actor's possessive ("your" for actor, "his/her/their" for others)
  *   $O, $o - Object/string argument (capitalized/lowercase)
- *   $R, $r - Reflexive ("yourself" for actor, "himself/herself" for others)
- *   $Q, $q - Target's possessive ("your" for target, "Hero's" for others)
+ *   $R, $r - Reflexive ("yourself" for actor, "himself/herself/themselves" for others)
+ *   $Q, $q - Target's possessive ("your" for target, "his/her/their" for others)
  *
  * Based on the classic LPC m_messages.c pattern.
  */
@@ -61,6 +61,20 @@ function getReflexive(gender: Gender): string {
       return 'herself';
     default:
       return 'themselves';
+  }
+}
+
+/**
+ * Get possessive pronoun based on gender.
+ */
+function getPossessivePronoun(gender: Gender): string {
+  switch (gender) {
+    case 'male':
+      return 'his';
+    case 'female':
+      return 'her';
+    default:
+      return 'their';
   }
 }
 
@@ -173,14 +187,15 @@ export function composeMessage(
     result = result.replace(/\$[Tt]/g, '');
   }
 
-  // $P/$p - Actor's possessive
-  result = result.replace(/\$P/g, isActor ? 'Your' : capitalize(getPossessive(actorName)));
-  result = result.replace(/\$p/g, isActor ? 'your' : getPossessive(actorName).toLowerCase());
+  // $P/$p - Actor's possessive pronoun ("your" for actor, "his/her/their" for others)
+  result = result.replace(/\$P/g, isActor ? 'Your' : capitalize(getPossessivePronoun(actorGender)));
+  result = result.replace(/\$p/g, isActor ? 'your' : getPossessivePronoun(actorGender));
 
-  // $Q/$q - Target's possessive
+  // $Q/$q - Target's possessive pronoun ("your" for target, "his/her/their" for others)
   if (target) {
-    result = result.replace(/\$Q/g, isTarget ? 'Your' : capitalize(getPossessive(targetName)));
-    result = result.replace(/\$q/g, isTarget ? 'your' : getPossessive(targetName).toLowerCase());
+    const targetGender = getGender(target);
+    result = result.replace(/\$Q/g, isTarget ? 'Your' : capitalize(getPossessivePronoun(targetGender)));
+    result = result.replace(/\$q/g, isTarget ? 'your' : getPossessivePronoun(targetGender));
   } else {
     result = result.replace(/\$[Qq]/g, '');
   }

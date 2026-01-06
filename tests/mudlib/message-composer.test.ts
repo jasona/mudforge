@@ -118,15 +118,21 @@ describe('Message Composer', () => {
         expect(msg).toBe('You shake your head.');
       });
 
-      it('should show possessive name for others', () => {
+      it('should show possessive pronoun for others viewing male', () => {
         const msg = composeMessage('$N $vshake $p head.', bystander, actor);
-        expect(msg).toBe("Hero shakes hero's head.");
+        expect(msg).toBe('Hero shakes his head.');
       });
 
-      it('should handle names ending in s', () => {
-        const actorWithS = { name: 'James', displayName: 'James', gender: 'male' };
-        const msg = composeMessage('$N $vshake $p head.', bystander, actorWithS);
-        expect(msg).toBe("James shakes james' head.");
+      it('should show possessive pronoun for others viewing female', () => {
+        const femaleActor = { name: 'Jane', gender: 'female' as const };
+        const msg = composeMessage('$N $vshake $p head.', bystander, femaleActor);
+        expect(msg).toBe('Jane shakes her head.');
+      });
+
+      it('should show possessive pronoun for others viewing neutral', () => {
+        const neutralActor = { name: 'Pat', gender: 'neutral' as const };
+        const msg = composeMessage('$N $vshake $p head.', bystander, neutralActor);
+        expect(msg).toBe('Pat shakes their head.');
       });
     });
 
@@ -172,9 +178,15 @@ describe('Message Composer', () => {
         expect(msg).toBe('Hero pats Your back.');
       });
 
-      it('should show possessive name for others', () => {
+      it('should show possessive pronoun for others viewing female target', () => {
         const msg = composeMessage('$N $vpat $q back.', bystander, actor, target);
-        expect(msg).toBe("Hero pats acer's back.");
+        expect(msg).toBe('Hero pats her back.');
+      });
+
+      it('should show possessive pronoun for others viewing male target', () => {
+        const maleTarget = { name: 'Bob', gender: 'male' as const };
+        const msg = composeMessage('$N $vpat $q back.', bystander, actor, maleTarget);
+        expect(msg).toBe('Hero pats his back.');
       });
     });
   });

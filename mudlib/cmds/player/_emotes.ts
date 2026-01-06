@@ -2,11 +2,12 @@
  * emotes - Search and list available emotes.
  *
  * Usage:
- *   emotes              - List all emotes
+ *   emotes              - List all emotes (paged)
  *   emotes <search>     - Search for emotes containing the word
  */
 
 import type { MudObject } from '../../lib/std.js';
+import { startPager } from '../../lib/pager.js';
 
 interface CommandContext {
   player: MudObject;
@@ -71,13 +72,8 @@ export function execute(ctx: CommandContext): void {
     return;
   }
 
-  // Header
-  if (search) {
-    ctx.sendLine(`{cyan}Emotes matching "{bold}${search}{/}{cyan}":{/}`);
-  } else {
-    ctx.sendLine(`{cyan}Available emotes ({bold}${matchingVerbs.length}{/}{cyan} total):{/}`);
-  }
-  ctx.sendLine('');
+  // Build content lines
+  const lines: string[] = [];
 
   // List emotes with their rules
   for (const verb of matchingVerbs) {
@@ -87,11 +83,22 @@ export function execute(ctx: CommandContext): void {
     const rules = Object.keys(emote).map(formatRule);
     const rulesStr = rules.join(', ');
 
-    ctx.sendLine(`  {bold}{green}${verb.padEnd(15)}{/} {dim}[${rulesStr}]{/}`);
+    lines.push(`  {bold}{green}${verb.padEnd(15)}{/} {dim}[${rulesStr}]{/}`);
   }
 
-  ctx.sendLine('');
-  ctx.sendLine(`{dim}Use an emote by typing its name, e.g., "smile" or "smile <player>"{/}`);
+  lines.push('');
+  lines.push(`{dim}Use an emote by typing its name, e.g., "smile" or "smile <player>"{/}`);
+
+  // Determine title
+  const title = search
+    ? `Emotes matching "{bold}${search}{/}" (${matchingVerbs.length} found)`
+    : `Available emotes ({bold}${matchingVerbs.length}{/} total)`;
+
+  // Use pager for display
+  startPager(ctx.player, lines, {
+    title: `{cyan}${title}{/}`,
+    linesPerPage: 20,
+  });
 }
 
 export default { name, description, usage, execute };
