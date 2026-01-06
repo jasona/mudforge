@@ -1,8 +1,14 @@
 /**
  * Look command - Examine your surroundings or objects.
+ *
+ * Usage:
+ *   look                    - Look at the room
+ *   look <object>           - Examine an object
+ *   look in <container>     - Look inside a container
  */
 
 import type { MudObject } from '../../std/object.js';
+import { Container } from '../../std/container.js';
 
 interface CommandContext {
   player: MudObject;
@@ -22,7 +28,28 @@ interface Item extends MudObject {
 
 export const name = ['look', 'l'];
 export const description = 'Look at your surroundings or examine something';
-export const usage = 'look [target]';
+export const usage = 'look [target] | look in <container>';
+
+/**
+ * Find an item by name in a list of objects.
+ */
+function findItem(name: string, items: MudObject[]): MudObject | undefined {
+  const lowerName = name.toLowerCase();
+  return items.find((item) => {
+    const i = item as Item;
+    return i.id && i.id(lowerName);
+  });
+}
+
+/**
+ * Get the description of an object, with container state if applicable.
+ */
+function getObjectDescription(obj: MudObject): string {
+  if (obj instanceof Container) {
+    return obj.getFullDescription();
+  }
+  return obj.longDesc;
+}
 
 export function execute(ctx: CommandContext): void {
   const { player, args } = ctx;
@@ -35,53 +62,111 @@ export function execute(ctx: CommandContext): void {
 
   if (!args) {
     // Look at the room
-    if (room.look) {
-      room.look(player);
-    } else {
-      // Default room description
-      ctx.sendLine(room.shortDesc);
-      ctx.sendLine(room.longDesc);
+    lookAtRoom(ctx, room, player);
+    return;
+  }
 
-      // Show exits
-      if (room.getExits) {
-        const exits = room.getExits();
-        if (exits.length > 0) {
-          ctx.sendLine(`Exits: ${exits.join(', ')}`);
-        }
-      }
+  // Check for "look in <container>" syntax
+  const inMatch = args.match(/^in\s+(.+)$/i);
+  if (inMatch) {
+    const containerName = inMatch[1].trim();
+    lookInContainer(ctx, room, player, containerName);
+    return;
+  }
 
-      // Show contents
-      const contents = room.inventory.filter((obj) => obj !== player);
-      if (contents.length > 0) {
-        ctx.sendLine('You see:');
-        for (const obj of contents) {
-          ctx.sendLine(`  ${obj.shortDesc}`);
-        }
-      }
-    }
+  // Look at something specific
+  const target = args.toLowerCase();
+
+  // Check room contents
+  const roomItem = findItem(target, room.inventory);
+  if (roomItem) {
+    ctx.sendLine(getObjectDescription(roomItem));
+    return;
+  }
+
+  // Check player's inventory
+  const invItem = findItem(target, player.inventory);
+  if (invItem) {
+    ctx.sendLine(getObjectDescription(invItem));
+    return;
+  }
+
+  ctx.sendLine(`You don't see any "${args}" here.`);
+}
+
+/**
+ * Look at the room.
+ */
+function lookAtRoom(ctx: CommandContext, room: Room, player: MudObject): void {
+  if (room.look) {
+    room.look(player);
   } else {
-    // Look at something specific
-    const target = args.toLowerCase();
+    // Default room description
+    ctx.sendLine(room.shortDesc);
+    ctx.sendLine(room.longDesc);
 
-    // Check room contents
-    for (const obj of room.inventory) {
-      const item = obj as Item;
-      if (item.id && item.id(target)) {
-        ctx.sendLine(obj.longDesc);
-        return;
+    // Show exits
+    if (room.getExits) {
+      const exits = room.getExits();
+      if (exits.length > 0) {
+        ctx.sendLine(`Exits: ${exits.join(', ')}`);
       }
     }
 
-    // Check player's inventory
-    for (const obj of player.inventory) {
-      const item = obj as Item;
-      if (item.id && item.id(target)) {
-        ctx.sendLine(obj.longDesc);
-        return;
+    // Show contents (with container state indicators)
+    const contents = room.inventory.filter((obj) => obj !== player);
+    if (contents.length > 0) {
+      ctx.sendLine('You see:');
+      for (const obj of contents) {
+        let desc = obj.shortDesc;
+        // Add open/closed indicator for containers
+        if (obj instanceof Container) {
+          desc += obj.isOpen ? ' {dim}(open){/}' : ' {dim}(closed){/}';
+        }
+        ctx.sendLine(`  ${desc}`);
       }
     }
+  }
+}
 
-    ctx.sendLine(`You don't see any "${args}" here.`);
+/**
+ * Look inside a container.
+ */
+function lookInContainer(
+  ctx: CommandContext,
+  room: Room,
+  player: MudObject,
+  containerName: string
+): void {
+  // Find container in room or player's inventory
+  let container = findItem(containerName, room.inventory);
+  if (!container) {
+    container = findItem(containerName, player.inventory);
+  }
+
+  if (!container) {
+    ctx.sendLine("You don't see that here.");
+    return;
+  }
+
+  if (!(container instanceof Container)) {
+    ctx.sendLine("That's not a container.");
+    return;
+  }
+
+  if (!container.isOpen) {
+    ctx.sendLine(`The ${container.shortDesc} is closed.`);
+    return;
+  }
+
+  if (container.inventory.length === 0) {
+    ctx.sendLine(`The ${container.shortDesc} is empty.`);
+    return;
+  }
+
+  ctx.sendLine(`The ${container.shortDesc} contains:`);
+  for (const item of container.inventory) {
+    ctx.sendLine(`  ${item.shortDesc}`);
   }
 }
 

@@ -7,6 +7,7 @@
 
 import { MudObject } from './object.js';
 import { reflowText } from '../lib/colors.js';
+import { Container } from './container.js';
 
 // Efuns are injected by the driver at runtime
 declare const efuns: {
@@ -254,7 +255,12 @@ export class Room extends MudObject {
     if (visibleContents.length > 0) {
       lines.push('');
       for (const obj of visibleContents) {
-        lines.push(`  ${obj.shortDesc}`);
+        let desc = obj.shortDesc;
+        // Add open/closed indicator for containers
+        if (obj instanceof Container) {
+          desc += obj.isOpen ? ' {dim}(open){/}' : ' {dim}(closed){/}';
+        }
+        lines.push(`  ${desc}`);
       }
     }
 
