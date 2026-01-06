@@ -27,16 +27,22 @@ export class Terminal {
   private element: HTMLElement;
   private maxLines: number;
   private autoScroll: boolean;
+  private scrollPending: boolean;
 
   constructor(element: HTMLElement, maxLines: number = 1000) {
     this.element = element;
     this.maxLines = maxLines;
     this.autoScroll = true;
+    this.scrollPending = false;
 
-    // Set up scroll detection
+    // Set up scroll detection - check if user scrolled away from bottom
     this.element.addEventListener('scroll', () => {
+      // Don't update autoScroll if we're programmatically scrolling
+      if (this.scrollPending) return;
+
       const { scrollTop, scrollHeight, clientHeight } = this.element;
-      this.autoScroll = scrollHeight - scrollTop - clientHeight < 50;
+      // Use a larger threshold to be more forgiving
+      this.autoScroll = scrollHeight - scrollTop - clientHeight < 100;
     });
   }
 
@@ -91,11 +97,43 @@ export class Terminal {
 
   /**
    * Scroll to the bottom of the terminal.
+   * Uses requestAnimationFrame to ensure DOM has updated.
    */
   scrollToBottom(): void {
     if (this.autoScroll) {
-      this.element.scrollTop = this.element.scrollHeight;
+      this.scrollPending = true;
+      // Use requestAnimationFrame to ensure DOM has updated before scrolling
+      requestAnimationFrame(() => {
+        this.element.scrollTop = this.element.scrollHeight;
+        // Use a small delay before allowing scroll detection again
+        // This prevents the scroll event from incorrectly detecting user scroll
+        setTimeout(() => {
+          this.scrollPending = false;
+        }, 50);
+      });
     }
+  }
+
+  /**
+   * Force scroll to bottom, ignoring autoScroll setting.
+   * Useful when user wants to jump back to live output.
+   */
+  forceScrollToBottom(): void {
+    this.autoScroll = true;
+    this.scrollPending = true;
+    requestAnimationFrame(() => {
+      this.element.scrollTop = this.element.scrollHeight;
+      setTimeout(() => {
+        this.scrollPending = false;
+      }, 50);
+    });
+  }
+
+  /**
+   * Check if terminal is currently auto-scrolling.
+   */
+  isAutoScrolling(): boolean {
+    return this.autoScroll;
   }
 
   /**
