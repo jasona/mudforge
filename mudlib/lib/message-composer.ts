@@ -33,13 +33,13 @@ function getGender(obj: MudObject | null): Gender {
 }
 
 /**
- * Get a living object's display name.
+ * Get a living object's name for emote messages.
+ * Uses the actual name property, not displayName or shortDesc (which may contain unresolved tokens).
  */
 function getName(obj: MudObject | null): string {
   if (!obj) return 'someone';
-  // Try displayName first, then name, then shortDesc
-  const player = obj as MudObject & { displayName?: string; name?: string };
-  return player.displayName || player.name || obj.shortDesc || 'someone';
+  const living = obj as MudObject & { name?: string };
+  return living.name || 'someone';
 }
 
 /**

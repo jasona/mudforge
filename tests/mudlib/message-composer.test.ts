@@ -13,8 +13,6 @@ import {
 // Mock MudObject for testing
 interface MockMudObject {
   name?: string;
-  shortDesc?: string;
-  displayName?: string;
   gender?: 'male' | 'female' | 'neutral';
 }
 
@@ -58,9 +56,9 @@ describe('Message Composer', () => {
     let bystander: MockMudObject;
 
     beforeEach(() => {
-      actor = { name: 'Hero', displayName: 'Hero', gender: 'male' };
-      target = { name: 'Acer', displayName: 'Acer', gender: 'female' };
-      bystander = { name: 'Bob', displayName: 'Bob', gender: 'male' };
+      actor = { name: 'Hero', gender: 'male' };
+      target = { name: 'Acer', gender: 'female' };
+      bystander = { name: 'Bob', gender: 'male' };
     });
 
     describe('$N token (actor name)', () => {
@@ -186,8 +184,8 @@ describe('Message Composer', () => {
     let target: MockMudObject;
 
     beforeEach(() => {
-      actor = { name: 'Hero', displayName: 'Hero', gender: 'male' };
-      target = { name: 'Acer', displayName: 'Acer', gender: 'female' };
+      actor = { name: 'Hero', gender: 'male' };
+      target = { name: 'Acer', gender: 'female' };
     });
 
     it('should compose messages for actor, target, and others', () => {
