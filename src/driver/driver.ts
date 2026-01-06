@@ -639,6 +639,9 @@ export class Driver {
    * Try to execute input as an emote via the soul daemon.
    * Called as a fallback when no command matches.
    *
+   * Supports remote emotes with @player syntax:
+   *   smile @bob  -> remote emote to bob
+   *
    * @param player The player executing the emote
    * @param input The full input string
    * @returns true if an emote was executed, false otherwise
@@ -660,6 +663,11 @@ export class Driver {
         verb: string,
         args: string
       ) => Promise<{ success: boolean; error?: string }>;
+      executeRemoteEmote?: (
+        actor: MudObject,
+        verb: string,
+        targetName: string
+      ) => Promise<{ success: boolean; error?: string }>;
     } | undefined;
 
     if (!soulDaemon || !soulDaemon.hasEmote || !soulDaemon.executeEmote) {
@@ -671,8 +679,22 @@ export class Driver {
       return false;
     }
 
-    // Execute the emote
-    const result = await soulDaemon.executeEmote(player, verb, args);
+    // Check for @player syntax for remote emotes
+    const isRemote = args.startsWith('@');
+    let result: { success: boolean; error?: string };
+
+    if (isRemote && soulDaemon.executeRemoteEmote) {
+      // Remote emote: smile @bob
+      const targetName = args.substring(1).split(/\s+/)[0] || '';
+      if (!targetName) {
+        result = { success: false, error: 'Remote emote requires a target: emote @player' };
+      } else {
+        result = await soulDaemon.executeRemoteEmote(player, verb, targetName);
+      }
+    } else {
+      // Normal emote
+      result = await soulDaemon.executeEmote(player, verb, args);
+    }
 
     if (!result.success && result.error) {
       // Send error message to player
