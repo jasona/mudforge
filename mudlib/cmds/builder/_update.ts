@@ -6,12 +6,17 @@
  * For commands: the command is immediately updated for all players.
  *
  * Usage:
+ *   update            - Reload the object at current working directory
  *   update <path>     - Reload an object (e.g., update /std/room)
  *   update _look      - Reload a command (searches cmds/ directories)
  *   update here       - Reload the room you're currently in
  */
 
 import type { MudObject } from '../../lib/std.js';
+
+interface PlayerWithCwd extends MudObject {
+  cwd: string;
+}
 
 interface CommandContext {
   player: MudObject;
@@ -22,25 +27,16 @@ interface CommandContext {
 
 export const name = ['update'];
 export const description = 'Reload an object or command from disk (hot-reload)';
-export const usage = 'update <path> | update _command | update here';
+export const usage = 'update [path] | update _command | update here';
 
 export async function execute(ctx: CommandContext): Promise<void> {
   let objectPath = ctx.args.trim();
 
+  // If no path given, use current working directory
   if (!objectPath) {
-    ctx.sendLine('Usage: update <path>');
-    ctx.sendLine('       update _command');
-    ctx.sendLine('       update here');
-    ctx.sendLine('');
-    ctx.sendLine('Reloads an object or command from disk without restarting the server.');
-    ctx.sendLine('');
-    ctx.sendLine('Examples:');
-    ctx.sendLine('  update /std/room           - Reload a class-based object');
-    ctx.sendLine('  update /areas/town/tavern  - Reload a specific room');
-    ctx.sendLine('  update _look               - Reload the look command');
-    ctx.sendLine('  update /cmds/player/_get   - Reload command by full path');
-    ctx.sendLine('  update here                - Reload current room');
-    return;
+    const player = ctx.player as PlayerWithCwd;
+    objectPath = player.cwd || '/';
+    ctx.sendLine(`{dim}Using current directory: ${objectPath}{/}`);
   }
 
   // Handle "here" - reload current room

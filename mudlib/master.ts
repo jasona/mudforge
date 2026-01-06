@@ -20,12 +20,14 @@ export interface Connection {
 /**
  * Permission levels.
  */
-export enum PermissionLevel {
-  Player = 0,
-  Builder = 1,
-  SeniorBuilder = 2,
-  Administrator = 3,
-}
+export const PermissionLevel = {
+  Player: 0,
+  Builder: 1,
+  SeniorBuilder: 2,
+  Administrator: 3,
+} as const;
+
+export type PermissionLevel = (typeof PermissionLevel)[keyof typeof PermissionLevel];
 
 /**
  * Master object implementation.
