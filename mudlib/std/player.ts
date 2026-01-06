@@ -62,6 +62,7 @@ export interface PlayerSaveData {
   monitorEnabled?: boolean;
   displayName?: string | null;
   cwd?: string;
+  previousLocation?: string | null; // For link-dead players
 }
 
 /**
@@ -92,6 +93,11 @@ export class Player extends Living {
   private _corpse: Corpse | null = null;
   private _corpseLocation: MudObject | null = null;
   private _deathLocation: MudObject | null = null;
+
+  // Disconnect state (link-dead handling)
+  private _previousLocation: string | null = null; // Path before moving to void
+  private _disconnectTime: number = 0; // When disconnected (Unix timestamp)
+  private _disconnectTimerId: number | null = null; // Timer for auto-quit
 
   constructor() {
     super();
@@ -220,6 +226,72 @@ export class Player extends Living {
       normalized = normalized.slice(0, -1);
     }
     this._cwd = normalized;
+  }
+
+  // ========== Disconnect State ==========
+
+  /**
+   * Get the player's previous location (before being moved to void on disconnect).
+   * Returns null if player hasn't disconnected or has already been restored.
+   */
+  get previousLocation(): string | null {
+    return this._previousLocation;
+  }
+
+  /**
+   * Set the player's previous location.
+   * Used when player disconnects to remember where to restore them.
+   */
+  set previousLocation(value: string | null) {
+    this._previousLocation = value;
+  }
+
+  /**
+   * Get the time when the player disconnected (Unix timestamp).
+   * Returns 0 if player hasn't disconnected.
+   */
+  get disconnectTime(): number {
+    return this._disconnectTime;
+  }
+
+  /**
+   * Set the disconnect time.
+   */
+  set disconnectTime(value: number) {
+    this._disconnectTime = value;
+  }
+
+  /**
+   * Get the disconnect timer ID.
+   */
+  get disconnectTimerId(): number | null {
+    return this._disconnectTimerId;
+  }
+
+  /**
+   * Set the disconnect timer ID.
+   */
+  set disconnectTimerId(value: number | null) {
+    this._disconnectTimerId = value;
+  }
+
+  /**
+   * Clear the disconnect timer (if any).
+   * Called when player reconnects to prevent auto-quit.
+   */
+  clearDisconnectTimer(): void {
+    if (this._disconnectTimerId !== null && typeof efuns !== 'undefined') {
+      efuns.removeCallOut(this._disconnectTimerId);
+      this._disconnectTimerId = null;
+    }
+    this._disconnectTime = 0;
+  }
+
+  /**
+   * Check if player is currently link-dead (disconnected but still in game).
+   */
+  get isLinkDead(): boolean {
+    return this._previousLocation !== null && !this.isConnected();
   }
 
   // ========== Player Configuration ==========
@@ -809,6 +881,7 @@ export class Player extends Living {
       monitorEnabled: this._monitorEnabled,
       displayName: this._displayName,
       cwd: this._cwd,
+      previousLocation: this._previousLocation,
     };
   }
 
@@ -867,6 +940,11 @@ export class Player extends Living {
     // Restore cwd (if present - for backwards compatibility)
     if (data.cwd !== undefined) {
       this._cwd = data.cwd;
+    }
+
+    // Restore previousLocation (for link-dead players)
+    if (data.previousLocation !== undefined) {
+      this._previousLocation = data.previousLocation;
     }
 
     // Store equipment data for later restoration (after inventory is loaded)

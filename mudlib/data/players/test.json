@@ -1,6 +1,6 @@
 {
   "name": "Test",
-  "location": "/areas/town/center",
+  "location": "/areas/void/void",
   "state": {
     "objectPath": "",
     "isClone": false,
@@ -9,14 +9,14 @@
       "email": "test@test.com",
       "permissionLevel": 0
     },
-    "timestamp": 1767590548713,
+    "timestamp": 1767682534260,
     "environment": {
       "__type": "object_ref",
-      "path": "/areas/town/center",
+      "path": "/areas/void/void",
       "isClone": false
     }
   },
-  "savedAt": 1767590548713,
+  "savedAt": 1767682534260,
   "title": "",
   "gender": "male",
   "level": 1,
@@ -41,7 +41,10 @@
     "permissionLevel": 0
   },
   "createdAt": 1767589633,
-  "lastLogin": 1767590534,
-  "playTime": 101,
-  "monitorEnabled": false
+  "lastLogin": 1767682520,
+  "playTime": 141,
+  "monitorEnabled": false,
+  "displayName": "$N is just here to test.",
+  "cwd": "/",
+  "previousLocation": "/areas/town/market"
 }

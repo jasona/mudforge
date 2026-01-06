@@ -401,6 +401,9 @@ export class LoginDaemon extends MudObject {
         // Reconnecting to existing player in game world
         player = existingPlayer;
 
+        // Cancel disconnect timer if running
+        player.clearDisconnectTimer();
+
         // Get new IP and resolve hostname
         const newIp = session.connection.getRemoteAddress();
         const oldAddress = player.getDisplayAddress();
@@ -417,6 +420,27 @@ export class LoginDaemon extends MudObject {
           // Reconnecting after disconnect - just bind the new connection
           player.bindConnection(session.connection);
           efuns.bindPlayerToConnection(session.connection, player);
+        }
+
+        // Restore previous location if player is in void
+        const previousLocation = player.previousLocation;
+        if (previousLocation && player.environment?.objectPath === '/areas/void/void') {
+          const destination = efuns.findObject(previousLocation);
+          if (destination) {
+            await player.moveTo(destination);
+            player.previousLocation = null;
+
+            // Notify room with shimmer message
+            const roomWithBroadcast = destination as MudObject & {
+              broadcast?: (msg: string, opts?: { exclude?: MudObject[] }) => void;
+            };
+            if (roomWithBroadcast.broadcast) {
+              roomWithBroadcast.broadcast(
+                `{cyan}${player.name} shimmers back into existence!{/}`,
+                { exclude: [player] }
+              );
+            }
+          }
         }
 
         // Send reconnect notification to notify channel

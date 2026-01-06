@@ -299,6 +299,24 @@ declare global {
 
     /** Send an IDE message to the client */
     ideOpen(message: IdeMessage): void;
+
+    // ========== Config Efuns ==========
+
+    /**
+     * Get a mud-wide configuration value.
+     * @param key The setting key (e.g., 'disconnect.timeoutMinutes')
+     * @returns The value, or undefined if not found
+     */
+    getMudConfig<T = unknown>(key: string): T | undefined;
+
+    /**
+     * Set a mud-wide configuration value.
+     * Requires admin permission.
+     * @param key The setting key
+     * @param value The new value
+     * @returns Object with success status and optional error message
+     */
+    setMudConfig(key: string, value: unknown): { success: boolean; error?: string };
   };
 }
 

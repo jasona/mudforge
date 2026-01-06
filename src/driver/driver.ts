@@ -388,6 +388,7 @@ export class Driver {
 
   /**
    * Handle player disconnect.
+   * Moves the player to void and starts a disconnect timer.
    */
   async onPlayerDisconnect(connection: Connection): Promise<void> {
     this.logger.info({ id: connection.id }, 'Player disconnected');
@@ -399,36 +400,133 @@ export class Driver {
         // Disconnect during login
         this.loginDaemon.handleDisconnect(connection);
       } else {
-        // Player disconnected - save their data first (only if they have a valid location)
-        const player = handler;
-        const playerWithName = player as MudObject & { name?: string };
+        // Player disconnected unexpectedly
+        const player = handler as MudObject & {
+          name?: string;
+          previousLocation: string | null;
+          disconnectTime: number;
+          disconnectTimerId: number | null;
+          unbindConnection?: () => void;
+          onDisconnect?: () => void | Promise<void>;
+        };
 
-        // Only save if player still has an environment (wasn't properly quit)
-        // If environment is null, they already quit properly and were saved
+        // Only process if player has an environment (wasn't properly quit)
         if (player.environment) {
+          const currentRoom = player.environment;
+          const currentRoomPath = currentRoom?.objectPath || '/areas/town/center';
+
+          // Store previous location for reconnection
+          player.previousLocation = currentRoomPath;
+          player.disconnectTime = Math.floor(Date.now() / 1000);
+
+          // Notify the room with a memorable fade message
+          const roomWithBroadcast = currentRoom as MudObject & {
+            broadcast?: (msg: string, opts?: { exclude?: MudObject[] }) => void;
+          };
+          if (roomWithBroadcast.broadcast) {
+            const displayName = player.name || player.shortDesc || 'Someone';
+            roomWithBroadcast.broadcast(
+              `{dim}${displayName}'s form flickers and slowly fades from view...{/}`,
+              { exclude: [player] }
+            );
+          }
+
+          // Move player to void
+          try {
+            const voidRoom = this.efunBridge.findObject('/areas/void/void');
+            if (voidRoom) {
+              await player.moveTo(voidRoom);
+              this.logger.info({ name: player.name }, 'Player moved to void on disconnect');
+            }
+          } catch (error) {
+            this.logger.error({ error, name: player.name }, 'Failed to move player to void');
+          }
+
+          // Start disconnect timer
+          const timeoutMinutes = this.efunBridge.getMudConfig<number>('disconnect.timeoutMinutes') ?? 15;
+          const timeoutMs = timeoutMinutes * 60 * 1000;
+
+          const timerId = this.scheduler.callOut(async () => {
+            await this.handleDisconnectTimeout(player);
+          }, timeoutMs);
+          player.disconnectTimerId = timerId;
+
+          this.logger.info(
+            { name: player.name, timeoutMinutes },
+            'Disconnect timer started'
+          );
+
+          // Unbind connection from player
+          if (player.unbindConnection) {
+            player.unbindConnection();
+          }
+
+          // Save player data
           try {
             await this.efunBridge.savePlayer(player);
-            this.logger.info({ name: playerWithName.name }, 'Player data saved on disconnect');
+            this.logger.info({ name: player.name }, 'Player data saved on disconnect');
           } catch (error) {
-            this.logger.error({ error, name: playerWithName.name }, 'Failed to save player on disconnect');
+            this.logger.error({ error, name: player.name }, 'Failed to save player on disconnect');
           }
         }
 
+        // Call master hook
         if (this.master?.onPlayerDisconnect) {
           await this.master.onPlayerDisconnect(player);
         }
 
-        // Call player's onDisconnect if available
-        const playerWithHook = player as MudObject & {
-          onDisconnect?: () => void | Promise<void>;
-        };
-        if (playerWithHook.onDisconnect) {
-          await playerWithHook.onDisconnect();
+        // Call player's onDisconnect hook
+        if (player.onDisconnect) {
+          await player.onDisconnect();
         }
+
+        // Note: Player stays in activePlayers for reconnection
       }
     }
 
     this.connectionHandlers.delete(connection);
+  }
+
+  /**
+   * Handle disconnect timeout - force quit the player.
+   */
+  private async handleDisconnectTimeout(player: MudObject & {
+    name?: string;
+    previousLocation: string | null;
+    disconnectTimerId: number | null;
+  }): Promise<void> {
+    this.logger.info({ name: player.name }, 'Disconnect timeout - force quitting player');
+
+    // Clear timer reference
+    player.disconnectTimerId = null;
+    player.previousLocation = null;
+
+    // Save final state
+    try {
+      await this.efunBridge.savePlayer(player);
+    } catch (error) {
+      this.logger.error({ error, name: player.name }, 'Failed to save player on timeout');
+    }
+
+    // Unregister from active players
+    const lowerName = (player.name || '').toLowerCase();
+    this.activePlayers.delete(lowerName);
+
+    // Send notification via channel daemon from registry
+    const channelDaemon = this.registry.find('/daemons/channels') as {
+      sendNotification?: (channel: string, message: string) => void;
+    } | undefined;
+    if (channelDaemon?.sendNotification) {
+      channelDaemon.sendNotification(
+        'notify',
+        `{dim}${player.name} has been disconnected due to inactivity.{/}`
+      );
+    }
+
+    // Remove from void
+    await player.moveTo(null);
+
+    this.logger.info({ name: player.name }, 'Player force quit after disconnect timeout');
   }
 
   /**

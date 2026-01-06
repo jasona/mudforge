@@ -1493,6 +1493,65 @@ export class EfunBridge {
     connection.send(`\x00[IDE]${jsonStr}\n`);
   }
 
+  // ========== Config Efuns ==========
+
+  /**
+   * Get a mud-wide configuration value.
+   * @param key The setting key (e.g., 'disconnect.timeoutMinutes')
+   * @returns The value, or undefined if not found
+   */
+  getMudConfig<T = unknown>(key: string): T | undefined {
+    // Access config daemon from registry if loaded
+    const configDaemon = this.registry.find('/daemons/config') as {
+      get?: (key: string) => unknown;
+    } | undefined;
+
+    if (configDaemon?.get) {
+      return configDaemon.get(key) as T | undefined;
+    }
+
+    // Return defaults if config daemon not loaded yet
+    const defaults: Record<string, unknown> = {
+      'disconnect.timeoutMinutes': 15,
+    };
+    return defaults[key] as T | undefined;
+  }
+
+  /**
+   * Set a mud-wide configuration value.
+   * Requires admin permission.
+   * @param key The setting key
+   * @param value The new value
+   * @returns Object with success status and optional error message
+   */
+  setMudConfig(key: string, value: unknown): { success: boolean; error?: string } {
+    // Check admin permission
+    if (!this.isAdmin()) {
+      return { success: false, error: 'Permission denied: admin required' };
+    }
+
+    // Access config daemon from registry
+    const configDaemon = this.registry.find('/daemons/config') as {
+      set?: (key: string, value: unknown) => { success: boolean; error?: string };
+      save?: () => Promise<void>;
+    } | undefined;
+
+    if (!configDaemon?.set) {
+      return { success: false, error: 'Config daemon not loaded' };
+    }
+
+    const result = configDaemon.set(key, value);
+
+    // Auto-save on successful change
+    if (result.success && configDaemon.save) {
+      configDaemon.save().catch((err: Error) => {
+        console.error('[EfunBridge] Failed to save config:', err);
+      });
+    }
+
+    return result;
+  }
+
   // ========== Hot Reload Efuns ==========
 
   /**
@@ -1679,6 +1738,10 @@ export class EfunBridge {
 
       // IDE
       ideOpen: this.ideOpen.bind(this),
+
+      // Config
+      getMudConfig: this.getMudConfig.bind(this),
+      setMudConfig: this.setMudConfig.bind(this),
     };
   }
 }
