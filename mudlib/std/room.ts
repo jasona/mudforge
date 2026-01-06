@@ -276,8 +276,8 @@ export class Room extends MudObject {
       lines.push('');
       for (const obj of sortedContents) {
         let desc = obj.shortDesc;
-        // Add open/closed indicator for containers
-        if (obj instanceof Container) {
+        // Add open/closed indicator for containers that support it
+        if (obj instanceof Container && obj.canOpenClose) {
           desc += obj.isOpen ? ' {dim}(open){/}' : ' {dim}(closed){/}';
         }
         // NPCs displayed in red (non-bold)

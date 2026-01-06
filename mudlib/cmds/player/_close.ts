@@ -56,6 +56,11 @@ export function execute(ctx: CommandContext): void {
 
   // Check if it's a container
   if (target instanceof Container) {
+    if (!target.canOpenClose) {
+      ctx.sendLine("You can't close that.");
+      return;
+    }
+
     if (!target.isOpen) {
       ctx.sendLine(`The ${target.shortDesc} is already closed.`);
       return;

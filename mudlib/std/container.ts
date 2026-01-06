@@ -16,6 +16,7 @@ export class Container extends Item {
   private _open: boolean = true;
   private _locked: boolean = false;
   private _keyId: string | null = null;
+  private _canOpenClose: boolean = true;
 
   constructor() {
     super();
@@ -93,9 +94,26 @@ export class Container extends Item {
   // ========== Open/Close/Lock ==========
 
   /**
+   * Check if this container supports open/close operations.
+   * Override to false for things like corpses that are always accessible.
+   */
+  get canOpenClose(): boolean {
+    return this._canOpenClose;
+  }
+
+  /**
+   * Set whether this container supports open/close operations.
+   */
+  protected set canOpenClose(value: boolean) {
+    this._canOpenClose = value;
+  }
+
+  /**
    * Check if the container is open.
+   * Containers that don't support open/close are always considered open.
    */
   get isOpen(): boolean {
+    if (!this._canOpenClose) return true;
     return this._open;
   }
 
@@ -125,6 +143,9 @@ export class Container extends Item {
    * @returns true if successfully opened
    */
   open(): boolean {
+    if (!this._canOpenClose) {
+      return false; // Can't open containers that don't support open/close
+    }
     if (this._locked) {
       return false;
     }
@@ -137,6 +158,9 @@ export class Container extends Item {
    * @returns true if successfully closed
    */
   close(): boolean {
+    if (!this._canOpenClose) {
+      return false; // Can't close containers that don't support open/close
+    }
     this._open = false;
     return true;
   }
@@ -250,7 +274,7 @@ export class Container extends Item {
   getFullDescription(): string {
     const lines: string[] = [this.longDesc];
 
-    if (this._open) {
+    if (this.isOpen) {
       if (this.inventory.length === 0) {
         lines.push('It is empty.');
       } else {
@@ -259,7 +283,8 @@ export class Container extends Item {
           lines.push(`  ${item.shortDesc}`);
         }
       }
-    } else {
+    } else if (this._canOpenClose) {
+      // Only show "closed" state for containers that support open/close
       lines.push('It is closed.');
     }
 

@@ -43,8 +43,8 @@ export class Corpse extends Container {
     this.takeable = false;
     this.maxItems = 100;
     this.maxWeight = 10000;
-    // Corpses are always "open" for looting
-    this.open();
+    // Corpses don't support open/close - they're always accessible
+    this.canOpenClose = false;
   }
 
   // ========== Properties ==========

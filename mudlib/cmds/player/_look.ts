@@ -52,6 +52,27 @@ function getObjectDescription(obj: MudObject): string {
   return obj.longDesc;
 }
 
+/**
+ * Format a short description with "The" prefix, avoiding double articles.
+ * e.g. "a chest" -> "The chest", "the corpse" -> "The corpse"
+ */
+function formatWithThe(shortDesc: string): string {
+  const lower = shortDesc.toLowerCase();
+  // Already starts with "the"
+  if (lower.startsWith('the ')) {
+    return shortDesc.charAt(0).toUpperCase() + shortDesc.slice(1);
+  }
+  // Starts with an article (a, an) - replace it
+  if (lower.startsWith('a ')) {
+    return 'The ' + shortDesc.slice(2);
+  }
+  if (lower.startsWith('an ')) {
+    return 'The ' + shortDesc.slice(3);
+  }
+  // No article - add "The"
+  return 'The ' + shortDesc;
+}
+
 export function execute(ctx: CommandContext): void {
   const { player, args } = ctx;
   const room = player.environment as Room | null;
@@ -142,8 +163,8 @@ function lookAtRoom(ctx: CommandContext, room: Room, player: MudObject): void {
       ctx.sendLine('You see:');
       for (const obj of sortedContents) {
         let desc = obj.shortDesc;
-        // Add open/closed indicator for containers
-        if (obj instanceof Container) {
+        // Add open/closed indicator for containers that support it
+        if (obj instanceof Container && obj.canOpenClose) {
           desc += obj.isOpen ? ' {dim}(open){/}' : ' {dim}(closed){/}';
         }
         // NPCs displayed in red (non-bold)
@@ -182,16 +203,16 @@ function lookInContainer(
   }
 
   if (!container.isOpen) {
-    ctx.sendLine(`The ${container.shortDesc} is closed.`);
+    ctx.sendLine(`${formatWithThe(container.shortDesc)} is closed.`);
     return;
   }
 
   if (container.inventory.length === 0) {
-    ctx.sendLine(`The ${container.shortDesc} is empty.`);
+    ctx.sendLine(`${formatWithThe(container.shortDesc)} is empty.`);
     return;
   }
 
-  ctx.sendLine(`The ${container.shortDesc} contains:`);
+  ctx.sendLine(`${formatWithThe(container.shortDesc)} contains:`);
   for (const item of container.inventory) {
     ctx.sendLine(`  ${item.shortDesc}`);
   }
