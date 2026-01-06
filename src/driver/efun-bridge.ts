@@ -11,6 +11,7 @@ import { getScheduler, type Scheduler } from './scheduler.js';
 import { getPermissions, resetPermissions, type Permissions } from './permissions.js';
 import { getFileStore } from './persistence/file-store.js';
 import { getMudlibLoader, type MudlibLoader } from './mudlib-loader.js';
+import { getCommandManager } from './command-manager.js';
 import type { PlayerSaveData } from './persistence/serializer.js';
 import type { MudObject } from './types.js';
 import { readFile, writeFile, access, readdir, stat, mkdir, rm, rename, copyFile } from 'fs/promises';
@@ -209,10 +210,12 @@ export class EfunBridge {
 
   /**
    * Clone an object from a blueprint.
+   * Auto-loads the blueprint if it doesn't exist yet.
    * @param path The blueprint path
    */
   async cloneObject(path: string): Promise<MudObject | undefined> {
-    return this.registry.clone(path);
+    const loader = getMudlibLoader({ mudlibPath: this.config.mudlibPath });
+    return loader.cloneObject(path);
   }
 
   /**
@@ -1278,6 +1281,43 @@ export class EfunBridge {
   }
 
   /**
+   * Rehash commands - reload all commands from the cmds/ directories.
+   * This discovers new commands and reloads existing ones.
+   * Requires builder permission or higher.
+   *
+   * @returns Object with success status and command count
+   */
+  async rehashCommands(): Promise<{
+    success: boolean;
+    error?: string;
+    commandCount: number;
+  }> {
+    // Check builder permission
+    if (!this.isBuilder()) {
+      return {
+        success: false,
+        error: 'Permission denied: builder required',
+        commandCount: 0,
+      };
+    }
+
+    try {
+      const commandManager = getCommandManager();
+      await commandManager.reload();
+      return {
+        success: true,
+        commandCount: commandManager.commandCount,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+        commandCount: 0,
+      };
+    }
+  }
+
+  /**
    * Get all efuns as an object for exposing to sandbox.
    */
   getEfuns(): Record<string, unknown> {
@@ -1356,6 +1396,7 @@ export class EfunBridge {
 
       // Hot Reload
       reloadObject: this.reloadObject.bind(this),
+      rehashCommands: this.rehashCommands.bind(this),
 
       // Paging
       page: this.page.bind(this),

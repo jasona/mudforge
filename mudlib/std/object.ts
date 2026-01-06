@@ -49,6 +49,7 @@ export class MudObject {
   private _objectId: string = '';
   private _isClone: boolean = false;
   private _blueprint: MudObject | undefined;
+  private _ids: Set<string> = new Set();
 
   // Descriptions
   private _shortDesc: string = 'an object';
@@ -171,12 +172,41 @@ export class MudObject {
   // ========== Identity ==========
 
   /**
+   * Add an identifier to this object.
+   * @param id The identifier to add
+   */
+  addId(id: string): void {
+    this._ids.add(id.toLowerCase());
+  }
+
+  /**
+   * Remove an identifier from this object.
+   * @param id The identifier to remove
+   */
+  removeId(id: string): void {
+    this._ids.delete(id.toLowerCase());
+  }
+
+  /**
+   * Get all identifiers for this object.
+   */
+  getIds(): string[] {
+    return Array.from(this._ids);
+  }
+
+  /**
    * Check if this object matches a name/identifier.
    * Override this for custom matching logic.
    * @param name The name to check
    */
   id(name: string): boolean {
     const lowerName = name.toLowerCase();
+
+    // Check custom identifiers first
+    if (this._ids.has(lowerName)) {
+      return true;
+    }
+
     const lowerDesc = this._shortDesc.toLowerCase();
 
     // Check exact match
