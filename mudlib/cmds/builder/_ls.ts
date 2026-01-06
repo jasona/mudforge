@@ -23,9 +23,22 @@ interface CommandContext {
   sendLine(message: string): void;
 }
 
+interface EntryStat {
+  name: string;
+  stat: {
+    isFile: boolean;
+    isDirectory: boolean;
+    size: number;
+    mtime: Date;
+  };
+}
+
 export const name = ['ls', 'dir'];
 export const description = 'List files and directories';
 export const usage = 'ls [-la] [path]';
+
+/** Assumed terminal width for column calculations */
+const TERMINAL_WIDTH = 80;
 
 export async function execute(ctx: CommandContext): Promise<void> {
   const player = ctx.player as PlayerWithCwd;
@@ -68,9 +81,9 @@ export async function execute(ctx: CommandContext): Promise<void> {
     // If it's a file, just show it
     if (stat.isFile) {
       if (longFormat) {
-        ctx.sendLine(formatEntry(args || targetPath, stat, false));
+        ctx.sendLine(formatLongEntry(args || targetPath, stat));
       } else {
-        ctx.sendLine(args || targetPath);
+        ctx.sendLine(colorizeEntry(args || targetPath, stat));
       }
       return;
     }
@@ -83,8 +96,8 @@ export async function execute(ctx: CommandContext): Promise<void> {
       entries = entries.filter((e) => !e.startsWith('.'));
     }
 
-    // Sort entries (directories first, then alphabetically)
-    const entryStats: Array<{ name: string; stat: { isFile: boolean; isDirectory: boolean; size: number; mtime: Date } }> = [];
+    // Gather stats for all entries
+    const entryStats: EntryStat[] = [];
     for (const entry of entries) {
       try {
         const entryPath = joinPath(targetPath, entry);
@@ -92,7 +105,10 @@ export async function execute(ctx: CommandContext): Promise<void> {
         entryStats.push({ name: entry, stat: entryStat });
       } catch {
         // Skip entries we can't stat
-        entryStats.push({ name: entry, stat: { isFile: true, isDirectory: false, size: 0, mtime: new Date() } });
+        entryStats.push({
+          name: entry,
+          stat: { isFile: true, isDirectory: false, size: 0, mtime: new Date() },
+        });
       }
     }
 
@@ -109,25 +125,9 @@ export async function execute(ctx: CommandContext): Promise<void> {
     }
 
     if (longFormat) {
-      // Long format
-      ctx.sendLine(`{dim}total ${entryStats.length}{/}`);
-      for (const entry of entryStats) {
-        ctx.sendLine(formatEntry(entry.name, entry.stat, true));
-      }
+      displayLongFormat(ctx, entryStats);
     } else {
-      // Short format - multi-column
-      const output = entryStats.map((e) => {
-        if (e.stat.isDirectory) {
-          return `{blue}${e.name}/{/}`;
-        }
-        if (e.name.endsWith('.ts')) {
-          return `{green}${e.name}{/}`;
-        }
-        return e.name;
-      });
-
-      // Simple column layout
-      ctx.sendLine(output.join('  '));
+      displayColumnFormat(ctx, entryStats);
     }
   } catch (error) {
     ctx.sendLine(`{red}Error: ${error instanceof Error ? error.message : String(error)}{/}`);
@@ -135,28 +135,142 @@ export async function execute(ctx: CommandContext): Promise<void> {
 }
 
 /**
+ * Display entries in column format (default ls output).
+ */
+function displayColumnFormat(ctx: CommandContext, entries: EntryStat[]): void {
+  // Calculate the width needed for each entry (name + decoration)
+  const displayNames = entries.map((e) => {
+    const suffix = e.stat.isDirectory ? '/' : '';
+    return { name: e.name + suffix, entry: e };
+  });
+
+  // Find the longest name to determine column width
+  const maxLen = Math.max(...displayNames.map((d) => d.name.length));
+  const colWidth = maxLen + 2; // Add spacing between columns
+
+  // Calculate number of columns that fit
+  const numCols = Math.max(1, Math.floor(TERMINAL_WIDTH / colWidth));
+
+  // Calculate number of rows needed
+  const numRows = Math.ceil(entries.length / numCols);
+
+  // Build output row by row (filling columns top-to-bottom, left-to-right)
+  for (let row = 0; row < numRows; row++) {
+    let line = '';
+    for (let col = 0; col < numCols; col++) {
+      const idx = col * numRows + row;
+      if (idx >= displayNames.length) break;
+
+      const display = displayNames[idx];
+      const colored = colorizeEntry(display.name, display.entry.stat);
+
+      // Calculate visible length (without color codes)
+      const visibleLen = display.name.length;
+      const padding = col < numCols - 1 ? ' '.repeat(Math.max(1, colWidth - visibleLen)) : '';
+
+      line += colored + padding;
+    }
+    ctx.sendLine(line);
+  }
+}
+
+/**
+ * Display entries in long format (ls -l output).
+ */
+function displayLongFormat(ctx: CommandContext, entries: EntryStat[]): void {
+  // Calculate total size
+  const totalSize = entries.reduce((sum, e) => sum + e.stat.size, 0);
+
+  // Find max size width for alignment
+  const maxSize = Math.max(...entries.map((e) => e.stat.size));
+  const sizeWidth = Math.max(6, maxSize.toString().length);
+
+  // Header
+  ctx.sendLine(efuns.sprintf('{dim}total %d (%s){/}', entries.length, formatSize(totalSize)));
+  ctx.sendLine(
+    efuns.sprintf(
+      '{dim}%-10s %' + sizeWidth + 's  %-12s  %s{/}',
+      'Type',
+      'Size',
+      'Modified',
+      'Name'
+    )
+  );
+  ctx.sendLine('{dim}' + '-'.repeat(50) + '{/}');
+
+  // Entries
+  for (const entry of entries) {
+    ctx.sendLine(formatLongEntry(entry.name, entry.stat, sizeWidth));
+  }
+}
+
+/**
  * Format a single entry for long listing.
  */
-function formatEntry(
+function formatLongEntry(
   name: string,
   stat: { isFile: boolean; isDirectory: boolean; size: number; mtime: Date },
-  colorize: boolean
+  sizeWidth: number = 8
 ): string {
-  const type = stat.isDirectory ? 'd' : '-';
-  const perms = 'rw-r--r--'; // Simplified
-  const size = stat.size.toString().padStart(8);
-  const date = formatDate(stat.mtime);
+  const typeStr = stat.isDirectory ? '{blue}dir{/}      ' : getFileType(name);
+  const sizeStr = efuns.sprintf('%' + sizeWidth + 's', formatSize(stat.size));
+  const dateStr = formatDate(stat.mtime);
+  const displayName = colorizeEntry(name + (stat.isDirectory ? '/' : ''), stat);
 
-  let displayName = name;
-  if (colorize) {
-    if (stat.isDirectory) {
-      displayName = `{blue}${name}/{/}`;
-    } else if (name.endsWith('.ts')) {
-      displayName = `{green}${name}{/}`;
-    }
+  return efuns.sprintf('%-10s %s  %-12s  %s', typeStr, sizeStr, dateStr, displayName);
+}
+
+/**
+ * Get file type description based on extension.
+ */
+function getFileType(name: string): string {
+  if (name.endsWith('.ts')) return '{green}source{/}   ';
+  if (name.endsWith('.js')) return '{yellow}script{/}   ';
+  if (name.endsWith('.json')) return '{cyan}json{/}     ';
+  if (name.endsWith('.md')) return '{magenta}markdown{/} ';
+  if (name.endsWith('.txt')) return 'text      ';
+  if (name.endsWith('.log')) return '{dim}log{/}       ';
+  return 'file      ';
+}
+
+/**
+ * Colorize an entry name based on its type.
+ */
+function colorizeEntry(
+  name: string,
+  stat: { isFile: boolean; isDirectory: boolean }
+): string {
+  if (stat.isDirectory) {
+    return `{blue}${name}{/}`;
   }
 
-  return `${type}${perms}  ${size}  ${date}  ${displayName}`;
+  // Color by extension
+  if (name.endsWith('.ts')) return `{green}${name}{/}`;
+  if (name.endsWith('.js')) return `{yellow}${name}{/}`;
+  if (name.endsWith('.json')) return `{cyan}${name}{/}`;
+  if (name.endsWith('.md')) return `{magenta}${name}{/}`;
+  if (name.endsWith('.log')) return `{dim}${name}{/}`;
+
+  return name;
+}
+
+/**
+ * Format a file size in human-readable format.
+ */
+function formatSize(bytes: number): string {
+  if (bytes < 1024) {
+    return efuns.sprintf('%dB', bytes);
+  }
+  if (bytes < 1024 * 1024) {
+    const kb = bytes / 1024;
+    return kb >= 10 ? efuns.sprintf('%dK', Math.round(kb)) : efuns.sprintf('%.1fK', kb);
+  }
+  if (bytes < 1024 * 1024 * 1024) {
+    const mb = bytes / (1024 * 1024);
+    return mb >= 10 ? efuns.sprintf('%dM', Math.round(mb)) : efuns.sprintf('%.1fM', mb);
+  }
+  const gb = bytes / (1024 * 1024 * 1024);
+  return gb >= 10 ? efuns.sprintf('%dG', Math.round(gb)) : efuns.sprintf('%.1fG', gb);
 }
 
 /**
@@ -164,11 +278,21 @@ function formatEntry(
  */
 function formatDate(date: Date): string {
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const now = new Date();
+  const thisYear = now.getFullYear();
+  const fileYear = date.getFullYear();
+
   const month = months[date.getMonth()];
-  const day = date.getDate().toString().padStart(2);
-  const hours = date.getHours().toString().padStart(2, '0');
-  const mins = date.getMinutes().toString().padStart(2, '0');
-  return `${month} ${day} ${hours}:${mins}`;
+  const day = efuns.sprintf('%2d', date.getDate());
+
+  // Show time for recent files, year for older files
+  if (fileYear === thisYear) {
+    const hours = efuns.sprintf('%02d', date.getHours());
+    const mins = efuns.sprintf('%02d', date.getMinutes());
+    return efuns.sprintf('%s %s %s:%s', month, day, hours, mins);
+  } else {
+    return efuns.sprintf('%s %s  %d', month, day, fileYear);
+  }
 }
 
 export default { name, description, usage, execute };

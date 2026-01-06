@@ -157,6 +157,36 @@ declare global {
     /** Convert string to uppercase */
     upper(str: string): string;
 
+    /**
+     * Format a string using printf-style format specifiers.
+     *
+     * Supported specifiers:
+     *   %s - String
+     *   %d, %i - Integer
+     *   %f - Float (default 6 decimal places)
+     *   %c - Character
+     *   %x, %X - Hexadecimal (lower/upper)
+     *   %o - Octal
+     *   %b - Binary
+     *   %j, %J - JSON (compact/pretty)
+     *   %% - Literal percent
+     *
+     * Modifiers:
+     *   - Left-align
+     *   + Show sign for positive numbers
+     *   0 Zero-pad numbers
+     *   # Alternate form (0x, 0o, 0b prefixes)
+     *   width - Minimum field width
+     *   .prec - Precision (max chars for strings, decimals for floats)
+     *   |width| or =width= - Center align
+     *
+     * @example
+     * sprintf("Name: %-20s HP: %d/%d", name, hp, maxHp)
+     * sprintf("Gold: %,d", gold)  // with thousands separator
+     * sprintf("%|40|s", "TITLE") // centered in 40 chars
+     */
+    sprintf(format: string, ...args: unknown[]): string;
+
     /** Convert a timestamp to seconds */
     toSeconds(timestamp: number): number;
 

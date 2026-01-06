@@ -582,6 +582,249 @@ export class EfunBridge {
   }
 
   /**
+   * Format a string using printf-style format specifiers.
+   *
+   * Supported format specifiers:
+   *   %s  - String
+   *   %d  - Integer (decimal)
+   *   %i  - Integer (same as %d)
+   *   %f  - Floating point
+   *   %c  - Character (from char code or first char of string)
+   *   %x  - Hexadecimal (lowercase)
+   *   %X  - Hexadecimal (uppercase)
+   *   %o  - Octal
+   *   %b  - Binary
+   *   %j  - JSON (stringify objects)
+   *   %%  - Literal percent sign
+   *
+   * Format modifiers (between % and specifier):
+   *   -   Left-align within field width
+   *   +   Show + sign for positive numbers
+   *   0   Pad with zeros instead of spaces
+   *   #   Alternate form (0x for hex, 0o for octal, 0b for binary)
+   *   width   Minimum field width (e.g., %10s)
+   *   .prec   Precision - max chars for strings, decimal places for floats
+   *
+   * Column mode (MUD-specific):
+   *   %|width|s  - Center-align string in width
+   *   %=width=s  - Center-align string in width (alternate syntax)
+   *
+   * Examples:
+   *   sprintf("Hello %s!", "world")           -> "Hello world!"
+   *   sprintf("%10s", "test")                 -> "      test"
+   *   sprintf("%-10s", "test")                -> "test      "
+   *   sprintf("%05d", 42)                     -> "00042"
+   *   sprintf("%.2f", 3.14159)                -> "3.14"
+   *   sprintf("%+d", 42)                      -> "+42"
+   *   sprintf("%#x", 255)                     -> "0xff"
+   *   sprintf("%|20|s", "centered")           -> "      centered      "
+   *
+   * @param format The format string
+   * @param args Values to substitute
+   * @returns The formatted string
+   */
+  sprintf(format: string, ...args: unknown[]): string {
+    let argIndex = 0;
+
+    // Regex to match format specifiers
+    // Groups: flags, width, precision, specifier
+    const formatRegex = /%([+\-#0 ]*)(\d+|\|(\d+)\||=(\d+)=)?(?:\.(\d+))?([sdifcxXobjJ%])/g;
+
+    return format.replace(formatRegex, (match, flags, widthPart, centerWidth1, centerWidth2, precision, specifier) => {
+      // Handle %% escape
+      if (specifier === '%') {
+        return '%';
+      }
+
+      // Get the argument
+      if (argIndex >= args.length) {
+        return match; // Not enough args, leave as-is
+      }
+      const arg = args[argIndex++];
+
+      // Parse flags
+      const leftAlign = flags?.includes('-') || false;
+      const showSign = flags?.includes('+') || false;
+      const zeroPad = flags?.includes('0') || false;
+      const altForm = flags?.includes('#') || false;
+      const spaceSign = flags?.includes(' ') || false;
+
+      // Parse width and center alignment
+      let width = 0;
+      let centerAlign = false;
+
+      if (centerWidth1) {
+        width = parseInt(centerWidth1, 10);
+        centerAlign = true;
+      } else if (centerWidth2) {
+        width = parseInt(centerWidth2, 10);
+        centerAlign = true;
+      } else if (widthPart && !widthPart.startsWith('|') && !widthPart.startsWith('=')) {
+        width = parseInt(widthPart, 10);
+      }
+
+      // Parse precision
+      const prec = precision !== undefined ? parseInt(precision, 10) : undefined;
+
+      // Format based on specifier
+      let result: string;
+
+      switch (specifier) {
+        case 's': {
+          // String
+          result = String(arg ?? '');
+          if (prec !== undefined && result.length > prec) {
+            result = result.slice(0, prec);
+          }
+          break;
+        }
+
+        case 'd':
+        case 'i': {
+          // Integer
+          const num = Math.trunc(Number(arg) || 0);
+          const isNegative = num < 0;
+          result = Math.abs(num).toString();
+
+          // Apply precision (minimum digits)
+          if (prec !== undefined) {
+            result = result.padStart(prec, '0');
+          }
+
+          // Apply sign
+          if (isNegative) {
+            result = '-' + result;
+          } else if (showSign) {
+            result = '+' + result;
+          } else if (spaceSign) {
+            result = ' ' + result;
+          }
+          break;
+        }
+
+        case 'f': {
+          // Float
+          const floatNum = Number(arg) || 0;
+          const decimals = prec !== undefined ? prec : 6;
+          const isNeg = floatNum < 0;
+          result = Math.abs(floatNum).toFixed(decimals);
+
+          if (isNeg) {
+            result = '-' + result;
+          } else if (showSign) {
+            result = '+' + result;
+          } else if (spaceSign) {
+            result = ' ' + result;
+          }
+          break;
+        }
+
+        case 'c': {
+          // Character
+          if (typeof arg === 'number') {
+            result = String.fromCharCode(arg);
+          } else if (typeof arg === 'string' && arg.length > 0) {
+            result = arg.charAt(0);
+          } else {
+            result = '';
+          }
+          break;
+        }
+
+        case 'x':
+        case 'X': {
+          // Hexadecimal
+          const hexNum = Math.trunc(Number(arg) || 0);
+          result = Math.abs(hexNum).toString(16);
+          if (specifier === 'X') {
+            result = result.toUpperCase();
+          }
+          if (altForm && hexNum !== 0) {
+            result = (specifier === 'X' ? '0X' : '0x') + result;
+          }
+          if (hexNum < 0) {
+            result = '-' + result;
+          }
+          break;
+        }
+
+        case 'o': {
+          // Octal
+          const octNum = Math.trunc(Number(arg) || 0);
+          result = Math.abs(octNum).toString(8);
+          if (altForm && octNum !== 0) {
+            result = '0o' + result;
+          }
+          if (octNum < 0) {
+            result = '-' + result;
+          }
+          break;
+        }
+
+        case 'b': {
+          // Binary
+          const binNum = Math.trunc(Number(arg) || 0);
+          result = Math.abs(binNum).toString(2);
+          if (altForm && binNum !== 0) {
+            result = '0b' + result;
+          }
+          if (binNum < 0) {
+            result = '-' + result;
+          }
+          break;
+        }
+
+        case 'j':
+        case 'J': {
+          // JSON
+          try {
+            result = specifier === 'J'
+              ? JSON.stringify(arg, null, 2)
+              : JSON.stringify(arg);
+          } catch {
+            result = String(arg);
+          }
+          break;
+        }
+
+        default:
+          result = String(arg);
+      }
+
+      // Apply width padding
+      if (width > 0 && result.length < width) {
+        const padChar = zeroPad && !leftAlign && !centerAlign ? '0' : ' ';
+        const padAmount = width - result.length;
+
+        if (centerAlign) {
+          const leftPad = Math.floor(padAmount / 2);
+          const rightPad = padAmount - leftPad;
+          result = ' '.repeat(leftPad) + result + ' '.repeat(rightPad);
+        } else if (leftAlign) {
+          result = result + padChar.repeat(padAmount);
+        } else {
+          // Right align (default)
+          // For zero-padding numbers, put padding after sign
+          if (zeroPad && (specifier === 'd' || specifier === 'i' || specifier === 'f')) {
+            const signMatch = result.match(/^([+-]?\s?)/);
+            if (signMatch && signMatch[1]) {
+              const sign = signMatch[1];
+              const rest = result.slice(sign.length);
+              result = sign + '0'.repeat(padAmount) + rest;
+            } else {
+              result = padChar.repeat(padAmount) + result;
+            }
+          } else {
+            result = padChar.repeat(padAmount) + result;
+          }
+        }
+      }
+
+      return result;
+    });
+  }
+
+  /**
    * Convert a timestamp to seconds (handles both seconds and milliseconds).
    * If timestamp > 10 billion, assume it's in milliseconds and convert.
    * @param timestamp The timestamp to convert
@@ -1392,6 +1635,7 @@ export class EfunBridge {
       trim: this.trim.bind(this),
       lower: this.lower.bind(this),
       upper: this.upper.bind(this),
+      sprintf: this.sprintf.bind(this),
       toSeconds: this.toSeconds.bind(this),
       toMilliseconds: this.toMilliseconds.bind(this),
       formatDuration: this.formatDuration.bind(this),
