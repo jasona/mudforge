@@ -1,5 +1,5 @@
 /**
- * Config command - Manage player settings.
+ * Settings command - Manage player settings.
  *
  * View and modify personal configuration options.
  */
@@ -28,13 +28,13 @@ interface CommandContext {
   sendLine(message: string): void;
 }
 
-export const name = ['config', 'set', 'settings'];
+export const name = ['settings', 'set'];
 export const description = 'View and manage your personal settings';
-export const usage = `config                    - List all settings by category
-config <setting>          - Show details for a setting
-config <setting> <value>  - Change a setting
-config reset <setting>    - Reset a setting to default
-config reset all          - Reset all settings to defaults`;
+export const usage = `settings                    - List all settings by category
+settings <setting>          - Show details for a setting
+settings <setting> <value>  - Change a setting
+settings reset <setting>    - Reset a setting to default
+settings reset all          - Reset all settings to defaults`;
 
 /**
  * Format a category name for display.
@@ -65,7 +65,7 @@ function showAllSettings(ctx: CommandContext): void {
     ctx.sendLine('');
   }
 
-  ctx.sendLine('{dim}Use "config <setting>" for details, "config <setting> <value>" to change.{/}');
+  ctx.sendLine('{dim}Use "settings <setting>" for details, "settings <setting> <value>" to change.{/}');
 }
 
 /**
@@ -172,7 +172,7 @@ export function execute(ctx: CommandContext): void {
   if (command === 'reset') {
     const target = parts[1]?.toLowerCase();
     if (!target) {
-      ctx.sendLine('{red}Usage: config reset <setting> or config reset all{/}');
+      ctx.sendLine('{red}Usage: settings reset <setting> or settings reset all{/}');
       return;
     }
     if (target === 'all') {
@@ -198,7 +198,7 @@ export function execute(ctx: CommandContext): void {
 
   if (!found) {
     ctx.sendLine(`{red}Unknown setting: ${command}{/}`);
-    ctx.sendLine('{dim}Use "config" to see all available settings.{/}');
+    ctx.sendLine('{dim}Use "settings" to see all available settings.{/}');
     return;
   }
 
