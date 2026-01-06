@@ -9,6 +9,7 @@
 
 import type { MudObject } from '../../std/object.js';
 import { Container } from '../../std/container.js';
+import { NPC } from '../../std/npc.js';
 
 interface CommandContext {
   player: MudObject;
@@ -114,14 +115,40 @@ function lookAtRoom(ctx: CommandContext, room: Room, player: MudObject): void {
     }
 
     // Show contents (with container state indicators)
+    // Sort: players first, NPCs second, items last
     const contents = room.inventory.filter((obj) => obj !== player);
     if (contents.length > 0) {
+      const isPlayerObj = (obj: MudObject): boolean => {
+        const p = obj as MudObject & { isConnected?: () => boolean };
+        return typeof p.isConnected === 'function';
+      };
+
+      const sortedContents = [...contents].sort((a, b) => {
+        const aIsPlayer = isPlayerObj(a);
+        const bIsPlayer = isPlayerObj(b);
+        const aIsNPC = a instanceof NPC;
+        const bIsNPC = b instanceof NPC;
+
+        // Players first
+        if (aIsPlayer && !bIsPlayer) return -1;
+        if (!aIsPlayer && bIsPlayer) return 1;
+        // NPCs second
+        if (aIsNPC && !bIsNPC) return -1;
+        if (!aIsNPC && bIsNPC) return 1;
+        // Items last
+        return 0;
+      });
+
       ctx.sendLine('You see:');
-      for (const obj of contents) {
+      for (const obj of sortedContents) {
         let desc = obj.shortDesc;
         // Add open/closed indicator for containers
         if (obj instanceof Container) {
           desc += obj.isOpen ? ' {dim}(open){/}' : ' {dim}(closed){/}';
+        }
+        // NPCs displayed in red (non-bold)
+        if (obj instanceof NPC) {
+          desc = `{red}${desc}{/}`;
         }
         ctx.sendLine(`  ${desc}`);
       }

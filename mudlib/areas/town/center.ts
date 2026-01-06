@@ -7,6 +7,11 @@
 import { Room } from '../../std/room.js';
 import { MudObject } from '../../std/object.js';
 
+// Efuns are injected by the driver at runtime
+declare const efuns: {
+  cloneObject(path: string): Promise<MudObject | undefined>;
+};
+
 /**
  * The Center of Town room.
  */
@@ -54,7 +59,17 @@ anyone who will listen.`;
    * Called when the room is created.
    */
   override async onCreate(): Promise<void> {
-    console.log('[CenterOfTown] The town square has been initialized.');
+    // Clone the Town Crier NPC into the room
+    if (typeof efuns !== 'undefined' && efuns.cloneObject) {
+      try {
+        const townCrier = await efuns.cloneObject('/areas/town/town_crier');
+        if (townCrier) {
+          await townCrier.moveTo(this);
+        }
+      } catch (error) {
+        console.error('[CenterOfTown] Failed to clone Town Crier:', error);
+      }
+    }
   }
 
   /**

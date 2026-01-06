@@ -1,11 +1,13 @@
 /**
- * Update command - Reload an object from disk without restarting the server.
+ * Update command - Reload an object or command from disk without restarting the server.
  *
- * This is true hot-reload: the blueprint is recompiled and updated in memory.
- * Existing clones keep their old behavior; new clones use the updated code.
+ * This is true hot-reload: the code is recompiled and updated in memory.
+ * For objects: existing clones keep their old behavior; new clones use updated code.
+ * For commands: the command is immediately updated for all players.
  *
  * Usage:
  *   update <path>     - Reload an object (e.g., update /std/room)
+ *   update _look      - Reload a command (searches cmds/ directories)
  *   update here       - Reload the room you're currently in
  */
 
@@ -19,6 +21,10 @@ declare const efuns: {
     existingClones: number;
     migratedObjects: number;
   }>;
+  reloadCommand(path: string): Promise<{
+    success: boolean;
+    error?: string;
+  }>;
 };
 
 interface CommandContext {
@@ -29,23 +35,25 @@ interface CommandContext {
 }
 
 export const name = ['update'];
-export const description = 'Reload an object from disk (hot-reload)';
-export const usage = 'update <path> | update here';
+export const description = 'Reload an object or command from disk (hot-reload)';
+export const usage = 'update <path> | update _command | update here';
 
 export async function execute(ctx: CommandContext): Promise<void> {
   let objectPath = ctx.args.trim();
 
   if (!objectPath) {
     ctx.sendLine('Usage: update <path>');
+    ctx.sendLine('       update _command');
     ctx.sendLine('       update here');
     ctx.sendLine('');
-    ctx.sendLine('Reloads an object from disk without restarting the server.');
-    ctx.sendLine('Existing clones keep their old behavior; new clones use updated code.');
+    ctx.sendLine('Reloads an object or command from disk without restarting the server.');
     ctx.sendLine('');
     ctx.sendLine('Examples:');
-    ctx.sendLine('  update /std/room');
-    ctx.sendLine('  update /areas/town/tavern');
-    ctx.sendLine('  update here');
+    ctx.sendLine('  update /std/room           - Reload a class-based object');
+    ctx.sendLine('  update /areas/town/tavern  - Reload a specific room');
+    ctx.sendLine('  update _look               - Reload the look command');
+    ctx.sendLine('  update /cmds/player/_get   - Reload command by full path');
+    ctx.sendLine('  update here                - Reload current room');
     return;
   }
 
@@ -63,13 +71,67 @@ export async function execute(ctx: CommandContext): Promise<void> {
     }
   }
 
-  // Normalize path
+  // Remove .ts extension if provided
+  objectPath = objectPath.replace(/\.ts$/, '');
+
+  // Check if this is a command (starts with _ and no slashes, or /cmds/ path)
+  const isCommand = objectPath.startsWith('_') && !objectPath.includes('/');
+  const isCommandPath = objectPath.includes('/cmds/') || objectPath.startsWith('cmds/');
+
+  if (isCommand) {
+    // Search for command in standard directories
+    const cmdName = objectPath;
+    const cmdDirs = ['/cmds/player', '/cmds/builder', '/cmds/admin', '/cmds/wizard'];
+
+    if (typeof efuns === 'undefined' || !efuns.reloadCommand) {
+      ctx.sendLine('{red}Error: reloadCommand efun not available.{/}');
+      return;
+    }
+
+    for (const dir of cmdDirs) {
+      const testPath = `${dir}/${cmdName}`;
+      const result = await efuns.reloadCommand(testPath);
+      if (result.success) {
+        ctx.sendLine(`{green}Successfully reloaded command ${testPath}{/}`);
+        return;
+      }
+    }
+
+    ctx.sendLine(`{red}Command ${cmdName} not found in standard directories.{/}`);
+    ctx.sendLine('{dim}Searched: /cmds/player, /cmds/builder, /cmds/admin, /cmds/wizard{/}');
+    return;
+  }
+
+  if (isCommandPath) {
+    // Direct command path like /cmds/player/_look
+    if (!objectPath.startsWith('/')) {
+      objectPath = '/' + objectPath;
+    }
+
+    ctx.sendLine(`{cyan}Reloading command ${objectPath}...{/}`);
+
+    if (typeof efuns === 'undefined' || !efuns.reloadCommand) {
+      ctx.sendLine('{red}Error: reloadCommand efun not available.{/}');
+      return;
+    }
+
+    const result = await efuns.reloadCommand(objectPath);
+
+    if (result.success) {
+      ctx.sendLine(`{green}Successfully reloaded command ${objectPath}{/}`);
+    } else {
+      ctx.sendLine(`{red}Failed to reload command ${objectPath}{/}`);
+      if (result.error) {
+        ctx.sendLine(`{red}Error: ${result.error}{/}`);
+      }
+    }
+    return;
+  }
+
+  // Regular object reload
   if (!objectPath.startsWith('/')) {
     objectPath = '/' + objectPath;
   }
-
-  // Remove .ts extension if provided
-  objectPath = objectPath.replace(/\.ts$/, '');
 
   ctx.sendLine(`{cyan}Reloading ${objectPath}...{/}`);
 

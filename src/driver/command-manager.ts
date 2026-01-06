@@ -397,6 +397,41 @@ export class CommandManager {
   }
 
   /**
+   * Reload a single command by mudlib path.
+   * @param mudlibPath The path like "/cmds/player/_look"
+   * @returns Success status and any error message
+   */
+  async reloadCommand(mudlibPath: string): Promise<{ success: boolean; error?: string }> {
+    // Parse the path to determine the directory and level
+    const normalizedPath = mudlibPath.startsWith('/') ? mudlibPath.slice(1) : mudlibPath;
+    const parts = normalizedPath.split('/');
+
+    // Expected format: cmds/<level>/_command
+    if (parts.length < 3 || parts[0] !== 'cmds') {
+      return { success: false, error: 'Invalid command path format. Expected /cmds/<level>/_command' };
+    }
+
+    const levelDir = parts[1];
+    if (!levelDir || !(levelDir in LEVEL_DIRS)) {
+      return { success: false, error: `Unknown command level directory: ${levelDir}` };
+    }
+
+    const level = LEVEL_DIRS[levelDir] as PermissionLevel;
+    const fileName = parts.slice(2).join('/') + '.ts';
+    const filePath = join(this.config.cmdsPath, levelDir, fileName);
+
+    try {
+      await this.loadCommand(filePath, level);
+      return { success: true };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
+
+  /**
    * Dispose the command manager.
    */
   dispose(): void {

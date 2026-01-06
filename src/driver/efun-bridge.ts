@@ -1281,6 +1281,37 @@ export class EfunBridge {
   }
 
   /**
+   * Reload a single command from disk.
+   * Commands are modules with execute functions, not class-based objects.
+   * Requires builder permission or higher.
+   *
+   * @param commandPath The mudlib path (e.g., "/cmds/player/_look")
+   * @returns Object with success status
+   */
+  async reloadCommand(commandPath: string): Promise<{
+    success: boolean;
+    error?: string;
+  }> {
+    // Check builder permission
+    if (!this.isBuilder()) {
+      return {
+        success: false,
+        error: 'Permission denied: builder required',
+      };
+    }
+
+    try {
+      const commandManager = getCommandManager();
+      return commandManager.reloadCommand(commandPath);
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
+
+  /**
    * Rehash commands - reload all commands from the cmds/ directories.
    * This discovers new commands and reloads existing ones.
    * Requires builder permission or higher.
@@ -1396,6 +1427,7 @@ export class EfunBridge {
 
       // Hot Reload
       reloadObject: this.reloadObject.bind(this),
+      reloadCommand: this.reloadCommand.bind(this),
       rehashCommands: this.rehashCommands.bind(this),
 
       // Paging

@@ -8,6 +8,7 @@
 import { MudObject } from './object.js';
 import { reflowText } from '../lib/colors.js';
 import { Container } from './container.js';
+import { NPC } from './npc.js';
 
 // Efuns are injected by the driver at runtime
 declare const efuns: {
@@ -229,8 +230,9 @@ export class Room extends MudObject {
 
   /**
    * Get the full room description including exits and contents.
+   * @param viewer Optional viewer to exclude from contents list
    */
-  getFullDescription(): string {
+  getFullDescription(viewer?: MudObject): string {
     const lines: string[] = [];
 
     // Room description - reflow to remove manual line breaks
@@ -246,19 +248,47 @@ export class Room extends MudObject {
       lines.push('There are no obvious exits.');
     }
 
-    // Contents (excluding hidden items, etc.)
+    // Contents (excluding hidden items and the viewer)
     const visibleContents = this.inventory.filter((obj) => {
+      // Exclude the viewer from the list
+      if (viewer && obj === viewer) return false;
       // Could add visibility checks here
       return true;
     });
 
     if (visibleContents.length > 0) {
+      // Sort: players first, NPCs second, items last
+      const isPlayer = (obj: MudObject): boolean => {
+        const p = obj as MudObject & { isConnected?: () => boolean };
+        return typeof p.isConnected === 'function';
+      };
+
+      const sortedContents = [...visibleContents].sort((a, b) => {
+        const aIsPlayer = isPlayer(a);
+        const bIsPlayer = isPlayer(b);
+        const aIsNPC = a instanceof NPC;
+        const bIsNPC = b instanceof NPC;
+
+        // Players first
+        if (aIsPlayer && !bIsPlayer) return -1;
+        if (!aIsPlayer && bIsPlayer) return 1;
+        // NPCs second
+        if (aIsNPC && !bIsNPC) return -1;
+        if (!aIsNPC && bIsNPC) return 1;
+        // Items last (same category, no change)
+        return 0;
+      });
+
       lines.push('');
-      for (const obj of visibleContents) {
+      for (const obj of sortedContents) {
         let desc = obj.shortDesc;
         // Add open/closed indicator for containers
         if (obj instanceof Container) {
           desc += obj.isOpen ? ' {dim}(open){/}' : ' {dim}(closed){/}';
+        }
+        // NPCs displayed in red (non-bold)
+        if (obj instanceof NPC) {
+          desc = `{red}${desc}{/}`;
         }
         lines.push(`  ${desc}`);
       }
@@ -273,7 +303,7 @@ export class Room extends MudObject {
    */
   look(viewer: MudObject): void {
     const receiver = viewer as MudObject & { receive?: (msg: string) => void };
-    const desc = this.getFullDescription();
+    const desc = this.getFullDescription(viewer);
 
     if (typeof receiver.receive === 'function') {
       receiver.receive(`${this.shortDesc}\n\n${desc}`);
