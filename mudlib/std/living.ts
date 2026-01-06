@@ -79,12 +79,25 @@ export const STAT_DESCRIPTIONS: Record<StatName, string> = {
 /**
  * Base class for living beings.
  */
+/**
+ * Default enter/exit messages using tokens:
+ *   $N - Living's capitalized name
+ *   $n - Living's lowercase name
+ *   $D - Direction (e.g., "east", "the north")
+ */
+export const DEFAULT_EXIT_MESSAGE = '$N leaves $D.';
+export const DEFAULT_ENTER_MESSAGE = '$N arrives from $D.';
+
 export class Living extends MudObject {
   private _name: string = 'someone';
   private _title: string = '';
   private _gender: 'male' | 'female' | 'neutral' = 'neutral';
   private _commandHistory: string[] = [];
   private _maxHistory: number = 50;
+
+  // Enter/exit messages (customizable)
+  private _exitMessage: string = DEFAULT_EXIT_MESSAGE;
+  private _enterMessage: string = DEFAULT_ENTER_MESSAGE;
 
   // Combat stats (basic implementation)
   private _health: number = 100;
@@ -184,6 +197,75 @@ export class Living extends MudObject {
    */
   set gender(value: 'male' | 'female' | 'neutral') {
     this._gender = value;
+  }
+
+  // ========== Enter/Exit Messages ==========
+
+  /**
+   * Get the exit message template.
+   * Tokens: $N (name), $n (lowercase name), $D (direction)
+   */
+  get exitMessage(): string {
+    return this._exitMessage;
+  }
+
+  /**
+   * Set the exit message template.
+   */
+  set exitMessage(value: string) {
+    this._exitMessage = value;
+  }
+
+  /**
+   * Get the enter message template.
+   * Tokens: $N (name), $n (lowercase name), $D (direction)
+   */
+  get enterMessage(): string {
+    return this._enterMessage;
+  }
+
+  /**
+   * Set the enter message template.
+   */
+  set enterMessage(value: string) {
+    this._enterMessage = value;
+  }
+
+  /**
+   * Compose an enter or exit message by replacing tokens.
+   * @param template The message template
+   * @param direction The direction of movement
+   * @returns The composed message
+   */
+  composeMovementMessage(template: string, direction: string): string {
+    const capName = typeof efuns !== 'undefined' ? efuns.capitalize(this._name) : this._name;
+    return template
+      .replace(/\$N/g, capName)
+      .replace(/\$n/g, this._name.toLowerCase())
+      .replace(/\$D/g, direction);
+  }
+
+  /**
+   * Get the opposite direction for enter messages.
+   */
+  static getOppositeDirection(direction: string): string {
+    const opposites: Record<string, string> = {
+      north: 'the south',
+      south: 'the north',
+      east: 'the west',
+      west: 'the east',
+      up: 'below',
+      down: 'above',
+      northeast: 'the southwest',
+      northwest: 'the southeast',
+      southeast: 'the northwest',
+      southwest: 'the northeast',
+      in: 'outside',
+      out: 'inside',
+      enter: 'outside',
+      exit: 'inside',
+    };
+    return opposites[direction.toLowerCase()] || `the ${direction}`;
   }
 
   /**
@@ -580,10 +662,9 @@ export class Living extends MudObject {
       return false;
     }
 
-    // Notify current room
-    const name =
-      typeof efuns !== 'undefined' ? efuns.capitalize(this._name) : this._name;
-    env.broadcast(`${name} leaves ${direction}.`, { exclude: [this] });
+    // Notify current room with exit message
+    const exitMsg = this.composeMovementMessage(this._exitMessage, direction);
+    env.broadcast(exitMsg, { exclude: [this] });
     if (typeof env.onLeave === 'function') {
       await env.onLeave(this, dest);
     }
@@ -591,10 +672,12 @@ export class Living extends MudObject {
     // Move
     await this.moveTo(dest);
 
-    // Notify new room
+    // Notify new room with enter message
     const newEnv = this.environment as Room | null;
     if (newEnv) {
-      newEnv.broadcast(`${name} arrives.`, { exclude: [this] });
+      const oppositeDir = Living.getOppositeDirection(direction);
+      const enterMsg = this.composeMovementMessage(this._enterMessage, oppositeDir);
+      newEnv.broadcast(enterMsg, { exclude: [this] });
       if (typeof newEnv.onEnter === 'function') {
         await newEnv.onEnter(this, env);
       }

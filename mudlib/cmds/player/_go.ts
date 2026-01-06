@@ -30,6 +30,54 @@ interface Player extends MudObject {
   getConfig?<T = unknown>(key: string): T;
 }
 
+interface Living extends MudObject {
+  exitMessage?: string;
+  enterMessage?: string;
+  composeMovementMessage?(template: string, direction: string): string;
+}
+
+interface BroadcastOptions {
+  exclude?: MudObject[];
+}
+
+interface BroadcastableRoom extends Room {
+  broadcast?(message: string, options?: BroadcastOptions): void;
+}
+
+// Default messages
+const DEFAULT_EXIT_MESSAGE = '$N leaves $D.';
+const DEFAULT_ENTER_MESSAGE = '$N arrives from $D.';
+
+// Opposite directions for enter messages
+const OPPOSITE_DIRECTIONS: Record<string, string> = {
+  north: 'the south',
+  south: 'the north',
+  east: 'the west',
+  west: 'the east',
+  up: 'below',
+  down: 'above',
+  northeast: 'the southwest',
+  northwest: 'the southeast',
+  southeast: 'the northwest',
+  southwest: 'the northeast',
+  in: 'outside',
+  out: 'inside',
+  enter: 'outside',
+  exit: 'inside',
+};
+
+function getOppositeDirection(direction: string): string {
+  return OPPOSITE_DIRECTIONS[direction.toLowerCase()] || `the ${direction}`;
+}
+
+function composeMessage(template: string, name: string, direction: string): string {
+  const capName = name.charAt(0).toUpperCase() + name.slice(1);
+  return template
+    .replace(/\$N/g, capName)
+    .replace(/\$n/g, name.toLowerCase())
+    .replace(/\$D/g, direction);
+}
+
 // Direction aliases
 const DIRECTION_ALIASES: Record<string, string> = {
   n: 'north',
@@ -113,11 +161,32 @@ export async function execute(ctx: CommandContext): Promise<void> {
     return;
   }
 
+  // Get player's name for messages
+  const living = player as Living & { name?: string };
+  const playerName = living.name || 'someone';
+
+  // Broadcast exit message to current room
+  const exitRoom = room as BroadcastableRoom;
+  if (exitRoom.broadcast) {
+    const exitTemplate = living.exitMessage || DEFAULT_EXIT_MESSAGE;
+    const exitMsg = composeMessage(exitTemplate, playerName, direction);
+    exitRoom.broadcast(exitMsg, { exclude: [player] });
+  }
+
   // Move the player
   const moved = await player.moveTo(destination);
   if (!moved) {
     ctx.sendLine("Something prevents you from going that way.");
     return;
+  }
+
+  // Broadcast enter message to new room
+  const enterRoom = destination as BroadcastableRoom;
+  if (enterRoom.broadcast) {
+    const enterTemplate = living.enterMessage || DEFAULT_ENTER_MESSAGE;
+    const oppositeDir = getOppositeDirection(direction);
+    const enterMsg = composeMessage(enterTemplate, playerName, oppositeDir);
+    enterRoom.broadcast(enterMsg, { exclude: [player] });
   }
 
   // Look at the new room (brief mode shows glance, normal shows full look)

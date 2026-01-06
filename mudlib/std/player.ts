@@ -63,6 +63,8 @@ export interface PlayerSaveData {
   displayName?: string | null;
   cwd?: string;
   previousLocation?: string | null; // For link-dead players
+  enterMessage?: string; // Custom room enter message
+  exitMessage?: string; // Custom room exit message
 }
 
 /**
@@ -882,6 +884,8 @@ export class Player extends Living {
       displayName: this._displayName,
       cwd: this._cwd,
       previousLocation: this._previousLocation,
+      enterMessage: this.enterMessage,
+      exitMessage: this.exitMessage,
     };
   }
 
@@ -945,6 +949,14 @@ export class Player extends Living {
     // Restore previousLocation (for link-dead players)
     if (data.previousLocation !== undefined) {
       this._previousLocation = data.previousLocation;
+    }
+
+    // Restore custom enter/exit messages
+    if (data.enterMessage !== undefined) {
+      this.enterMessage = data.enterMessage;
+    }
+    if (data.exitMessage !== undefined) {
+      this.exitMessage = data.exitMessage;
     }
 
     // Store equipment data for later restoration (after inventory is loaded)
