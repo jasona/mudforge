@@ -107,7 +107,7 @@
   },
   "smile": {
     "": "$N $vsmile.",
-    "LIV": "$N $vsmile at $t.",
+    "LIV": "$N $vsmile at $T.",
     "LIV LIV": "$N $vsmile at $t and $t2.",
     "LIV STR": "$N $vsmile at $t $o.",
     "STR": "$N $vsmile $o."
