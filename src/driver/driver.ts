@@ -165,7 +165,12 @@ export class Driver {
       // Set efun context so commands can use efuns that need player context
       this.efunBridge.setContext({ thisPlayer: player, thisObject: player });
       try {
-        return await this.commandManager.execute(player, input, level);
+        // First try normal commands
+        const handled = await this.commandManager.execute(player, input, level);
+        if (handled) return true;
+
+        // Fall back to emotes (soul daemon)
+        return await this.tryEmote(player, input);
       } finally {
         // Clear context after command execution
         this.efunBridge.clearContext();
@@ -628,6 +633,57 @@ export class Driver {
     if (p.name) {
       this.activePlayers.delete(p.name.toLowerCase());
     }
+  }
+
+  /**
+   * Try to execute input as an emote via the soul daemon.
+   * Called as a fallback when no command matches.
+   *
+   * @param player The player executing the emote
+   * @param input The full input string
+   * @returns true if an emote was executed, false otherwise
+   */
+  private async tryEmote(player: MudObject, input: string): Promise<boolean> {
+    const trimmed = input.trim();
+    if (!trimmed) return false;
+
+    // Parse verb and args
+    const spaceIndex = trimmed.indexOf(' ');
+    const verb = spaceIndex > 0 ? trimmed.substring(0, spaceIndex) : trimmed;
+    const args = spaceIndex > 0 ? trimmed.substring(spaceIndex + 1).trim() : '';
+
+    // Find the soul daemon
+    const soulDaemon = this.registry.find('/daemons/soul') as {
+      hasEmote?: (verb: string) => boolean;
+      executeEmote?: (
+        actor: MudObject,
+        verb: string,
+        args: string
+      ) => Promise<{ success: boolean; error?: string }>;
+    } | undefined;
+
+    if (!soulDaemon || !soulDaemon.hasEmote || !soulDaemon.executeEmote) {
+      return false;
+    }
+
+    // Check if this verb is a known emote
+    if (!soulDaemon.hasEmote(verb)) {
+      return false;
+    }
+
+    // Execute the emote
+    const result = await soulDaemon.executeEmote(player, verb, args);
+
+    if (!result.success && result.error) {
+      // Send error message to player
+      const playerWithReceive = player as MudObject & { receive?: (msg: string) => void };
+      if (playerWithReceive.receive) {
+        playerWithReceive.receive(result.error + '\n');
+      }
+    }
+
+    // Return true since the emote verb was recognized (even if execution failed)
+    return true;
   }
 
   /**

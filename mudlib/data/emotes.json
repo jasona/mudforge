@@ -1,0 +1,376 @@
+{
+  "smile": {
+    "": "$N $vsmile happily.",
+    "LIV": "$N $vsmile happily at $T.",
+    "STR": "$N $vsmile $o."
+  },
+  "grin": {
+    "": "$N $vgrin.",
+    "LIV": "$N $vgrin at $T.",
+    "STR": "$N $vgrin $o."
+  },
+  "laugh": {
+    "": "$N $vlaugh.",
+    "LIV": "$N $vlaugh at $T.",
+    "STR": "$N $vlaugh $o."
+  },
+  "giggle": {
+    "": "$N $vgiggle.",
+    "LIV": "$N $vgiggle at $T."
+  },
+  "chuckle": {
+    "": "$N $vchuckle.",
+    "LIV": "$N $vchuckle at $T."
+  },
+  "snicker": {
+    "": "$N $vsnicker.",
+    "LIV": "$N $vsnicker at $T."
+  },
+  "cackle": {
+    "": "$N $vcackle with glee."
+  },
+  "nod": {
+    "": "$N $vnod.",
+    "LIV": "$N $vnod at $T.",
+    "STR": "$N $vnod $o."
+  },
+  "shake": {
+    "": "$N $vshake $p head.",
+    "LIV": "$N $vshake $p head at $T."
+  },
+  "wave": {
+    "": "$N $vwave.",
+    "LIV": "$N $vwave at $T."
+  },
+  "bow": {
+    "": "$N $vbow gracefully.",
+    "LIV": "$N $vbow to $T."
+  },
+  "curtsy": {
+    "": "$N $vcurtsy gracefully.",
+    "LIV": "$N $vcurtsy to $T."
+  },
+  "hug": {
+    "": "$N $vneed a hug.",
+    "LIV": "$N $vhug $T warmly."
+  },
+  "kiss": {
+    "LIV": "$N $vkiss $T."
+  },
+  "poke": {
+    "LIV": "$N $vpoke $T."
+  },
+  "pat": {
+    "LIV": "$N $vpat $T on the back."
+  },
+  "slap": {
+    "LIV": "$N $vslap $T!"
+  },
+  "tickle": {
+    "LIV": "$N $vtickle $T."
+  },
+  "shrug": {
+    "": "$N $vshrug.",
+    "LIV": "$N $vshrug at $T."
+  },
+  "sigh": {
+    "": "$N $vsigh.",
+    "LIV": "$N $vsigh at $T.",
+    "STR": "$N $vsigh $o."
+  },
+  "groan": {
+    "": "$N $vgroan.",
+    "LIV": "$N $vgroan at $T."
+  },
+  "moan": {
+    "": "$N $vmoan."
+  },
+  "yawn": {
+    "": "$N $vyawn."
+  },
+  "stretch": {
+    "": "$N $vstretch."
+  },
+  "sneeze": {
+    "": "$N $vsneeze."
+  },
+  "cough": {
+    "": "$N $vcough."
+  },
+  "cry": {
+    "": "$N $vcry.",
+    "LIV": "$N $vcry on $Q shoulder."
+  },
+  "sob": {
+    "": "$N $vsob."
+  },
+  "weep": {
+    "": "$N $vweep."
+  },
+  "blush": {
+    "": "$N $vblush."
+  },
+  "frown": {
+    "": "$N $vfrown.",
+    "LIV": "$N $vfrown at $T."
+  },
+  "glare": {
+    "": "$N $vglare.",
+    "LIV": "$N $vglare at $T."
+  },
+  "stare": {
+    "LIV": "$N $vstare at $T.",
+    "STR": "$N $vstare at $o."
+  },
+  "wink": {
+    "": "$N $vwink.",
+    "LIV": "$N $vwink at $T."
+  },
+  "blink": {
+    "": "$N $vblink.",
+    "LIV": "$N $vblink at $T."
+  },
+  "think": {
+    "": "$N $vthink.",
+    "STR": "$N $vthink about $o."
+  },
+  "ponder": {
+    "": "$N $vponder.",
+    "STR": "$N $vponder $o."
+  },
+  "wonder": {
+    "STR": "$N $vwonder about $o."
+  },
+  "cheer": {
+    "": "$N $vcheer wildly!",
+    "LIV": "$N $vcheer for $T!"
+  },
+  "applaud": {
+    "": "$N $vapplaud.",
+    "LIV": "$N $vapplaud $T."
+  },
+  "clap": {
+    "": "$N $vclap.",
+    "LIV": "$N $vclap for $T."
+  },
+  "thank": {
+    "": "$N $vthank everyone.",
+    "LIV": "$N $vthank $T."
+  },
+  "greet": {
+    "": "$N $vgreet everyone.",
+    "LIV": "$N $vgreet $T warmly."
+  },
+  "welcome": {
+    "LIV": "$N $vwelcome $T."
+  },
+  "agree": {
+    "": "$N $vagree.",
+    "LIV": "$N $vagree with $T."
+  },
+  "disagree": {
+    "": "$N $vdisagree.",
+    "LIV": "$N $vdisagree with $T."
+  },
+  "comfort": {
+    "LIV": "$N $vcomfort $T."
+  },
+  "console": {
+    "LIV": "$N $vconsole $T."
+  },
+  "dance": {
+    "": "$N $vdance around happily.",
+    "LIV": "$N $vdance with $T."
+  },
+  "sing": {
+    "": "$N $vsing.",
+    "STR": "$N $vsing $o."
+  },
+  "whistle": {
+    "": "$N $vwhistle.",
+    "STR": "$N $vwhistle $o."
+  },
+  "snap": {
+    "": "$N $vsnap $p fingers."
+  },
+  "point": {
+    "LIV": "$N $vpoint at $T.",
+    "STR": "$N $vpoint at $o."
+  },
+  "salute": {
+    "": "$N $vsalute.",
+    "LIV": "$N $vsalute $T."
+  },
+  "flex": {
+    "": "$N $vflex $p muscles."
+  },
+  "jump": {
+    "": "$N $vjump up and down."
+  },
+  "skip": {
+    "": "$N $vskip around happily."
+  },
+  "bounce": {
+    "": "$N $vbounce around."
+  },
+  "twirl": {
+    "": "$N $vtwirl around."
+  },
+  "spin": {
+    "": "$N $vspin around."
+  },
+  "trip": {
+    "": "$N $vtrip and fall."
+  },
+  "stumble": {
+    "": "$N $vstumble."
+  },
+  "fall": {
+    "": "$N $vfall down."
+  },
+  "gasp": {
+    "": "$N $vgasp!",
+    "LIV": "$N $vgasp at $T!"
+  },
+  "scream": {
+    "": "$N $vscream!",
+    "LIV": "$N $vscream at $T!"
+  },
+  "shout": {
+    "STR": "$N $vshout, \"$O\""
+  },
+  "growl": {
+    "": "$N $vgrowl.",
+    "LIV": "$N $vgrowl at $T."
+  },
+  "roar": {
+    "": "$N $vroar!"
+  },
+  "purr": {
+    "": "$N $vpurr."
+  },
+  "snore": {
+    "": "$N $vsnore loudly."
+  },
+  "snort": {
+    "": "$N $vsnort.",
+    "LIV": "$N $vsnort at $T."
+  },
+  "hiccup": {
+    "": "$N $vhiccup."
+  },
+  "burp": {
+    "": "$N $vburp."
+  },
+  "drool": {
+    "": "$N $vdrool.",
+    "LIV": "$N $vdrool on $T."
+  },
+  "cringe": {
+    "": "$N $vcringe.",
+    "LIV": "$N $vcringe at $T."
+  },
+  "cower": {
+    "": "$N $vcower.",
+    "LIV": "$N $vcower before $T."
+  },
+  "grovel": {
+    "": "$N $vgrovel.",
+    "LIV": "$N $vgrovel before $T."
+  },
+  "kneel": {
+    "": "$N $vkneel.",
+    "LIV": "$N $vkneel before $T."
+  },
+  "sit": {
+    "": "$N $vsit down."
+  },
+  "stand": {
+    "": "$N $vstand up."
+  },
+  "lie": {
+    "": "$N $vlie down."
+  },
+  "roll": {
+    "": "$N $vroll on the floor."
+  },
+  "sulk": {
+    "": "$N $vsulk."
+  },
+  "pout": {
+    "": "$N $vpout."
+  },
+  "whine": {
+    "": "$N $vwhine."
+  },
+  "brb": {
+    "": "$N will be right back."
+  },
+  "afk": {
+    "": "$N $vgo away from the keyboard."
+  },
+  "back": {
+    "": "$N $vare back."
+  },
+  "bye": {
+    "": "$N $vwave goodbye.",
+    "LIV": "$N $vwave goodbye to $T."
+  },
+  "hi": {
+    "": "$N $vsay hi.",
+    "LIV": "$N $vsay hi to $T."
+  },
+  "hello": {
+    "": "$N $vsay hello.",
+    "LIV": "$N $vsay hello to $T."
+  },
+  "lol": {
+    "": "$N $vlaugh out loud."
+  },
+  "rofl": {
+    "": "$N $vroll on the floor laughing."
+  },
+  "wtf": {
+    "": "$N $vexclaim, \"What the...?\""
+  },
+  "facepalm": {
+    "": "$N $vfacepalm."
+  },
+  "eyeroll": {
+    "": "$N $vroll $p eyes.",
+    "LIV": "$N $vroll $p eyes at $T."
+  },
+  "headdesk": {
+    "": "$N $vbang $p head on the desk."
+  },
+  "tackle": {
+    "LIV": "$N $vtackle $T!"
+  },
+  "glomp": {
+    "LIV": "$N $vglomp $T!"
+  },
+  "highfive": {
+    "LIV": "$N $vhighfive $T!"
+  },
+  "fistbump": {
+    "LIV": "$N $vbump fists with $T."
+  },
+  "nudge": {
+    "LIV": "$N $vnudge $T."
+  },
+  "elbow": {
+    "LIV": "$N $velbow $T in the ribs."
+  },
+  "cuddle": {
+    "LIV": "$N $vcuddle with $T."
+  },
+  "snuggle": {
+    "LIV": "$N $vsnuggle up to $T."
+  },
+  "ruffle": {
+    "LIV": "$N $vruffle $Q hair."
+  },
+  "tousle": {
+    "LIV": "$N $vtousle $Q hair."
+  }
+}

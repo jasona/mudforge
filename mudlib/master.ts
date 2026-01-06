@@ -81,6 +81,8 @@ export class Master extends MudObject {
       // Daemons
       '/daemons/login',
       '/daemons/channels',
+      '/daemons/config',
+      '/daemons/soul',
     ];
   }
 
