@@ -9,7 +9,7 @@
  *   help commands     - List available commands
  */
 
-import type { MudObject } from '../../std/object.js';
+import type { MudObject } from '../../lib/std.js';
 import { getHelpDaemon, CATEGORY_INFO, type HelpCategory } from '../../daemons/help.js';
 
 interface HelpPlayer extends MudObject {

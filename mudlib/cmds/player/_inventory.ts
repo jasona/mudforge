@@ -2,9 +2,7 @@
  * Inventory command - See what you are carrying.
  */
 
-import type { MudObject } from '../../std/object.js';
-import type { Living } from '../../std/living.js';
-import type { EquipmentSlot } from '../../std/equipment.js';
+import type { MudObject, Living, EquipmentSlot } from '../../lib/std.js';
 
 interface CommandContext {
   player: MudObject;

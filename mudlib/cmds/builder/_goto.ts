@@ -2,7 +2,7 @@
  * Goto command - Teleport to a location (builder only).
  */
 
-import type { MudObject } from '../../std/object.js';
+import type { MudObject } from '../../lib/std.js';
 
 interface CommandContext {
   player: MudObject;

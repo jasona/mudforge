@@ -9,7 +9,7 @@
  *   ide                - Show help
  */
 
-import type { MudObject } from '../../std/object.js';
+import type { MudObject } from '../../lib/std.js';
 import { resolvePath, getHomeDir } from '../../lib/path-utils.js';
 
 interface PlayerWithCwd extends MudObject {

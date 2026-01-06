@@ -4,7 +4,7 @@
  * Shows the room's short description and available exits on a single line.
  */
 
-import type { MudObject } from '../../std/object.js';
+import type { MudObject } from '../../lib/std.js';
 
 interface CommandContext {
   player: MudObject;

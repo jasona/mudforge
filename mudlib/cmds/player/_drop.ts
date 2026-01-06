@@ -8,12 +8,8 @@
  *   drop all in <container>   - Put all items in a container
  */
 
-import type { MudObject } from '../../std/object.js';
-import { Item } from '../../std/item.js';
-import { Container } from '../../std/container.js';
-import type { Living } from '../../std/living.js';
-import type { Weapon } from '../../std/weapon.js';
-import type { Armor } from '../../std/armor.js';
+import type { MudObject, Living, Weapon, Armor } from '../../lib/std.js';
+import { Item, Container } from '../../lib/std.js';
 
 interface CommandContext {
   player: MudObject;

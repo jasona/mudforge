@@ -8,8 +8,7 @@
  * Can only be used when dead (ghost mode).
  */
 
-import type { MudObject } from '../../std/object.js';
-import type { Player } from '../../std/player.js';
+import type { MudObject, Player } from '../../lib/std.js';
 
 interface CommandContext {
   player: MudObject;

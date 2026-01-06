@@ -4,8 +4,7 @@
  * Basic chest armor made of hardened leather.
  */
 
-import { Armor } from '../../std/armor.js';
-import { Living } from '../../std/living.js';
+import { Armor, Living } from '../../lib/std.js';
 
 export class LeatherArmor extends Armor {
   constructor() {

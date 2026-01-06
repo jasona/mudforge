@@ -5,10 +5,7 @@
  *   remove <armor>  - Remove worn armor
  */
 
-import type { MudObject } from '../../std/object.js';
-import type { Armor } from '../../std/armor.js';
-import type { Living } from '../../std/living.js';
-import type { Room } from '../../std/room.js';
+import type { MudObject, Armor, Living, Room } from '../../lib/std.js';
 
 interface CommandContext {
   player: MudObject;

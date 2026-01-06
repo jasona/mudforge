@@ -4,8 +4,7 @@
  * A massive two-handed sword that requires both hands to wield.
  */
 
-import { Weapon } from '../../std/weapon.js';
-import { Living } from '../../std/living.js';
+import { Weapon, Living } from '../../lib/std.js';
 
 export class IronGreatsword extends Weapon {
   constructor() {

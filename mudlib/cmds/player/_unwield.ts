@@ -6,10 +6,7 @@
  *   unwield <weapon>  - Unwield specific weapon
  */
 
-import type { MudObject } from '../../std/object.js';
-import type { Weapon } from '../../std/weapon.js';
-import type { Living } from '../../std/living.js';
-import type { Room } from '../../std/room.js';
+import type { MudObject, Weapon, Living, Room } from '../../lib/std.js';
 
 interface CommandContext {
   player: MudObject;

@@ -7,7 +7,7 @@
  *   score brief  - View condensed info
  */
 
-import type { MudObject } from '../../std/object.js';
+import type { MudObject } from '../../lib/std.js';
 import { STAT_SHORT_NAMES, type StatName } from '../../std/living.js';
 
 interface StatsPlayer extends MudObject {

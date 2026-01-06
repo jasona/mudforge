@@ -5,7 +5,7 @@
  *   mv <source> <destination>   - Move/rename a file or directory
  */
 
-import type { MudObject } from '../../std/object.js';
+import type { MudObject } from '../../lib/std.js';
 import { resolvePath, basename, joinPath, getHomeDir } from '../../lib/path-utils.js';
 
 interface PlayerWithCwd extends MudObject {

@@ -5,7 +5,7 @@
  *   pwd
  */
 
-import type { MudObject } from '../../std/object.js';
+import type { MudObject } from '../../lib/std.js';
 
 interface PlayerWithCwd extends MudObject {
   cwd: string;

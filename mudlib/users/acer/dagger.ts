@@ -4,8 +4,7 @@
  * A light weapon suitable for dual-wielding.
  */
 
-import { Weapon } from '../../std/weapon.js';
-import { Living } from '../../std/living.js';
+import { Weapon, Living } from '../../lib/std.js';
 
 export class SteelDagger extends Weapon {
   constructor() {

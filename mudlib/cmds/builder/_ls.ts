@@ -8,7 +8,7 @@
  *   ls -la [path] - Long format with hidden files
  */
 
-import type { MudObject } from '../../std/object.js';
+import type { MudObject } from '../../lib/std.js';
 import { resolvePath, joinPath, getHomeDir } from '../../lib/path-utils.js';
 
 interface PlayerWithCwd extends MudObject {

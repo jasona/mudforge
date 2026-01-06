@@ -5,7 +5,7 @@
  * Common drop from goblins.
  */
 
-import { Weapon } from '../../std/weapon.js';
+import { Weapon } from '../../lib/std.js';
 
 export class RustyDagger extends Weapon {
   constructor() {

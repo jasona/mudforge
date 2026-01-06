@@ -4,7 +4,7 @@
  * View and modify personal configuration options.
  */
 
-import type { MudObject } from '../../std/object.js';
+import type { MudObject } from '../../lib/std.js';
 import {
   CONFIG_OPTIONS,
   getConfigOption,

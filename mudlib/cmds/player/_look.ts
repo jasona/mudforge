@@ -7,9 +7,8 @@
  *   look in <container>     - Look inside a container
  */
 
-import type { MudObject } from '../../std/object.js';
-import { Container } from '../../std/container.js';
-import { NPC } from '../../std/npc.js';
+import type { MudObject } from '../../lib/std.js';
+import { Container, NPC } from '../../lib/std.js';
 
 interface CommandContext {
   player: MudObject;

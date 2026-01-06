@@ -5,10 +5,8 @@
  * Uses variable timing based on attacker's weapon speed and dexterity.
  */
 
-import { MudObject } from '../std/object.js';
-import type { Living } from '../std/living.js';
-import type { CombatEntry, RoundResult, AttackResult } from '../std/combat/types.js';
-import type { Weapon, DamageType } from '../std/weapon.js';
+import { MudObject } from '../lib/std.js';
+import type { Living, Weapon, DamageType, CombatEntry, RoundResult, AttackResult } from '../lib/std.js';
 
 /**
  * Base round time in milliseconds.

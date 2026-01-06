@@ -5,8 +5,7 @@
  * It serves as a hub connecting to various areas.
  */
 
-import { Room } from '../../std/room.js';
-import { MudObject } from '../../std/object.js';
+import { Room, MudObject } from '../../lib/std.js';
 
 /**
  * The Void starting room.

@@ -7,10 +7,7 @@
  *   wield <weapon> in right     - Wield in main hand
  */
 
-import type { MudObject } from '../../std/object.js';
-import type { Weapon, WeaponSlot } from '../../std/weapon.js';
-import type { Living } from '../../std/living.js';
-import type { Room } from '../../std/room.js';
+import type { MudObject, Weapon, WeaponSlot, Living, Room } from '../../lib/std.js';
 
 interface CommandContext {
   player: MudObject;

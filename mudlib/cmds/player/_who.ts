@@ -5,7 +5,7 @@
  * and level/title, and a footer with the total player count.
  */
 
-import type { MudObject } from '../../std/object.js';
+import type { MudObject } from '../../lib/std.js';
 
 interface CommandContext {
   player: MudObject;

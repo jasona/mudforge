@@ -2,8 +2,7 @@
  * The Bakery - A warm shop filled with the aroma of fresh bread.
  */
 
-import { Room } from '../../std/room.js';
-import { MudObject } from '../../std/object.js';
+import { Room, MudObject } from '../../lib/std.js';
 
 /**
  * The Bakery room.

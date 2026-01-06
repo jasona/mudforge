@@ -7,7 +7,7 @@
  * Builder+ command for removing objects from the game world.
  */
 
-import type { MudObject } from '../../std/object.js';
+import type { MudObject } from '../../lib/std.js';
 
 interface CommandContext {
   player: MudObject;

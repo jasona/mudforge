@@ -4,8 +4,7 @@
  * A finely crafted longsword with a faint magical glow.
  */
 
-import { Weapon } from '../../std/weapon.js';
-import { Living } from '../../std/living.js';
+import { Weapon, Living } from '../../lib/std.js';
 
 export class EnchantedLongsword extends Weapon {
   constructor() {

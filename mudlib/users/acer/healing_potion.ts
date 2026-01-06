@@ -4,9 +4,8 @@
  * A small vial of red liquid that restores health when consumed.
  */
 
-import { Item } from '../../std/item.js';
-import type { MudObject } from '../../std/object.js';
-import type { Living } from '../../std/living.js';
+import { Item } from '../../lib/std.js';
+import type { MudObject, Living } from '../../lib/std.js';
 
 export class HealingPotion extends Item {
   private _healAmount: number = 15;

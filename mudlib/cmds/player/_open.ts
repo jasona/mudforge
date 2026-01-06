@@ -5,8 +5,8 @@
  *   open <container>
  */
 
-import type { MudObject } from '../../std/object.js';
-import { Container } from '../../std/container.js';
+import type { MudObject } from '../../lib/std.js';
+import { Container } from '../../lib/std.js';
 
 interface CommandContext {
   player: MudObject;

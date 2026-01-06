@@ -2,8 +2,7 @@
  * Castle Gate - The imposing entrance to the lord's castle.
  */
 
-import { Room } from '../../std/room.js';
-import { MudObject } from '../../std/object.js';
+import { Room, MudObject } from '../../lib/std.js';
 
 /**
  * The Castle Gate room.

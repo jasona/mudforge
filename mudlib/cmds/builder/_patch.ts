@@ -11,7 +11,7 @@
  *   patch me monitorEnabled true
  */
 
-import type { MudObject } from '../../std/object.js';
+import type { MudObject } from '../../lib/std.js';
 
 interface LivingObject extends MudObject {
   id(name: string): boolean;

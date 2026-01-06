@@ -4,7 +4,7 @@
  * A basic container that can hold items.
  */
 
-import { Container } from '../../std/container.js';
+import { Container } from '../../lib/std.js';
 
 export class WoodenChest extends Container {
   constructor() {

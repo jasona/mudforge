@@ -4,8 +4,7 @@
  * A basic shield that uses the off-hand slot.
  */
 
-import { Armor } from '../../std/armor.js';
-import { Living } from '../../std/living.js';
+import { Armor, Living } from '../../lib/std.js';
 
 export class WoodenShield extends Armor {
   constructor() {

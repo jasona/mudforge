@@ -8,9 +8,8 @@
  *   get all from <container>  - Get all items from a container
  */
 
-import type { MudObject } from '../../std/object.js';
-import { Item } from '../../std/item.js';
-import { Container } from '../../std/container.js';
+import type { MudObject } from '../../lib/std.js';
+import { Item, Container } from '../../lib/std.js';
 
 interface CommandContext {
   player: MudObject;

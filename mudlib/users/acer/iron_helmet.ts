@@ -4,8 +4,7 @@
  * A basic protective helmet made of iron.
  */
 
-import { Armor } from '../../std/armor.js';
-import { Living } from '../../std/living.js';
+import { Armor, Living } from '../../lib/std.js';
 
 export class IronHelmet extends Armor {
   constructor() {

@@ -2,7 +2,7 @@
  * Atalk command - Admin channel communication.
  */
 
-import type { MudObject } from '../../std/object.js';
+import type { MudObject } from '../../lib/std.js';
 import { getChannelDaemon } from '../../daemons/channels.js';
 
 interface CommandContext {

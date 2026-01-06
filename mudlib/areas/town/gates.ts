@@ -2,8 +2,7 @@
  * Town Gates - The southern entrance to the town.
  */
 
-import { Room } from '../../std/room.js';
-import { MudObject } from '../../std/object.js';
+import { Room, MudObject } from '../../lib/std.js';
 
 /**
  * The Town Gates room.

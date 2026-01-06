@@ -2,7 +2,7 @@
  * OOC command - Out-of-character chat.
  */
 
-import type { MudObject } from '../../std/object.js';
+import type { MudObject } from '../../lib/std.js';
 import { getChannelDaemon } from '../../daemons/channels.js';
 
 interface CommandContext {

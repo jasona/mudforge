@@ -12,8 +12,7 @@
  *   con orc
  */
 
-import type { MudObject } from '../../std/object.js';
-import type { Living } from '../../std/living.js';
+import type { MudObject, Living } from '../../lib/std.js';
 
 interface CommandContext {
   player: MudObject;

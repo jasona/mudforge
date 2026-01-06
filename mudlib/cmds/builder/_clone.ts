@@ -5,7 +5,7 @@
  *   clone <path>     - Clone an object (e.g., clone /users/acer/sword)
  */
 
-import type { MudObject } from '../../std/object.js';
+import type { MudObject } from '../../lib/std.js';
 
 interface Player extends MudObject {
   cwd: string;

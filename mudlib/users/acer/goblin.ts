@@ -5,7 +5,7 @@
  * Common enemy for beginning adventurers.
  */
 
-import { NPC } from '../../std/npc.js';
+import { NPC } from '../../lib/std.js';
 
 export class Goblin extends NPC {
   constructor() {

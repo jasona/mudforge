@@ -4,7 +4,7 @@
  * Allows customizing the prompt with tokens that expand to dynamic values.
  */
 
-import type { MudObject } from '../../std/object.js';
+import type { MudObject } from '../../lib/std.js';
 
 interface Player extends MudObject {
   getConfig<T = unknown>(key: string): T;

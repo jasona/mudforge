@@ -9,7 +9,7 @@
  *   finger <player>    - View information about a player
  */
 
-import type { MudObject } from '../../std/object.js';
+import type { MudObject } from '../../lib/std.js';
 import type { PlayerSaveData } from '../../std/player.js';
 
 interface CommandContext {

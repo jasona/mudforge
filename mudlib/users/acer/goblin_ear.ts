@@ -4,7 +4,7 @@
  * Often collected as proof of goblin kills for bounties.
  */
 
-import { Item } from '../../std/item.js';
+import { Item } from '../../lib/std.js';
 
 export class GoblinEar extends Item {
   constructor() {

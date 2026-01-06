@@ -8,7 +8,14 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "noEmit": true,
-    "types": ["node"]
+    "types": ["node"],
+    "baseUrl": ".",
+    "paths": {
+      "@std": ["./std/index.js"],
+      "@std/*": ["./std/*"],
+      "@lib": ["./lib/index.js"],
+      "@lib/*": ["./lib/*"]
+    }
   },
   "include": ["**/*.ts", "efuns.d.ts"],
   "exclude": ["node_modules"]

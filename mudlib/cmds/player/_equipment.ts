@@ -7,10 +7,8 @@
  *   equipped   - Alias
  */
 
-import type { MudObject } from '../../std/object.js';
-import type { Living } from '../../std/living.js';
-import type { EquipmentSlot } from '../../std/equipment.js';
-import { SLOT_DISPLAY_NAMES, SLOT_DISPLAY_ORDER } from '../../std/equipment.js';
+import type { MudObject, Living, EquipmentSlot } from '../../lib/std.js';
+import { SLOT_DISPLAY_NAMES, SLOT_DISPLAY_ORDER } from '../../lib/std.js';
 
 interface CommandContext {
   player: MudObject;
