@@ -80,6 +80,48 @@ export class CombatDaemon extends MudObject {
   }
 
   /**
+   * Get a living's permission level (0 = player, 1+ = builder+).
+   * Returns -1 for NPCs.
+   */
+  private getPermissionLevel(living: Living): number {
+    const asPlayer = living as Living & { permissionLevel?: number };
+    return asPlayer.permissionLevel ?? -1;
+  }
+
+  /**
+   * Check if a living is builder+ (permission level >= 1).
+   */
+  private isBuilderPlus(living: Living): boolean {
+    return this.getPermissionLevel(living) >= 1;
+  }
+
+  /**
+   * Check if a living is an NPC (not a player).
+   */
+  private isNPC(living: Living): boolean {
+    return !this.isPlayer(living);
+  }
+
+  /**
+   * Check if a living has nohassle enabled.
+   * Only applies to builder+ (returns false for regular players and NPCs).
+   */
+  private hasNohassle(living: Living): boolean {
+    if (!this.isBuilderPlus(living)) {
+      return false;
+    }
+
+    const livingWithProps = living as Living & { getProperty?: (key: string) => unknown };
+    if (!livingWithProps.getProperty) {
+      return true; // Default to nohassle on for builder+ if can't check
+    }
+
+    // Default to true (nohassle on) if not set
+    const nohassle = livingWithProps.getProperty('nohassle');
+    return nohassle !== false;
+  }
+
+  /**
    * Initiate combat between attacker and defender.
    */
   initiateCombat(attacker: Living, defender: Living): boolean {
@@ -119,6 +161,27 @@ export class CombatDaemon extends MudObject {
         attacker.receive("{yellow}Player killing is not allowed on this mud.{/}\n");
         return false;
       }
+    }
+
+    // Regular players can never attack builder+ (regardless of PK setting)
+    if (this.isPlayer(attacker) && this.isBuilderPlus(defender)) {
+      const attackerLevel = this.getPermissionLevel(attacker);
+      if (attackerLevel === 0) {
+        attacker.receive("{yellow}You cannot attack staff members.{/}\n");
+        return false;
+      }
+    }
+
+    // Check nohassle: NPCs cannot initiate combat with builder+ who have nohassle on
+    if (this.isNPC(attacker) && this.hasNohassle(defender)) {
+      // Silently fail - NPCs don't get messages
+      return false;
+    }
+
+    // Check nohassle: Builder+ with nohassle on cannot initiate combat with NPCs
+    if (this.hasNohassle(attacker) && this.isNPC(defender)) {
+      attacker.receive("{yellow}You have nohassle enabled. Use 'nohassle off' to fight NPCs.{/}\n");
+      return false;
     }
 
     // Start combat state on both sides
@@ -333,12 +396,28 @@ export class CombatDaemon extends MudObject {
     }
 
     // Handle thorns damage
-    const thornsDamage = defender.getThornsDamage();
+    let thornsDamage = defender.getThornsDamage();
     if (thornsDamage > 0 && totalDamage > 0) {
-      attacker.damage(thornsDamage);
-      attacker.receive(`{magenta}You take ${thornsDamage} thorns damage!{/}\n`);
-      if (!attacker.alive) {
-        attackerDied = true;
+      // Builder+ cannot die to thorns - cap damage to leave at least 1 HP
+      if (this.isBuilderPlus(attacker)) {
+        const maxDamage = attacker.health - 1;
+        if (thornsDamage >= maxDamage) {
+          thornsDamage = Math.max(0, maxDamage);
+          if (thornsDamage > 0) {
+            attacker.damage(thornsDamage);
+          }
+          attacker.receive(`{magenta}You take ${thornsDamage} thorns damage!{/}\n`);
+          attacker.receive("{magenta}Your staff powers protect you from death!{/}\n");
+        } else {
+          attacker.damage(thornsDamage);
+          attacker.receive(`{magenta}You take ${thornsDamage} thorns damage!{/}\n`);
+        }
+      } else {
+        attacker.damage(thornsDamage);
+        attacker.receive(`{magenta}You take ${thornsDamage} thorns damage!{/}\n`);
+        if (!attacker.alive) {
+          attackerDied = true;
+        }
       }
     }
 
@@ -435,7 +514,21 @@ export class CombatDaemon extends MudObject {
 
     // Apply damage
     if (result.finalDamage > 0) {
-      defender.damage(result.finalDamage);
+      // Builder+ cannot die in combat - cap damage to leave at least 1 HP
+      if (this.isBuilderPlus(defender)) {
+        const maxDamage = defender.health - 1;
+        if (result.finalDamage >= maxDamage) {
+          result.finalDamage = Math.max(0, maxDamage);
+          if (result.finalDamage > 0) {
+            defender.damage(result.finalDamage);
+          }
+          defender.receive("{magenta}Your staff powers protect you from death!{/}\n");
+        } else {
+          defender.damage(result.finalDamage);
+        }
+      } else {
+        defender.damage(result.finalDamage);
+      }
     }
 
     // Set messages

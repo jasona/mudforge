@@ -32,11 +32,11 @@ function getPlayerRank(player: PlayerInfo): string {
   const permLevel = player.permissionLevel ?? 0;
 
   if (permLevel >= 3) {
-    return '{red}{bold}Administrator{/}';
+    return '{red}{bold}[ADMIN]{/}';
   } else if (permLevel >= 2) {
-    return '{yellow}{bold}Senior Builder{/}';
+    return '{yellow}{bold}[SENIOR]{/}';
   } else if (permLevel >= 1) {
-    return '{magenta}{bold}Builder{/}';
+    return '{magenta}{bold}[BUILD]{/}';
   } else {
     // Regular player - show level
     const level = player.level ?? 1;
@@ -48,7 +48,7 @@ function getPlayerRank(player: PlayerInfo): string {
     else if (level >= 20) color = 'cyan';
     else if (level >= 10) color = 'green';
 
-    return `{${color}}Level ${level}{/}`;
+    return `{${color}}[${level}]{/}`;
   }
 }
 
@@ -149,15 +149,17 @@ export async function execute(ctx: CommandContext): Promise<void> {
       return bLevel - aLevel;
     });
 
+    lines.push("");
     for (const obj of sortedPlayers) {
       const player = obj as PlayerInfo;
       const displayName = player.getDisplayName?.() ?? player.name;
       const rank = getPlayerRank(player);
 
-      const paddedName = padRight('  ' + displayName, 56);
-      const paddedRank = padRight(rank, 20);
-      lines.push(boxLine(paddedName + paddedRank));
+      const paddedName = displayName;
+      const paddedRank = efuns.sprintf("%-8s", rank);
+      lines.push("   " + paddedRank + paddedName);
     }
+    lines.push("");
   }
 
   // Footer divider

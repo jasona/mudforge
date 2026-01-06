@@ -792,9 +792,15 @@ export class EfunBridge {
       }
 
       // Apply width padding
-      if (width > 0 && result.length < width) {
+      // Calculate visible length (excluding color codes like {red} and ANSI escapes)
+      const visibleLength = result
+        .replace(/\{[a-zA-Z/:]+\}/g, '')  // Strip {color} tokens
+        .replace(/\x1b\[[0-9;]*m/g, '')   // Strip ANSI escape codes
+        .length;
+
+      if (width > 0 && visibleLength < width) {
         const padChar = zeroPad && !leftAlign && !centerAlign ? '0' : ' ';
-        const padAmount = width - result.length;
+        const padAmount = width - visibleLength;
 
         if (centerAlign) {
           const leftPad = Math.floor(padAmount / 2);
