@@ -204,7 +204,7 @@ export class CombatDaemon extends MudObject {
   /**
    * Execute a combat round.
    */
-  executeRound(key: string): void {
+  async executeRound(key: string): Promise<void> {
     const entry = this._combats.get(key);
     if (!entry) return;
 
@@ -228,6 +228,22 @@ export class CombatDaemon extends MudObject {
 
     // Send messages
     this.sendRoundMessages(result);
+
+    // Check wimpy for defender (before checking death - give them a chance to flee)
+    if (!result.defenderDied && defender.alive) {
+      const defenderFled = await this.checkWimpy(defender, entry);
+      if (defenderFled) {
+        return; // Combat ended due to flee
+      }
+    }
+
+    // Check wimpy for attacker (in case of thorns damage)
+    if (!result.attackerDied && attacker.alive) {
+      const attackerFled = await this.checkWimpy(attacker, entry);
+      if (attackerFled) {
+        return; // Combat ended due to flee
+      }
+    }
 
     // Check for death
     if (result.defenderDied) {
@@ -659,6 +675,97 @@ export class CombatDaemon extends MudObject {
 
     // Let the victim's onDeath handler take over (creates corpse, etc.)
     // This is already called by the Living.health setter when HP reaches 0
+  }
+
+  /**
+   * Check if a living's wimpy threshold is triggered and handle flee/command.
+   * @returns true if the living fled or executed their wimpycmd
+   */
+  async checkWimpy(living: Living, entry: CombatEntry): Promise<boolean> {
+    // Get wimpy settings from player properties
+    const livingWithProps = living as Living & {
+      getProperty?: (key: string) => unknown;
+      permissionLevel?: number;
+    };
+
+    if (!livingWithProps.getProperty) {
+      return false;
+    }
+
+    const wimpyThreshold = (livingWithProps.getProperty('wimpy') as number) ?? 0;
+    if (wimpyThreshold <= 0) {
+      return false; // Wimpy disabled
+    }
+
+    // Check if health is below threshold
+    const healthPercent = living.healthPercent;
+    if (healthPercent >= wimpyThreshold) {
+      return false; // Still above threshold
+    }
+
+    // Wimpy triggered!
+    const wimpycmd = livingWithProps.getProperty('wimpycmd') as string | undefined;
+
+    if (wimpycmd) {
+      // Execute custom wimpycmd
+      living.receive(`{yellow}[Wimpy] Your health is at ${healthPercent}%! Executing: ${wimpycmd}{/}\n`);
+
+      if (typeof efuns !== 'undefined' && efuns.executeCommand) {
+        try {
+          const level = livingWithProps.permissionLevel ?? 0;
+          await efuns.executeCommand(living, wimpycmd, level);
+          // End combat after executing wimpycmd (they might have fled, healed, etc.)
+          this.handleCombatEnd(entry, 'fled');
+          return true;
+        } catch (error) {
+          console.error('[CombatDaemon] Error executing wimpycmd:', error);
+          // Fall through to random flee
+        }
+      }
+    }
+
+    // No wimpycmd or it failed - try to flee in a random direction
+    return this.wimpyFlee(living, entry);
+  }
+
+  /**
+   * Attempt to flee in a random direction due to wimpy.
+   * @returns true if successfully fled
+   */
+  private wimpyFlee(living: Living, entry: CombatEntry): boolean {
+    const room = living.environment;
+    if (!room || !('getExits' in room)) {
+      living.receive('{red}[Wimpy] Panic! You look around frantically but there\'s nowhere to run!{/}\n');
+      return false;
+    }
+
+    const exits = (room as MudObject & { getExits: () => Map<string, unknown> }).getExits();
+    if (exits.size === 0) {
+      living.receive('{red}[Wimpy] Panic! You desperately search for an escape but find no exits!{/}\n');
+      return false;
+    }
+
+    // Pick a random direction
+    const exitNames = Array.from(exits.keys());
+    const fleeDirection = exitNames[Math.floor(Math.random() * exitNames.length)];
+
+    living.receive(`{yellow}[Wimpy] Your health is critical! You flee ${fleeDirection}!{/}\n`);
+
+    // Notify room
+    if ('broadcast' in room) {
+      (room as MudObject & { broadcast: (msg: string, opts?: { exclude?: MudObject[] }) => void })
+        .broadcast(`{yellow}${living.name} panics and flees ${fleeDirection}!{/}\n`, {
+          exclude: [living],
+        });
+    }
+
+    // End combat
+    this.handleCombatEnd(entry, 'fled');
+
+    // Move
+    living.moveDirection(fleeDirection);
+
+    return true;
   }
 
   /**
