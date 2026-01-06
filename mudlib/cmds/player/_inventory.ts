@@ -51,7 +51,7 @@ export function execute(ctx: CommandContext): void {
   const equippedItems = items.filter((item) => equippedSet.has(item));
   const carriedItems = items.filter((item) => !equippedSet.has(item));
 
-  ctx.sendLine('You are carrying:');
+  ctx.sendLine('{bold}{green}You are carrying:{/}');
 
   // Show equipped items first (with indicator)
   for (const item of equippedItems) {
