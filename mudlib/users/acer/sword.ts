@@ -23,6 +23,7 @@ in your hand.`,
       minDamage: 8,
       maxDamage: 15,
       damageType: 'physical',
+      handedness: 'one_handed',
       slot: 'main_hand',
     });
 

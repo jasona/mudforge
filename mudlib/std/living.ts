@@ -6,6 +6,9 @@
 
 import { MudObject } from './object.js';
 import { Room } from './room.js';
+import type { EquipmentSlot } from './equipment.js';
+import type { Weapon } from './weapon.js';
+import type { Armor } from './armor.js';
 
 // Efuns are injected by the driver at runtime
 declare const efuns: {
@@ -122,6 +125,9 @@ export class Living extends MudObject {
     constitution: 0,
     luck: 0,
   };
+
+  // Equipment tracking
+  private _equipment: Map<EquipmentSlot, Weapon | Armor> = new Map();
 
   constructor() {
     super();
@@ -697,6 +703,124 @@ export class Living extends MudObject {
     for (const stat of Object.keys(this._statModifiers) as StatName[]) {
       this._statModifiers[stat] = 0;
     }
+  }
+
+  // ========== Equipment ==========
+
+  /**
+   * Get equipment in a specific slot.
+   * @param slot The equipment slot to check
+   */
+  getEquipped(slot: EquipmentSlot): Weapon | Armor | undefined {
+    return this._equipment.get(slot);
+  }
+
+  /**
+   * Get all equipped items.
+   */
+  getAllEquipped(): Map<EquipmentSlot, Weapon | Armor> {
+    return new Map(this._equipment);
+  }
+
+  /**
+   * Get wielded weapons.
+   */
+  getWieldedWeapons(): { mainHand?: Weapon; offHand?: Weapon } {
+    const mainHand = this._equipment.get('main_hand');
+    const offHand = this._equipment.get('off_hand');
+    return {
+      mainHand: mainHand && 'wield' in mainHand ? (mainHand as Weapon) : undefined,
+      offHand: offHand && 'wield' in offHand ? (offHand as Weapon) : undefined,
+    };
+  }
+
+  /**
+   * Check if a slot is occupied.
+   * @param slot The slot to check
+   */
+  isSlotOccupied(slot: EquipmentSlot): boolean {
+    return this._equipment.has(slot);
+  }
+
+  /**
+   * Check if off-hand is available (not blocked by two-handed weapon).
+   */
+  isOffHandAvailable(): boolean {
+    if (this._equipment.has('off_hand')) return false;
+
+    // Check if main_hand has a two-handed weapon
+    const mainHand = this._equipment.get('main_hand');
+    if (mainHand && 'handedness' in mainHand) {
+      const weapon = mainHand as Weapon;
+      if (weapon.handedness === 'two_handed') return false;
+    }
+
+    return true;
+  }
+
+  /**
+   * Get conflicts for equipping to slots.
+   * @param slots The slots to check
+   * @returns Array of items that would need to be removed
+   */
+  getSlotConflicts(slots: EquipmentSlot[]): (Weapon | Armor)[] {
+    const conflicts: (Weapon | Armor)[] = [];
+    for (const slot of slots) {
+      const equipped = this._equipment.get(slot);
+      if (equipped && !conflicts.includes(equipped)) {
+        conflicts.push(equipped);
+      }
+    }
+    return conflicts;
+  }
+
+  /**
+   * Equip an item to a slot (internal - used by Weapon.wield and Armor.wear).
+   * @param slot The slot to equip to
+   * @param item The item to equip
+   * @param occupiesBoth If true, also occupies off_hand (for two-handed weapons)
+   */
+  equipToSlot(slot: EquipmentSlot, item: Weapon | Armor, occupiesBoth: boolean = false): void {
+    this._equipment.set(slot, item);
+    if (occupiesBoth && slot === 'main_hand') {
+      this._equipment.set('off_hand', item);
+    }
+  }
+
+  /**
+   * Unequip an item from a slot (internal).
+   * @param slot The slot to unequip from
+   * @returns The unequipped item, if any
+   */
+  unequipFromSlot(slot: EquipmentSlot): Weapon | Armor | undefined {
+    const item = this._equipment.get(slot);
+    if (!item) return undefined;
+
+    // For two-handed weapons, clear both slots
+    if ('handedness' in item && (item as Weapon).handedness === 'two_handed') {
+      this._equipment.delete('main_hand');
+      this._equipment.delete('off_hand');
+    } else {
+      this._equipment.delete(slot);
+    }
+
+    return item;
+  }
+
+  /**
+   * Get all worn armor (excludes weapons).
+   */
+  getWornArmor(): Armor[] {
+    const armor: Armor[] = [];
+    for (const [slot, item] of this._equipment) {
+      // Skip weapon slots unless it's a shield
+      if (slot === 'main_hand') continue;
+      if (slot === 'off_hand' && 'wield' in item) continue;
+      if ('wear' in item) {
+        armor.push(item as Armor);
+      }
+    }
+    return armor;
   }
 
   /**

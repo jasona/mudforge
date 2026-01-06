@@ -38,6 +38,14 @@ export interface Connection {
 }
 
 /**
+ * Equipment save data - which inventory index is equipped in which slot.
+ */
+export interface EquipmentSaveData {
+  slot: string;
+  inventoryIndex: number;
+}
+
+/**
  * Player save data structure.
  */
 export interface PlayerSaveData {
@@ -53,6 +61,7 @@ export interface PlayerSaveData {
   stats: Stats;
   location: string;
   inventory: string[];
+  equipment?: EquipmentSaveData[];
   properties: Record<string, unknown>;
   createdAt: number;
   lastLogin: number;
@@ -744,6 +753,18 @@ export class Player extends Living {
    * Serialize player state for saving.
    */
   save(): PlayerSaveData {
+    // Build equipment data - map equipped items to their inventory index
+    const equipment: EquipmentSaveData[] = [];
+    const equipped = this.getAllEquipped();
+    const inventoryList = [...this.inventory];
+
+    for (const [slot, item] of equipped) {
+      const index = inventoryList.indexOf(item);
+      if (index >= 0) {
+        equipment.push({ slot, inventoryIndex: index });
+      }
+    }
+
     return {
       name: this.name,
       title: this.title,
@@ -757,6 +778,7 @@ export class Player extends Living {
       stats: this.getBaseStats(),
       location: this.environment?.objectPath || '/areas/town/center',
       inventory: this.inventory.map((item) => item.objectPath),
+      equipment: equipment.length > 0 ? equipment : undefined,
       properties: this._serializeProperties(),
       createdAt: this._createdAt || Date.now(),
       lastLogin: this._lastLogin,
@@ -824,8 +846,45 @@ export class Player extends Living {
       this._cwd = data.cwd;
     }
 
+    // Store equipment data for later restoration (after inventory is loaded)
+    if (data.equipment && data.equipment.length > 0) {
+      this.setProperty('_pendingEquipment', data.equipment);
+    }
+
     // Note: Location and inventory need to be handled by the driver
     // after loading, as they require object references
+  }
+
+  /**
+   * Restore equipment after inventory has been loaded.
+   * Called by the driver after cloning and moving inventory items.
+   */
+  restoreEquipment(): void {
+    const pending = this.getProperty<EquipmentSaveData[]>('_pendingEquipment');
+    if (!pending) return;
+
+    const inventoryList = [...this.inventory];
+
+    for (const { slot, inventoryIndex } of pending) {
+      if (inventoryIndex < 0 || inventoryIndex >= inventoryList.length) continue;
+
+      const item = inventoryList[inventoryIndex];
+      if (!item) continue;
+
+      // Check if it's a weapon (has wield method)
+      if ('wield' in item && (slot === 'main_hand' || slot === 'off_hand')) {
+        const weapon = item as import('./weapon.js').Weapon;
+        weapon.wield(this, slot as 'main_hand' | 'off_hand');
+      }
+      // Check if it's armor (has wear method)
+      else if ('wear' in item) {
+        const armor = item as import('./armor.js').Armor;
+        armor.wear(this);
+      }
+    }
+
+    // Clean up
+    this.deleteProperty('_pendingEquipment');
   }
 
   /**

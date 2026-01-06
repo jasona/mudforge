@@ -7,6 +7,10 @@
 import { Item } from './item.js';
 import { MudObject } from './object.js';
 import { Living } from './living.js';
+import type { EquipResult, CanEquipResult, WeaponHandedness } from './equipment.js';
+
+// Re-export the type for convenience
+export type { WeaponHandedness } from './equipment.js';
 
 /**
  * Damage type for weapons.
@@ -14,9 +18,9 @@ import { Living } from './living.js';
 export type DamageType = 'physical' | 'fire' | 'ice' | 'lightning' | 'poison' | 'holy' | 'dark';
 
 /**
- * Weapon slot.
+ * Weapon slot (where it's actually equipped).
  */
-export type WeaponSlot = 'main_hand' | 'off_hand' | 'two_hand';
+export type WeaponSlot = 'main_hand' | 'off_hand';
 
 /**
  * Base class for weapons.
@@ -25,6 +29,7 @@ export class Weapon extends Item {
   private _minDamage: number = 1;
   private _maxDamage: number = 3;
   private _damageType: DamageType = 'physical';
+  private _handedness: WeaponHandedness = 'one_handed';
   private _slot: WeaponSlot = 'main_hand';
   private _wielder: Living | null = null;
   private _skillRequired: string | null = null;
@@ -82,7 +87,21 @@ export class Weapon extends Item {
   }
 
   /**
-   * Get weapon slot.
+   * Get weapon handedness.
+   */
+  get handedness(): WeaponHandedness {
+    return this._handedness;
+  }
+
+  /**
+   * Set weapon handedness.
+   */
+  set handedness(value: WeaponHandedness) {
+    this._handedness = value;
+  }
+
+  /**
+   * Get weapon slot (the slot it's currently in, or default slot).
    */
   get slot(): WeaponSlot {
     return this._slot;
@@ -93,6 +112,20 @@ export class Weapon extends Item {
    */
   set slot(value: WeaponSlot) {
     this._slot = value;
+  }
+
+  /**
+   * Check if this weapon can be used in off-hand for dual-wielding.
+   */
+  get canOffHand(): boolean {
+    return this._handedness === 'light';
+  }
+
+  /**
+   * Check if this is a two-handed weapon.
+   */
+  get isTwoHanded(): boolean {
+    return this._handedness === 'two_handed';
   }
 
   /**
@@ -152,45 +185,97 @@ export class Weapon extends Item {
   /**
    * Check if a living can wield this weapon.
    * @param wielder The potential wielder
+   * @param preferredSlot Optional preferred slot (main_hand or off_hand)
+   * @returns Object with canEquip, reason, and slot info
    */
-  canWield(wielder: Living): boolean {
+  canWield(wielder: Living, preferredSlot?: WeaponSlot): CanEquipResult & { slot?: WeaponSlot } {
     // Already wielded
-    if (this._wielder) return false;
+    if (this._wielder) {
+      return { canEquip: false, reason: 'This weapon is already wielded.' };
+    }
 
-    // Check skill requirement (would need skill system)
-    // This is a placeholder for extensibility
+    // Must be in wielder's inventory
+    if (this.environment !== wielder) {
+      return { canEquip: false, reason: 'You must be carrying the weapon to wield it.' };
+    }
 
-    return true;
+    // Two-handed weapons always use main_hand (and occupy both)
+    if (this._handedness === 'two_handed') {
+      // Check both slots are free
+      if (wielder.isSlotOccupied('main_hand') || wielder.isSlotOccupied('off_hand')) {
+        return { canEquip: false, reason: 'You need both hands free to wield this weapon.' };
+      }
+      return { canEquip: true, slot: 'main_hand' };
+    }
+
+    // Determine target slot
+    let targetSlot: WeaponSlot = preferredSlot || 'main_hand';
+
+    // Light weapons can go in off-hand, one-handed cannot
+    if (targetSlot === 'off_hand' && this._handedness !== 'light') {
+      return { canEquip: false, reason: 'This weapon is too heavy for your off-hand.' };
+    }
+
+    // Check if target slot is available
+    if (wielder.isSlotOccupied(targetSlot)) {
+      // Try alternate slot if light weapon
+      if (this._handedness === 'light') {
+        const altSlot: WeaponSlot = targetSlot === 'main_hand' ? 'off_hand' : 'main_hand';
+        if (!wielder.isSlotOccupied(altSlot)) {
+          return { canEquip: true, slot: altSlot };
+        }
+      }
+      return { canEquip: false, reason: `Your ${targetSlot.replace('_', ' ')} is already occupied.` };
+    }
+
+    // Check skill requirement (placeholder for extensibility)
+
+    return { canEquip: true, slot: targetSlot };
   }
 
   /**
    * Wield this weapon.
    * @param wielder The living wielding the weapon
-   * @returns true if successfully wielded
+   * @param preferredSlot Optional preferred slot
+   * @returns Result with success and message
    */
-  wield(wielder: Living): boolean {
-    if (!this.canWield(wielder)) {
-      return false;
+  wield(wielder: Living, preferredSlot?: WeaponSlot): EquipResult {
+    const check = this.canWield(wielder, preferredSlot);
+    if (!check.canEquip) {
+      return { success: false, message: check.reason || 'Cannot wield this weapon.' };
     }
 
+    // Set the slot used
+    this._slot = check.slot!;
     this._wielder = wielder;
+
+    // Register with living's equipment system
+    const occupiesBoth = this._handedness === 'two_handed';
+    wielder.equipToSlot(this._slot, this, occupiesBoth);
+
     this.onWield(wielder);
-    return true;
+    return { success: true, message: `You wield ${this.shortDesc}.` };
   }
 
   /**
    * Unwield this weapon.
-   * @returns true if successfully unwielded
+   * @returns Result with success and message
    */
-  unwield(): boolean {
+  unwield(): EquipResult {
     if (!this._wielder) {
-      return false;
+      return { success: false, message: 'This weapon is not wielded.' };
     }
 
     const previousWielder = this._wielder;
+    const desc = this.shortDesc;
+
+    // Unregister from living's equipment system
+    previousWielder.unequipFromSlot(this._slot);
+
     this._wielder = null;
     this.onUnwield(previousWielder);
-    return true;
+
+    return { success: true, message: `You stop wielding ${desc}.` };
   }
 
   // ========== Hooks ==========
@@ -264,6 +349,7 @@ export class Weapon extends Item {
     minDamage?: number;
     maxDamage?: number;
     damageType?: DamageType;
+    handedness?: WeaponHandedness;
     slot?: WeaponSlot;
     skillRequired?: string;
     skillLevel?: number;
@@ -275,11 +361,13 @@ export class Weapon extends Item {
     if (options.minDamage !== undefined) this.minDamage = options.minDamage;
     if (options.maxDamage !== undefined) this.maxDamage = options.maxDamage;
     if (options.damageType) this.damageType = options.damageType;
+    if (options.handedness) this.handedness = options.handedness;
     if (options.slot) this.slot = options.slot;
     if (options.skillRequired !== undefined) {
       this.setSkillRequired(options.skillRequired, options.skillLevel || 0);
     }
   }
 }
+
 
 export default Weapon;

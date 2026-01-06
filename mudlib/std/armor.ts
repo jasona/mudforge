@@ -8,6 +8,7 @@ import { Item } from './item.js';
 import { MudObject } from './object.js';
 import { Living } from './living.js';
 import type { DamageType } from './weapon.js';
+import type { EquipResult, CanEquipResult, EquipmentSlot } from './equipment.js';
 
 /**
  * Armor slot.
@@ -74,6 +75,21 @@ export class Armor extends Item {
     return this._wearer !== null;
   }
 
+  /**
+   * Check if this is a shield.
+   */
+  get isShield(): boolean {
+    return this._slot === 'shield';
+  }
+
+  /**
+   * Get the actual equipment slot this armor uses.
+   * Shield uses off_hand, other armor uses its designated slot.
+   */
+  getEquipmentSlot(): EquipmentSlot {
+    return this._slot === 'shield' ? 'off_hand' : this._slot;
+  }
+
   // ========== Resistances ==========
 
   /**
@@ -124,44 +140,80 @@ export class Armor extends Item {
   /**
    * Check if a living can wear this armor.
    * @param wearer The potential wearer
+   * @returns Object with canEquip, reason info
    */
-  canWear(wearer: Living): boolean {
+  canWear(wearer: Living): CanEquipResult {
     // Already worn
-    if (this._wearer) return false;
+    if (this._wearer) {
+      return { canEquip: false, reason: 'This armor is already worn.' };
+    }
+
+    // Must be in wearer's inventory
+    if (this.environment !== wearer) {
+      return { canEquip: false, reason: 'You must be carrying the armor to wear it.' };
+    }
+
+    // Get the actual equipment slot
+    const equipSlot = this.getEquipmentSlot();
+
+    // Shield special case - uses off_hand
+    if (this._slot === 'shield') {
+      if (!wearer.isOffHandAvailable()) {
+        return { canEquip: false, reason: 'Your off-hand is not available for a shield.' };
+      }
+    } else {
+      // Check if slot is occupied
+      if (wearer.isSlotOccupied(equipSlot)) {
+        return { canEquip: false, reason: `You are already wearing something on your ${this._slot}.` };
+      }
+    }
 
     // Could add class/level restrictions here
 
-    return true;
+    return { canEquip: true, slot: equipSlot };
   }
 
   /**
    * Wear this armor.
    * @param wearer The living wearing the armor
-   * @returns true if successfully worn
+   * @returns Result with success and message
    */
-  wear(wearer: Living): boolean {
-    if (!this.canWear(wearer)) {
-      return false;
+  wear(wearer: Living): EquipResult {
+    const check = this.canWear(wearer);
+    if (!check.canEquip) {
+      return { success: false, message: check.reason || 'Cannot wear this armor.' };
     }
 
     this._wearer = wearer;
+
+    // Register with living's equipment system
+    const equipSlot = this.getEquipmentSlot();
+    wearer.equipToSlot(equipSlot, this);
+
     this.onWear(wearer);
-    return true;
+    return { success: true, message: `You wear ${this.shortDesc}.` };
   }
 
   /**
    * Remove this armor.
-   * @returns true if successfully removed
+   * @returns Result with success and message
    */
-  remove(): boolean {
+  remove(): EquipResult {
     if (!this._wearer) {
-      return false;
+      return { success: false, message: 'This armor is not worn.' };
     }
 
     const previousWearer = this._wearer;
+    const desc = this.shortDesc;
+
+    // Unregister from living's equipment system
+    const equipSlot = this.getEquipmentSlot();
+    previousWearer.unequipFromSlot(equipSlot);
+
     this._wearer = null;
     this.onRemove(previousWearer);
-    return true;
+
+    return { success: true, message: `You remove ${desc}.` };
   }
 
   // ========== Hooks ==========
