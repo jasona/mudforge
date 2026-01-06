@@ -11,12 +11,13 @@ MudForge brings the architectural elegance of classic LPMud drivers into the mod
 - **TypeScript Scripting** - Write game content in TypeScript with full IDE support, type safety, and modern syntax
 - **Runtime Hot-Reload** - Create and modify objects while the game is running without server restarts
 - **Modern Web Client** - Clean, Linear.app-inspired browser interface with dark theme
-- **V8 Isolate Sandboxing** - Scripts run in isolated V8 contexts via `isolated-vm` for security and stability
 - **LDMud-Inspired Architecture** - Everything is an object with consistent inheritance hierarchy
 - **Tiered Permission System** - Player, Builder, Senior Builder, and Administrator roles
-- **Custom Display Names** - Players can create colorful, personalized display names
+- **Equipment System** - Weapons, armor, and shields with slot management and dual-wielding
+- **Container System** - Chests, bags, and lockable containers
+- **NPC System** - Non-player characters with chat, responses, and autonomous behavior
+- **Communication Channels** - OOC, shout, builder, admin, and extensible channel system
 - **Session Reconnection** - Seamlessly reconnect to existing game sessions after disconnection
-- **Communication Channels** - OOC, shout, and extensible channel system
 - **File-Based Persistence** - Human-readable TypeScript/JSON files that work with version control
 
 ## Design Philosophy
@@ -46,13 +47,10 @@ Following LDMud's proven architecture, MudForge embraces the principle that **ev
 |  |  Manager    |  |  Registry   |  | (heartbeat) |              |
 |  +-------------+  +-------------+  +-------------+              |
 |  +-----------------------------------------------------------+  |
-|  |           V8 Isolate Pool (isolated-vm)                   |  |
-|  |  +-----------------------------------------------------+  |  |
-|  |  |              Mudlib Execution Context               |  |  |
-|  |  |  +---------+  +-------------+  +---------------+   |  |  |
-|  |  |  | Master  |  | Sim Efuns   |  | Object Pool   |   |  |  |
-|  |  |  +---------+  +-------------+  +---------------+   |  |  |
-|  |  +-----------------------------------------------------+  |  |
+|  |                 Mudlib Execution Context                   |  |
+|  |  +---------+  +-------------+  +---------------+           |  |
+|  |  | Master  |  | Sim Efuns   |  | Object Pool   |           |  |
+|  |  +---------+  +-------------+  +---------------+           |  |
 |  +-----------------------------------------------------------+  |
 +-----------------------------------------------------------------+
                               |
@@ -61,8 +59,10 @@ Following LDMud's proven architecture, MudForge embraces the principle that **ev
 |                      File System (Mudlib)                       |
 |  /mudlib/                                                       |
 |  +-- master.ts              # Master object                     |
+|  +-- efuns.d.ts             # Global efun type declarations     |
 |  +-- std/                   # Standard library                  |
 |  |   +-- room.ts, living.ts, player.ts, item.ts, ...           |
+|  |   +-- weapon.ts, armor.ts, container.ts, npc.ts             |
 |  +-- areas/                 # Game world content                |
 |  +-- data/                  # Persistent state (JSON)           |
 +-----------------------------------------------------------------+
@@ -75,10 +75,12 @@ MudObject                          # Root of all objects
 +-- Master                         # World bootstrap, global hooks
 +-- Room                           # Locations
 +-- Item                           # Carryable objects
-|   +-- Weapon, Armor, Container
+|   +-- Weapon                     # Melee/ranged weapons with handedness
+|   +-- Armor                      # Body slot armor and shields
+|   +-- Container                  # Chests, bags (openable, lockable)
 +-- Living                         # Entities that can act
-|   +-- Player                     # Human players
-|   +-- NPC                        # Non-player characters
+|   +-- Player                     # Human players with equipment
+|   +-- NPC                        # Computer-controlled characters
 +-- Daemon                         # Background services
 ```
 
@@ -88,10 +90,9 @@ MudObject                          # Root of all objects
 |-----------|------------|
 | Runtime | Node.js 22+ LTS |
 | Language | TypeScript 5.x |
-| Script Isolation | isolated-vm (V8 isolates) |
 | WebSocket | ws |
 | Web Server | Fastify |
-| Compilation | esbuild |
+| Compilation | tsx (runtime), esbuild (client) |
 | Testing | Vitest |
 
 ## Getting Started
@@ -168,7 +169,7 @@ PORT=8080 npm run dev
 npm run dev        # Start with hot-reload (recommended for development)
 npm run build      # Compile TypeScript to JavaScript
 npm start          # Run compiled production build
-npm test           # Run test suite (599 tests)
+npm test           # Run test suite
 npm run lint       # Check code style
 npm run typecheck  # TypeScript type checking
 ```
@@ -182,18 +183,21 @@ src/
 |   +-- object-registry.ts   # Object management
 |   +-- scheduler.ts         # Heartbeat and call_out
 |   +-- efun-bridge.ts       # Efuns exposed to mudlib
-|   +-- command-manager.ts   # Command routing
+|   +-- command-manager.ts   # Command routing with hot-reload
 |   +-- permissions.ts       # Permission system
 |   +-- persistence/         # Save/load system
-+-- isolation/        # V8 isolate sandboxing
 +-- network/          # WebSocket server
 +-- client/           # Web client UI (Linear.app-inspired)
 
 mudlib/
 +-- master.ts         # Master object
 +-- simul_efun.ts     # Simulated efuns
++-- efuns.d.ts        # Global efun type declarations
++-- tsconfig.json     # Mudlib TypeScript config
 +-- std/              # Standard library
-|   +-- object.ts, room.ts, living.ts, player.ts, item.ts, ...
+|   +-- object.ts, room.ts, living.ts, player.ts
+|   +-- item.ts, weapon.ts, armor.ts, container.ts
+|   +-- npc.ts, equipment.ts
 +-- daemons/          # Background services
 |   +-- login.ts, channels.ts, help.ts, admin.ts
 +-- cmds/             # Player commands
@@ -202,12 +206,37 @@ mudlib/
 |   +-- admin/        # Admin-only commands
 +-- areas/            # Game world
 +-- data/             # Persistent state
++-- lib/              # Utility libraries
 
 docs/                 # Documentation
 tests/                # Test suite
 ```
 
 ## Player Features
+
+### Item Interaction
+
+```
+get sword                    # Pick up an item
+get all                      # Pick up all items
+get sword from chest         # Get item from container
+drop sword                   # Drop an item
+drop sword in chest          # Put item in container
+open chest                   # Open a container
+close chest                  # Close a container
+look in chest                # See container contents
+```
+
+### Equipment System
+
+```
+wield sword                  # Wield a weapon
+wield dagger in left         # Dual-wield (off-hand)
+unwield                      # Unwield all weapons
+wear armor                   # Wear armor
+remove armor                 # Remove armor
+equipment                    # View all equipped items
+```
 
 ### Custom Display Names
 
@@ -220,16 +249,6 @@ displayname Sir {blue}$N{/} the {green}Bold{/}
 - Use `$N` as a placeholder for your actual name
 - Use color codes like `{red}`, `{blue}`, `{green}`, `{bold}`, `{/}` (reset)
 - Display names appear in room descriptions and the who list
-
-### Who Command
-
-View all connected players with a stylish ASCII art display:
-
-```
-who
-```
-
-Shows player names, display names, levels, and roles (Builder, Admin, etc.)
 
 ### Communication
 
@@ -246,7 +265,7 @@ If you disconnect unexpectedly, simply reconnect and log back in - you'll resume
 | Role | Capabilities |
 |------|-------------|
 | **Player** | Connect, play the game, customize display name |
-| **Builder** | Create/modify objects in assigned domains, use `goto` |
+| **Builder** | Create/modify objects in assigned domains, use `goto`, file commands |
 | **Senior Builder** | Cross-domain building, advanced APIs |
 | **Administrator** | Full access, permission management, reload objects |
 
@@ -257,15 +276,15 @@ If you disconnect unexpectedly, simply reconnect and log back in - you'll resume
 import { Room } from '../../std/room.js';
 
 export class Tavern extends Room {
-  override shortDesc = 'The Rusty Tankard';
-
-  override get longDesc(): string {
-    return `You stand in a cozy tavern. A fire crackles in the hearth,
+  constructor() {
+    super();
+    this.shortDesc = 'The Rusty Tankard';
+    this.longDesc = `You stand in a cozy tavern. A fire crackles in the hearth,
 and the smell of roasting meat fills the air.`;
   }
 
-  override onCreate(): void {
-    super.onCreate();
+  override async onCreate(): Promise<void> {
+    await super.onCreate();
     this.addExit('south', '/areas/town/market');
     this.addAction('order', this.handleOrder.bind(this));
   }
@@ -275,6 +294,47 @@ and the smell of roasting meat fills the air.`;
     if (!player) return false;
     efuns.send(player, 'The bartender pours you a frothy ale.');
     return true;
+  }
+}
+```
+
+## Example: Creating an NPC
+
+```typescript
+// /mudlib/areas/town/town_crier.ts
+import { NPC } from '../../std/npc.js';
+
+export class TownCrier extends NPC {
+  constructor() {
+    super();
+    this.setNPC({
+      name: 'town crier',
+      shortDesc: 'the town crier',
+      longDesc: 'A stout man in a faded blue coat with a brass bell.',
+      chatChance: 15, // 15% chance per heartbeat to chat
+    });
+
+    // Periodic announcements
+    this.addChat('Hear ye, hear ye! The castle seeks adventurers!', 'say');
+    this.addChat('rings his brass bell loudly.', 'emote');
+
+    // Response triggers
+    this.addResponse(/hello|hi/i, 'Good day to you, traveler!', 'say');
+    this.addResponse(/news/i, 'The castle has posted new bounties!', 'say');
+  }
+}
+```
+
+## Global Efuns Type Declarations
+
+MudForge provides global type declarations for all efuns via `mudlib/efuns.d.ts`. This means you don't need to declare efuns at the top of every file - they're automatically available:
+
+```typescript
+// No need for "declare const efuns" - it's globally available!
+export class MyRoom extends Room {
+  async onCreate(): Promise<void> {
+    const sword = await efuns.cloneObject('/std/sword');
+    await sword?.moveTo(this);
   }
 }
 ```

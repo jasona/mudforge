@@ -2,6 +2,24 @@
 
 Efuns (External Functions) are driver-provided APIs available to mudlib code. They provide access to core driver functionality that mudlib code cannot implement itself.
 
+## Global Availability
+
+Efuns are globally available in all mudlib code through the `efuns` object. You don't need to declare them - just use them:
+
+```typescript
+// No import or declaration needed - efuns is globally available
+export class MyRoom extends Room {
+  async onCreate(): Promise<void> {
+    await super.onCreate();
+    const sword = await efuns.cloneObject('/std/sword');
+    const player = efuns.thisPlayer();
+    efuns.send(player!, 'A sword appears!');
+  }
+}
+```
+
+Type declarations are provided in `/mudlib/efuns.d.ts` and are automatically included by the mudlib's TypeScript configuration.
+
 ## Object Management
 
 ### cloneObject(path)
@@ -333,6 +351,52 @@ const result3 = await efuns.reloadObject('/nonexistent');
 - `success: boolean` - Whether the reload succeeded
 - `error?: string` - Error message if failed
 - `existingClones: number` - Number of existing clones (still using old code)
+
+### reloadCommand(commandPath)
+
+Reload a command module from disk. Commands are immediately updated for all usages. **Requires builder permission or higher.**
+
+```typescript
+const result = await efuns.reloadCommand('/cmds/player/_look');
+// result: { success: true }
+
+const result2 = await efuns.reloadCommand('/cmds/builder/_update');
+// result2: { success: true }
+```
+
+**Behavior:**
+- The command TypeScript file is recompiled from disk
+- All future usages of the command use the new code immediately
+- Unlike objects, there are no "clones" to worry about
+
+**Returns:**
+- `success: boolean` - Whether the reload succeeded
+- `error?: string` - Error message if failed
+
+## Player Persistence
+
+### savePlayer(player)
+
+Save a player's data to disk. Called automatically on quit, but can be triggered manually.
+
+```typescript
+await efuns.savePlayer(player);
+```
+
+## Output
+
+### page(lines, options?)
+
+Display content with pagination support for long output.
+
+```typescript
+efuns.page(['Line 1', 'Line 2', 'Line 3', ...], {
+  title: 'File Contents',
+  linesPerPage: 20,
+});
+```
+
+When the player presses Enter/Space, the next page is shown. Supports search with `/pattern`.
 
 ## Scheduler
 

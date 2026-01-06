@@ -269,12 +269,110 @@ i
 inv
 ```
 
+Shows what you're carrying with equipment indicators:
+```
+You are carrying:
+  a steel longsword (wielded)
+  a wooden shield (worn - shield)
+  leather armor (worn)
+  50 gold coins
+  a health potion
+```
+
 ### Item Interactions
 
 ```
 look sword           # Examine an item
 get sword            # Pick up an item
+get all              # Pick up all items
 drop sword           # Drop an item
+drop all             # Drop all items
+```
+
+## Containers
+
+Containers like chests and bags can hold items.
+
+### Using Containers
+
+```
+open chest           # Open a container
+close chest          # Close a container
+look in chest        # See what's inside
+get sword from chest # Take an item out
+drop sword in chest  # Put an item in
+```
+
+### Locked Containers
+
+Some containers are locked and require a key:
+
+```
+unlock chest         # Unlock with matching key in inventory
+lock chest           # Lock the container
+```
+
+You must have the appropriate key in your inventory to unlock.
+
+## Equipment System
+
+MudForge includes a complete equipment system with weapons and armor.
+
+### Equipment Slots
+
+| Category | Slots |
+|----------|-------|
+| Armor | Head, Chest, Cloak, Hands, Legs, Feet |
+| Weapons | Main Hand, Off Hand |
+| Shield | Uses Off Hand slot |
+
+### Wielding Weapons
+
+```
+wield sword              # Wield in main hand
+wield dagger in left     # Dual-wield in off-hand
+wield dagger in right    # Wield in main hand (explicit)
+unwield                  # Unwield all weapons
+unwield sword            # Unwield specific weapon
+```
+
+### Weapon Types
+
+| Type | Description |
+|------|-------------|
+| One-Handed | Standard weapon, can use shield in off-hand |
+| Light | Can be wielded in main or off-hand (for dual-wielding) |
+| Two-Handed | Uses both hands, cannot use shield |
+
+### Wearing Armor
+
+```
+wear armor           # Wear an armor piece
+wear helmet          # Automatically goes to head slot
+remove armor         # Remove worn armor
+remove all           # Remove all worn items
+```
+
+### Viewing Equipment
+
+```
+equipment            # Show all equipment slots
+eq                   # Shorthand
+equipped             # Alias
+```
+
+Example output:
+```
+=== Equipment ===
+
+  Head         iron helmet
+  Chest        chainmail armor
+  Cloak        empty
+  Hands        leather gloves
+  Legs         empty
+  Feet         leather boots
+  Main Hand    steel longsword
+  Off Hand     wooden shield
 ```
 
 ## Movement

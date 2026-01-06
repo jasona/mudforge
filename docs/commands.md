@@ -65,16 +65,106 @@ channels join ooc     # Join the OOC channel
 channels leave ooc    # Leave the OOC channel
 ```
 
+### Item Interaction
+
+#### get (take)
+Pick up items from the room or from containers.
+
+```
+get sword                # Pick up an item from the room
+get all                  # Pick up all items in the room
+get sword from chest     # Get an item from a container
+get all from chest       # Get all items from a container
+```
+
+#### drop (put)
+Drop items or put them in containers.
+
+```
+drop sword               # Drop an item on the floor
+drop all                 # Drop all items
+drop sword in chest      # Put an item in a container
+put sword in chest       # Same as drop ... in
+```
+
+#### open / close
+Open or close containers and doors.
+
+```
+open chest               # Open a container
+close chest              # Close a container
+open door                # Open a door
+```
+
+#### unlock / lock
+Unlock or lock containers and doors (requires appropriate key).
+
+```
+unlock chest             # Unlock with matching key in inventory
+lock chest               # Lock with matching key
+```
+
+### Equipment
+
+#### wield
+Wield a weapon from your inventory.
+
+```
+wield sword              # Wield in main hand
+wield sword in right     # Wield in main hand (explicit)
+wield dagger in left     # Wield in off-hand (dual-wield)
+```
+
+#### unwield (sheathe)
+Stop wielding a weapon.
+
+```
+unwield                  # Unwield all weapons
+unwield sword            # Unwield specific weapon
+```
+
+#### wear (don)
+Wear armor or equipment.
+
+```
+wear armor               # Wear an armor piece
+wear helmet              # Wear on appropriate slot
+```
+
+#### remove (doff)
+Remove worn armor or equipment.
+
+```
+remove armor             # Remove armor
+remove all               # Remove all worn items
+```
+
+#### equipment (eq, equipped)
+View all equipped items.
+
+```
+equipment
+eq
+equipped
+```
+
+Shows all equipment slots:
+- Head, Chest, Cloak, Hands, Legs, Feet (armor)
+- Main Hand, Off Hand (weapons/shields)
+
 ### Information
 
 #### look (l)
-Examine your surroundings or an object.
+Examine your surroundings, objects, or containers.
 
 ```
 look              # Look at the room
 look sword        # Look at an object
+look in chest     # Look inside a container
 l                 # Alias for look
 ```
+
+Room display shows content sorted: players first, NPCs (in red), then items.
 
 #### inventory (i, inv)
 See what you are carrying.
@@ -83,6 +173,15 @@ See what you are carrying.
 inventory
 i
 inv
+```
+
+Shows equipped items with indicators:
+```
+You are carrying:
+  a steel longsword (wielded)
+  a wooden shield (worn - shield)
+  leather armor (worn)
+  50 gold coins
 ```
 
 #### score
@@ -222,20 +321,27 @@ Target can be:
 ### Object Manipulation
 
 #### update
-Reload a mudlib object from disk (true hot-reload).
+Reload mudlib objects or commands from disk (true hot-reload).
 
 ```
 update /std/room          # Reload a standard library object
 update /areas/town/tavern # Reload a specific room
 update here               # Reload the room you're in
+update _look              # Reload a command (auto-finds in cmds directories)
+update /cmds/player/_say  # Reload a command with full path
 ```
 
-This is **true runtime hot-reload** - the object is recompiled from the TypeScript source and the blueprint is updated in memory. No server restart required!
+This is **true runtime hot-reload** - the code is recompiled from TypeScript and applied in memory. No server restart required!
 
-**Behavior:**
+**For Objects (rooms, items, NPCs):**
 - Existing clones keep their old behavior (traditional LPMud style)
 - New clones created after the update use the new code
 - Use `destruct` + `clone` to force an existing clone to use new code
+
+**For Commands:**
+- All usages of the command immediately use the new code
+- Command is found in `/cmds/player/`, `/cmds/builder/`, `/cmds/admin/`, or `/cmds/wizard/`
+- Use just the command name (e.g., `_look`) or full path
 
 ### File System Commands
 
@@ -440,20 +546,22 @@ export async function execute(ctx: CommandContext): Promise<void> {
 
 ### Accessing Efuns
 
-Declare efuns at the top of your command file:
+Efuns are globally available in all mudlib code - you don't need to declare them:
 
 ```typescript
-declare const efuns: {
-  allPlayers(): MudObject[];
-  findObject(path: string): MudObject | undefined;
-  send(target: MudObject, message: string): void;
-};
-
 export function execute(ctx: CommandContext): void {
+  // Efuns are globally available
   const players = efuns.allPlayers();
   ctx.sendLine(`There are ${players.length} players online.`);
+
+  // Other common efuns
+  const room = efuns.environment(ctx.player);
+  const now = efuns.time();
+  const randomNum = efuns.random(100);
 }
 ```
+
+See [Efuns Reference](efuns.md) for the complete API.
 
 ### Example: Emote Command
 
