@@ -35,6 +35,11 @@ declare const efuns: {
     existingClones: number;
     migratedObjects: number;
   }>;
+  rehashCommands(): Promise<{
+    success: boolean;
+    error?: string;
+    commandCount: number;
+  }>;
 };
 
 interface PlayerWithCwd extends MudObject {
@@ -180,6 +185,14 @@ async function handleIdeInput(
 }
 
 /**
+ * Check if a file path is a command file.
+ */
+function isCommandFile(filePath: string): boolean {
+  // Command files are in /cmds/ directory
+  return filePath.includes('/cmds/');
+}
+
+/**
  * Handle save action.
  */
 async function handleSave(player: PlayerWithCwd, filePath: string, content: string): Promise<void> {
@@ -191,13 +204,21 @@ async function handleSave(player: PlayerWithCwd, filePath: string, content: stri
     let compileErrors: Array<{ line: number; column: number; message: string }> = [];
 
     if (filePath.endsWith('.ts')) {
-      // Convert file path to object path for reload
-      const objectPath = filePath.replace(/\.ts$/, '');
-      const result = await efuns.reloadObject(objectPath);
+      if (isCommandFile(filePath)) {
+        // Command files use rehashCommands to reload
+        const result = await efuns.rehashCommands();
+        if (!result.success && result.error) {
+          compileErrors = parseCompileErrors(result.error);
+        }
+      } else {
+        // Regular mudlib objects use reloadObject
+        const objectPath = filePath.replace(/\.ts$/, '');
+        const result = await efuns.reloadObject(objectPath);
 
-      if (!result.success && result.error) {
-        // Parse compile errors from the error message
-        compileErrors = parseCompileErrors(result.error);
+        if (!result.success && result.error) {
+          // Parse compile errors from the error message
+          compileErrors = parseCompileErrors(result.error);
+        }
       }
     }
 

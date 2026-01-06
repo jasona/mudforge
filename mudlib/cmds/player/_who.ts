@@ -120,7 +120,7 @@ export async function execute(ctx: CommandContext): Promise<void> {
   lines.push(boxLine('  {bold}{yellow}██║ ╚═╝ ██║{/}{bold}{green}╚██████╔╝{/}{bold}{cyan}██████╔╝{/}{bold}{magenta}██║     {/}{bold}{red}╚██████╔╝{/}{bold}{yellow}██║  ██║{/}{bold}{green}╚██████╔╝{/}{bold}{cyan}███████╗{/}  '));
   lines.push(boxLine('  {bold}{yellow}╚═╝     ╚═╝{/}{bold}{green} ╚═════╝ {/}{bold}{cyan}╚═════╝ {/}{bold}{magenta}╚═╝     {/}{bold}{red} ╚═════╝ {/}{bold}{yellow}╚═╝  ╚═╝{/}{bold}{green} ╚═════╝ {/}{bold}{cyan}╚══════╝{/}  '));
   lines.push(boxLine(''));
-  lines.push(boxLine(centerText('{dim}A Modern MUD Experience - Est. 2025{/}', BOX_WIDTH)));
+  lines.push(boxLine(centerText('{dim}A Modern MUD Experience - Est. 2026{/}', BOX_WIDTH)));
 
   // Divider
   lines.push(`{cyan}╠${topBot}╣{/}`);
