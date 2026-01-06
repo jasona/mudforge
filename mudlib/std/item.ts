@@ -15,6 +15,7 @@ export class Item extends MudObject {
   private _value: number = 0;
   private _takeable: boolean = true;
   private _dropable: boolean = true;
+  private _savable: boolean = true;
 
   constructor() {
     super();
@@ -78,6 +79,22 @@ export class Item extends MudObject {
    */
   set dropable(value: boolean) {
     this._dropable = value;
+  }
+
+  /**
+   * Check if this item can be saved with a player.
+   * Unsavable items are dropped when the player quits.
+   */
+  get savable(): boolean {
+    return this._savable;
+  }
+
+  /**
+   * Set whether this item can be saved with a player.
+   * Set to false for temporary items, quest items that shouldn't persist, etc.
+   */
+  set savable(value: boolean) {
+    this._savable = value;
   }
 
   // ========== Lifecycle Hooks ==========

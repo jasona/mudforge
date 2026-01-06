@@ -8,6 +8,7 @@
 
 import { Living, type Stats, type StatName, MAX_STAT } from './living.js';
 import { MudObject } from './object.js';
+import { Item } from './item.js';
 import { colorize, stripColors, wordWrap } from '../lib/colors.js';
 import { getChannelDaemon } from '../daemons/channels.js';
 import {
@@ -752,18 +753,35 @@ export class Player extends Living {
   }
 
   /**
+   * Check if an item is savable.
+   * Items must have a savable property that is true (default for Item class).
+   */
+  private _isItemSavable(item: MudObject): boolean {
+    if (item instanceof Item) {
+      return item.savable;
+    }
+    // Non-Item objects default to savable
+    return true;
+  }
+
+  /**
    * Serialize player state for saving.
    */
   save(): PlayerSaveData {
-    // Build equipment data - map equipped items to their inventory index
+    // Filter inventory to only include savable items
+    const savableInventory = this.inventory.filter((item) => this._isItemSavable(item));
+
+    // Build equipment data - map equipped items to their index in savable inventory
     const equipment: EquipmentSaveData[] = [];
     const equipped = this.getAllEquipped();
-    const inventoryList = [...this.inventory];
 
     for (const [slot, item] of equipped) {
-      const index = inventoryList.indexOf(item);
-      if (index >= 0) {
-        equipment.push({ slot, inventoryIndex: index });
+      // Only save equipment if the item is savable
+      if (this._isItemSavable(item)) {
+        const index = savableInventory.indexOf(item);
+        if (index >= 0) {
+          equipment.push({ slot, inventoryIndex: index });
+        }
       }
     }
 
@@ -779,7 +797,7 @@ export class Player extends Living {
       maxMana: this.maxMana,
       stats: this.getBaseStats(),
       location: this.environment?.objectPath || '/areas/town/center',
-      inventory: this.inventory.map((item) => item.objectPath),
+      inventory: savableInventory.map((item) => item.objectPath),
       equipment: equipment.length > 0 ? equipment : undefined,
       properties: this._serializeProperties(),
       createdAt: this._createdAt || Date.now(),
@@ -895,6 +913,8 @@ export class Player extends Living {
   private _serializeProperties(): Record<string, unknown> {
     const result: Record<string, unknown> = {};
     for (const key of this.getPropertyKeys()) {
+      // Skip internal/temporary properties (those starting with underscore)
+      if (key.startsWith('_')) continue;
       const value = this.getProperty(key);
       // Only save JSON-serializable values
       if (this._isSerializable(value)) {
@@ -955,6 +975,9 @@ export class Player extends Living {
     // Mark as properly quit (prevents disconnect notification)
     this._hasQuit = true;
 
+    // Drop unsavable items to the current room
+    await this._dropUnsavableItems();
+
     // Save the player's current location before quitting
     if (typeof efuns !== 'undefined' && efuns.savePlayer) {
       await efuns.savePlayer(this);
@@ -967,14 +990,55 @@ export class Player extends Living {
 
     this.receive('Goodbye!');
 
+    // Move to void/limbo BEFORE closing connection
+    // This ensures the disconnect handler sees environment=null and skips saving
+    await this.moveTo(null);
+
     // Disconnect
     if (this._connection) {
       this._connection.close();
       this.unbindConnection();
     }
+  }
 
-    // Move to void/limbo
-    await this.moveTo(null);
+  /**
+   * Drop all unsavable items to the current room.
+   * Called before saving/quitting.
+   */
+  private async _dropUnsavableItems(): Promise<void> {
+    const room = this.environment;
+    if (!room) return;
+
+    // Get list of unsavable items (copy array since we'll be modifying inventory)
+    const unsavableItems = [...this.inventory].filter((item) => !this._isItemSavable(item));
+
+    if (unsavableItems.length === 0) return;
+
+    for (const item of unsavableItems) {
+      // First, unequip if equipped
+      if ('unwield' in item) {
+        const weapon = item as import('./weapon.js').Weapon;
+        if (weapon.isWielded) {
+          weapon.unwield();
+        }
+      }
+      if ('remove' in item) {
+        const armor = item as import('./armor.js').Armor;
+        if (armor.isWorn) {
+          armor.remove();
+        }
+      }
+
+      // Move item to the room
+      await item.moveTo(room);
+    }
+
+    // Notify player about dropped items
+    if (unsavableItems.length === 1) {
+      this.receive(`{dim}You drop ${unsavableItems[0].shortDesc} (unsavable).{/}\n`);
+    } else {
+      this.receive(`{dim}You drop ${unsavableItems.length} unsavable items.{/}\n`);
+    }
   }
 
   // ========== Setup ==========

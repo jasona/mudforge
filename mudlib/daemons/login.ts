@@ -539,6 +539,28 @@ export class LoginDaemon extends MudObject {
       await player.moveTo(room);
     }
 
+    // Restore inventory items (clone each saved item and move to player)
+    if (session.savedData?.inventory && Array.isArray(session.savedData.inventory)) {
+      for (const itemPath of session.savedData.inventory) {
+        try {
+          if (typeof efuns !== 'undefined' && efuns.cloneObject) {
+            const item = await efuns.cloneObject(itemPath);
+            if (item) {
+              await item.moveTo(player);
+            }
+          }
+        } catch (error) {
+          console.error(`Error restoring inventory item ${itemPath}:`, error);
+        }
+      }
+    }
+
+    // Restore equipment state (must be done after inventory is loaded)
+    const playerWithEquipment = player as Player & { restoreEquipment?: () => void };
+    if (playerWithEquipment.restoreEquipment) {
+      playerWithEquipment.restoreEquipment();
+    }
+
     // Call onConnect
     await player.onConnect();
 

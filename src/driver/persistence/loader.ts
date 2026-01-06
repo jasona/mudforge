@@ -189,6 +189,7 @@ export class Loader {
     const p = player as MudObject & {
       name?: string;
       restore?: (data: PlayerSaveData) => void;
+      restoreEquipment?: () => void;
     };
     if (p.restore) {
       p.restore(saveData);
@@ -203,6 +204,28 @@ export class Loader {
       if (location) {
         await player.moveTo(location);
       }
+    }
+
+    // Restore inventory items
+    const inventoryPaths = (saveData as Record<string, unknown>).inventory as string[] | undefined;
+    if (inventoryPaths && Array.isArray(inventoryPaths)) {
+      for (const itemPath of inventoryPaths) {
+        try {
+          const item = await this.config.cloneObject(itemPath);
+          if (item) {
+            await item.moveTo(player);
+          } else {
+            console.warn(`Failed to clone inventory item: ${itemPath}`);
+          }
+        } catch (error) {
+          console.error(`Error restoring inventory item ${itemPath}:`, error);
+        }
+      }
+    }
+
+    // Restore equipment state (must be done after inventory is loaded)
+    if (p.restoreEquipment) {
+      p.restoreEquipment();
     }
 
     return player;

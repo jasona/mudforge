@@ -182,6 +182,8 @@ export class Serializer {
     };
     if (objWithProps.getPropertyKeys && objWithProps.getProperty) {
       for (const key of objWithProps.getPropertyKeys()) {
+        // Skip internal properties (those starting with underscore)
+        if (key.startsWith('_')) continue;
         const value = objWithProps.getProperty(key);
         properties[key] = this.serializeValue(value);
       }
