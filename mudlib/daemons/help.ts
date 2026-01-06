@@ -1024,6 +1024,48 @@ Teleport to a player or room location.
       seeAlso: ['building', 'pwd', 'cd'],
     });
 
+    // === STATS (Senior Builder) ===
+    this.registerTopic({
+      name: 'stats',
+      title: 'Stats Command',
+      category: 'building',
+      aliases: ['status', 'mudstats'],
+      access: { minPermission: 2 },
+      keywords: ['memory', 'performance', 'objects', 'scheduler', 'uptime'],
+      content: `{bold}Stats Command (Senior Builder+):{/}
+Display driver memory and performance statistics.
+
+{bold}Usage:{/}
+  {yellow}stats{/}           - Show all statistics
+  {yellow}stats memory{/}    - Show only memory usage
+  {yellow}stats objects{/}   - Show only object counts
+  {yellow}stats scheduler{/} - Show only scheduler info
+  {yellow}stats players{/}   - Show only player counts
+
+{bold}Memory Statistics:{/}
+  {cyan}Heap Used{/}     - JavaScript heap memory in use
+  {cyan}Heap Total{/}    - Total allocated heap memory
+  {cyan}RSS{/}           - Resident Set Size (total process memory)
+  {cyan}External{/}      - C++ objects bound to JavaScript
+  {cyan}ArrayBuffers{/}  - Memory for ArrayBuffer instances
+
+{bold}Object Statistics:{/}
+  {cyan}Total{/}       - All registered objects
+  {cyan}Blueprints{/}  - Loaded module definitions
+  {cyan}Clones{/}      - Instantiated object instances
+
+{bold}Scheduler Statistics:{/}
+  {cyan}Heartbeats{/}  - Objects with active heartbeat
+  {cyan}Call-outs{/}   - Pending scheduled callbacks
+  {cyan}Interval{/}    - Heartbeat tick interval (ms)
+
+{bold}Notes:{/}
+- Requires senior builder permission (level 2+)
+- Memory shown in human-readable format (KB, MB, GB)
+- Use for monitoring server health and debugging`,
+      seeAlso: ['building', 'config'],
+    });
+
     // === CONFIG (Admin) ===
     this.registerTopic({
       name: 'config',

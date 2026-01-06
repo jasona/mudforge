@@ -1651,6 +1651,122 @@ export class EfunBridge {
   }
 
   /**
+   * Get driver statistics including memory, objects, scheduler, and performance metrics.
+   * Requires senior builder permission (level 2) or higher.
+   *
+   * @returns Object containing driver statistics or error if permission denied
+   */
+  getDriverStats(): {
+    success: boolean;
+    error?: string;
+    memory?: {
+      heapUsed: number;
+      heapTotal: number;
+      external: number;
+      rss: number;
+      arrayBuffers: number;
+    };
+    uptime?: {
+      seconds: number;
+      formatted: string;
+    };
+    objects?: {
+      total: number;
+      blueprints: number;
+      clones: number;
+    };
+    scheduler?: {
+      heartbeats: number;
+      callouts: number;
+      heartbeatInterval: number;
+    };
+    commands?: {
+      total: number;
+    };
+    players?: {
+      active: number;
+      connected: number;
+    };
+    nodeVersion?: string;
+    platform?: string;
+  } {
+    // Check senior builder permission (level 2)
+    const permissionLevel = this.getPermissionLevel();
+    if (permissionLevel < 2) {
+      return {
+        success: false,
+        error: 'Permission denied: senior builder required',
+      };
+    }
+
+    try {
+      const registry = getRegistry();
+      const scheduler = getScheduler();
+      const commandManager = getCommandManager();
+
+      // Get memory usage
+      const memUsage = process.memoryUsage();
+
+      // Get uptime
+      const uptimeSeconds = process.uptime();
+      const days = Math.floor(uptimeSeconds / 86400);
+      const hours = Math.floor((uptimeSeconds % 86400) / 3600);
+      const minutes = Math.floor((uptimeSeconds % 3600) / 60);
+      const seconds = Math.floor(uptimeSeconds % 60);
+      const uptimeFormatted = days > 0
+        ? `${days}d ${hours}h ${minutes}m ${seconds}s`
+        : hours > 0
+          ? `${hours}h ${minutes}m ${seconds}s`
+          : `${minutes}m ${seconds}s`;
+
+      // Get player counts
+      const allPlayers = this.allPlayersCallback?.() ?? [];
+      const activePlayers = this.findActivePlayerCallback
+        ? this.allPlayers().length
+        : allPlayers.length;
+
+      return {
+        success: true,
+        memory: {
+          heapUsed: memUsage.heapUsed,
+          heapTotal: memUsage.heapTotal,
+          external: memUsage.external,
+          rss: memUsage.rss,
+          arrayBuffers: memUsage.arrayBuffers,
+        },
+        uptime: {
+          seconds: uptimeSeconds,
+          formatted: uptimeFormatted,
+        },
+        objects: {
+          total: registry.objectCount,
+          blueprints: registry.blueprintCount,
+          clones: registry.objectCount - registry.blueprintCount,
+        },
+        scheduler: {
+          heartbeats: scheduler.heartbeatCount,
+          callouts: scheduler.callOutCount,
+          heartbeatInterval: 2000, // Default, could be made configurable
+        },
+        commands: {
+          total: commandManager.commandCount,
+        },
+        players: {
+          active: activePlayers,
+          connected: allPlayers.length,
+        },
+        nodeVersion: process.version,
+        platform: process.platform,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
+
+  /**
    * Get all efuns as an object for exposing to sandbox.
    */
   getEfuns(): Record<string, unknown> {
@@ -1742,6 +1858,9 @@ export class EfunBridge {
       // Config
       getMudConfig: this.getMudConfig.bind(this),
       setMudConfig: this.setMudConfig.bind(this),
+
+      // Stats
+      getDriverStats: this.getDriverStats.bind(this),
     };
   }
 }

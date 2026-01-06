@@ -317,6 +317,48 @@ declare global {
      * @returns Object with success status and optional error message
      */
     setMudConfig(key: string, value: unknown): { success: boolean; error?: string };
+
+    // ========== Stats Efuns ==========
+
+    /**
+     * Get driver statistics including memory, objects, scheduler, and performance metrics.
+     * Requires senior builder permission (level 2) or higher.
+     * @returns Object containing driver statistics or error if permission denied
+     */
+    getDriverStats(): {
+      success: boolean;
+      error?: string;
+      memory?: {
+        heapUsed: number;
+        heapTotal: number;
+        external: number;
+        rss: number;
+        arrayBuffers: number;
+      };
+      uptime?: {
+        seconds: number;
+        formatted: string;
+      };
+      objects?: {
+        total: number;
+        blueprints: number;
+        clones: number;
+      };
+      scheduler?: {
+        heartbeats: number;
+        callouts: number;
+        heartbeatInterval: number;
+      };
+      commands?: {
+        total: number;
+      };
+      players?: {
+        active: number;
+        connected: number;
+      };
+      nodeVersion?: string;
+      platform?: string;
+    };
   };
 }
 
