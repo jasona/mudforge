@@ -15,6 +15,7 @@
 
 import { MudObject } from '../lib/std.js';
 import { composeAllMessages, makeRemoteMessage, type ComposedMessages } from '../lib/message-composer.js';
+import { getPlayerColor, formatWithColor } from '../lib/chat-colors.js';
 
 /**
  * Rule types that determine how an emote handles arguments.
@@ -418,12 +419,15 @@ export class SoulDaemon extends MudObject {
     const actorWithReceive = actor as MudObject & { receive?: (msg: string) => void };
     const targetWithReceive = target as MudObject & { receive?: (msg: string) => void };
 
+    // Use each recipient's remote color preference
     if (actorWithReceive.receive) {
-      actorWithReceive.receive(messages.actor + '\n');
+      const actorColor = getPlayerColor(actor, 'remote');
+      actorWithReceive.receive(formatWithColor(actorColor, messages.actor) + '\n');
     }
 
     if (messages.target && targetWithReceive.receive) {
-      targetWithReceive.receive(messages.target + '\n');
+      const targetColor = getPlayerColor(target, 'remote');
+      targetWithReceive.receive(formatWithColor(targetColor, messages.target) + '\n');
     }
 
     return { success: true, messages };

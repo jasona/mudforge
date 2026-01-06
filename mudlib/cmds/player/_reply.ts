@@ -12,6 +12,7 @@
  */
 
 import type { MudObject } from '../../lib/std.js';
+import { getPlayerColor, formatWithColor } from './_colors.js';
 
 interface CommandContext {
   player: MudObject & {
@@ -101,12 +102,14 @@ export async function execute(ctx: CommandContext): Promise<void> {
       .filter((t) => t !== target)
       .map((t) => capitalize(t.name));
 
+    // Use recipient's color preference
+    const targetColor = getPlayerColor(target, 'tell');
     let header: string;
     if (isGroup) {
       const othersList = others.join(', ');
-      header = `{magenta}${senderName} replies to you (and ${othersList}):{/}`;
+      header = formatWithColor(targetColor, `${senderName} replies to you (and ${othersList}):`);
     } else {
-      header = `{magenta}${senderName} replies:{/}`;
+      header = formatWithColor(targetColor, `${senderName} replies:`);
     }
 
     target.receive(`${header} ${message}\n`);
@@ -116,13 +119,10 @@ export async function execute(ctx: CommandContext): Promise<void> {
     target.setProperty('_lastTellFrom', replyTo);
   }
 
-  // Confirm to sender
+  // Confirm to sender (use sender's color preference)
+  const senderColor = getPlayerColor(ctx.player, 'tell');
   const targetList = foundTargets.map((t) => capitalize(t.name)).join(', ');
-  if (isGroup) {
-    ctx.sendLine(`{magenta}You reply to ${targetList}:{/} ${message}`);
-  } else {
-    ctx.sendLine(`{magenta}You reply to ${targetList}:{/} ${message}`);
-  }
+  ctx.sendLine(`${formatWithColor(senderColor, `You reply to ${targetList}:`)} ${message}`);
 
   // Update sender's reply list (in case someone went offline)
   ctx.player.setProperty('_lastTellFrom', foundTargets.map((t) => t.name.toLowerCase()));
