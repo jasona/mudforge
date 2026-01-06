@@ -21,7 +21,11 @@
       "Bash(timeout 8 npm run dev:*)",
       "Bash(timeout 5 npm run dev:*)",
       "Bash(npx vitest:*)",
-      "Bash(cd:*)"
+      "Bash(cd:*)",
+      "Bash(powershell -Command:*)",
+      "Bash(npm run build:mudlib:*)",
+      "Bash(npm run:*)",
+      "Bash(npx tsx:*)"
     ]
   }
 }

@@ -9,14 +9,14 @@
       "email": "test@test.com",
       "permissionLevel": 0
     },
-    "timestamp": 1767683434283,
+    "timestamp": 1767720246088,
     "environment": {
       "__type": "object_ref",
       "path": "/areas/void/void",
       "isClone": false
     }
   },
-  "savedAt": 1767683434283,
+  "savedAt": 1767720246088,
   "title": "",
   "gender": "male",
   "level": 1,
@@ -41,7 +41,7 @@
     "permissionLevel": 0
   },
   "createdAt": 1767589633,
-  "lastLogin": 1767682520,
+  "lastLogin": 1767720246,
   "playTime": 141,
   "monitorEnabled": false,
   "displayName": "$N is just here to test.",

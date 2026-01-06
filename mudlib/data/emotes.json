@@ -105,6 +105,135 @@
   "8675309": {
     "": "$N $vsing, \"Jenny... Eight, Six, Seven, Five, Three, O, Ni-e'ine!\""
   },
+  "smile": {
+    "": "$N $vsmile.",
+    "LIV": "$N $vsmile at $t.",
+    "LIV LIV": "$N $vsmile at $t and $t2.",
+    "LIV STR": "$N $vsmile at $t $o.",
+    "STR": "$N $vsmile $o."
+  },
+  "nod": {
+    "": "$N $vnod.",
+    "LIV": "$N $vnod at $t."
+  },
+  "wave": {
+    "": "$N $vwave.",
+    "LIV": "$N $vwave at $t.",
+    "LIV LIV": "$N $vwave at $T and $n2.",
+    "LIV STR": "$N $vwave at $t $o."
+  },
+  "grin": {
+    "": "$N $vgrin.",
+    "LIV": "$N $vgrin at $t.",
+    "STR": "$N $vgrin $o."
+  },
+  "laugh": {
+    "": "$N $vlaugh at $o.",
+    "LIV": "$N $vlaugh at $t.",
+    "LIV STR": "$N $vlaugh at $t $o.",
+    "STR": "$N $vlaugh $o."
+  },
+  "giggle": {
+    "": "$N $vgiggle.",
+    "LIV": "$N $vgiggle at $t.",
+    "LIV STR": "$N $vgiggle $o at $t.",
+    "STR": "$N $vgiggle $o."
+  },
+  "hug": {
+    "": "$N $vhug $r.",
+    "LIV": "$N $vhug $t."
+  },
+  "bow": {
+    "": "$N $vbow.",
+    "LIV": "$N $vbow to $t.",
+    "STR": "$N $vbow $o.",
+    "STR LIV": "$N $vbow $o to $t."
+  },
+  "shrug": {
+    "": "$N $vshrug $o at $t.",
+    "LIV": "$N $vshrug helplessly at $t.",
+    "STR": "$N $vshrug $o."
+  },
+  "sigh": {
+    "": "$N $vsigh.",
+    "LIV": "$N $vlook at $t and $vsigh.",
+    "STR": "$N $vsigh $o."
+  },
+  "cheer": {
+    "": "$N $vlet out a resounding cheer!",
+    "LIV": "$N $vcheer for $t.",
+    "STR": "$N $vcheer $o."
+  },
+  "wink": {
+    "": "$N $vwink.",
+    "LIV": "$N $vwink at $t.",
+    "STR": "$N $vwink $o."
+  },
+  "poke": {
+    "LIV": "$N $vpoke $t in the ribs.",
+    "LIV STR": "$N $vpoke $Q $o."
+  },
+  "slap": {
+    "LIV": "$N $vslap $t."
+  },
+  "thank": {
+    "": "$N $vare thankful.",
+    "LIV": "$N $vthank $t.",
+    "LIV STR": "$N $vthank $t $o."
+  },
+  "greet": {
+    "": "$N $vgreet everyone in the room.",
+    "LIV": "$N $vgreet $t warmly."
+  },
+  "cry": {
+    "": "$N $vcry.",
+    "LIV": "$N $vcry because of $t.",
+    "STR": "$N $vcry $o."
+  },
+  "comfort": {
+    "": "$N $vgo, \"I've got compassion running out of my nose, pal.  I'm the sultan of sentiment!\"",
+    "LIV": "$N $vcomfort $t."
+  },
+  "dance": {
+    "": "$N $vdance.",
+    "LIV": "$N $vdance the waltz with $t.",
+    "STR": "$N $vdance $o."
+  },
+  "think": {
+    "": "$N $vclose $p eyes and $vthink carefully."
+  },
+  "agree": {
+    "": "$N $vagree.",
+    "LIV": "$N $vagree with $t.",
+    "LIV STR": "$N $vagree with $t $o.",
+    "STR": "$N $vagree $o."
+  },
+  "disagree": {
+    "": "$N $vdisagree.",
+    "LIV": "$N $vdisagree with $t."
+  },
+  "blush": {
+    "LIV": "$N $vblush furiously at $t."
+  },
+  "frown": {
+    "LIV": "$N $vfrown at $t.",
+    "STR": "$N $vfrown $o."
+  },
+  "glare": {
+    "": "$N $vglare.",
+    "LIV": "$N $vglare at $t.",
+    "STR": "$N $vglare $o."
+  },
+  "yawn": {
+    "": "$N $vyawn.",
+    "LIV": "$N $vyawn at $t.",
+    "STR": "$N $vyawn $o."
+  },
+  "groan": {
+    "": "$N $vgroan.",
+    "LIV": "$N $vgroan at $t.",
+    "STR": "$N $vgroan $o."
+  },
   "0cool": {
     "": "$N $vwish $n were Zero Cool..."
   },
@@ -411,12 +540,6 @@
   "afterlife": {
     "": "$N $vremind everyone, \"In the afterlife, you could be in for some serious strife. Now you make the scene all day, but tomorrow there'll be Hell to pay.\"",
     "LIV": "$N $vremind $T, \"In the afterlife, you could be in for some serious strife. Now you make the scene all day, but tomorrow there'll be Hell to pay.\""
-  },
-  "agree": {
-    "": "$N $vagree.",
-    "LIV": "$N $vagree with $t.",
-    "LIV STR": "$N $vagree with $t $o.",
-    "STR": "$N $vagree $o."
   },
   "agree2": {
     "": "$N $vagree, and like Bill Clinton, $n $vhave experience.",
@@ -1724,9 +1847,6 @@
   "bluescreen": {
     "": "$N $vdisappear and $vare replaced by a blue screen covered with cryptic information."
   },
-  "blush": {
-    "LIV": "$N $vblush furiously at $t."
-  },
   "blush2": {
     "": "$N $vblush innocently.",
     "LIV": "$N $vblush innocently at $T."
@@ -1989,12 +2109,6 @@
   "bounce": {
     "LIV": "$N $vroll $t up into a ball and $vbounce $t around.",
     "STR": "$N $vbounce $o."
-  },
-  "bow": {
-    "": "$N $vbow.",
-    "LIV": "$N $vbow to $t.",
-    "STR": "$N $vbow $o.",
-    "STR LIV": "$N $vbow $o to $t."
   },
   "box": {
     "": "$N $vthink $n $vneed a bigger box."
@@ -2618,11 +2732,6 @@
   "cheech1": {
     "": "$N $vgo, \"da da dah dah da dah... my scaaarodem...\""
   },
-  "cheer": {
-    "": "$N $vlet out a resounding cheer!",
-    "LIV": "$N $vcheer for $t.",
-    "STR": "$N $vcheer $o."
-  },
   "cheers": {
     "": "$N $vraise $p mug into the air and $vcall out \"Cheers!\""
   },
@@ -2995,10 +3104,6 @@
     "": "$N $vgo, \"Come on!\"",
     "LIV": "$N $vgo, \"Come on $t!\""
   },
-  "comfort": {
-    "": "$N $vgo, \"I've got compassion running out of my nose, pal.  I'm the sultan of sentiment!\"",
-    "LIV": "$N $vcomfort $t."
-  },
   "commacops": {
     "": "Out of the blue, an entire squadron of Comma Cops jump from hiding spots around $n. One by one they pelt $nb with buckets of rancid monkey vomit."
   },
@@ -3295,11 +3400,6 @@
     "": "$N $vexclaim, \"Christ on a crutch!\"",
     "LIV": "$N $vexclaim, \"Christ on a crutch, $T's!\""
   },
-  "cry": {
-    "": "$N $vcry.",
-    "LIV": "$N $vcry because of $t.",
-    "STR": "$N $vcry $o."
-  },
   "crylick": {
     "LIV": "$N $vare going to lick $t until $Ts $vcry."
   },
@@ -3455,11 +3555,6 @@
   "damnthe": {
     "": "$N $vscream, \"DamnTheRats!\"",
     "STR": "$N $vscream, \"DamnThe$O!\""
-  },
-  "dance": {
-    "": "$N $vdance.",
-    "LIV": "$N $vdance the waltz with $t.",
-    "STR": "$N $vdance $o."
   },
   "dance2": {
     "": "$N $vsweep $r across the dance floor.",
@@ -3727,10 +3822,6 @@
   "dirtsnake": {
     "": "$N $vsquat, $vgrunt and after much effort, $vhonk out a beautiful dirtsnake.",
     "LIV": "$N $vsquat and $vgrunt for a few minutes. After much effort $n $vhonk out a beautiful dirtsnake. $T $vlook on admiringly."
-  },
-  "disagree": {
-    "": "$N $vdisagree.",
-    "LIV": "$N $vdisagree with $t."
   },
   "disaster": {
     "LIV": "$N $vdeclare $t a Federal Disaster Area."
@@ -5321,10 +5412,6 @@
     "": "$N $vfroth at the mouth.",
     "LIV": "$N $vfroth at $T."
   },
-  "frown": {
-    "LIV": "$N $vfrown at $t.",
-    "STR": "$N $vfrown $o."
-  },
   "frozen": {
     "": "$N $vpractice what $n $vlike to call, \"The Frozen Style\". Oh, yeah.",
     "LIV": "$N $vtell $T that $n $vpractice what $n $vlike to call, \"The Frozen Style\".  $Tg $vsigh, \"Oh, yeah...\""
@@ -5734,12 +5821,6 @@
   "ghump": {
     "LIV": "$N $vhump $Q leg in greeting."
   },
-  "giggle": {
-    "": "$N $vgiggle.",
-    "LIV": "$N $vgiggle at $t.",
-    "LIV STR": "$N $vgiggle $o at $t.",
-    "STR": "$N $vgiggle $o."
-  },
   "gigundo": {
     "": "$N $vexclaim, \"Why, that's GIGUNDO!\"",
     "LIV": "$N $vexclaim, \"Why, that's GIGUNDO, $T's!\""
@@ -5794,11 +5875,6 @@
   "glans": {
     "": "$N $vnote, \"She can put vacuum tension on my glans anytime!\"",
     "LIV": "$N $vnote, \"She can put vacuum tension on my glans anytime, $T's!\""
-  },
-  "glare": {
-    "": "$N $vglare.",
-    "LIV": "$N $vglare at $t.",
-    "STR": "$N $vglare $o."
   },
   "glass": {
     "LIV": "$N $vtell $t, \"You wanna play broken glass against the head game!?!\""
@@ -6074,10 +6150,6 @@
   "greatsage2": {
     "": "$N $vquote the wise sage Violator, \"But its not going to be cheap, and will more than likely cost a hell of a lot.\""
   },
-  "greet": {
-    "": "$N $vgreet everyone in the room.",
-    "LIV": "$N $vgreet $t warmly."
-  },
   "grenade": {
     "": "$N $vroll on the floor laughing due to a laughing-gas grenade misfire.",
     "LIV": "$N $vlob a laughing-gas grenade at $t."
@@ -6094,19 +6166,9 @@
     "LIV": "$N $vgrimace at the very thought of life with $t.",
     "STR": "$N $vgrimace $o."
   },
-  "grin": {
-    "": "$N $vgrin.",
-    "LIV": "$N $vgrin at $t.",
-    "STR": "$N $vgrin $o."
-  },
   "grind": {
     "": "$N $vmutter \"grind grind grind\" in a distracting way.",
     "LIV": "$N $vgrind $Q head gently into the floor."
-  },
-  "groan": {
-    "": "$N $vgroan.",
-    "LIV": "$N $vgroan at $t.",
-    "STR": "$N $vgroan $o."
   },
   "groceries": {
     "": "$N came back as a bag of groceries accidentally taken off the shelf before the expiration date."
@@ -6879,10 +6941,6 @@
   },
   "hubbazoot": {
     "": "$N $vsing, \"Hubba hubba zoot zoot! Ebba ooba zut zut, a nom nom! Hubba hubba zoot zoot! Ebba ooba zut zut, a nom nom! A hooda paypa hooda paypa, a nob hooda paypa! A nom nom!\""
-  },
-  "hug": {
-    "": "$N $vhug $r.",
-    "LIV": "$N $vhug $t."
   },
   "huge": {
     "": "$N $vare HUUUUUUUUUGE!!!!",
@@ -7910,12 +7968,6 @@
     "LIV": "$N $vnote to $T, \"That's Latin for 'go stick your head in a pig'.\"",
     "LIV STR": "$N $vnote to $T, \"$O is Latin for 'go stick your head in a pig'.\"",
     "STR": "$N $vnote, \"$O is Latin for 'go stick your head in a pig'.\""
-  },
-  "laugh": {
-    "": "$N $vlaugh at $o.",
-    "LIV": "$N $vlaugh at $t.",
-    "LIV STR": "$N $vlaugh at $t $o.",
-    "STR": "$N $vlaugh $o."
   },
   "laugh2": {
     "": "$N $vlaugh at Acer's feeble attempts at using \"addemote\".",
@@ -9619,10 +9671,6 @@
     "": "$N $vsay, \"No comprende.\"",
     "LIV": "$N $vsay, \"No comprende.\" to $T."
   },
-  "nod": {
-    "": "$N $vnod.",
-    "LIV": "$N $vnod at $t."
-  },
   "nod2": {
     "": "$N $vnod.\n$N $vnod knowingly."
   },
@@ -10754,10 +10802,6 @@
   },
   "pointoforder": {
     "": "$N $vraise a hand and $vcall out, 'Point of order!  The chair has not recognized the speaker at this time!'"
-  },
-  "poke": {
-    "LIV": "$N $vpoke $t in the ribs.",
-    "LIV STR": "$N $vpoke $Q $o."
   },
   "pole": {
     "": "$N $vsay, \"I'm not touching that one with a 20' pole.\""
@@ -12332,11 +12376,6 @@
     "LIV": "$N $vshrig at $t.",
     "STR": "$N $vshrig $o."
   },
-  "shrug": {
-    "": "$N $vshrug $o at $t.",
-    "LIV": "$N $vshrug helplessly at $t.",
-    "STR": "$N $vshrug $o."
-  },
   "shrugarm": {
     "": "$N $vshrugarm.",
     "STR": "$N $vshrugarm $o."
@@ -12380,11 +12419,6 @@
   "siddown": {
     "": "$N $vyell \"SIDDOWN!\" authoritatively.",
     "LIV": "$N $vyell \"SIDDOWN!\" at $T authoritatively. $T $vdo."
-  },
-  "sigh": {
-    "": "$N $vsigh.",
-    "LIV": "$N $vlook at $t and $vsigh.",
-    "STR": "$N $vsigh $o."
   },
   "sigh2": {
     "": "$N $vsigh profoundly heavily. Twice. And still The World, or Tiamat if you've lost all contact with the world, has yet to become a better place, or mud if you no longer have a 3D-life."
@@ -12528,9 +12562,6 @@
   "slam": {
     "LIV": "$N $vslam $t into the wall."
   },
-  "slap": {
-    "LIV": "$N $vslap $t."
-  },
   "slapfro": {
     "LIV": "$N $vslap $Q fro!"
   },
@@ -12645,13 +12676,6 @@
   },
   "smhands": {
     "LIV": "$N $vlike $t, coz $Q hands make $p 'pride' look big."
-  },
-  "smile": {
-    "": "$N $vsmile $o at $t.",
-    "LIV": "$N $vsmile at $t.",
-    "LIV LIV": "$N $vsmile at $t and $t2.",
-    "LIV STR": "$N $vsmile at $t $o.",
-    "STR": "$N $vsmile $o."
   },
   "smilepenis": {
     "": "$N $vsmilepenis.",
@@ -13812,11 +13836,6 @@
     "": "$N $vflash a toothy grin.",
     "LIV": "$N $vflash a toothy grin at $t."
   },
-  "thank": {
-    "": "$N $vare thankful.",
-    "LIV": "$N $vthank $t.",
-    "LIV STR": "$N $vthank $t $o."
-  },
   "thankee": {
     "": "$N $vsay, \"Thankee Sai.\"",
     "LIV": "$N $vsay to $T, \"Thankee Sai.\""
@@ -13860,9 +13879,6 @@
   },
   "thespian2": {
     "": "Nobody knows that $n $vare a thespian!"
-  },
-  "think": {
-    "": "$N $vclose $p eyes and $vthink carefully."
   },
   "thinkitis": {
     "": "$N $vexclaim, \"Well, we *THINK* it is!\"",
@@ -14955,12 +14971,6 @@
     "": "$N $vobserve, \"Hmm.  I guess those bad guys on Star Trek were right.  We really *ARE* dirty bags of mostly water.\"",
     "LIV": "$N $vobserve, \"Hmm.  I guess those bad guys on Star Trek were right.  We really *ARE* dirty bags of mostly water, $T's.\""
   },
-  "wave": {
-    "": "$N $vwave.",
-    "LIV": "$N $vwave at $t.",
-    "LIV LIV": "$N $vwave at $T and $n2.",
-    "LIV STR": "$N $vwave at $t $o."
-  },
   "wavep": {
     "": "$N $vwave at you."
   },
@@ -15256,11 +15266,6 @@
   },
   "winfriends": {
     "LIV": "$N $vread, \"How To Win Friends and Influence People, by $T's.\""
-  },
-  "wink": {
-    "": "$N $vwink.",
-    "LIV": "$N $vwink at $t.",
-    "STR": "$N $vwink $o."
   },
   "winnah": {
     "": "$N $vboom in a loud huckster voice, \"Ladies and Gennumun... We have a *winnah*!\""
@@ -15578,11 +15583,6 @@
   },
   "yar": {
     "": "$N $vgo, \"Yar!\""
-  },
-  "yawn": {
-    "": "$N $vyawn.",
-    "LIV": "$N $vyawn at $t.",
-    "STR": "$N $vyawn $o."
   },
   "yawnfast": {
     "": "$N $vyawn and quickly $vclose $p mouth before DB can throw peas..."
