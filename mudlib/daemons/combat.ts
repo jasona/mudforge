@@ -7,6 +7,7 @@
 
 import { MudObject } from '../lib/std.js';
 import type { Living, Weapon, DamageType, CombatEntry, RoundResult, AttackResult } from '../lib/std.js';
+import type { ConfigDaemon } from './config.js';
 
 /**
  * Base round time in milliseconds.
@@ -70,6 +71,15 @@ export class CombatDaemon extends MudObject {
   }
 
   /**
+   * Check if a living is a player (has permissionLevel property - only players have this).
+   */
+  private isPlayer(living: Living): boolean {
+    const asPlayer = living as Living & { permissionLevel?: number; isConnected?: () => boolean };
+    // Players have permissionLevel property (0=player, 1=builder, etc.)
+    return typeof asPlayer.permissionLevel === 'number';
+  }
+
+  /**
    * Initiate combat between attacker and defender.
    */
   initiateCombat(attacker: Living, defender: Living): boolean {
@@ -96,6 +106,19 @@ export class CombatDaemon extends MudObject {
     if (attacker.environment !== defender.environment) {
       attacker.receive(`${defender.name} is not here!\n`);
       return false;
+    }
+
+    // Check if player-killing is allowed
+    if (this.isPlayer(attacker) && this.isPlayer(defender)) {
+      const configDaemon = typeof efuns !== 'undefined'
+        ? efuns.findObject('/daemons/config') as ConfigDaemon | undefined
+        : undefined;
+      const pkEnabled = configDaemon?.get<boolean>('combat.playerKilling') ?? false;
+
+      if (!pkEnabled) {
+        attacker.receive("{yellow}Player killing is not allowed on this mud.{/}\n");
+        return false;
+      }
     }
 
     // Start combat state on both sides

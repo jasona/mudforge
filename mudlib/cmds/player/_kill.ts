@@ -113,12 +113,7 @@ export function execute(ctx: CommandContext): void {
     return;
   }
 
-  // Check if target is a player (PvP protection - can be disabled later)
-  if ('connection' in target) {
-    ctx.sendLine("You can't attack other players!");
-    return;
-  }
-
+  // Note: PvP protection is handled by the combat daemon based on config setting
   // Initiate combat through the daemon
   const combatDaemon = getCombatDaemon();
   const success = combatDaemon.initiateCombat(attacker, target);

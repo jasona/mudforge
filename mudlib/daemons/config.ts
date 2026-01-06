@@ -43,6 +43,11 @@ const DEFAULT_SETTINGS: Record<string, ConfigSetting> = {
     min: 1,
     max: 60,
   },
+  'combat.playerKilling': {
+    value: false,
+    description: 'Allow players to attack and kill other players (PK/PvP)',
+    type: 'boolean',
+  },
 };
 
 /**
