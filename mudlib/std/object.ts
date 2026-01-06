@@ -5,27 +5,6 @@
  * It provides identity, descriptions, actions, and lifecycle hooks.
  */
 
-// Efuns are injected by the driver at runtime
-declare const efuns: {
-  thisObject(): MudObject | null;
-  thisPlayer(): MudObject | null;
-  cloneObject(path: string): Promise<MudObject | undefined>;
-  destruct(object: MudObject): Promise<void>;
-  findObject(pathOrId: string): MudObject | undefined;
-  move(object: MudObject, destination: MudObject | null): Promise<boolean>;
-  environment(object: MudObject): MudObject | null;
-  allInventory(object: MudObject): MudObject[];
-  send(target: MudObject, message: string): void;
-  callOut(callback: () => void | Promise<void>, delayMs: number): number;
-  removeCallOut(id: number): boolean;
-  setHeartbeat(object: MudObject, enable: boolean): void;
-  time(): number;
-  random(max: number): number;
-  capitalize(str: string): string;
-  explode(str: string, delimiter: string): string[];
-  implode(arr: string[], delimiter: string): string;
-};
-
 /**
  * Action handler function type.
  */

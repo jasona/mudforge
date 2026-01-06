@@ -63,25 +63,6 @@ async function verifyPassword(password: string, storedHash: string): Promise<boo
   return timingSafeEqual(hashBuffer, derivedKey);
 }
 
-// Efuns are injected by the driver at runtime
-declare const efuns: {
-  findObject(pathOrId: string): MudObject | undefined;
-  cloneObject(path: string): Promise<MudObject | undefined>;
-  send(target: MudObject, message: string): void;
-  time(): number;
-  bindPlayerToConnection(connection: Connection, player: MudObject): void;
-  findConnectedPlayer(name: string): MudObject | undefined;
-  transferConnection(connection: Connection, player: MudObject): void;
-  findActivePlayer(name: string): MudObject | undefined;
-  registerActivePlayer(player: MudObject): void;
-  unregisterActivePlayer(player: MudObject): void;
-  // Persistence efuns
-  playerExists(name: string): Promise<boolean>;
-  loadPlayerData(name: string): Promise<PlayerSaveData | null>;
-  savePlayer(player: MudObject): Promise<void>;
-  listPlayers(): Promise<string[]>;
-};
-
 /**
  * Player save data from persistence layer.
  */

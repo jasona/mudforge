@@ -57,11 +57,6 @@ export interface ChannelMessage {
   timestamp: number;
 }
 
-// Efuns are injected by the driver at runtime
-declare const efuns: {
-  allPlayers(): MudObject[];
-};
-
 /**
  * Channel Daemon class.
  */

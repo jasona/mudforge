@@ -12,21 +12,6 @@
 import type { MudObject } from '../../std/object.js';
 import type { PlayerSaveData } from '../../std/player.js';
 
-// Efuns are injected by the driver at runtime
-declare const efuns: {
-  allPlayers(): MudObject[];
-  findActivePlayer(name: string): MudObject | undefined;
-  playerExists(name: string): Promise<boolean>;
-  loadPlayerData(name: string): Promise<PlayerSaveData | null>;
-  fileExists(path: string): Promise<boolean>;
-  readFile(path: string): Promise<string>;
-  time(): number;
-  toSeconds(timestamp: number): number;
-  toMilliseconds(timestamp: number): number;
-  formatDuration(seconds: number): string;
-  formatDate(timestamp: number): string;
-};
-
 interface CommandContext {
   player: MudObject;
   args: string;

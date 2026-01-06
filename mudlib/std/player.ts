@@ -19,16 +19,6 @@ import {
   type ConfigOption,
 } from '../lib/player-config.js';
 
-// Efuns are injected by the driver at runtime
-declare const efuns: {
-  send(target: MudObject, message: string): void;
-  time(): number;
-  executeCommand(player: MudObject, input: string, level: number): Promise<boolean>;
-  savePlayer(player: MudObject): Promise<void>;
-  setHeartbeat(object: MudObject, enable: boolean): void;
-  unregisterActivePlayer(player: MudObject): void;
-};
-
 /**
  * Connection interface (implemented by driver's Connection class).
  */

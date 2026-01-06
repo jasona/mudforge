@@ -9,14 +9,6 @@
 import type { MudObject } from '../../std/object.js';
 import { resolvePath, basename, getHomeDir } from '../../lib/path-utils.js';
 
-// Efuns are injected by the driver at runtime
-declare const efuns: {
-  fileExists(path: string): Promise<boolean>;
-  fileStat(path: string): Promise<{ isFile: boolean; isDirectory: boolean; size: number; mtime: Date }>;
-  removeFile(path: string): Promise<void>;
-  checkWritePermission(path: string): boolean;
-};
-
 interface PlayerWithCwd extends MudObject {
   cwd: string;
   name: string;

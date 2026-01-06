@@ -4,11 +4,6 @@
 
 import type { MudObject } from '../../std/object.js';
 
-// Efuns are injected by the driver at runtime
-declare const efuns: {
-  findObject(pathOrId: string): MudObject | undefined;
-};
-
 interface CommandContext {
   player: MudObject;
   args: string;

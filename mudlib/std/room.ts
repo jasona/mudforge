@@ -10,12 +10,6 @@ import { reflowText } from '../lib/colors.js';
 import { Container } from './container.js';
 import { NPC } from './npc.js';
 
-// Efuns are injected by the driver at runtime
-declare const efuns: {
-  findObject(pathOrId: string): MudObject | undefined;
-  send(target: MudObject, message: string): void;
-};
-
 /**
  * Exit definition.
  */

@@ -7,20 +7,6 @@
 
 import { MudObject } from './std/object.js';
 
-// Efuns are injected by the driver at runtime
-declare const efuns: {
-  thisPlayer(): MudObject | null;
-  thisObject(): MudObject | null;
-  findObject(pathOrId: string): MudObject | undefined;
-  cloneObject(path: string): Promise<MudObject | undefined>;
-  send(target: MudObject, message: string): void;
-  capitalize(str: string): string;
-  explode(str: string, delimiter: string): string[];
-  implode(arr: string[], delimiter: string): string;
-  random(max: number): number;
-  time(): number;
-};
-
 // ========== String Functions ==========
 
 /**

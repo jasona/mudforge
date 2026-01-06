@@ -7,13 +7,7 @@
 
 import { PermissionLevel } from '../../src/driver/permissions.js';
 
-// These will be injected by the driver
-declare const efuns: {
-  isAdmin: () => boolean;
-  send: (target: object, message: string) => void;
-  thisPlayer: () => object | null;
-};
-
+// Permissions object is injected by the driver (not part of efuns)
 declare const permissions: {
   getLevel: (player: string) => PermissionLevel;
   setLevel: (playerName: string, level: PermissionLevel) => void;

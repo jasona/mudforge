@@ -8,11 +8,6 @@
 import { NPC } from '../../std/npc.js';
 import { MudObject } from '../../std/object.js';
 
-// Efuns are injected by the driver at runtime
-declare const efuns: {
-  setHeartbeat(object: MudObject, enable: boolean): void;
-};
-
 /**
  * The Town Crier NPC.
  */

@@ -13,20 +13,6 @@
 
 import type { MudObject } from '../../std/object.js';
 
-// Efuns are injected by the driver at runtime
-declare const efuns: {
-  reloadObject(path: string): Promise<{
-    success: boolean;
-    error?: string;
-    existingClones: number;
-    migratedObjects: number;
-  }>;
-  reloadCommand(path: string): Promise<{
-    success: boolean;
-    error?: string;
-  }>;
-};
-
 interface CommandContext {
   player: MudObject;
   args: string;

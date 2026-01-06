@@ -7,11 +7,6 @@
 import { Room } from '../../std/room.js';
 import { MudObject } from '../../std/object.js';
 
-// Efuns are injected by the driver at runtime
-declare const efuns: {
-  cloneObject(path: string): Promise<MudObject | undefined>;
-};
-
 /**
  * The Center of Town room.
  */

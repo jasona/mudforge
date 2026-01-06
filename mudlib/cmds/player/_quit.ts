@@ -5,11 +5,6 @@
 import type { MudObject } from '../../std/object.js';
 import { getChannelDaemon } from '../../daemons/channels.js';
 
-// Efuns are injected by the driver at runtime
-declare const efuns: {
-  savePlayer(player: MudObject): Promise<void>;
-};
-
 interface CommandContext {
   player: MudObject;
   args: string;

@@ -10,14 +10,6 @@ import type { EquipmentSlot } from './equipment.js';
 import type { Weapon } from './weapon.js';
 import type { Armor } from './armor.js';
 
-// Efuns are injected by the driver at runtime
-declare const efuns: {
-  findObject(pathOrId: string): MudObject | undefined;
-  send(target: MudObject, message: string): void;
-  move(object: MudObject, destination: MudObject | null): Promise<boolean>;
-  capitalize(str: string): string;
-};
-
 /**
  * Command parser result.
  */

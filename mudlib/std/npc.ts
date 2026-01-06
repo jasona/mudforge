@@ -9,12 +9,6 @@ import { Living } from './living.js';
 import { MudObject } from './object.js';
 import { Room } from './room.js';
 
-// Efuns are injected by the driver at runtime
-declare const efuns: {
-  random(max: number): number;
-  capitalize(str: string): string;
-};
-
 /**
  * Chat message definition.
  */

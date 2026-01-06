@@ -7,12 +7,6 @@
 
 import type { MudObject } from '../../std/object.js';
 
-// Efuns are injected by the driver at runtime
-declare const efuns: {
-  cloneObject(path: string): Promise<MudObject | undefined>;
-  move(object: MudObject, destination: MudObject | null): Promise<boolean>;
-};
-
 interface Player extends MudObject {
   cwd: string;
 }
