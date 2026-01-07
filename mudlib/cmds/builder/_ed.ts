@@ -70,8 +70,25 @@ export async function execute(ctx: CommandContext): Promise<void> {
     return;
   }
 
+  let fileArg = ctx.args.trim();
+
+  // Handle "here" - current room
+  if (fileArg.toLowerCase() === 'here') {
+    const env = ctx.player.environment;
+    if (!env) {
+      ctx.sendLine('{red}You are not in a room.{/}');
+      return;
+    }
+    const roomPath = env.objectPath;
+    if (!roomPath) {
+      ctx.sendLine('{red}Cannot determine current room path.{/}');
+      return;
+    }
+    fileArg = roomPath + '.ts';
+  }
+
   // Resolve file path
-  const filePath = resolvePath(currentCwd, ctx.args.trim(), homeDir);
+  const filePath = resolvePath(currentCwd, fileArg, homeDir);
 
   // Check permissions
   if (!efuns.checkWritePermission(filePath)) {

@@ -75,7 +75,7 @@ export async function execute(ctx: CommandContext): Promise<void> {
     }
   }
 
-  const filePath = fileParts.join(' ');
+  let filePath = fileParts.join(' ');
 
   if (!filePath) {
     ctx.sendLine('Usage: cat [-n] [-a] [-h <lines>] [-t <lines>] <file>');
@@ -83,7 +83,23 @@ export async function execute(ctx: CommandContext): Promise<void> {
     ctx.sendLine('  -a  Show all without paging');
     ctx.sendLine('  -h  Show first N lines (head)');
     ctx.sendLine('  -t  Show last N lines (tail)');
+    ctx.sendLine('  here - View the current room file');
     return;
+  }
+
+  // Handle "here" - current room
+  if (filePath.toLowerCase() === 'here') {
+    const env = ctx.player.environment;
+    if (!env) {
+      ctx.sendLine('{red}You are not in a room.{/}');
+      return;
+    }
+    const roomPath = env.objectPath;
+    if (!roomPath) {
+      ctx.sendLine('{red}Cannot determine current room path.{/}');
+      return;
+    }
+    filePath = roomPath + '.ts';
   }
 
   // Resolve the path
