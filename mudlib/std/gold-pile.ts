@@ -59,17 +59,26 @@ export class GoldPile extends Item {
       this._shortDesc = 'a gold coin';
       this._longDesc = 'A single gold coin lies here, glinting in the light.';
     } else if (this._amount < 10) {
-      this._shortDesc = `${this._amount} gold coins`;
-      this._longDesc = `A small pile of ${this._amount} gold coins lies here.`;
-    } else if (this._amount < 100) {
-      this._shortDesc = `${this._amount} gold coins`;
-      this._longDesc = `A pile of ${this._amount} gold coins lies here, glittering invitingly.`;
+      this._shortDesc = 'a few gold coins';
+      this._longDesc = `A few gold coins (${this._amount}) lie scattered here.`;
+    } else if (this._amount < 50) {
+      this._shortDesc = 'a small pile of gold coins';
+      this._longDesc = `A small pile of gold coins (${this._amount}) lies here.`;
+    } else if (this._amount < 200) {
+      this._shortDesc = 'a pile of gold coins';
+      this._longDesc = `A pile of gold coins (${this._amount}) lies here, glittering invitingly.`;
+    } else if (this._amount < 500) {
+      this._shortDesc = 'a medium-sized pile of gold coins';
+      this._longDesc = `A medium-sized pile of gold coins (${this._amount}) lies here, gleaming brightly.`;
     } else if (this._amount < 1000) {
-      this._shortDesc = `${this._amount} gold coins`;
-      this._longDesc = `A substantial pile of ${this._amount} gold coins lies here, gleaming brightly.`;
+      this._shortDesc = 'a large pile of gold coins';
+      this._longDesc = `A large pile of gold coins (${this._amount}) lies here, shimmering enticingly.`;
+    } else if (this._amount < 5000) {
+      this._shortDesc = 'a -=HUGE=- pile of gold coins';
+      this._longDesc = `A -=HUGE=- pile of gold coins (${this._amount.toLocaleString()}) lies here, dazzling your eyes!`;
     } else {
-      this._shortDesc = `${this._amount.toLocaleString()} gold coins`;
-      this._longDesc = `A massive hoard of ${this._amount.toLocaleString()} gold coins lies here, dazzling your eyes.`;
+      this._shortDesc = 'a -=MASSIVE HOARD=- of gold coins';
+      this._longDesc = `A -=MASSIVE HOARD=- of gold coins (${this._amount.toLocaleString()}) lies here, practically blinding you with its brilliance!`;
     }
   }
 
