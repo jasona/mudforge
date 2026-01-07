@@ -931,25 +931,23 @@ body {
 }
 
 /* Gold display */
-.stats-gold {
+.stats-gold-row {
   display: flex;
-  flex-direction: row;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--spacing-md);
+  gap: var(--spacing-xs);
   padding: var(--spacing-xs) var(--spacing-sm);
   background-color: var(--bg-tertiary);
   border-radius: var(--border-radius-sm);
 }
 
-.stats-gold-row {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-xs);
-}
-
 .stats-gold-icon {
   font-size: var(--font-size-xs);
+}
+
+.stats-gold-label {
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+  flex: 1;
 }
 
 .stats-gold-value {
