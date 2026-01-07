@@ -68,6 +68,8 @@ export interface PlayerSaveData {
   enterMessage?: string; // Custom room enter message
   exitMessage?: string; // Custom room exit message
   exploration?: PlayerExplorationData; // Map exploration data
+  gold?: number; // Carried gold (lost on death)
+  bankedGold?: number; // Banked gold (safe from death)
 }
 
 /**
@@ -108,6 +110,10 @@ export class Player extends Living {
   private _exploredRooms: Set<string> = new Set();
   private _revealedRooms: Set<string> = new Set();
   private _detectedHiddenExits: Map<string, Set<string>> = new Map();
+
+  // Currency
+  private _gold: number = 0; // Carried gold (lost on death)
+  private _bankedGold: number = 0; // Banked gold (safe from death)
 
   constructor() {
     super();
@@ -1029,6 +1035,88 @@ export class Player extends Living {
     this.mana += 5;
   }
 
+  // ========== Currency ==========
+
+  /**
+   * Get the player's carried gold (lost on death).
+   */
+  get gold(): number {
+    return this._gold;
+  }
+
+  /**
+   * Set the player's carried gold.
+   */
+  set gold(value: number) {
+    this._gold = Math.max(0, Math.floor(value));
+  }
+
+  /**
+   * Get the player's banked gold (safe from death).
+   */
+  get bankedGold(): number {
+    return this._bankedGold;
+  }
+
+  /**
+   * Set the player's banked gold.
+   */
+  set bankedGold(value: number) {
+    this._bankedGold = Math.max(0, Math.floor(value));
+  }
+
+  /**
+   * Add gold to the player's carried gold.
+   * @param amount Amount of gold to add
+   */
+  addGold(amount: number): void {
+    if (amount <= 0) return;
+    this._gold += Math.floor(amount);
+  }
+
+  /**
+   * Remove gold from the player's carried gold.
+   * @param amount Amount of gold to remove
+   * @returns true if successful, false if not enough gold
+   */
+  removeGold(amount: number): boolean {
+    amount = Math.floor(amount);
+    if (amount <= 0) return true;
+    if (this._gold < amount) return false;
+    this._gold -= amount;
+    return true;
+  }
+
+  /**
+   * Deposit gold into the bank.
+   * @param amount Amount to deposit (or 'all')
+   * @returns Amount actually deposited, or -1 if failed
+   */
+  depositGold(amount: number | 'all'): number {
+    const toDeposit = amount === 'all' ? this._gold : Math.floor(amount);
+    if (toDeposit <= 0) return 0;
+    if (this._gold < toDeposit) return -1;
+
+    this._gold -= toDeposit;
+    this._bankedGold += toDeposit;
+    return toDeposit;
+  }
+
+  /**
+   * Withdraw gold from the bank.
+   * @param amount Amount to withdraw (or 'all')
+   * @returns Amount actually withdrawn, or -1 if failed
+   */
+  withdrawGold(amount: number | 'all'): number {
+    const toWithdraw = amount === 'all' ? this._bankedGold : Math.floor(amount);
+    if (toWithdraw <= 0) return 0;
+    if (this._bankedGold < toWithdraw) return -1;
+
+    this._bankedGold -= toWithdraw;
+    this._gold += toWithdraw;
+    return toWithdraw;
+  }
+
   // ========== Persistence ==========
 
   /**
@@ -1096,6 +1184,8 @@ export class Player extends Living {
       enterMessage: this.enterMessage,
       exitMessage: this.exitMessage,
       exploration: this.getExplorationData(),
+      gold: this._gold,
+      bankedGold: this._bankedGold,
     };
   }
 
@@ -1172,6 +1262,14 @@ export class Player extends Living {
     // Restore exploration data
     if (data.exploration) {
       this.restoreExplorationData(data.exploration);
+    }
+
+    // Restore gold (if present - for backwards compatibility)
+    if (data.gold !== undefined) {
+      this._gold = data.gold;
+    }
+    if (data.bankedGold !== undefined) {
+      this._bankedGold = data.bankedGold;
     }
 
     // Store equipment data for later restoration (after inventory is loaded)
@@ -1308,6 +1406,12 @@ export class Player extends Living {
       await item.moveTo(corpse);
     }
 
+    // Transfer carried gold to corpse (banked gold is safe)
+    if (this._gold > 0) {
+      corpse.gold = this._gold;
+      this._gold = 0;
+    }
+
     // Move corpse to death location
     if (this._deathLocation) {
       await corpse.moveTo(this._deathLocation);
@@ -1369,11 +1473,9 @@ export class Player extends Living {
 
     // Get gold back
     if (this._corpse.gold > 0) {
-      if ('gold' in this) {
-        (this as Player & { gold: number }).gold = (this as Player & { gold?: number }).gold || 0;
-        (this as Player & { gold: number }).gold += this._corpse.gold;
-        this.receive(`{yellow}You recover ${this._corpse.gold} gold coins.{/}\n`);
-      }
+      const recoveredGold = this._corpse.gold;
+      this._gold += recoveredGold;
+      this.receive(`{yellow}You recover ${recoveredGold} gold coins.{/}\n`);
     }
 
     // Destroy corpse

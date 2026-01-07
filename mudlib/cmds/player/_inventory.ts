@@ -11,6 +11,10 @@ interface CommandContext {
   sendLine(message: string): void;
 }
 
+interface PlayerWithGold extends MudObject {
+  gold?: number;
+}
+
 export const name = ['inventory', 'i', 'inv'];
 export const description = 'See what you are carrying';
 export const usage = 'inventory';
@@ -62,6 +66,13 @@ export function execute(ctx: CommandContext): void {
   // Show carried items
   for (const item of carriedItems) {
     ctx.sendLine(`  ${item.shortDesc}`);
+  }
+
+  // Show gold
+  const playerWithGold = player as PlayerWithGold;
+  if (playerWithGold.gold !== undefined && playerWithGold.gold > 0) {
+    ctx.sendLine('');
+    ctx.sendLine(`{yellow}Coin purse: ${playerWithGold.gold} gold{/}`);
   }
 }
 

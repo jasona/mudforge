@@ -26,7 +26,8 @@ To the {green}north{/}, the imposing walls of the {bold}castle{/} rise above the
 {yellow}tavern{/} with a weathered sign creaks in the breeze to the {green}east{/}. The {green}western{/} road
 leads toward the merchant district, while {green}southward{/} lies the town gates and the
 wilderness beyond. A sturdy building to the {green}northeast{/} bears the sign of a crossed
-sword and shield - the {cyan}training hall{/}.
+sword and shield - the {cyan}training hall{/}. To the {green}southeast{/}, the solid stone walls of
+the {yellow}Bank of Aldric{/} promise security for your hard-earned gold.
 
 A {magenta}town crier{/} stands near the fountain, occasionally announcing the day's news to
 anyone who will listen.`;
@@ -44,6 +45,7 @@ anyone who will listen.`;
     this.addExit('west', '/areas/valdoria/aldric/market');
     this.addExit('south', '/areas/valdoria/aldric/gates');
     this.addExit('northeast', '/areas/valdoria/aldric/training_hall');
+    this.addExit('southeast', '/areas/valdoria/aldric/bank');
 
     // Add actions
     this.addAction('look', this.cmdLook.bind(this));

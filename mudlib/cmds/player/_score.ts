@@ -25,6 +25,8 @@ interface StatsPlayer extends MudObject {
   alive: boolean;
   permissionLevel?: number;
   playTime: number;
+  gold: number;
+  bankedGold: number;
   getStats(): Record<StatName, number>;
   getBaseStats(): Record<StatName, number>;
   getStatBonus(stat: StatName): number;
@@ -140,7 +142,7 @@ export function execute(ctx: CommandContext): void {
   if (args === 'brief' || args === 'b') {
     const healthPct = Math.round((player.health / player.maxHealth) * 100);
     const manaPct = Math.round((player.mana / player.maxMana) * 100);
-    ctx.sendLine(`{bold}${player.name}{/} [Lv ${player.level}] HP: ${player.health}/${player.maxHealth} (${healthPct}%) | MP: ${player.mana}/${player.maxMana} (${manaPct}%) | XP: ${player.experience}`);
+    ctx.sendLine(`{bold}${player.name}{/} [Lv ${player.level}] HP: ${player.health}/${player.maxHealth} (${healthPct}%) | MP: ${player.mana}/${player.maxMana} (${manaPct}%) | XP: ${player.experience} | {yellow}Gold: ${player.gold}{/}`);
 
     const statLine = Object.entries(STAT_SHORT_NAMES)
       .map(([stat, short]) => `${short}:${stats[stat as StatName]}`)
@@ -246,6 +248,13 @@ export function execute(ctx: CommandContext): void {
   const luckVal = stats.luck;
   const luckBonus = player.getStatBonus('luck');
   ctx.sendLine(formatStat(STAT_SHORT_NAMES.luck, luckVal, luckBonus));
+
+  ctx.sendLine('');
+
+  // Wealth
+  ctx.sendLine('{bold}{yellow}── Wealth ──{/}');
+  ctx.sendLine(`  {bold}Gold:{/}   {yellow}${player.gold}{/} coins`);
+  ctx.sendLine(`  {bold}Banked:{/} {yellow}${player.bankedGold}{/} coins`);
 
   ctx.sendLine('');
 

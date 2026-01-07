@@ -81,6 +81,7 @@ export class Master extends MudObject {
       '/areas/valdoria/aldric/gates',
       '/areas/valdoria/aldric/bakery',
       '/areas/valdoria/aldric/training_hall',
+      '/areas/valdoria/aldric/bank',
       // Castle Dungeon
       '/areas/valdoria/aldric_depths/entrance',
       '/areas/valdoria/aldric_depths/corridor',

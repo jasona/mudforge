@@ -10,12 +10,18 @@
 
 import type { MudObject } from '../../lib/std.js';
 import { Item, Container } from '../../lib/std.js';
+import { Corpse } from '../../std/corpse.js';
 
 interface CommandContext {
   player: MudObject;
   args: string;
   send(message: string): void;
   sendLine(message: string): void;
+}
+
+interface PlayerWithGold extends MudObject {
+  gold?: number;
+  addGold?(amount: number): void;
 }
 
 export const name = ['get', 'take', 'pick'];
@@ -199,6 +205,33 @@ async function getFromContainer(
     return;
   }
 
+  // Special handling for "get gold from corpse"
+  if (itemName.toLowerCase() === 'gold' || itemName.toLowerCase() === 'coins') {
+    if (container instanceof Corpse) {
+      const corpse = container;
+      if (corpse.gold <= 0) {
+        ctx.sendLine(`There's no gold on ${corpse.shortDesc}.`);
+        return;
+      }
+
+      const amount = corpse.lootGold(player);
+      ctx.sendLine(`{yellow}You take ${amount} gold coin${amount !== 1 ? 's' : ''} from ${corpse.shortDesc}.{/}`);
+
+      // Notify room
+      const playerName = player.name || 'Someone';
+      for (const observer of room.inventory) {
+        if (observer !== player && 'receive' in observer) {
+          const recv = observer as MudObject & { receive: (msg: string) => void };
+          recv.receive(`${playerName} takes gold from ${corpse.shortDesc}.\n`);
+        }
+      }
+      return;
+    } else {
+      ctx.sendLine(`You don't see any gold in the ${container.shortDesc}.`);
+      return;
+    }
+  }
+
   if (itemName.toLowerCase() === 'all') {
     // Get all from container
     await getAllFromContainer(ctx, container);
@@ -238,7 +271,13 @@ async function getAllFromContainer(ctx: CommandContext, container: Container): P
 
   const items = [...container.inventory]; // Copy since we're modifying
 
-  if (items.length === 0) {
+  // Check if container is a corpse with gold
+  let goldAmount = 0;
+  if (container instanceof Corpse && container.gold > 0) {
+    goldAmount = container.lootGold(player);
+  }
+
+  if (items.length === 0 && goldAmount === 0) {
     ctx.sendLine(`The ${container.shortDesc} is empty.`);
     return;
   }
@@ -250,12 +289,20 @@ async function getAllFromContainer(ctx: CommandContext, container: Container): P
     taken.push(item.shortDesc);
   }
 
-  if (taken.length === 1) {
-    ctx.sendLine(`You get ${taken[0]} from ${container.shortDesc}.`);
-  } else {
-    ctx.sendLine(`You get ${taken.length} items from ${container.shortDesc}:`);
-    for (const desc of taken) {
-      ctx.sendLine(`  ${desc}`);
+  // Build output message
+  if (taken.length > 0 || goldAmount > 0) {
+    if (taken.length === 1 && goldAmount === 0) {
+      ctx.sendLine(`You get ${taken[0]} from ${container.shortDesc}.`);
+    } else if (taken.length === 0 && goldAmount > 0) {
+      ctx.sendLine(`{yellow}You take ${goldAmount} gold coin${goldAmount !== 1 ? 's' : ''} from ${container.shortDesc}.{/}`);
+    } else {
+      ctx.sendLine(`You get from ${container.shortDesc}:`);
+      for (const desc of taken) {
+        ctx.sendLine(`  ${desc}`);
+      }
+      if (goldAmount > 0) {
+        ctx.sendLine(`  {yellow}${goldAmount} gold coin${goldAmount !== 1 ? 's' : ''}{/}`);
+      }
     }
   }
 
@@ -265,8 +312,8 @@ async function getAllFromContainer(ctx: CommandContext, container: Container): P
     for (const observer of room.inventory) {
       if (observer !== player && 'receive' in observer) {
         const recv = observer as MudObject & { receive: (msg: string) => void };
-        if (taken.length === 1) {
-          recv.receive(`${playerName} gets ${taken[0]} from ${container.shortDesc}.\n`);
+        if (taken.length <= 1 && goldAmount === 0) {
+          recv.receive(`${playerName} gets ${taken[0] || 'something'} from ${container.shortDesc}.\n`);
         } else {
           recv.receive(`${playerName} empties ${container.shortDesc}.\n`);
         }
