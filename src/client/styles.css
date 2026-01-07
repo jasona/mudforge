@@ -966,26 +966,40 @@ body {
   color: var(--text-secondary);
 }
 
-/* Map Panel */
+/* Map Panel - Floating Toolbar */
 #map-container {
-  width: 280px;
-  flex-shrink: 0;
-  background-color: var(--bg-secondary);
-  border-left: 1px solid var(--border-primary);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  z-index: 100;
 }
 
 .map-panel {
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow-lg);
+  opacity: 0.95;
+  transition: opacity 0.15s ease, box-shadow 0.15s ease;
   display: flex;
   flex-direction: column;
-  height: 100%;
-  transition: width 0.2s ease;
+  width: 220px;
+  max-height: 280px;
+}
+
+.map-panel:hover {
+  opacity: 1;
+}
+
+.map-panel.dragging {
+  opacity: 0.85;
+  box-shadow: var(--shadow-lg), 0 0 0 2px var(--accent);
+  cursor: grabbing;
 }
 
 .map-panel.collapsed {
-  width: 40px;
+  width: auto;
+  max-height: none;
 }
 
 .map-panel.collapsed .map-panel-content,
@@ -1004,16 +1018,25 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--spacing-sm) var(--spacing-md);
+  padding: var(--spacing-xs) var(--spacing-sm);
   background-color: var(--bg-tertiary);
   border-bottom: 1px solid var(--border-primary);
+  border-radius: var(--border-radius) var(--border-radius) 0 0;
   flex-shrink: 0;
+  cursor: grab;
+  user-select: none;
+}
+
+.map-panel-header:active {
+  cursor: grabbing;
 }
 
 .map-panel-title {
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
   font-weight: 500;
-  color: var(--text-primary);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1022,17 +1045,17 @@ body {
 .map-panel-controls {
   display: flex;
   align-items: center;
-  gap: var(--spacing-xs);
+  gap: 2px;
 }
 
 .map-btn {
-  width: 24px;
-  height: 24px;
+  width: 18px;
+  height: 18px;
   padding: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: var(--font-size-sm);
+  font-size: 10px;
   font-weight: 600;
   color: var(--text-secondary);
   background-color: var(--bg-hover);
@@ -1052,7 +1075,7 @@ body {
   font-size: var(--font-size-xs);
   font-weight: 500;
   color: var(--text-secondary);
-  min-width: 16px;
+  min-width: 14px;
   text-align: center;
 }
 
@@ -1060,7 +1083,7 @@ body {
   flex: 1;
   overflow: hidden;
   background-color: var(--bg-terminal);
-  position: relative;
+  min-height: 150px;
 }
 
 .map-svg {
@@ -1090,24 +1113,25 @@ body {
 .map-panel-legend {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--spacing-sm);
-  padding: var(--spacing-sm) var(--spacing-md);
+  gap: var(--spacing-xs);
+  padding: var(--spacing-xs) var(--spacing-sm);
   background-color: var(--bg-tertiary);
   border-top: 1px solid var(--border-primary);
+  border-radius: 0 0 var(--border-radius) var(--border-radius);
   flex-shrink: 0;
 }
 
 .map-legend-item {
   display: flex;
   align-items: center;
-  gap: var(--spacing-xs);
-  font-size: var(--font-size-xs);
+  gap: 2px;
+  font-size: 9px;
   color: var(--text-secondary);
 }
 
 .map-legend-marker {
   font-family: var(--font-mono);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
 }
 
 .map-legend-marker.player {
@@ -1128,19 +1152,21 @@ body {
   color: #666666;
 }
 
-/* Responsive - hide panels on small screens */
+/* Responsive - compact floating panels on small screens */
 @media (max-width: 768px) {
-  #map-container {
-    display: none;
-  }
-
-  #main-content {
-    flex-direction: column;
-  }
-
   /* Make floating stats more compact on mobile */
   .stats-bar {
     width: 100px;
+  }
+
+  /* Make map smaller on mobile */
+  .map-panel {
+    width: 180px;
+    max-height: 220px;
+  }
+
+  .map-panel-content {
+    min-height: 120px;
   }
 }
 

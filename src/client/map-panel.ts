@@ -1,10 +1,18 @@
 /**
- * MapPanel - Collapsible map panel component.
+ * MapPanel - Draggable floating map panel component.
  *
- * Provides a side panel with an interactive map that shows explored rooms.
+ * Provides a floating panel with an interactive map that shows explored rooms.
+ * Can be dragged to reposition, and position is saved to localStorage.
  */
 
 import { MapRenderer, MapMessage, MapAreaChangeMessage, MapMoveMessage } from './map-renderer.js';
+
+const STORAGE_KEY = 'mudforge-map-position';
+
+interface Position {
+  x: number;
+  y: number;
+}
 
 /**
  * Event handler for room click.
@@ -30,6 +38,10 @@ export class MapPanel {
   private isVisible: boolean = true;
   private isCollapsed: boolean = false;
   private options: MapPanelOptions;
+
+  // Drag state
+  private isDragging: boolean = false;
+  private dragOffset: Position = { x: 0, y: 0 };
 
   constructor(containerId: string, options: MapPanelOptions = {}) {
     this.options = options;
@@ -57,7 +69,7 @@ export class MapPanel {
         <button class="map-btn map-btn-zoom-out" title="Zoom out">-</button>
         <span class="map-zoom-level">3</span>
         <button class="map-btn map-btn-zoom-in" title="Zoom in">+</button>
-        <button class="map-btn map-btn-toggle" title="Toggle map (Tab)">_</button>
+        <button class="map-btn map-btn-toggle" title="Toggle map">_</button>
       </div>
     `;
 
@@ -84,6 +96,9 @@ export class MapPanel {
     // Create renderer
     this.renderer = new MapRenderer(this.content);
 
+    // Restore saved position
+    this.restorePosition();
+
     // Set up event handlers
     this.setupEventHandlers();
   }
@@ -97,23 +112,24 @@ export class MapPanel {
     const zoomOut = this.header.querySelector('.map-btn-zoom-out');
     const toggleBtn = this.header.querySelector('.map-btn-toggle');
 
-    zoomIn?.addEventListener('click', () => this.zoomIn());
-    zoomOut?.addEventListener('click', () => this.zoomOut());
-    toggleBtn?.addEventListener('click', () => this.toggle());
+    zoomIn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.zoomIn();
+    });
+    zoomOut?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.zoomOut();
+    });
+    toggleBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.toggle();
+    });
 
     // Room click handler
     this.content.addEventListener('click', (event) => {
       const room = this.renderer.getRoomAtPosition(event as MouseEvent);
       if (room && this.options.onRoomClick) {
         this.options.onRoomClick(room.path);
-      }
-    });
-
-    // Keyboard shortcut (Tab to toggle)
-    document.addEventListener('keydown', (event) => {
-      if (event.key === 'Tab' && !this.isInputFocused()) {
-        event.preventDefault();
-        this.toggle();
       }
     });
 
@@ -126,14 +142,170 @@ export class MapPanel {
         this.zoomOut();
       }
     });
+
+    // Drag handlers on header
+    this.header.addEventListener('mousedown', this.onDragStart.bind(this));
+    this.header.addEventListener('touchstart', this.onTouchStart.bind(this), { passive: false });
+
+    // Global mouse/touch move and up handlers
+    document.addEventListener('mousemove', this.onDragMove.bind(this));
+    document.addEventListener('mouseup', this.onDragEnd.bind(this));
+    document.addEventListener('touchmove', this.onTouchMove.bind(this), { passive: false });
+    document.addEventListener('touchend', this.onDragEnd.bind(this));
   }
 
   /**
-   * Check if an input element is focused.
+   * Handle drag start.
    */
-  private isInputFocused(): boolean {
-    const active = document.activeElement;
-    return active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement;
+  private onDragStart(e: MouseEvent): void {
+    // Ignore if clicking on buttons
+    if ((e.target as HTMLElement).closest('.map-btn')) {
+      return;
+    }
+
+    this.isDragging = true;
+    this.panel.classList.add('dragging');
+
+    const rect = this.container.getBoundingClientRect();
+    this.dragOffset = {
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+    };
+
+    e.preventDefault();
+  }
+
+  /**
+   * Handle touch start.
+   */
+  private onTouchStart(e: TouchEvent): void {
+    if ((e.target as HTMLElement).closest('.map-btn')) {
+      return;
+    }
+
+    if (e.touches.length === 1) {
+      this.isDragging = true;
+      this.panel.classList.add('dragging');
+
+      const touch = e.touches[0];
+      const rect = this.container.getBoundingClientRect();
+      this.dragOffset = {
+        x: touch.clientX - rect.left,
+        y: touch.clientY - rect.top,
+      };
+
+      e.preventDefault();
+    }
+  }
+
+  /**
+   * Handle drag move.
+   */
+  private onDragMove(e: MouseEvent): void {
+    if (!this.isDragging) return;
+
+    const parent = this.container.parentElement;
+    if (!parent) return;
+
+    const parentRect = parent.getBoundingClientRect();
+    const panelRect = this.container.getBoundingClientRect();
+
+    let newX = e.clientX - parentRect.left - this.dragOffset.x;
+    let newY = e.clientY - parentRect.top - this.dragOffset.y;
+
+    // Clamp to parent bounds
+    newX = Math.max(0, Math.min(newX, parentRect.width - panelRect.width));
+    newY = Math.max(0, Math.min(newY, parentRect.height - panelRect.height));
+
+    this.setPosition(newX, newY);
+  }
+
+  /**
+   * Handle touch move.
+   */
+  private onTouchMove(e: TouchEvent): void {
+    if (!this.isDragging || e.touches.length !== 1) return;
+
+    const touch = e.touches[0];
+    const parent = this.container.parentElement;
+    if (!parent) return;
+
+    const parentRect = parent.getBoundingClientRect();
+    const panelRect = this.container.getBoundingClientRect();
+
+    let newX = touch.clientX - parentRect.left - this.dragOffset.x;
+    let newY = touch.clientY - parentRect.top - this.dragOffset.y;
+
+    // Clamp to parent bounds
+    newX = Math.max(0, Math.min(newX, parentRect.width - panelRect.width));
+    newY = Math.max(0, Math.min(newY, parentRect.height - panelRect.height));
+
+    this.setPosition(newX, newY);
+    e.preventDefault();
+  }
+
+  /**
+   * Handle drag end.
+   */
+  private onDragEnd(): void {
+    if (!this.isDragging) return;
+
+    this.isDragging = false;
+    this.panel.classList.remove('dragging');
+    this.savePosition();
+  }
+
+  /**
+   * Set panel position.
+   */
+  private setPosition(x: number, y: number): void {
+    this.container.style.left = `${x}px`;
+    this.container.style.top = `${y}px`;
+    this.container.style.right = 'auto';
+    this.container.style.bottom = 'auto';
+  }
+
+  /**
+   * Save position to localStorage.
+   */
+  private savePosition(): void {
+    try {
+      const position: Position = {
+        x: parseInt(this.container.style.left) || 0,
+        y: parseInt(this.container.style.top) || 0,
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(position));
+    } catch {
+      // Ignore storage errors
+    }
+  }
+
+  /**
+   * Restore position from localStorage.
+   */
+  private restorePosition(): void {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const position: Position = JSON.parse(saved);
+        // Defer to allow container to be positioned
+        requestAnimationFrame(() => {
+          const parent = this.container.parentElement;
+          if (parent) {
+            const parentRect = parent.getBoundingClientRect();
+            const panelRect = this.container.getBoundingClientRect();
+
+            // Validate position is still within bounds
+            const x = Math.max(0, Math.min(position.x, parentRect.width - panelRect.width));
+            const y = Math.max(0, Math.min(position.y, parentRect.height - panelRect.height));
+
+            this.setPosition(x, y);
+          }
+        });
+      }
+    } catch {
+      // Ignore storage errors
+    }
   }
 
   /**
