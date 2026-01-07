@@ -79,6 +79,14 @@ export async function execute(ctx: CommandContext): Promise<void> {
     destination = typeof efuns !== 'undefined' ? efuns.findObject(roomPath) : undefined;
     targetDescription = roomPath;
 
+    // If not loaded, try to load it from disk
+    if (!destination && typeof efuns !== 'undefined' && efuns.reloadObject) {
+      const result = await efuns.reloadObject(roomPath);
+      if (result.success) {
+        destination = efuns.findObject(roomPath);
+      }
+    }
+
     if (!destination) {
       ctx.sendLine(`{red}Cannot find player or room: ${args}{/}`);
       ctx.sendLine('{dim}Tip: Use an absolute path like /areas/town/square or a player name{/}');

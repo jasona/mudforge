@@ -41,7 +41,16 @@ export async function execute(ctx: CommandContext): Promise<void> {
   let workroom: MudObject | undefined;
 
   if (typeof efuns !== 'undefined') {
+    // First check if already loaded
     workroom = efuns.findObject(workroomPath);
+
+    // If not loaded, try to load it from disk
+    if (!workroom && efuns.reloadObject) {
+      const result = await efuns.reloadObject(workroomPath);
+      if (result.success) {
+        workroom = efuns.findObject(workroomPath);
+      }
+    }
   }
 
   if (!workroom) {
