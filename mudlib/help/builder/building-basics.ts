@@ -232,6 +232,158 @@ Call methods or set properties on living objects in real-time.
 - Be careful modifying other players`,
     seeAlso: ['building', 'bstat', 'bset'],
   },
+  {
+    name: 'ide',
+    title: 'Visual IDE Editor',
+    category: 'building',
+    aliases: ['visual-editor', 'code-editor'],
+    keywords: ['edit', 'code', 'syntax', 'highlighting'],
+    content: `{bold}IDE Command:{/}
+Open a full-featured code editor in your browser.
+
+{bold}Usage:{/}
+  {yellow}ide <file>{/}     - Open file for editing
+  {yellow}ide here{/}       - Edit current room's source file
+  {yellow}ide ~/file.ts{/}  - Edit in your home directory
+
+{bold}Features:{/}
+- Syntax highlighting for TypeScript/JavaScript
+- Line numbers and code navigation
+- Search/Replace (Ctrl+F)
+- Auto-indent and bracket matching
+- Real-time compile error display
+
+{bold}Keyboard Shortcuts:{/}
+  {cyan}Ctrl+S{/}    - Save file
+  {cyan}Escape{/}    - Close editor (prompts if unsaved)
+  {cyan}Ctrl+F{/}    - Find/Replace
+
+{bold}Examples:{/}
+  {yellow}ide /areas/town/tavern.ts{/}
+  {yellow}ide here{/}
+  {yellow}ide ~/workroom.ts{/}`,
+    seeAlso: ['ed', 'cat', 'update'],
+  },
+  {
+    name: 'ed',
+    title: 'Line Editor',
+    category: 'building',
+    aliases: ['edit', 'line-editor'],
+    keywords: ['edit', 'text', 'classic'],
+    content: `{bold}ED Command:{/}
+Classic line-based text editor.
+
+{bold}Usage:{/}
+  {yellow}ed <file>{/}      - Open file for editing
+  {yellow}ed here{/}        - Edit current room's source
+
+{bold}Editor Commands:{/}
+  {cyan}h{/}              - Show help
+  {cyan}p{/}              - Print current line
+  {cyan}p <n>{/}          - Print line n
+  {cyan}p <n>,<m>{/}      - Print lines n through m
+  {cyan}%p{/}             - Print all lines
+  {cyan}<n>{/}            - Go to line n
+  {cyan}a{/}              - Append lines (end with . on own line)
+  {cyan}i <n>{/}          - Insert before line n
+  {cyan}d <n>{/}          - Delete line n
+  {cyan}d <n>,<m>{/}      - Delete lines n through m
+  {cyan}c <n>{/}          - Change line n
+  {cyan}s/old/new/{/}     - Substitute on current line
+  {cyan}s/old/new/g{/}    - Substitute all occurrences
+  {cyan}w{/}              - Write (save) file
+  {cyan}q{/}              - Quit (warns if unsaved)
+  {cyan}q!{/}             - Quit without saving
+  {cyan}wq{/}             - Write and quit`,
+    seeAlso: ['ide', 'cat', 'update'],
+  },
+  {
+    name: 'cat',
+    title: 'View File Contents',
+    category: 'building',
+    aliases: ['more', 'view', 'type'],
+    keywords: ['read', 'display', 'show', 'file'],
+    content: `{bold}CAT Command:{/}
+Display file contents with paging support.
+
+{bold}Usage:{/}
+  {yellow}cat <file>{/}        - Display file (paged)
+  {yellow}cat -n <file>{/}     - Display with line numbers
+  {yellow}cat -h <n> <file>{/} - First n lines (head)
+  {yellow}cat -t <n> <file>{/} - Last n lines (tail)
+  {yellow}cat -a <file>{/}     - All without paging
+  {yellow}cat here{/}          - View current room's source
+
+{bold}Paging Controls:{/}
+  {cyan}Enter/Space{/}  - Next page
+  {cyan}b{/}            - Previous page
+  {cyan}g/G{/}          - Go to beginning/end
+  {cyan}/<pattern>{/}   - Search
+  {cyan}n{/}            - Next search result
+  {cyan}q{/}            - Quit
+
+{bold}Examples:{/}
+  {yellow}cat /std/room.ts{/}
+  {yellow}cat -n here{/}
+  {yellow}cat -h 50 ~/workroom.ts{/}`,
+    seeAlso: ['ed', 'ide', 'ls'],
+  },
+  {
+    name: 'home',
+    title: 'Go to Workroom',
+    category: 'building',
+    aliases: ['workroom'],
+    keywords: ['teleport', 'office', 'base'],
+    content: `{bold}HOME Command:{/}
+Teleport to your personal workroom.
+
+{bold}Usage:{/}
+  {yellow}home{/}
+
+{bold}Workroom Location:{/}
+Your workroom is located at:
+  /users/<yourname>/workroom
+
+{bold}Notes:{/}
+- Creates the workroom if it doesn't exist
+- Loads the room from disk if not in memory
+- Great for building and testing
+
+{bold}Related:{/}
+  {yellow}goto{/}    - Go to any room
+  {yellow}summon{/}  - Bring a player to you`,
+    seeAlso: ['goto', 'summon', 'whereami'],
+  },
+  {
+    name: 'update',
+    title: 'Reload Objects',
+    category: 'building',
+    aliases: ['reload', 'refresh'],
+    keywords: ['compile', 'reload', 'hot-reload'],
+    content: `{bold}UPDATE Command:{/}
+Reload a mudlib object from disk.
+
+{bold}Usage:{/}
+  {yellow}update <object>{/}  - Reload specified object
+  {yellow}update here{/}      - Reload current room
+  {yellow}update{/}           - Reload current room
+
+{bold}Path Resolution:{/}
+- Relative paths resolve against your cwd
+- Use absolute paths for certainty
+- 'here' means current room
+
+{bold}Examples:{/}
+  {yellow}update here{/}
+  {yellow}update /areas/town/tavern{/}
+  {yellow}update sword.ts{/}  (from current directory)
+
+{bold}Notes:{/}
+- Changes take effect immediately
+- Existing instances are updated
+- Compile errors are reported`,
+    seeAlso: ['ide', 'ed', 'rehash'],
+  },
 ];
 
 export default topics;

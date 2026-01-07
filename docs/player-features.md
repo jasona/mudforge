@@ -456,9 +456,140 @@ go tavern           # Named exits
 
 When you `look` at a room, available exits are shown at the bottom of the description.
 
-## Persistence
+## Combat System
 
-Your character is automatically saved:
+MudForge features a real-time combat system with NPCs.
+
+### Starting Combat
+
+```
+kill goblin              # Attack an NPC
+consider goblin          # Assess NPC difficulty before attacking
+```
+
+### During Combat
+
+Combat happens automatically in rounds while you're engaged:
+- Attack and defense rolls determine hits
+- Equipped weapons affect damage
+- Armor reduces incoming damage
+
+### Combat Commands
+
+| Command | Description |
+|---------|-------------|
+| `kill <target>` | Start attacking an NPC |
+| `flee` | Attempt to escape combat |
+| `consider <target>` | Assess enemy difficulty |
+| `wimpy <percent>` | Auto-flee when HP falls below percent |
+| `wimpycmd <command>` | Custom command to run when wimpy triggers |
+
+### Death and Resurrection
+
+When you die:
+1. You become a ghost
+2. A corpse is created at your death location containing your gold
+3. Use `resurrect` to respawn at the resurrection point
+4. Return to your corpse to `get gold from corpse`
+
+### Combat Tips
+
+- Use `consider` before fighting unknown enemies
+- Set `wimpy 20` to auto-flee at 20% health
+- Corpses decay over time - recover your gold quickly!
+- Carry healing potions for emergencies
+
+## Gold Economy
+
+MudForge includes a complete currency system.
+
+### Viewing Your Gold
+
+```
+score                    # Shows carried and banked gold
+inventory                # Shows gold you're carrying
+```
+
+### Earning Gold
+
+- Loot corpses of defeated enemies (`get gold from corpse`)
+- Find gold piles in the world (`get gold`)
+- Receive gold from other players (`give` command)
+- Complete quests and achievements
+
+### Managing Gold
+
+```
+drop gold                # Drop all your gold
+drop 50 gold             # Drop a specific amount
+get gold                 # Pick up gold from the ground
+get gold from corpse     # Loot gold from a corpse
+```
+
+### Giving Gold
+
+```
+give gold to bob         # Give all your gold to someone
+give 100 gold to bob     # Give specific amount to someone
+```
+
+### Gold Piles
+
+When gold is dropped, it creates a pile on the ground:
+- Multiple drops in the same room merge into one pile
+- Pile descriptions are approximate ("a few coins", "a pile of coins")
+- Exact amounts are revealed when you pick them up
+
+### Banking
+
+Some locations have banks where you can:
+- Deposit gold for safekeeping
+- Banked gold is not lost on death
+- Withdraw gold when needed
+
+## Giving Items
+
+Transfer items between players and NPCs with the `give` command.
+
+### Basic Usage
+
+```
+give sword to bob        # Give an item to someone
+give all to bob          # Give all inventory items
+give gold to bob         # Give all your gold
+give 50 gold to bob      # Give specific gold amount
+```
+
+### Requirements
+
+- The item must be in your inventory
+- The target must be in the same room
+- Works with both players and NPCs
+
+## Private Messaging
+
+Send private messages to other players.
+
+### Tell Command
+
+```
+tell bob Hello there!           # Send private message to bob
+tell "Dark Knight" Hey!         # Use quotes for names with spaces
+```
+
+### Reply Command
+
+```
+reply Thanks for the help!      # Reply to the last person who messaged you
+```
+
+### Features
+
+- Messages are private (only you and recipient see them)
+- `reply` remembers who last messaged you
+- Works across the entire game world
+
+## Persistence
 - When you `quit`
 - Periodically during play
 - When the server shuts down

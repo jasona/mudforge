@@ -56,6 +56,30 @@ Send an out-of-character message to the OOC channel.
 ooc Anyone want to group up?
 ```
 
+#### tell
+Send a private message to another player.
+
+```
+tell hero Hey, want to group up?
+```
+
+#### reply
+Reply to the last player who sent you a tell.
+
+```
+reply Sure, where are you?
+```
+
+#### remote (;)
+Perform an emote directed at a specific player.
+
+```
+remote hero waves
+; hero smiles warmly
+```
+
+Others see: "YourName waves at Hero."
+
 #### channels
 List and manage communication channels.
 
@@ -75,6 +99,8 @@ get sword                # Pick up an item from the room
 get all                  # Pick up all items in the room
 get sword from chest     # Get an item from a container
 get all from chest       # Get all items from a container
+get gold                 # Pick up gold coins from the floor
+get gold from corpse     # Loot gold from a corpse
 ```
 
 #### drop (put)
@@ -85,6 +111,17 @@ drop sword               # Drop an item on the floor
 drop all                 # Drop all items
 drop sword in chest      # Put an item in a container
 put sword in chest       # Same as drop ... in
+drop gold                # Drop all your gold
+drop 50 gold             # Drop a specific amount of gold
+```
+
+#### give
+Give items or gold to another player or NPC.
+
+```
+give sword to bob        # Give an item
+give 100 gold to bob     # Give specific amount of gold
+give gold to bob         # Give all your gold
 ```
 
 #### open / close
@@ -152,6 +189,66 @@ Shows all equipment slots:
 - Head, Chest, Cloak, Hands, Legs, Feet (armor)
 - Main Hand, Off Hand (weapons/shields)
 
+### Combat
+
+#### kill (attack, k)
+Attack a target NPC or player (if PvP enabled).
+
+```
+kill goblin              # Attack an NPC
+k goblin                 # Alias
+attack troll             # Alias
+```
+
+Once in combat, attacks continue automatically until one combatant dies or flees.
+
+#### flee (escape)
+Attempt to flee from combat.
+
+```
+flee                     # Try to escape through a random exit
+```
+
+Success depends on your stats vs opponent. Failed attempts keep you in combat.
+
+#### consider (con)
+Assess an NPC's difficulty relative to your level.
+
+```
+consider goblin          # Check difficulty
+con dragon               # Alias
+```
+
+Shows ratings from "trivial" to "impossible" based on level comparison.
+
+#### wimpy
+Set automatic flee threshold as a percentage of max HP.
+
+```
+wimpy                    # Show current wimpy setting
+wimpy 20                 # Auto-flee at 20% HP
+wimpy 0                  # Disable auto-flee
+```
+
+#### wimpycmd
+Set a custom command to execute when wimpy triggers.
+
+```
+wimpycmd                 # Show current wimpy command
+wimpycmd flee            # Use 'flee' (default)
+wimpycmd recall          # Use a different escape command
+```
+
+#### resurrect (res)
+Resurrect after death (when you're a ghost).
+
+```
+resurrect                # Return to life at resurrection point
+res                      # Alias
+```
+
+Your corpse remains at the death location with your carried gold.
+
 ### Information
 
 #### look (l)
@@ -165,6 +262,14 @@ l                 # Alias for look
 ```
 
 Room display shows content sorted: players first, NPCs (in red), then items.
+
+#### glance (gl)
+Quick look at the room showing only exits and people.
+
+```
+glance            # Brief room overview
+gl                # Alias
+```
 
 #### inventory (i, inv)
 See what you are carrying.
@@ -237,6 +342,54 @@ help commands           # List all commands
 
 ### Character Customization
 
+#### alias
+Create command shortcuts.
+
+```
+alias                    # List all aliases
+alias k kill             # Create alias 'k' for 'kill'
+alias gs get sword       # Create alias 'gs' for 'get sword'
+```
+
+#### unalias
+Remove a command alias.
+
+```
+unalias k                # Remove the 'k' alias
+```
+
+#### colors
+View available color codes for display names and messages.
+
+```
+colors                   # Show all color codes with examples
+```
+
+#### emotes
+List all available emote commands.
+
+```
+emotes                   # Show all emotes
+emotes smile             # Show specific emote variations
+```
+
+#### prompt
+Customize your command prompt.
+
+```
+prompt                   # Show current prompt
+prompt >                 # Set simple prompt
+prompt [$hp/$maxhp] >    # Set prompt with variables
+```
+
+#### train
+Spend experience points to improve stats.
+
+```
+train                    # Show trainable stats and costs
+train strength           # Increase strength
+```
+
 #### displayname (dname)
 Set a custom display name with colors.
 
@@ -279,6 +432,15 @@ mon off         # Disable vitals monitor
 
 ### Session
 
+#### save
+Manually save your character.
+
+```
+save                     # Save character data
+```
+
+Characters are auto-saved periodically, but manual save ensures changes are persisted.
+
 #### quit
 Disconnect from the game.
 
@@ -303,7 +465,32 @@ goto /areas/town/center     # Go to a room by absolute path
 goto tavern                 # Go to a room relative to current directory
 ```
 
-The command first tries to find an active player by name (even if link-dead). If no player is found, it treats the argument as a room path and resolves it relative to your current working directory.
+The command first tries to find an active player by name (even if link-dead). If no player is found, it treats the argument as a room path and resolves it relative to your current working directory. Rooms are loaded from disk if not already in memory.
+
+#### home
+Teleport to your personal workroom.
+
+```
+home                        # Teleport to /users/<name>/workroom
+```
+
+Creates a magical teleport effect visible to others in the room. Your workroom must exist at `/users/<name>/workroom.ts`.
+
+#### summon
+Teleport another player to your location.
+
+```
+summon Hero                 # Bring Hero to your room
+```
+
+The summoned player sees a mystical portal effect.
+
+#### whereami
+Show detailed information about your current location.
+
+```
+whereami                    # Display room path and coordinates
+```
 
 ### Communication
 
@@ -317,6 +504,62 @@ btalk Anyone know how to create a door?
 Only visible to builders and above.
 
 ### Object Manipulation
+
+#### clone
+Create an instance of an object from a blueprint.
+
+```
+clone /std/sword            # Clone a sword into your inventory
+clone /areas/town/goblin    # Clone an NPC into the room
+```
+
+#### dest (destruct)
+Destroy an object.
+
+```
+dest sword                  # Destroy an item by name
+dest goblin                 # Destroy an NPC
+dest #12345                 # Destroy by object ID
+```
+
+#### zap
+Instantly kill an NPC (builder power).
+
+```
+zap goblin                  # Kill an NPC instantly
+```
+
+Useful for testing or clearing stuck NPCs.
+
+#### nohassle
+Toggle invulnerability to NPC attacks.
+
+```
+nohassle                    # Toggle no-hassle mode
+nohassle on                 # Enable (NPCs won't attack you)
+nohassle off                # Disable
+```
+
+#### setmessage
+Customize your enter/exit messages.
+
+```
+setmessage enter arrives in a flash of light.
+setmessage exit vanishes in a puff of smoke.
+setmessage clear enter      # Reset to default
+```
+
+Others see these messages when you move between rooms.
+
+#### stats (bstat, @stat)
+View detailed statistics about an object.
+
+```
+stats sword                 # View item stats
+stats goblin                # View NPC stats
+stats me                    # View your own stats
+stats here                  # View current room stats
+```
 
 #### patch
 Call a method on a living object with primitive arguments.
@@ -347,6 +590,7 @@ Reload mudlib objects or commands from disk (true hot-reload).
 update /std/room          # Reload a standard library object
 update /areas/town/tavern # Reload a specific room
 update here               # Reload the room you're in
+update sword.ts           # Reload relative to current directory
 update _look              # Reload a command (auto-finds in cmds directories)
 update /cmds/player/_say  # Reload a command with full path
 ```
@@ -450,11 +694,24 @@ cp original.ts copy.ts     # Copy file
 cp file.ts /backup/        # Copy to directory
 ```
 
+#### cat (more)
+Display file contents with paging.
+
+```
+cat file.ts             # Display entire file
+cat -n file.ts          # With line numbers
+cat -h 20 file.ts       # First 20 lines (head)
+cat -t 10 file.ts       # Last 10 lines (tail)
+cat -a file.ts          # All without paging
+cat here                # View current room's source file
+```
+
 #### ed (edit)
 Online line editor for creating and editing files.
 
 ```
-ed newfile.ts       # Create/edit a file
+ed newfile.ts           # Create/edit a file
+ed here                 # Edit the current room
 ```
 
 Once in the editor:
@@ -470,6 +727,21 @@ Once in the editor:
 - `w` - Save file
 - `q` - Quit (warns if unsaved)
 - `wq` - Save and quit
+
+#### ide
+Open a visual code editor in the web client.
+
+```
+ide file.ts             # Open file in visual editor
+ide here                # Edit current room in IDE
+```
+
+Features:
+- Syntax highlighting for TypeScript
+- Line numbers
+- Search/replace (Ctrl+F)
+- Real-time error display on save
+- Keyboard shortcuts: Ctrl+S (save), Escape (close)
 
 ## Admin Commands
 

@@ -11,6 +11,9 @@ MudForge includes a modern, browser-based client with a Linear.app-inspired desi
 - **Auto-Scroll** - Terminal automatically scrolls to show new content
 - **Responsive Design** - Works on desktop and mobile browsers
 - **Connection Status** - Visual indicator showing connected/disconnected state
+- **Floating Stats Panel** - Draggable HP/MP/XP bars with real-time updates
+- **Interactive Map Panel** - Floating, resizable map showing explored areas
+- **Visual IDE Editor** - Full-featured code editor for builders with syntax highlighting
 
 ## Connecting
 
@@ -65,6 +68,91 @@ MudForge includes a modern, browser-based client with a Linear.app-inspired desi
 - Type commands and press Enter to send
 - Send button for mouse/touch input
 - Placeholder text guides new users
+
+## Stats Panel
+
+The Stats Panel is a floating, draggable widget that displays your character's vital statistics in real-time.
+
+### Features
+
+- **Real-time Updates** - HP, MP, and XP bars update automatically during gameplay
+- **Draggable** - Click and drag the header to reposition anywhere on screen
+- **Collapsible** - Click the collapse button to minimize when not needed
+- **Persistent Position** - Your preferred position is saved between sessions
+- **Visual Progress Bars** - Color-coded bars for easy status monitoring
+
+### Display Elements
+
+```
++---------------------------+
+|  Stats Panel         [-]  |  <- Header with collapse button
++---------------------------+
+|  HP  [████████░░░] 80/100 |  <- Health bar (red/green)
+|  MP  [██████░░░░░] 60/100 |  <- Mana bar (blue)
+|  XP  [████░░░░░░░] 40%    |  <- Experience bar (gold)
++---------------------------+
+```
+
+### Bar Colors
+
+| Stat | Color | Meaning |
+|------|-------|---------|
+| HP | Green | Healthy (>50%) |
+| HP | Yellow | Wounded (25-50%) |
+| HP | Red | Critical (<25%) |
+| MP | Blue | Mana level |
+| XP | Gold | Progress to next level |
+
+### Controls
+
+- **Drag**: Click the header and drag to reposition
+- **Collapse**: Click `[-]` to minimize, `[+]` to expand
+- **Auto-hide**: Panel hides when disconnected
+
+## Map Panel
+
+The Map Panel displays an interactive ASCII-art view of explored areas.
+
+### Features
+
+- **Auto-Discovery** - Rooms appear as you explore them
+- **Draggable & Resizable** - Position and size to your preference
+- **Current Location** - Your position is highlighted
+- **Exit Indicators** - See available exits from each room
+- **Collapsible** - Minimize when not needed
+
+### Display Elements
+
+```
++----------------------------------+
+|  Map                        [-]  |
++----------------------------------+
+|                                  |
+|     [Tavern]----[Market]         |
+|         |          |             |
+|     [Square]---[Temple]          |
+|         |                        |
+|      [Gate]                      |
+|                                  |
++----------------------------------+
+```
+
+### Legend
+
+| Symbol | Meaning |
+|--------|---------|
+| `[Name]` | Visited room |
+| `[*Name*]` | Current location |
+| `----` | East-West connection |
+| `|` | North-South connection |
+| `?` | Unexplored exit |
+
+### Controls
+
+- **Drag**: Click header to move
+- **Resize**: Drag edges to resize
+- **Collapse**: Click `[-]` to minimize
+- **Center**: Double-click to center on current location
 
 ## Keyboard Shortcuts
 
@@ -171,17 +259,40 @@ The client is responsive and works on mobile devices:
 
 ## Code Editor (Builders)
 
-Builders have access to an in-game code editor:
+Builders have access to two in-game editors:
+
+### Visual IDE Editor
+
+The `ide` command opens a full-featured code editor in the browser:
 
 ```
-edit /areas/myzone/room.ts
+ide /areas/myzone/room.ts
+ide here                      # Edit current room's source file
+ide ~/myfile.ts               # Edit in home directory
 ```
 
-The editor provides:
-- Syntax highlighting (monospace display)
-- Line numbers
-- Error display panel
-- Save and close buttons
+Features:
+- **Syntax Highlighting** - Full TypeScript/JavaScript highlighting
+- **Line Numbers** - Easy code navigation
+- **Search & Replace** - `Ctrl+F` for find/replace
+- **Auto-Indent** - Smart indentation and bracket matching
+- **Real-Time Errors** - Compile errors displayed after save
+- **Keyboard Shortcuts** - `Ctrl+S` save, `Escape` close
+
+### Line Editor
+
+The `ed` command provides a classic line-based editor:
+
+```
+ed /areas/myzone/room.ts
+ed here                       # Edit current room
+```
+
+Features:
+- Line-by-line editing
+- Print, insert, delete, substitute commands
+- Works in terminal without browser features
+- Classic MUD editor feel
 
 ## Technical Details
 

@@ -284,6 +284,133 @@ Use the {yellow}levelup{/} command when you have enough XP:
 - Don't neglect Luck - it affects many things!`,
     seeAlso: ['levels', 'experience', 'score'],
   },
+  {
+    name: 'combat',
+    title: 'Combat System',
+    category: 'gameplay',
+    aliases: ['fight', 'fighting', 'battle'],
+    keywords: ['kill', 'attack', 'damage', 'enemy', 'npc'],
+    content: `{bold}Combat System:{/}
+MudForge features real-time combat against NPCs.
+
+{bold}Starting Combat:{/}
+  {yellow}kill <target>{/}      - Attack an NPC
+  {yellow}consider <target>{/}  - Assess difficulty first
+
+{bold}During Combat:{/}
+- Combat happens automatically in rounds
+- Your weapon and stats affect damage
+- Armor reduces incoming damage
+- Watch your health bar!
+
+{bold}Escaping Combat:{/}
+  {yellow}flee{/}               - Attempt to escape
+  {yellow}wimpy <percent>{/}    - Auto-flee at HP threshold
+  {yellow}wimpycmd <cmd>{/}     - Custom command when wimpy triggers
+
+{bold}Death:{/}
+- When you die, you become a ghost
+- Your gold drops in a corpse at your location
+- Use {yellow}resurrect{/} to respawn
+- Return to your corpse to recover gold
+
+{bold}Tips:{/}
+- Always {yellow}consider{/} before fighting unknowns
+- Set {yellow}wimpy 20{/} for safety
+- Carry healing potions`,
+    seeAlso: ['death', 'healing', 'equipment'],
+  },
+  {
+    name: 'gold',
+    title: 'Gold and Currency',
+    category: 'gameplay',
+    aliases: ['money', 'coins', 'currency'],
+    keywords: ['drop', 'get', 'give', 'wealth', 'rich'],
+    content: `{bold}Gold System:{/}
+Gold is the primary currency in MudForge.
+
+{bold}Viewing Gold:{/}
+  {yellow}score{/}      - Shows carried and banked gold
+  {yellow}inventory{/}  - Shows gold you're carrying
+
+{bold}Getting Gold:{/}
+  {yellow}get gold{/}            - Pick up gold from ground
+  {yellow}get gold from corpse{/} - Loot defeated enemies
+
+{bold}Dropping Gold:{/}
+  {yellow}drop gold{/}           - Drop all your gold
+  {yellow}drop 50 gold{/}        - Drop specific amount
+
+{bold}Giving Gold:{/}
+  {yellow}give gold to bob{/}    - Give all gold to someone
+  {yellow}give 100 gold to bob{/} - Give specific amount
+
+{bold}Gold Piles:{/}
+- Dropped gold creates piles on the ground
+- Multiple drops merge into one pile
+- Descriptions are approximate (small pile, large pile)
+- Exact amount shown when picked up
+
+{bold}Tips:{/}
+- Bank your gold to keep it safe from death
+- Corpses decay - loot them quickly!
+- NPCs often drop gold when defeated`,
+    seeAlso: ['combat', 'give', 'inventory'],
+  },
+  {
+    name: 'give',
+    title: 'Giving Items and Gold',
+    category: 'gameplay',
+    aliases: ['giving', 'transfer'],
+    keywords: ['trade', 'hand', 'pass', 'share'],
+    content: `{bold}Give Command:{/}
+Transfer items and gold to other players or NPCs.
+
+{bold}Giving Items:{/}
+  {yellow}give sword to bob{/}   - Give an item
+  {yellow}give all to bob{/}     - Give all inventory items
+
+{bold}Giving Gold:{/}
+  {yellow}give gold to bob{/}    - Give all your gold
+  {yellow}give 50 gold to bob{/} - Give specific amount
+
+{bold}Requirements:{/}
+- Item must be in your inventory
+- Target must be in the same room
+- Works with players and NPCs
+
+{bold}Tips:{/}
+- Use for trading with other players
+- Give gold to NPCs for services
+- Check your inventory first with {yellow}inv{/}`,
+    seeAlso: ['gold', 'inventory', 'drop'],
+  },
+  {
+    name: 'tell',
+    title: 'Private Messages',
+    category: 'communication',
+    aliases: ['whisper', 'message', 'pm'],
+    keywords: ['private', 'secret', 'chat', 'talk'],
+    content: `{bold}Tell Command:{/}
+Send private messages to other players.
+
+{bold}Usage:{/}
+  {yellow}tell bob Hello there!{/}
+  {yellow}tell "Dark Knight" Hey!{/}  - Use quotes for multi-word names
+
+{bold}Reply:{/}
+  {yellow}reply Thanks!{/}  - Reply to last person who messaged you
+
+{bold}Features:{/}
+- Messages are private (only you and recipient see them)
+- Works across the entire game world
+- {yellow}reply{/} remembers the last sender
+
+{bold}Tips:{/}
+- Use {yellow}who{/} to see who's online
+- Use quotes for names with spaces`,
+    seeAlso: ['say', 'shout', 'channels'],
+  },
 ];
 
 export default topics;

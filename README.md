@@ -11,12 +11,16 @@ MudForge brings the architectural elegance of classic LPMud drivers into the mod
 - **TypeScript Scripting** - Write game content in TypeScript with full IDE support, type safety, and modern syntax
 - **Runtime Hot-Reload** - Create and modify objects while the game is running without server restarts
 - **Modern Web Client** - Clean, Linear.app-inspired browser interface with dark theme
+- **Graphical Stats Panel** - Floating, draggable HP/MP/XP bars with real-time updates
+- **Interactive Map Panel** - Floating, resizable map showing explored areas
 - **LDMud-Inspired Architecture** - Everything is an object with consistent inheritance hierarchy
+- **Combat System** - Real-time combat with NPCs, death/resurrection, and corpse looting
+- **Gold Economy** - Currency system with carrying gold, banking, giving, and dropping
 - **Tiered Permission System** - Player, Builder, Senior Builder, and Administrator roles
 - **Equipment System** - Weapons, armor, and shields with slot management and dual-wielding
 - **Container System** - Chests, bags, and lockable containers
-- **NPC System** - Non-player characters with chat, responses, and autonomous behavior
-- **Communication Channels** - OOC, shout, builder, admin, and extensible channel system
+- **NPC System** - Non-player characters with combat AI, loot drops, and autonomous behavior
+- **Communication Channels** - OOC, shout, tell, builder, admin, and extensible channel system
 - **Session Reconnection** - Seamlessly reconnect to existing game sessions after disconnection
 - **Link-Dead Handling** - Disconnected players fade to a holding area and auto-quit after configurable timeout
 - **Mud-Wide Configuration** - Persistent ConfigDaemon for game-wide settings adjustable by admins
@@ -80,6 +84,8 @@ MudObject                          # Root of all objects
 |   +-- Weapon                     # Melee/ranged weapons with handedness
 |   +-- Armor                      # Body slot armor and shields
 |   +-- Container                  # Chests, bags (openable, lockable)
+|   |   +-- Corpse                 # Dead creatures (lootable)
+|   +-- GoldPile                   # Dropped gold coins
 +-- Living                         # Entities that can act
 |   +-- Player                     # Human players with equipment
 |   +-- NPC                        # Computer-controlled characters
@@ -222,8 +228,13 @@ tests/                # Test suite
 get sword                    # Pick up an item
 get all                      # Pick up all items
 get sword from chest         # Get item from container
+get gold                     # Pick up gold coins
 drop sword                   # Drop an item
 drop sword in chest          # Put item in container
+drop gold                    # Drop all your gold
+drop 50 gold                 # Drop specific amount
+give sword to bob            # Give item to player/NPC
+give 100 gold to bob         # Give gold to someone
 open chest                   # Open a container
 close chest                  # Close a container
 look in chest                # See container contents
@@ -240,6 +251,28 @@ remove armor                 # Remove armor
 equipment                    # View all equipped items
 ```
 
+### Combat
+
+```
+kill goblin                  # Attack an NPC
+flee                         # Attempt to escape combat
+consider goblin              # Assess NPC difficulty
+wimpy 20                     # Auto-flee at 20% health
+```
+
+When defeated, players become ghosts and can `resurrect` at the resurrection point. Your corpse remains at the death location with your carried gold - return to loot it!
+
+### Gold & Economy
+
+```
+score                        # See your gold (carried and banked)
+get gold from corpse         # Loot gold from defeated enemies
+drop 100 gold                # Drop gold on the ground
+give 50 gold to merchant     # Give gold to NPCs/players
+```
+
+Banks in towns allow you to safely store gold that won't be lost on death.
+
 ### Custom Display Names
 
 Players can create colorful, personalized display names:
@@ -255,6 +288,8 @@ displayname Sir {blue}$N{/} the {green}Bold{/}
 ### Communication
 
 - `say <message>` - Talk to players in the same room
+- `tell <player> <message>` - Private message to a player
+- `reply <message>` - Reply to last tell
 - `shout <message>` - Broadcast to all players
 - `ooc <message>` - Out-of-character chat channel
 
