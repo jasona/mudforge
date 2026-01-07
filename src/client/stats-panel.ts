@@ -98,13 +98,11 @@ export class StatsPanel {
         </div>
 
         <div class="stats-gold-row">
-          <span class="stats-gold-icon">💰</span>
-          <span class="stats-gold-label">Gold</span>
+          <span class="stats-gold-header"><span class="stats-gold-icon">💰</span>Gold</span>
           <span class="stats-gold-value" data-stat="gold">0</span>
         </div>
         <div class="stats-gold-row stats-gold-bank">
-          <span class="stats-gold-icon">🏦</span>
-          <span class="stats-gold-label">Bank</span>
+          <span class="stats-gold-header"><span class="stats-gold-icon">🏦</span>Bank</span>
           <span class="stats-gold-value" data-stat="bank">0</span>
         </div>
       </div>

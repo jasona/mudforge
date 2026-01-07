@@ -934,34 +934,32 @@ body {
 .stats-gold-row {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+}
+
+.stats-gold-header {
+  display: flex;
+  align-items: center;
   gap: var(--spacing-xs);
-  padding: var(--spacing-xs) var(--spacing-sm);
-  background-color: var(--bg-tertiary);
-  border-radius: var(--border-radius-sm);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .stats-gold-icon {
   font-size: var(--font-size-xs);
 }
 
-.stats-gold-label {
-  font-size: var(--font-size-xs);
-  color: var(--text-secondary);
-  flex: 1;
-}
-
 .stats-gold-value {
   font-size: var(--font-size-xs);
   font-family: var(--font-mono);
-  color: var(--text-primary);
+  color: var(--text-secondary);
 }
 
 .stats-gold-bank {
   opacity: 0.7;
-}
-
-.stats-gold-bank .stats-gold-value {
-  color: var(--text-secondary);
 }
 
 /* Map Panel - Floating Toolbar */
