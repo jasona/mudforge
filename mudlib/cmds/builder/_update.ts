@@ -13,6 +13,7 @@
  */
 
 import type { MudObject } from '../../lib/std.js';
+import { resolvePath } from '../../lib/path-utils.js';
 
 interface PlayerWithCwd extends MudObject {
   cwd: string;
@@ -110,9 +111,11 @@ export async function execute(ctx: CommandContext): Promise<void> {
     return;
   }
 
-  // Regular object reload
+  // Regular object reload - resolve relative paths against cwd
   if (!objectPath.startsWith('/')) {
-    objectPath = '/' + objectPath;
+    const player = ctx.player as PlayerWithCwd;
+    const currentCwd = player.cwd || '/';
+    objectPath = resolvePath(currentCwd, objectPath, '/');
   }
 
   ctx.sendLine(`{cyan}Reloading ${objectPath}...{/}`);
