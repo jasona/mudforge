@@ -740,7 +740,7 @@ body {
 /* Stats Panel - Floating Toolbar */
 #stats-container {
   position: absolute;
-  top: 8px;
+  top: 260px;
   right: 8px;
   z-index: 100;
 }
@@ -969,7 +969,7 @@ body {
 /* Map Panel - Floating Toolbar */
 #map-container {
   position: absolute;
-  bottom: 8px;
+  top: 8px;
   right: 8px;
   z-index: 100;
 }
