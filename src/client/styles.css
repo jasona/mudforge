@@ -729,14 +729,6 @@ body {
   overflow: hidden;
 }
 
-/* Left Pane (Terminal + Stats) */
-#left-pane {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
 /* Terminal */
 #terminal-container {
   flex: 1;
@@ -745,17 +737,31 @@ body {
   position: relative;
 }
 
-/* Stats Panel - Bottom Bar */
+/* Stats Panel - Floating Toolbar */
 #stats-container {
-  flex-shrink: 0;
-  background-color: var(--bg-secondary);
-  border-top: 1px solid var(--border-primary);
-  overflow: hidden;
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 100;
 }
 
 .stats-panel {
-  display: flex;
-  flex-direction: column;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow-lg);
+  opacity: 0.95;
+  transition: opacity 0.15s ease, box-shadow 0.15s ease;
+}
+
+.stats-panel:hover {
+  opacity: 1;
+}
+
+.stats-panel.dragging {
+  opacity: 0.85;
+  box-shadow: var(--shadow-lg), 0 0 0 2px var(--accent);
+  cursor: grabbing;
 }
 
 .stats-panel.collapsed .stats-panel-content {
@@ -770,10 +776,16 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--spacing-xs) var(--spacing-md);
+  padding: var(--spacing-xs) var(--spacing-sm);
   background-color: var(--bg-tertiary);
   border-bottom: 1px solid var(--border-primary);
-  flex-shrink: 0;
+  border-radius: var(--border-radius) var(--border-radius) 0 0;
+  cursor: grab;
+  user-select: none;
+}
+
+.stats-panel-header:active {
+  cursor: grabbing;
 }
 
 .stats-panel-title {
@@ -785,13 +797,13 @@ body {
 }
 
 .stats-btn {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   padding: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: var(--font-size-xs);
+  font-size: 10px;
   font-weight: 600;
   color: var(--text-secondary);
   background-color: var(--bg-hover);
@@ -808,19 +820,17 @@ body {
 }
 
 .stats-panel-content {
-  padding: var(--spacing-sm) var(--spacing-lg);
+  padding: var(--spacing-sm);
   display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: space-evenly;
-  gap: var(--spacing-md);
+  flex-direction: column;
+  gap: var(--spacing-sm);
 }
 
 /* Level display */
 .stats-level {
   display: flex;
   align-items: center;
-  gap: var(--spacing-sm);
+  justify-content: space-between;
   padding: var(--spacing-xs) var(--spacing-sm);
   background-color: var(--bg-tertiary);
   border-radius: var(--border-radius-sm);
@@ -842,15 +852,14 @@ body {
 /* Stat bars */
 .stats-bar-group {
   display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: var(--spacing-sm);
+  flex-direction: column;
+  gap: 2px;
 }
 
 .stats-bar-header {
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: var(--spacing-xs);
 }
 
 .stats-bar-label {
@@ -869,17 +878,17 @@ body {
 }
 
 .stats-bar {
-  width: 120px;
-  height: 12px;
+  width: 140px;
+  height: 10px;
   background-color: var(--bg-tertiary);
-  border-radius: 4px;
+  border-radius: 3px;
   overflow: hidden;
 }
 
 .stats-bar-fill {
   height: 100%;
   transition: width 0.3s ease, background-color 0.3s ease;
-  border-radius: 4px;
+  border-radius: 3px;
 }
 
 /* HP bar colors */
@@ -926,6 +935,7 @@ body {
   display: flex;
   flex-direction: row;
   align-items: center;
+  justify-content: space-between;
   gap: var(--spacing-md);
   padding: var(--spacing-xs) var(--spacing-sm);
   background-color: var(--bg-tertiary);
@@ -1128,14 +1138,9 @@ body {
     flex-direction: column;
   }
 
-  /* Make stats bar more compact on mobile */
-  .stats-panel-content {
-    padding: var(--spacing-xs) var(--spacing-sm);
-    gap: var(--spacing-sm);
-  }
-
+  /* Make floating stats more compact on mobile */
   .stats-bar {
-    width: 60px;
+    width: 100px;
   }
 }
 
