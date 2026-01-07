@@ -155,6 +155,11 @@ export class Player extends Living {
     this._connection = connection;
     this._sessionStart = typeof efuns !== 'undefined' ? efuns.time() : Math.floor(Date.now() / 1000);
     this._lastLogin = this._sessionStart;
+
+    // Always register for heartbeats when connected (for stats panel updates)
+    if (typeof efuns !== 'undefined' && efuns.setHeartbeat) {
+      efuns.setHeartbeat(this, true);
+    }
   }
 
   /**
@@ -167,6 +172,11 @@ export class Player extends Living {
     }
     this._connection = null;
     this._sessionStart = 0;
+
+    // Unregister from heartbeats when disconnected
+    if (typeof efuns !== 'undefined' && efuns.setHeartbeat) {
+      efuns.setHeartbeat(this, false);
+    }
   }
 
   /**
@@ -828,15 +838,11 @@ export class Player extends Living {
   }
 
   /**
-   * Enable or disable the vitals monitor.
-   * Automatically registers/unregisters for heartbeats.
+   * Enable or disable the vitals monitor (text-based display).
+   * Note: Heartbeats are always active while connected for stats panel updates.
    */
   set monitorEnabled(value: boolean) {
     this._monitorEnabled = value;
-    // Register/unregister for heartbeats
-    if (typeof efuns !== 'undefined' && efuns.setHeartbeat) {
-      efuns.setHeartbeat(this, value);
-    }
   }
 
   /**
