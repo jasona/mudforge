@@ -5,10 +5,11 @@
  */
 
 import { Terminal } from './terminal.js';
-import { WebSocketClient, IdeMessage } from './websocket-client.js';
+import { WebSocketClient, IdeMessage, StatsMessage } from './websocket-client.js';
 import { InputHandler } from './input-handler.js';
 import { IdeEditor } from './ide-editor.js';
 import { MapPanel } from './map-panel.js';
+import { StatsPanel } from './stats-panel.js';
 import type { MapMessage } from './map-renderer.js';
 
 /**
@@ -20,6 +21,7 @@ class MudClient {
   private inputHandler: InputHandler;
   private ideEditor: IdeEditor;
   private mapPanel: MapPanel;
+  private statsPanel: StatsPanel;
   private statusElement: HTMLElement;
 
   constructor() {
@@ -46,6 +48,7 @@ class MudClient {
         console.log('Room clicked:', roomPath);
       },
     });
+    this.statsPanel = new StatsPanel('stats-container');
 
     this.setupEventHandlers();
   }
@@ -86,6 +89,11 @@ class MudClient {
     // Map events
     this.wsClient.on('map-message', (message: MapMessage) => {
       this.mapPanel.handleMessage(message);
+    });
+
+    // Stats events
+    this.wsClient.on('stats-message', (message: StatsMessage) => {
+      this.statsPanel.handleMessage(message);
     });
 
     // Input events

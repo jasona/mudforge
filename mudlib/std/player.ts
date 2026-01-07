@@ -23,11 +23,28 @@ import {
 import type { PlayerExplorationData, MapMessage } from '../lib/map-types.js';
 
 /**
+ * STATS protocol message for HP/MP/XP display.
+ */
+export interface StatsMessage {
+  type: 'update';
+  hp: number;
+  maxHp: number;
+  mp: number;
+  maxMp: number;
+  level: number;
+  xp: number;
+  xpToLevel: number;
+  gold: number;
+  bankedGold: number;
+}
+
+/**
  * Connection interface (implemented by driver's Connection class).
  */
 export interface Connection {
   send(message: string): void;
   sendMap?(message: MapMessage): void;
+  sendStats?(message: StatsMessage): void;
   close(): void;
   isConnected(): boolean;
 }
@@ -833,12 +850,28 @@ export class Player extends Living {
   }
 
   /**
-   * Called each heartbeat. Shows vitals monitor if enabled.
+   * Called each heartbeat. Sends stats to client and shows vitals monitor if enabled.
    */
   override heartbeat(): void {
     super.heartbeat();
 
-    // Show vitals monitor if enabled
+    // Send stats update to client (for graphical display)
+    if (this._connection?.sendStats) {
+      this._connection.sendStats({
+        type: 'update',
+        hp: this.health,
+        maxHp: this.maxHealth,
+        mp: this.mana,
+        maxMp: this.maxMana,
+        level: this.level,
+        xp: this._experience,
+        xpToLevel: this.xpForNextLevel,
+        gold: this._gold,
+        bankedGold: this._bankedGold,
+      });
+    }
+
+    // Show text-based vitals monitor if enabled
     if (!this._monitorEnabled || !this._connection) return;
 
     // Don't display if both HP and MP are at max

@@ -18,6 +18,22 @@ export interface MapMessage {
 }
 
 /**
+ * STATS protocol message type for HP/MP/XP display.
+ */
+export interface StatsMessage {
+  type: 'update';
+  hp: number;
+  maxHp: number;
+  mp: number;
+  maxMp: number;
+  level: number;
+  xp: number;
+  xpToLevel: number;
+  gold: number;
+  bankedGold: number;
+}
+
+/**
  * Connection state.
  */
 export type ConnectionState = 'connecting' | 'open' | 'closing' | 'closed';
@@ -199,6 +215,24 @@ export class Connection extends EventEmitter {
     try {
       const json = JSON.stringify(message);
       this.socket.send(`\x00[MAP]${json}`);
+    } catch (error) {
+      this.emit('error', error as Error);
+    }
+  }
+
+  /**
+   * Send a STATS protocol message to the client.
+   * STATS messages are prefixed with \x00[STATS] to distinguish them from regular text.
+   * @param message The stats message to send
+   */
+  sendStats(message: StatsMessage): void {
+    if (this._state !== 'open') {
+      return;
+    }
+
+    try {
+      const json = JSON.stringify(message);
+      this.socket.send(`\x00[STATS]${json}`);
     } catch (error) {
       this.emit('error', error as Error);
     }

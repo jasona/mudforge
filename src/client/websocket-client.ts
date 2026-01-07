@@ -16,7 +16,24 @@ type WebSocketClientEvent =
   | 'error'
   | 'message'
   | 'ide-message'
-  | 'map-message';
+  | 'map-message'
+  | 'stats-message';
+
+/**
+ * Stats message structure for HP/MP/XP display.
+ */
+export interface StatsMessage {
+  type: 'update';
+  hp: number;
+  maxHp: number;
+  mp: number;
+  maxMp: number;
+  level: number;
+  xp: number;
+  xpToLevel: number;
+  gold: number;
+  bankedGold: number;
+}
 
 /**
  * IDE message structure.
@@ -179,6 +196,14 @@ export class WebSocketClient {
             this.emit('map-message', mapMessage);
           } catch (error) {
             console.error('Failed to parse MAP message:', error);
+          }
+        } else if (line.startsWith('\x00[STATS]')) {
+          const jsonStr = line.slice(8); // Remove \x00[STATS] prefix
+          try {
+            const statsMessage = JSON.parse(jsonStr) as StatsMessage;
+            this.emit('stats-message', statsMessage);
+          } catch (error) {
+            console.error('Failed to parse STATS message:', error);
           }
         } else {
           this.emit('message', line);
