@@ -23,7 +23,7 @@ interface PlayerInfo extends MudObject {
 }
 
 // Box width (content between the borders)
-const BOX_WIDTH = 76;
+const BOX_WIDTH = 88;
 
 /**
  * Get the title/rank display for a player.
@@ -106,16 +106,16 @@ export async function execute(ctx: CommandContext): Promise<void> {
   lines.push('');
   lines.push(`{cyan}╔${topBot}╗{/}`);
 
-  // ASCII Art Header - MUDFORGE (72 chars wide, centered in 76 char box)
-  lines.push(boxLine(''));
-  lines.push(boxLine('  {bold}{yellow}███╗   ███╗{/}{bold}{green}██╗   ██╗{/}{bold}{cyan}██████╗ {/}{bold}{magenta}███████╗{/}{bold}{red} ██████╗ {/}{bold}{yellow}██████╗ {/}{bold}{green} ██████╗ {/}{bold}{cyan}███████╗{/}  '));
-  lines.push(boxLine('  {bold}{yellow}████╗ ████║{/}{bold}{green}██║   ██║{/}{bold}{cyan}██╔══██╗{/}{bold}{magenta}██╔════╝{/}{bold}{red}██╔═══██╗{/}{bold}{yellow}██╔══██╗{/}{bold}{green}██╔════╝ {/}{bold}{cyan}██╔════╝{/}  '));
-  lines.push(boxLine('  {bold}{yellow}██╔████╔██║{/}{bold}{green}██║   ██║{/}{bold}{cyan}██║  ██║{/}{bold}{magenta}█████╗  {/}{bold}{red}██║   ██║{/}{bold}{yellow}██████╔╝{/}{bold}{green}██║  ███╗{/}{bold}{cyan}█████╗  {/}  '));
-  lines.push(boxLine('  {bold}{yellow}██║╚██╔╝██║{/}{bold}{green}██║   ██║{/}{bold}{cyan}██║  ██║{/}{bold}{magenta}██╔══╝  {/}{bold}{red}██║   ██║{/}{bold}{yellow}██╔══██╗{/}{bold}{green}██║   ██║{/}{bold}{cyan}██╔══╝  {/}  '));
-  lines.push(boxLine('  {bold}{yellow}██║ ╚═╝ ██║{/}{bold}{green}╚██████╔╝{/}{bold}{cyan}██████╔╝{/}{bold}{magenta}██║     {/}{bold}{red}╚██████╔╝{/}{bold}{yellow}██║  ██║{/}{bold}{green}╚██████╔╝{/}{bold}{cyan}███████╗{/}  '));
-  lines.push(boxLine('  {bold}{yellow}╚═╝     ╚═╝{/}{bold}{green} ╚═════╝ {/}{bold}{cyan}╚═════╝ {/}{bold}{magenta}╚═╝     {/}{bold}{red} ╚═════╝ {/}{bold}{yellow}╚═╝  ╚═╝{/}{bold}{green} ╚═════╝ {/}{bold}{cyan}╚══════╝{/}  '));
-  lines.push(boxLine(''));
-  lines.push(boxLine(centerText('{dim}A Modern MUD Experience - Est. 2026{/}', BOX_WIDTH)));
+    // ASCII Art Header - MUDFORGE (72 chars wide, centered in 76 char box)
+  lines.push('');
+  lines.push('            {bold}{yellow}███╗   ███╗{/}{bold}{green}██╗   ██╗{/}{bold}{cyan}██████╗ {/}{bold}{magenta}███████╗{/}{bold}{red} ██████╗ {/}{bold}{yellow}██████╗ {/}{bold}{green} ██████╗ {/}{bold}{cyan}███████╗{/}  ');
+  lines.push('            {bold}{yellow}████╗ ████║{/}{bold}{green}██║   ██║{/}{bold}{cyan}██╔══██╗{/}{bold}{magenta}██╔════╝{/}{bold}{red}██╔═══██╗{/}{bold}{yellow}██╔══██╗{/}{bold}{green}██╔════╝ {/}{bold}{cyan}██╔════╝{/}  ');
+  lines.push('            {bold}{yellow}██╔████╔██║{/}{bold}{green}██║   ██║{/}{bold}{cyan}██║  ██║{/}{bold}{magenta}█████╗  {/}{bold}{red}██║   ██║{/}{bold}{yellow}██████╔╝{/}{bold}{green}██║  ███╗{/}{bold}{cyan}█████╗  {/}  ');
+  lines.push('            {bold}{yellow}██║╚██╔╝██║{/}{bold}{green}██║   ██║{/}{bold}{cyan}██║  ██║{/}{bold}{magenta}██╔══╝  {/}{bold}{red}██║   ██║{/}{bold}{yellow}██╔══██╗{/}{bold}{green}██║   ██║{/}{bold}{cyan}██╔══╝  {/}  ');
+  lines.push('            {bold}{yellow}██║ ╚═╝ ██║{/}{bold}{green}╚██████╔╝{/}{bold}{cyan}██████╔╝{/}{bold}{magenta}██║     {/}{bold}{red}╚██████╔╝{/}{bold}{yellow}██║  ██║{/}{bold}{green}╚██████╔╝{/}{bold}{cyan}███████╗{/}  ');
+  lines.push('            {bold}{yellow}╚═╝     ╚═╝{/}{bold}{green} ╚═════╝ {/}{bold}{cyan}╚═════╝ {/}{bold}{magenta}╚═╝     {/}{bold}{red} ╚═════╝ {/}{bold}{yellow}╚═╝  ╚═╝{/}{bold}{green} ╚═════╝ {/}{bold}{cyan}╚══════╝{/}  ');
+  lines.push('');
+  lines.push(centerText('{dim}A Modern MUD Experience - Est. 2026{/}', BOX_WIDTH));
 
   // Divider
   lines.push(`{cyan}╠${topBot}╣{/}`);
@@ -125,13 +125,6 @@ export async function execute(ctx: CommandContext): Promise<void> {
     lines.push(boxLine(centerText('{dim}No players are currently online.{/}', BOX_WIDTH)));
     lines.push(boxLine(''));
   } else {
-    // Header row (76 chars: 2 indent + 54 name + 2 gap + 18 rank)
-    const headerName = padRight('  {bold}{white}Player{/}', 56);
-    const headerRank = padRight('{bold}{white}Rank{/}', 20);
-    lines.push(boxLine(headerName + headerRank));
-
-    // Divider row
-    lines.push(boxLine(`  {dim}${'─'.repeat(52)}  ${'─'.repeat(18)}{/}`));
 
     // Sort players: admins first, then by level
     const sortedPlayers = [...players].sort((a, b) => {
@@ -160,6 +153,7 @@ export async function execute(ctx: CommandContext): Promise<void> {
       lines.push("   " + paddedRank + paddedName);
     }
     lines.push("");
+    lines.push("");
   }
 
   // Footer divider
@@ -169,7 +163,7 @@ export async function execute(ctx: CommandContext): Promise<void> {
   const countStr = players.length === 1
     ? '{bold}{green}1{/} player online'
     : `{bold}{green}${players.length}{/} players online`;
-  lines.push(boxLine(centerText(countStr, BOX_WIDTH)));
+  lines.push(centerText(countStr, BOX_WIDTH));
 
   // Bottom border
   lines.push(`{cyan}╚${topBot}╝{/}`);
