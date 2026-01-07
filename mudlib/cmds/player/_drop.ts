@@ -4,12 +4,20 @@
  * Usage:
  *   drop <item>               - Drop an item on the floor
  *   drop all                  - Drop all droppable items
+ *   drop gold                 - Drop all your gold
+ *   drop <amount> gold        - Drop a specific amount of gold
  *   drop <item> in <container> - Put an item in a container
  *   drop all in <container>   - Put all items in a container
  */
 
 import type { MudObject, Living, Weapon, Armor } from '../../lib/std.js';
 import { Item, Container } from '../../lib/std.js';
+import { GoldPile } from '../../std/gold-pile.js';
+
+interface PlayerWithGold extends MudObject {
+  gold?: number;
+  spendGold?(amount: number): boolean;
+}
 
 interface CommandContext {
   player: MudObject;
@@ -80,6 +88,17 @@ export async function execute(ctx: CommandContext): Promise<void> {
     return;
   }
 
+  const argLower = args.trim().toLowerCase();
+
+  // Check for gold drop first
+  const goldMatch = argLower.match(/^(\d+)\s+gold$/) || argLower.match(/^(\d+)\s+coins?$/);
+  const allGoldMatch = argLower === 'gold' || argLower === 'coins';
+
+  if (goldMatch || allGoldMatch) {
+    await dropGold(ctx, room, goldMatch ? parseInt(goldMatch[1], 10) : undefined);
+    return;
+  }
+
   // Parse "in <container>" syntax
   const inMatch = args.match(/^(.+?)\s+in\s+(.+)$/i);
 
@@ -87,7 +106,7 @@ export async function execute(ctx: CommandContext): Promise<void> {
     // Put in container
     const [, itemName, containerName] = inMatch;
     await putInContainer(ctx, room, itemName.trim(), containerName.trim());
-  } else if (args.trim().toLowerCase() === 'all') {
+  } else if (argLower === 'all') {
     // Drop all
     await dropAll(ctx, room);
   } else {
@@ -126,6 +145,55 @@ async function dropItem(ctx: CommandContext, room: MudObject, itemName: string):
     if (observer !== player && 'receive' in observer) {
       const recv = observer as MudObject & { receive: (msg: string) => void };
       recv.receive(`${playerName} drops ${item.shortDesc}.\n`);
+    }
+  }
+}
+
+/**
+ * Drop gold coins.
+ */
+async function dropGold(ctx: CommandContext, room: MudObject, amount?: number): Promise<void> {
+  const { player } = ctx;
+  const playerWithGold = player as PlayerWithGold;
+  const playerGold = playerWithGold.gold || 0;
+
+  if (playerGold <= 0) {
+    ctx.sendLine("You don't have any gold to drop.");
+    return;
+  }
+
+  // Determine amount to drop
+  const toDrop = amount !== undefined ? Math.min(amount, playerGold) : playerGold;
+
+  if (toDrop <= 0) {
+    ctx.sendLine("You don't have any gold to drop.");
+    return;
+  }
+
+  if (amount !== undefined && playerGold < amount) {
+    ctx.sendLine(`You only have ${playerGold} gold.`);
+    return;
+  }
+
+  // Remove gold from player
+  if (playerWithGold.spendGold) {
+    playerWithGold.spendGold(toDrop);
+  } else {
+    playerWithGold.gold = playerGold - toDrop;
+  }
+
+  // Create gold pile in room (it will auto-merge with existing piles)
+  const pile = new GoldPile(toDrop);
+  await pile.moveTo(room);
+
+  ctx.sendLine(`{yellow}You drop ${toDrop} gold coin${toDrop !== 1 ? 's' : ''}.{/}`);
+
+  // Notify room
+  const playerName = player.name || 'Someone';
+  for (const observer of room.inventory) {
+    if (observer !== player && 'receive' in observer) {
+      const recv = observer as MudObject & { receive: (msg: string) => void };
+      recv.receive(`${playerName} drops some gold coins.\n`);
     }
   }
 }

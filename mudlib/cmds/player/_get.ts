@@ -4,13 +4,16 @@
  * Usage:
  *   get <item>                - Pick up an item from the room
  *   get all                   - Pick up all takeable items from the room
+ *   get gold                  - Pick up gold coins from the room
  *   get <item> from <container> - Get an item from a container
  *   get all from <container>  - Get all items from a container
+ *   get gold from <corpse>    - Loot gold from a corpse
  */
 
 import type { MudObject } from '../../lib/std.js';
 import { Item, Container } from '../../lib/std.js';
 import { Corpse } from '../../std/corpse.js';
+import { GoldPile } from '../../std/gold-pile.js';
 
 interface CommandContext {
   player: MudObject;
@@ -103,10 +106,78 @@ async function getFromRoom(
   itemName: string
 ): Promise<void> {
   const { player } = ctx;
+  const playerWithGold = player as PlayerWithGold;
+
+  // Check for gold pile pickup
+  const lowerName = itemName.toLowerCase();
+  if (lowerName === 'gold' || lowerName === 'coins' || lowerName === 'coin') {
+    // Find gold pile in room
+    const goldPile = room.inventory.find((item) => item instanceof GoldPile) as GoldPile | undefined;
+    if (!goldPile) {
+      ctx.sendLine("You don't see any gold here.");
+      return;
+    }
+
+    const amount = goldPile.amount;
+
+    // Add gold to player
+    if (playerWithGold.addGold) {
+      playerWithGold.addGold(amount);
+    } else {
+      playerWithGold.gold = (playerWithGold.gold || 0) + amount;
+    }
+
+    // Destroy gold pile
+    if (typeof efuns !== 'undefined' && efuns.destruct) {
+      efuns.destruct(goldPile);
+    }
+
+    ctx.sendLine(`{yellow}You pick up ${amount} gold coin${amount !== 1 ? 's' : ''}.{/}`);
+
+    // Notify room
+    const playerName = player.name || 'Someone';
+    for (const observer of room.inventory) {
+      if (observer !== player && 'receive' in observer) {
+        const recv = observer as MudObject & { receive: (msg: string) => void };
+        recv.receive(`${playerName} picks up some gold coins.\n`);
+      }
+    }
+    return;
+  }
+
   const item = findItem(itemName, room.inventory);
 
   if (!item) {
     ctx.sendLine("You don't see that here.");
+    return;
+  }
+
+  // Handle GoldPile items that match by other IDs
+  if (item instanceof GoldPile) {
+    const amount = item.amount;
+
+    // Add gold to player
+    if (playerWithGold.addGold) {
+      playerWithGold.addGold(amount);
+    } else {
+      playerWithGold.gold = (playerWithGold.gold || 0) + amount;
+    }
+
+    // Destroy gold pile
+    if (typeof efuns !== 'undefined' && efuns.destruct) {
+      efuns.destruct(item);
+    }
+
+    ctx.sendLine(`{yellow}You pick up ${amount} gold coin${amount !== 1 ? 's' : ''}.{/}`);
+
+    // Notify room
+    const playerName = player.name || 'Someone';
+    for (const observer of room.inventory) {
+      if (observer !== player && 'receive' in observer) {
+        const recv = observer as MudObject & { receive: (msg: string) => void };
+        recv.receive(`${playerName} picks up some gold coins.\n`);
+      }
+    }
     return;
   }
 
@@ -134,28 +205,68 @@ async function getFromRoom(
  */
 async function getAllFromRoom(ctx: CommandContext, room: MudObject): Promise<void> {
   const { player } = ctx;
+  const playerWithGold = player as PlayerWithGold;
   const takeableItems = getTakeableItems(room.inventory, player);
 
-  // Filter out players/living beings - only get items
-  const itemsToTake = takeableItems.filter((item) => item instanceof Item);
+  // Filter out players/living beings - only get items, but handle gold piles separately
+  const goldPiles: GoldPile[] = [];
+  const itemsToTake = takeableItems.filter((item) => {
+    if (item instanceof GoldPile) {
+      goldPiles.push(item);
+      return false; // Handle separately
+    }
+    return item instanceof Item;
+  });
 
-  if (itemsToTake.length === 0) {
+  // Calculate total gold from piles
+  let totalGold = 0;
+  for (const pile of goldPiles) {
+    totalGold += pile.amount;
+  }
+
+  if (itemsToTake.length === 0 && totalGold === 0) {
     ctx.sendLine("There's nothing here you can take.");
     return;
   }
 
   const taken: string[] = [];
+
+  // Pick up regular items
   for (const item of itemsToTake) {
     await item.moveTo(player);
     taken.push(item.shortDesc);
   }
 
-  if (taken.length === 1) {
-    ctx.sendLine(`You pick up ${taken[0]}.`);
-  } else {
-    ctx.sendLine(`You pick up ${taken.length} items:`);
-    for (const desc of taken) {
-      ctx.sendLine(`  ${desc}`);
+  // Pick up gold
+  if (totalGold > 0) {
+    if (playerWithGold.addGold) {
+      playerWithGold.addGold(totalGold);
+    } else {
+      playerWithGold.gold = (playerWithGold.gold || 0) + totalGold;
+    }
+
+    // Destroy gold piles
+    for (const pile of goldPiles) {
+      if (typeof efuns !== 'undefined' && efuns.destruct) {
+        efuns.destruct(pile);
+      }
+    }
+  }
+
+  // Build output message
+  if (taken.length > 0 || totalGold > 0) {
+    if (taken.length === 1 && totalGold === 0) {
+      ctx.sendLine(`You pick up ${taken[0]}.`);
+    } else if (taken.length === 0 && totalGold > 0) {
+      ctx.sendLine(`{yellow}You pick up ${totalGold} gold coin${totalGold !== 1 ? 's' : ''}.{/}`);
+    } else {
+      ctx.sendLine('You pick up:');
+      for (const desc of taken) {
+        ctx.sendLine(`  ${desc}`);
+      }
+      if (totalGold > 0) {
+        ctx.sendLine(`  {yellow}${totalGold} gold coin${totalGold !== 1 ? 's' : ''}{/}`);
+      }
     }
   }
 
@@ -164,8 +275,8 @@ async function getAllFromRoom(ctx: CommandContext, room: MudObject): Promise<voi
   for (const observer of room.inventory) {
     if (observer !== player && 'receive' in observer) {
       const recv = observer as MudObject & { receive: (msg: string) => void };
-      if (taken.length === 1) {
-        recv.receive(`${playerName} picks up ${taken[0]}.\n`);
+      if (taken.length <= 1 && totalGold === 0) {
+        recv.receive(`${playerName} picks up ${taken[0] || 'something'}.\n`);
       } else {
         recv.receive(`${playerName} picks up several items.\n`);
       }
