@@ -9,6 +9,7 @@ import { MudObject } from './object.js';
 import { reflowText } from '../lib/colors.js';
 import { Container } from './container.js';
 import { NPC } from './npc.js';
+import { GoldPile } from './gold-pile.js';
 import {
   type TerrainType,
   type TerrainDefinition,
@@ -412,12 +413,22 @@ export class Room extends MudObject {
       lines.push('');
       for (const obj of sortedContents) {
         let desc = obj.shortDesc;
+
+        // Capitalize first letter of description
+        if (desc && desc.length > 0) {
+          desc = desc.charAt(0).toUpperCase() + desc.slice(1);
+        }
+
         // Add open/closed indicator for containers that support it
         if (obj instanceof Container && obj.canOpenClose) {
           desc += obj.isOpen ? ' {dim}(open){/}' : ' {dim}(closed){/}';
         }
+        // Gold piles displayed in bold yellow
+        if (obj instanceof GoldPile) {
+          desc = `{bold}{yellow}${desc}{/}`;
+        }
         // NPCs displayed in red (non-bold)
-        if (obj instanceof NPC) {
+        else if (obj instanceof NPC) {
           desc = `{red}${desc}{/}`;
         }
         lines.push(`  ${desc}`);
