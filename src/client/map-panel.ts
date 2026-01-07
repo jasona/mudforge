@@ -7,11 +7,21 @@
 
 import { MapRenderer, MapMessage, MapAreaChangeMessage, MapMoveMessage } from './map-renderer.js';
 
-const STORAGE_KEY = 'mudforge-map-position';
+const STORAGE_KEY = 'mudforge-map-layout';
 
 interface Position {
   x: number;
   y: number;
+}
+
+interface Size {
+  width: number;
+  height: number;
+}
+
+interface Layout {
+  position: Position;
+  size: Size;
 }
 
 /**
@@ -42,6 +52,12 @@ export class MapPanel {
   // Drag state
   private isDragging: boolean = false;
   private dragOffset: Position = { x: 0, y: 0 };
+
+  // Resize state
+  private isResizing: boolean = false;
+  private resizeStart: Position = { x: 0, y: 0 };
+  private initialSize: Size = { width: 0, height: 0 };
+  private resizeHandle: HTMLElement | null = null;
 
   constructor(containerId: string, options: MapPanelOptions = {}) {
     this.options = options;
@@ -87,17 +103,23 @@ export class MapPanel {
       <div class="map-legend-item"><span class="map-legend-marker hinted">?</span> Unknown</div>
     `;
 
+    // Resize handle
+    this.resizeHandle = document.createElement('div');
+    this.resizeHandle.className = 'map-resize-handle';
+    this.resizeHandle.title = 'Resize';
+
     // Assemble panel
     this.panel.appendChild(this.header);
     this.panel.appendChild(this.content);
     this.panel.appendChild(legend);
+    this.panel.appendChild(this.resizeHandle);
     this.container.appendChild(this.panel);
 
     // Create renderer
     this.renderer = new MapRenderer(this.content);
 
-    // Restore saved position
-    this.restorePosition();
+    // Restore saved layout (position and size)
+    this.restoreLayout();
 
     // Set up event handlers
     this.setupEventHandlers();
@@ -147,11 +169,21 @@ export class MapPanel {
     this.header.addEventListener('mousedown', this.onDragStart.bind(this));
     this.header.addEventListener('touchstart', this.onTouchStart.bind(this), { passive: false });
 
+    // Resize handlers
+    if (this.resizeHandle) {
+      this.resizeHandle.addEventListener('mousedown', this.onResizeStart.bind(this));
+      this.resizeHandle.addEventListener('touchstart', this.onResizeTouchStart.bind(this), { passive: false });
+    }
+
     // Global mouse/touch move and up handlers
     document.addEventListener('mousemove', this.onDragMove.bind(this));
+    document.addEventListener('mousemove', this.onResizeMove.bind(this));
     document.addEventListener('mouseup', this.onDragEnd.bind(this));
+    document.addEventListener('mouseup', this.onResizeEnd.bind(this));
     document.addEventListener('touchmove', this.onTouchMove.bind(this), { passive: false });
+    document.addEventListener('touchmove', this.onResizeTouchMove.bind(this), { passive: false });
     document.addEventListener('touchend', this.onDragEnd.bind(this));
+    document.addEventListener('touchend', this.onResizeEnd.bind(this));
   }
 
   /**
@@ -252,7 +284,105 @@ export class MapPanel {
 
     this.isDragging = false;
     this.panel.classList.remove('dragging');
-    this.savePosition();
+    this.saveLayout();
+  }
+
+  /**
+   * Handle resize start.
+   */
+  private onResizeStart(e: MouseEvent): void {
+    this.isResizing = true;
+    this.panel.classList.add('resizing');
+
+    this.resizeStart = { x: e.clientX, y: e.clientY };
+    this.initialSize = {
+      width: this.panel.offsetWidth,
+      height: this.panel.offsetHeight,
+    };
+
+    e.preventDefault();
+    e.stopPropagation();
+  }
+
+  /**
+   * Handle resize touch start.
+   */
+  private onResizeTouchStart(e: TouchEvent): void {
+    if (e.touches.length === 1) {
+      this.isResizing = true;
+      this.panel.classList.add('resizing');
+
+      const touch = e.touches[0];
+      this.resizeStart = { x: touch.clientX, y: touch.clientY };
+      this.initialSize = {
+        width: this.panel.offsetWidth,
+        height: this.panel.offsetHeight,
+      };
+
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  }
+
+  /**
+   * Handle resize move.
+   */
+  private onResizeMove(e: MouseEvent): void {
+    if (!this.isResizing) return;
+
+    const deltaX = e.clientX - this.resizeStart.x;
+    const deltaY = e.clientY - this.resizeStart.y;
+
+    this.setSize(
+      this.initialSize.width + deltaX,
+      this.initialSize.height + deltaY
+    );
+  }
+
+  /**
+   * Handle resize touch move.
+   */
+  private onResizeTouchMove(e: TouchEvent): void {
+    if (!this.isResizing || e.touches.length !== 1) return;
+
+    const touch = e.touches[0];
+    const deltaX = touch.clientX - this.resizeStart.x;
+    const deltaY = touch.clientY - this.resizeStart.y;
+
+    this.setSize(
+      this.initialSize.width + deltaX,
+      this.initialSize.height + deltaY
+    );
+
+    e.preventDefault();
+  }
+
+  /**
+   * Handle resize end.
+   */
+  private onResizeEnd(): void {
+    if (!this.isResizing) return;
+
+    this.isResizing = false;
+    this.panel.classList.remove('resizing');
+    this.saveLayout();
+  }
+
+  /**
+   * Set panel size.
+   */
+  private setSize(width: number, height: number): void {
+    // Clamp to min/max
+    const minWidth = 150;
+    const minHeight = 150;
+    const maxWidth = 500;
+    const maxHeight = 500;
+
+    width = Math.max(minWidth, Math.min(width, maxWidth));
+    height = Math.max(minHeight, Math.min(height, maxHeight));
+
+    this.panel.style.width = `${width}px`;
+    this.panel.style.height = `${height}px`;
   }
 
   /**
@@ -266,38 +396,50 @@ export class MapPanel {
   }
 
   /**
-   * Save position to localStorage.
+   * Save layout (position and size) to localStorage.
    */
-  private savePosition(): void {
+  private saveLayout(): void {
     try {
-      const position: Position = {
-        x: parseInt(this.container.style.left) || 0,
-        y: parseInt(this.container.style.top) || 0,
+      const layout: Layout = {
+        position: {
+          x: parseInt(this.container.style.left) || 0,
+          y: parseInt(this.container.style.top) || 0,
+        },
+        size: {
+          width: this.panel.offsetWidth,
+          height: this.panel.offsetHeight,
+        },
       };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(position));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(layout));
     } catch {
       // Ignore storage errors
     }
   }
 
   /**
-   * Restore position from localStorage.
+   * Restore layout (position and size) from localStorage.
    */
-  private restorePosition(): void {
+  private restoreLayout(): void {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
-        const position: Position = JSON.parse(saved);
-        // Defer to allow container to be positioned
+        const layout: Layout = JSON.parse(saved);
+
+        // Restore size first
+        if (layout.size) {
+          this.setSize(layout.size.width, layout.size.height);
+        }
+
+        // Defer position restore to allow container to be positioned
         requestAnimationFrame(() => {
           const parent = this.container.parentElement;
-          if (parent) {
+          if (parent && layout.position) {
             const parentRect = parent.getBoundingClientRect();
             const panelRect = this.container.getBoundingClientRect();
 
             // Validate position is still within bounds
-            const x = Math.max(0, Math.min(position.x, parentRect.width - panelRect.width));
-            const y = Math.max(0, Math.min(position.y, parentRect.height - panelRect.height));
+            const x = Math.max(0, Math.min(layout.position.x, parentRect.width - panelRect.width));
+            const y = Math.max(0, Math.min(layout.position.y, parentRect.height - panelRect.height));
 
             this.setPosition(x, y);
           }
