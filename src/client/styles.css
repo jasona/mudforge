@@ -808,12 +808,12 @@ body {
 }
 
 .stats-panel-content {
-  padding: var(--spacing-sm) var(--spacing-md);
+  padding: var(--spacing-sm) var(--spacing-lg);
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: var(--spacing-lg);
-  overflow-x: auto;
+  justify-content: space-evenly;
+  gap: var(--spacing-md);
 }
 
 /* Level display */
@@ -824,7 +824,6 @@ body {
   padding: var(--spacing-xs) var(--spacing-sm);
   background-color: var(--bg-tertiary);
   border-radius: var(--border-radius-sm);
-  flex-shrink: 0;
 }
 
 .stats-level-label {
@@ -846,14 +845,12 @@ body {
   flex-direction: row;
   align-items: center;
   gap: var(--spacing-sm);
-  flex-shrink: 0;
 }
 
 .stats-bar-header {
   display: flex;
   align-items: center;
   gap: var(--spacing-xs);
-  flex-shrink: 0;
 }
 
 .stats-bar-label {
@@ -872,12 +869,11 @@ body {
 }
 
 .stats-bar {
-  width: 100px;
+  width: 120px;
   height: 12px;
   background-color: var(--bg-tertiary);
   border-radius: 4px;
   overflow: hidden;
-  flex-shrink: 0;
 }
 
 .stats-bar-fill {
@@ -934,7 +930,6 @@ body {
   padding: var(--spacing-xs) var(--spacing-sm);
   background-color: var(--bg-tertiary);
   border-radius: var(--border-radius-sm);
-  flex-shrink: 0;
 }
 
 .stats-gold-row {
