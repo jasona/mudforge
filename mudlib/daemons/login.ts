@@ -535,7 +535,7 @@ export class LoginDaemon extends MudObject {
     }
 
     // Move to starting room (or last location for returning players)
-    let startLocation = '/areas/town/center';
+    let startLocation = '/areas/valdoria/aldric/center';
     if (session.savedData?.location) {
       startLocation = session.savedData.location;
     }

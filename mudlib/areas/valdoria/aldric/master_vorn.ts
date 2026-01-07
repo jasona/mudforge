@@ -4,8 +4,8 @@
  * A grizzled veteran who trains adventurers in combat skills.
  */
 
-import { MudObject } from '../../lib/std.js';
-import { Trainer } from '../../std/trainer.js';
+import { MudObject } from '../../../lib/std.js';
+import { Trainer } from '../../../std/trainer.js';
 
 export class MasterVorn extends Trainer {
   constructor() {

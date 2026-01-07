@@ -1009,7 +1009,7 @@ Teleport to a player or room location.
 
 {bold}Examples:{/}
   {yellow}goto Hero{/}                  - Teleport to player Hero
-  {yellow}goto /areas/town/square{/}    - Absolute room path
+  {yellow}goto /areas/valdoria/aldric/center{/}    - Absolute room path
   {yellow}goto tavern{/}                - Relative to current directory
 
 {bold}Resolution Order:{/}

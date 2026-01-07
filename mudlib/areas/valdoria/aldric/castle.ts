@@ -2,7 +2,7 @@
  * Castle Gate - The imposing entrance to the lord's castle.
  */
 
-import { Room, MudObject } from '../../lib/std.js';
+import { Room, MudObject } from '../../../lib/std.js';
 
 /**
  * The Castle Gate room.
@@ -22,7 +22,10 @@ with masterful precision. Colorful {yellow}banners{/} bearing the lord's heraldr
 
 A weathered {yellow}notice board{/} stands beside the gate, covered in official
 proclamations and wanted posters. The town square lies to the {green}south{/}, its
-distant fountain visible past the crowds of petitioners waiting to enter.`;
+distant fountain visible past the crowds of petitioners waiting to enter.
+
+To one side, a {dim}heavy iron grate{/} in the cobblestones marks the entrance to
+the castle {red}dungeons{/} below. A set of worn stone steps leads {green}down{/} into darkness.`;
 
     this.setupRoom();
   }
@@ -31,7 +34,8 @@ distant fountain visible past the crowds of petitioners waiting to enter.`;
    * Set up the room's exits and actions.
    */
   private setupRoom(): void {
-    this.addExit('south', '/areas/town/center');
+    this.addExit('south', '/areas/valdoria/aldric/center');
+    this.addExit('down', '/areas/valdoria/aldric_depths/entrance');
     // Could add 'enter' or 'north' to castle interior later
 
     this.addAction('look', this.cmdLook.bind(this));

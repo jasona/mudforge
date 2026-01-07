@@ -20,12 +20,14 @@ import {
   CONFIG_OPTIONS,
   type ConfigOption,
 } from '../lib/player-config.js';
+import type { PlayerExplorationData, MapMessage } from '../lib/map-types.js';
 
 /**
  * Connection interface (implemented by driver's Connection class).
  */
 export interface Connection {
   send(message: string): void;
+  sendMap?(message: MapMessage): void;
   close(): void;
   isConnected(): boolean;
 }
@@ -65,6 +67,7 @@ export interface PlayerSaveData {
   previousLocation?: string | null; // For link-dead players
   enterMessage?: string; // Custom room enter message
   exitMessage?: string; // Custom room exit message
+  exploration?: PlayerExplorationData; // Map exploration data
 }
 
 /**
@@ -100,6 +103,11 @@ export class Player extends Living {
   private _previousLocation: string | null = null; // Path before moving to void
   private _disconnectTime: number = 0; // When disconnected (Unix timestamp)
   private _disconnectTimerId: number | null = null; // Timer for auto-quit
+
+  // Map exploration tracking
+  private _exploredRooms: Set<string> = new Set();
+  private _revealedRooms: Set<string> = new Set();
+  private _detectedHiddenExits: Map<string, Set<string>> = new Map();
 
   constructor() {
     super();
@@ -294,6 +302,207 @@ export class Player extends Living {
    */
   get isLinkDead(): boolean {
     return this._previousLocation !== null && !this.isConnected();
+  }
+
+  // ========== Map Exploration ==========
+
+  /**
+   * Check if the player has explored a room.
+   * @param roomPath The room's object path
+   */
+  hasExplored(roomPath: string): boolean {
+    return this._exploredRooms.has(roomPath);
+  }
+
+  /**
+   * Mark a room as explored.
+   * @param roomPath The room's object path
+   * @returns true if this was a new exploration
+   */
+  markExplored(roomPath: string): boolean {
+    if (this._exploredRooms.has(roomPath)) {
+      return false;
+    }
+    this._exploredRooms.add(roomPath);
+    // If it was revealed, it's now explored
+    this._revealedRooms.delete(roomPath);
+    return true;
+  }
+
+  /**
+   * Get all explored room paths.
+   */
+  getExploredRooms(): string[] {
+    return Array.from(this._exploredRooms);
+  }
+
+  /**
+   * Check if a room has been revealed (e.g., by treasure map).
+   * @param roomPath The room's object path
+   */
+  hasRevealed(roomPath: string): boolean {
+    return this._revealedRooms.has(roomPath);
+  }
+
+  /**
+   * Mark a room as revealed (visible on map but not visited).
+   * @param roomPath The room's object path
+   * @returns true if this was a new reveal
+   */
+  markRevealed(roomPath: string): boolean {
+    // Don't reveal if already explored
+    if (this._exploredRooms.has(roomPath)) {
+      return false;
+    }
+    if (this._revealedRooms.has(roomPath)) {
+      return false;
+    }
+    this._revealedRooms.add(roomPath);
+    return true;
+  }
+
+  /**
+   * Mark multiple rooms as revealed.
+   * @param roomPaths Array of room paths to reveal
+   * @returns Number of newly revealed rooms
+   */
+  revealRooms(roomPaths: string[]): number {
+    let count = 0;
+    for (const path of roomPaths) {
+      if (this.markRevealed(path)) {
+        count++;
+      }
+    }
+    return count;
+  }
+
+  /**
+   * Get all revealed room paths.
+   */
+  getRevealedRooms(): string[] {
+    return Array.from(this._revealedRooms);
+  }
+
+  /**
+   * Check if a hidden exit has been detected.
+   * @param roomPath The room's object path
+   * @param direction The exit direction
+   */
+  hasDetectedHiddenExit(roomPath: string, direction: string): boolean {
+    const exits = this._detectedHiddenExits.get(roomPath);
+    return exits?.has(direction.toLowerCase()) ?? false;
+  }
+
+  /**
+   * Mark a hidden exit as detected.
+   * @param roomPath The room's object path
+   * @param direction The exit direction
+   */
+  markHiddenExitDetected(roomPath: string, direction: string): void {
+    let exits = this._detectedHiddenExits.get(roomPath);
+    if (!exits) {
+      exits = new Set();
+      this._detectedHiddenExits.set(roomPath, exits);
+    }
+    exits.add(direction.toLowerCase());
+  }
+
+  /**
+   * Get all detected hidden exits for a room.
+   * @param roomPath The room's object path
+   */
+  getDetectedHiddenExits(roomPath: string): string[] {
+    const exits = this._detectedHiddenExits.get(roomPath);
+    return exits ? Array.from(exits) : [];
+  }
+
+  /**
+   * Get the exploration data for saving.
+   */
+  getExplorationData(): PlayerExplorationData {
+    const detectedHiddenExits: Record<string, string[]> = {};
+    for (const [roomPath, exits] of this._detectedHiddenExits) {
+      detectedHiddenExits[roomPath] = Array.from(exits);
+    }
+    return {
+      exploredRooms: Array.from(this._exploredRooms),
+      revealedRooms: Array.from(this._revealedRooms),
+      detectedHiddenExits,
+    };
+  }
+
+  /**
+   * Restore exploration data from saved data.
+   */
+  restoreExplorationData(data: PlayerExplorationData): void {
+    this._exploredRooms = new Set(data.exploredRooms || []);
+    this._revealedRooms = new Set(data.revealedRooms || []);
+    this._detectedHiddenExits = new Map();
+    if (data.detectedHiddenExits) {
+      for (const [roomPath, exits] of Object.entries(data.detectedHiddenExits)) {
+        this._detectedHiddenExits.set(roomPath, new Set(exits));
+      }
+    }
+  }
+
+  /**
+   * Send a map update to the client.
+   * Called after the player moves to a new room.
+   * @param fromRoom The room the player left (optional)
+   */
+  async sendMapUpdate(fromRoom?: MudObject): Promise<void> {
+    // Check if connection supports map messages
+    if (!this._connection?.sendMap) {
+      return;
+    }
+
+    const currentRoom = this.environment;
+    if (!currentRoom) {
+      return;
+    }
+
+    try {
+      // Dynamic import to avoid circular dependency
+      const { getMapDaemon } = await import('../daemons/map.js');
+      const mapDaemon = getMapDaemon();
+
+      // Cast rooms to the interface the map daemon expects
+      type MapRoom = Parameters<typeof mapDaemon.generateClientRoomData>[0];
+      type MapPlayer = Parameters<typeof mapDaemon.generateClientRoomData>[1];
+
+      // Generate and send map message
+      if (fromRoom) {
+        // Check if we changed areas
+        const fromCoords = mapDaemon.getRoomCoordinates(fromRoom as unknown as MapRoom);
+        const toCoords = mapDaemon.getRoomCoordinates(currentRoom as unknown as MapRoom);
+
+        if (fromCoords.area !== toCoords.area) {
+          // Area changed - send full area data for new area
+          const message = mapDaemon.generateAreaMapData(
+            this as unknown as MapPlayer,
+            currentRoom as unknown as MapRoom
+          );
+          this._connection.sendMap(message);
+        } else {
+          // Same area - send move message
+          const message = mapDaemon.generateMoveMessage(
+            this as unknown as MapPlayer,
+            fromRoom as unknown as MapRoom,
+            currentRoom as unknown as MapRoom
+          );
+          this._connection.sendMap(message);
+        }
+      } else {
+        // Player teleported or just logged in - send full area data
+        const message = mapDaemon.generateAreaMapData(
+          this as unknown as MapPlayer,
+          currentRoom as unknown as MapRoom
+        );
+        this._connection.sendMap(message);
+      }
+    } catch {
+      // Silently fail if map daemon isn't available
+    }
   }
 
   // ========== Player Configuration ==========
@@ -873,7 +1082,7 @@ export class Player extends Living {
       mana: this.mana,
       maxMana: this.maxMana,
       stats: this.getBaseStats(),
-      location: this.environment?.objectPath || '/areas/town/center',
+      location: this.environment?.objectPath || '/areas/valdoria/aldric/center',
       inventory: savableInventory.map((item) => item.objectPath),
       equipment: equipment.length > 0 ? equipment : undefined,
       properties: this._serializeProperties(),
@@ -886,6 +1095,7 @@ export class Player extends Living {
       previousLocation: this._previousLocation,
       enterMessage: this.enterMessage,
       exitMessage: this.exitMessage,
+      exploration: this.getExplorationData(),
     };
   }
 
@@ -957,6 +1167,11 @@ export class Player extends Living {
     }
     if (data.exitMessage !== undefined) {
       this.exitMessage = data.exitMessage;
+    }
+
+    // Restore exploration data
+    if (data.exploration) {
+      this.restoreExplorationData(data.exploration);
     }
 
     // Store equipment data for later restoration (after inventory is loaded)
@@ -1212,7 +1427,7 @@ export class Player extends Living {
       // Default to town center or a known shrine location
       if (typeof efuns !== 'undefined' && efuns.loadObject) {
         try {
-          targetRoom = efuns.loadObject('/areas/town/center');
+          targetRoom = efuns.loadObject('/areas/valdoria/aldric/center');
         } catch {
           // Fall back to death location
           targetRoom = this._deathLocation || undefined;

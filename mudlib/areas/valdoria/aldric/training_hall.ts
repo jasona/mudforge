@@ -5,7 +5,7 @@
  * and grow stronger through dedicated practice.
  */
 
-import { Room } from '../../lib/std.js';
+import { Room } from '../../../lib/std.js';
 import type { MasterVorn } from './master_vorn.js';
 
 /**
@@ -29,7 +29,7 @@ A chalk board near the entrance displays training schedules and
 motivational quotes from famous warriors of old.`;
 
     // Exits
-    this.addExit('south', '/areas/town/center');
+    this.addExit('south', '/areas/valdoria/aldric/center');
 
     // Add some items for flavor
     this.addId('training hall');
@@ -47,7 +47,7 @@ motivational quotes from famous warriors of old.`;
 
     // Clone and place Master Vorn from separate file to avoid hot-reload loops
     if (typeof efuns !== 'undefined' && efuns.cloneObject) {
-      const vorn = await efuns.cloneObject<MasterVorn>('/areas/town/master_vorn', 'MasterVorn');
+      const vorn = await efuns.cloneObject<MasterVorn>('/areas/valdoria/aldric/master_vorn', 'MasterVorn');
       if (vorn) {
         await vorn.moveTo(this);
       }

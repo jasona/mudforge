@@ -9,6 +9,15 @@ import type { WebSocket } from 'ws';
 import { EventEmitter } from 'events';
 
 /**
+ * MAP protocol message type.
+ * This is a minimal type - actual messages are defined in mudlib/lib/map-types.ts
+ */
+export interface MapMessage {
+  type: string;
+  [key: string]: unknown;
+}
+
+/**
  * Connection state.
  */
 export type ConnectionState = 'connecting' | 'open' | 'closing' | 'closed';
@@ -175,6 +184,24 @@ export class Connection extends EventEmitter {
    */
   sendLine(line: string): void {
     this.send(line + '\n');
+  }
+
+  /**
+   * Send a MAP protocol message to the client.
+   * MAP messages are prefixed with \x00[MAP] to distinguish them from regular text.
+   * @param message The map message to send
+   */
+  sendMap(message: MapMessage): void {
+    if (this._state !== 'open') {
+      return;
+    }
+
+    try {
+      const json = JSON.stringify(message);
+      this.socket.send(`\x00[MAP]${json}`);
+    } catch (error) {
+      this.emit('error', error as Error);
+    }
   }
 
   /**

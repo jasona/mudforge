@@ -2,7 +2,7 @@
  * The Bakery - A warm shop filled with the aroma of fresh bread.
  */
 
-import { Room, MudObject } from '../../lib/std.js';
+import { Room, MudObject } from '../../../lib/std.js';
 
 /**
  * The Bakery room.
@@ -30,7 +30,7 @@ A narrow alley leads {green}south{/} back to the market square.`;
   }
 
   private setupRoom(): void {
-    this.addExit('south', '/areas/town/market');
+    this.addExit('south', '/areas/valdoria/aldric/market');
 
     this.addAction('look', this.cmdLook.bind(this));
     this.addAction('buy', this.cmdBuy.bind(this));

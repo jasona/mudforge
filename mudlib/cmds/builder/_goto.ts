@@ -37,7 +37,7 @@ export async function execute(ctx: CommandContext): Promise<void> {
     ctx.sendLine('Goto where? Usage: goto <player | room path>');
     ctx.sendLine('Examples:');
     ctx.sendLine('  goto acer              - Teleport to player Acer');
-    ctx.sendLine('  goto /areas/town/square - Teleport to a room');
+    ctx.sendLine('  goto /areas/valdoria/aldric/center - Teleport to a room');
     ctx.sendLine('  goto tavern            - Teleport to room in current directory');
     return;
   }

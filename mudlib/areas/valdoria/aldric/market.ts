@@ -2,7 +2,7 @@
  * Market Square - The bustling merchant district.
  */
 
-import { Room, MudObject } from '../../lib/std.js';
+import { Room, MudObject } from '../../../lib/std.js';
 
 /**
  * The Market Square room.
@@ -32,8 +32,8 @@ enticingly. The town center lies to the {green}east{/}.`;
   }
 
   private setupRoom(): void {
-    this.addExit('east', '/areas/town/center');
-    this.addExit('north', '/areas/town/bakery');
+    this.addExit('east', '/areas/valdoria/aldric/center');
+    this.addExit('north', '/areas/valdoria/aldric/bakery');
 
     this.addAction('look', this.cmdLook.bind(this));
     this.addAction('browse', this.cmdBrowse.bind(this));

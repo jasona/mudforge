@@ -5,7 +5,7 @@
  * announcing the day's news to anyone who will listen.
  */
 
-import { NPC, MudObject } from '../../lib/std.js';
+import { NPC, MudObject } from '../../../lib/std.js';
 
 /**
  * The Town Crier NPC.

@@ -36,7 +36,7 @@ waiting for brave souls to step through and shape their destinies.`;
     // this.addExit('north', '/areas/town/square');
     // this.addExit('south', '/areas/inn/lobby');
 
-    this.addExit('north', '/areas/town/center');
+    this.addExit('north', '/areas/valdoria/aldric/center');
 
     // Add actions
     this.addAction('meditate', this.cmdMeditate.bind(this));

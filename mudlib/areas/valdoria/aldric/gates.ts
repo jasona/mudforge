@@ -2,7 +2,7 @@
  * Town Gates - The southern entrance to the town.
  */
 
-import { Room, MudObject } from '../../lib/std.js';
+import { Room, MudObject } from '../../../lib/std.js';
 
 /**
  * The Town Gates room.
@@ -31,7 +31,7 @@ those arriving on horseback. The bustle of the town center lies to the {green}no
   }
 
   private setupRoom(): void {
-    this.addExit('north', '/areas/town/center');
+    this.addExit('north', '/areas/valdoria/aldric/center');
     // Could add 'south' to wilderness/roads later
 
     this.addAction('look', this.cmdLook.bind(this));

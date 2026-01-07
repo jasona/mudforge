@@ -120,7 +120,7 @@ Create an exit from the current room to another room.
   {yellow}@link <direction> <room_path>{/}
 
 {bold}Examples:{/}
-  {yellow}@link north /areas/town/market{/}
+  {yellow}@link north /areas/valdoria/aldric/market{/}
   {yellow}@link up /areas/tower/second_floor{/}
 
 {bold}One-Way vs Two-Way:{/}

@@ -193,27 +193,6 @@ body {
   50% { opacity: 0.4; }
 }
 
-/* Terminal */
-#terminal-container {
-  flex: 1;
-  overflow: hidden;
-  background-color: var(--bg-terminal);
-  position: relative;
-}
-
-#terminal-container::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 40px;
-  background: linear-gradient(180deg, var(--bg-terminal) 0%, transparent 100%);
-  pointer-events: none;
-  z-index: 1;
-  opacity: 0;
-}
-
 #terminal {
   height: 100%;
   padding: var(--spacing-lg);
@@ -743,10 +722,199 @@ body {
   flex-shrink: 0;
 }
 
+/* Main Content Layout */
+#main-content {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+/* Terminal */
+#terminal-container {
+  flex: 1;
+  overflow: hidden;
+  background-color: var(--bg-terminal);
+  position: relative;
+}
+
+/* Map Panel */
+#map-container {
+  width: 280px;
+  flex-shrink: 0;
+  background-color: var(--bg-secondary);
+  border-left: 1px solid var(--border-primary);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.map-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  transition: width 0.2s ease;
+}
+
+.map-panel.collapsed {
+  width: 40px;
+}
+
+.map-panel.collapsed .map-panel-content,
+.map-panel.collapsed .map-panel-legend,
+.map-panel.collapsed .map-zoom-level,
+.map-panel.collapsed .map-btn-zoom-in,
+.map-panel.collapsed .map-btn-zoom-out {
+  display: none;
+}
+
+.map-panel.hidden {
+  display: none;
+}
+
+.map-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-sm) var(--spacing-md);
+  background-color: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border-primary);
+  flex-shrink: 0;
+}
+
+.map-panel-title {
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.map-panel-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.map-btn {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--text-secondary);
+  background-color: var(--bg-hover);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--border-radius-sm);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.map-btn:hover {
+  color: var(--text-primary);
+  background-color: var(--bg-tertiary);
+  border-color: var(--accent);
+}
+
+.map-zoom-level {
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  color: var(--text-secondary);
+  min-width: 16px;
+  text-align: center;
+}
+
+.map-panel-content {
+  flex: 1;
+  overflow: hidden;
+  background-color: var(--bg-terminal);
+  position: relative;
+}
+
+.map-svg {
+  width: 100%;
+  height: 100%;
+  background-color: var(--bg-terminal);
+}
+
+.map-svg rect {
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.map-svg rect:hover {
+  opacity: 0.8 !important;
+}
+
+.player-marker {
+  animation: player-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes player-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.map-panel-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background-color: var(--bg-tertiary);
+  border-top: 1px solid var(--border-primary);
+  flex-shrink: 0;
+}
+
+.map-legend-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+}
+
+.map-legend-marker {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+}
+
+.map-legend-marker.player {
+  color: #ffffff;
+  font-weight: bold;
+}
+
+.map-legend-marker.explored {
+  color: #4a7c23;
+}
+
+.map-legend-marker.revealed {
+  color: #2d4d16;
+  opacity: 0.7;
+}
+
+.map-legend-marker.hinted {
+  color: #666666;
+}
+
+/* Responsive - hide map on small screens */
+@media (max-width: 768px) {
+  #map-container {
+    display: none;
+  }
+
+  #main-content {
+    flex-direction: column;
+  }
+}
+
 /* Print styles - hide for printing */
 @media print {
   #header,
   #input-container,
+  #map-container,
   .code-editor-wrapper,
   .ide-modal {
     display: none;

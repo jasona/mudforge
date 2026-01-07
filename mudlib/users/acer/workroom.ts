@@ -31,7 +31,7 @@ something vaguely sulfurous fills the air.`;
     this.addId("acer's workroom");
 
     // Exit back to town center for now
-    this.addExit('out', '/areas/town/center');
+    this.addExit('out', '/areas/valdoria/aldric/center');
   }
 }
 

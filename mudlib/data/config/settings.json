@@ -1,0 +1,4 @@
+{
+  "disconnect.timeoutMinutes": 15,
+  "combat.playerKilling": false
+}

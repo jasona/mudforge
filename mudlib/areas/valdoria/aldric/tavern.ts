@@ -2,7 +2,7 @@
  * The Foaming Flagon - A warm and welcoming tavern.
  */
 
-import { Room, MudObject } from '../../lib/std.js';
+import { Room, MudObject } from '../../../lib/std.js';
 
 /**
  * The Tavern room.
@@ -32,7 +32,7 @@ The exit to the town square lies to the {green}west{/}.`;
   }
 
   private setupRoom(): void {
-    this.addExit('west', '/areas/town/center');
+    this.addExit('west', '/areas/valdoria/aldric/center');
     // Could add 'up' to guest rooms later
 
     this.addAction('look', this.cmdLook.bind(this));

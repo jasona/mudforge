@@ -4,6 +4,8 @@
  * Provides connection management, auto-reconnect, and message handling.
  */
 
+import type { MapMessage } from './map-renderer.js';
+
 /**
  * Event types for the WebSocket client.
  */
@@ -13,7 +15,8 @@ type WebSocketClientEvent =
   | 'disconnected'
   | 'error'
   | 'message'
-  | 'ide-message';
+  | 'ide-message'
+  | 'map-message';
 
 /**
  * IDE message structure.
@@ -168,6 +171,14 @@ export class WebSocketClient {
             this.emit('ide-message', ideMessage);
           } catch (error) {
             console.error('Failed to parse IDE message:', error);
+          }
+        } else if (line.startsWith('\x00[MAP]')) {
+          const jsonStr = line.slice(6); // Remove \x00[MAP] prefix
+          try {
+            const mapMessage = JSON.parse(jsonStr) as MapMessage;
+            this.emit('map-message', mapMessage);
+          } catch (error) {
+            console.error('Failed to parse MAP message:', error);
           }
         } else {
           this.emit('message', line);

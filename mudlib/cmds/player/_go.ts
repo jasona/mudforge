@@ -3,6 +3,7 @@
  */
 
 import type { MudObject } from '../../lib/std.js';
+import { getTerrain, type TerrainType, type TerrainDefinition } from '../../lib/terrain.js';
 
 interface CommandContext {
   player: MudObject;
@@ -24,10 +25,17 @@ interface Room extends MudObject {
   resolveExit?(exit: Exit): MudObject | undefined;
   look?(viewer: MudObject): void;
   glance?(viewer: MudObject): void;
+  getTerrain?(): TerrainType;
 }
 
 interface Player extends MudObject {
   getConfig?<T = unknown>(key: string): T;
+  markExplored?(roomPath: string): boolean;
+  sendMapUpdate?(fromRoom?: MudObject): Promise<void> | void;
+  canSwim?(): boolean;
+  canClimb?(): boolean;
+  hasLight?(): boolean;
+  hasBoat?(): boolean;
 }
 
 interface Living extends MudObject {
@@ -161,6 +169,42 @@ export async function execute(ctx: CommandContext): Promise<boolean> {
     return false;
   }
 
+  // Check terrain requirements for the destination
+  const destRoom = destination as Room;
+  if (destRoom.getTerrain) {
+    const terrainType = destRoom.getTerrain();
+    const terrainDef = getTerrain(terrainType);
+
+    const playerWithAbilities = player as Player;
+
+    // Check swim requirement
+    if (terrainDef.requiresSwim) {
+      const canSwim = playerWithAbilities.canSwim?.() ?? false;
+      const hasBoat = playerWithAbilities.hasBoat?.() ?? false;
+      if (!canSwim && !hasBoat) {
+        ctx.sendLine("{yellow}You can't enter that water - you need to know how to swim or have a boat.{/}");
+        return false;
+      }
+    }
+
+    // Check climb requirement
+    if (terrainDef.requiresClimb) {
+      const canClimb = playerWithAbilities.canClimb?.() ?? false;
+      if (!canClimb) {
+        ctx.sendLine("{yellow}The terrain is too steep - you need climbing equipment or skill.{/}");
+        return false;
+      }
+    }
+
+    // Check light requirement (warn but don't block)
+    if (terrainDef.requiresLight) {
+      const hasLight = playerWithAbilities.hasLight?.() ?? false;
+      if (!hasLight) {
+        ctx.sendLine("{dim}It's very dark ahead. You may want a light source.{/}");
+      }
+    }
+  }
+
   // Get player's name for messages
   const living = player as Living & { name?: string };
   const playerName = living.name || 'someone';
@@ -178,6 +222,13 @@ export async function execute(ctx: CommandContext): Promise<boolean> {
   if (!moved) {
     ctx.sendLine("Something prevents you from going that way.");
     return false;
+  }
+
+  // Send map update to client (fire and forget - don't block movement)
+  // Note: markExplored is called by the map daemon, not here
+  const playerWithMap = player as Player;
+  if (playerWithMap.sendMapUpdate) {
+    void playerWithMap.sendMapUpdate(room);
   }
 
   // Broadcast enter message to new room

@@ -4,7 +4,7 @@
  * A bustling town square at the heart of a medieval fantasy town.
  */
 
-import { Room, MudObject } from '../../lib/std.js';
+import { Room, MudObject } from '../../../lib/std.js';
 
 /**
  * The Center of Town room.
@@ -39,11 +39,11 @@ anyone who will listen.`;
    */
   private setupRoom(): void {
     // Add exits to surrounding areas
-    this.addExit('north', '/areas/town/castle');
-    this.addExit('east', '/areas/town/tavern');
-    this.addExit('west', '/areas/town/market');
-    this.addExit('south', '/areas/town/gates');
-    this.addExit('northeast', '/areas/town/training_hall');
+    this.addExit('north', '/areas/valdoria/aldric/castle');
+    this.addExit('east', '/areas/valdoria/aldric/tavern');
+    this.addExit('west', '/areas/valdoria/aldric/market');
+    this.addExit('south', '/areas/valdoria/aldric/gates');
+    this.addExit('northeast', '/areas/valdoria/aldric/training_hall');
 
     // Add actions
     this.addAction('look', this.cmdLook.bind(this));
@@ -58,7 +58,7 @@ anyone who will listen.`;
     // Clone the Town Crier NPC into the room
     if (typeof efuns !== 'undefined' && efuns.cloneObject) {
       try {
-        const townCrier = await efuns.cloneObject('/areas/town/town_crier');
+        const townCrier = await efuns.cloneObject('/areas/valdoria/aldric/town_crier');
         if (townCrier) {
           await townCrier.moveTo(this);
         }

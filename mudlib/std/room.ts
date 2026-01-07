@@ -9,6 +9,15 @@ import { MudObject } from './object.js';
 import { reflowText } from '../lib/colors.js';
 import { Container } from './container.js';
 import { NPC } from './npc.js';
+import {
+  type TerrainType,
+  type TerrainDefinition,
+  getTerrain as getTerrainDef,
+  getDefaultTerrain,
+  isValidTerrain,
+  OPPOSITE_DIRECTIONS,
+} from '../lib/terrain.js';
+import type { RoomMapData, MapCoordinates, POIMarker } from '../lib/map-types.js';
 
 /**
  * Exit definition.
@@ -41,11 +50,103 @@ export class Room extends MudObject {
   private _exits: Map<string, Exit> = new Map();
   private _items: string[] = [];
   private _resetMessage: string = '';
+  private _terrain: TerrainType = getDefaultTerrain();
+  private _mapData: RoomMapData = {};
 
   constructor() {
     super();
     this.shortDesc = 'A room';
     this.longDesc = 'You are in a nondescript room.';
+  }
+
+  // ========== Terrain ==========
+
+  /**
+   * Get the terrain type of this room.
+   */
+  getTerrain(): TerrainType {
+    return this._terrain;
+  }
+
+  /**
+   * Set the terrain type of this room.
+   * @param terrain The terrain type
+   */
+  setTerrain(terrain: TerrainType): void {
+    if (!isValidTerrain(terrain)) {
+      throw new Error(`Invalid terrain type: ${terrain}`);
+    }
+    this._terrain = terrain;
+  }
+
+  /**
+   * Get the full terrain definition for this room.
+   */
+  getTerrainDefinition(): TerrainDefinition {
+    return getTerrainDef(this._terrain);
+  }
+
+  // ========== Map Data ==========
+
+  /**
+   * Get the map data for this room.
+   */
+  getMapData(): RoomMapData {
+    return { ...this._mapData };
+  }
+
+  /**
+   * Set the map data for this room.
+   * @param data The map data
+   */
+  setMapData(data: RoomMapData): void {
+    this._mapData = { ...data };
+  }
+
+  /**
+   * Get the map coordinates for this room.
+   * Returns undefined if no coordinates are set.
+   */
+  getMapCoordinates(): Partial<MapCoordinates> | undefined {
+    return this._mapData.coords;
+  }
+
+  /**
+   * Set the map coordinates for this room.
+   * @param coords The coordinates (x, y, z, area)
+   */
+  setMapCoordinates(coords: Partial<MapCoordinates>): void {
+    this._mapData.coords = coords;
+  }
+
+  /**
+   * Get the POI icon for this room.
+   */
+  getMapIcon(): POIMarker | undefined {
+    return this._mapData.icon;
+  }
+
+  /**
+   * Set a POI icon for this room.
+   * @param icon The icon character
+   */
+  setMapIcon(icon: POIMarker | undefined): void {
+    this._mapData.icon = icon;
+  }
+
+  /**
+   * Check if this room is hidden on the map.
+   */
+  isMapHidden(): boolean {
+    return this._mapData.hidden === true;
+  }
+
+  /**
+   * Set whether this room is hidden on the map.
+   * @param hidden Whether the room should be hidden
+   */
+  setMapHidden(hidden: boolean): void {
+    this._mapData.hidden = hidden;
   }
 
   // ========== Exits ==========
@@ -83,6 +184,41 @@ export class Room extends MudObject {
       description,
       canPass,
     });
+  }
+
+  /**
+   * Add a one-way exit (no automatic reverse exit).
+   * Use this for portals, falls, trap doors, etc.
+   * @param direction The direction name
+   * @param destination The destination room path or room object
+   * @param description Optional exit description
+   */
+  addOneWayExit(direction: string, destination: string | MudObject, description?: string): void {
+    // Mark this exit as explicitly one-way so validation doesn't complain
+    const exit: Exit & { oneWay?: boolean } = {
+      direction: direction.toLowerCase(),
+      destination,
+      description,
+    };
+    (exit as Exit & { oneWay: boolean }).oneWay = true;
+    this._exits.set(direction.toLowerCase(), exit);
+  }
+
+  /**
+   * Check if an exit is one-way.
+   * @param direction The direction to check
+   */
+  isOneWayExit(direction: string): boolean {
+    const exit = this._exits.get(direction.toLowerCase()) as Exit & { oneWay?: boolean } | undefined;
+    return exit?.oneWay === true;
+  }
+
+  /**
+   * Get the opposite direction for a given direction.
+   * Returns undefined for non-standard directions.
+   */
+  static getOppositeDirection(direction: string): string | undefined {
+    return OPPOSITE_DIRECTIONS[direction.toLowerCase()];
   }
 
   /**

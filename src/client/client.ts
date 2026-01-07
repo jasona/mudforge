@@ -8,6 +8,8 @@ import { Terminal } from './terminal.js';
 import { WebSocketClient, IdeMessage } from './websocket-client.js';
 import { InputHandler } from './input-handler.js';
 import { IdeEditor } from './ide-editor.js';
+import { MapPanel } from './map-panel.js';
+import type { MapMessage } from './map-renderer.js';
 
 /**
  * Main client application.
@@ -17,6 +19,7 @@ class MudClient {
   private wsClient: WebSocketClient;
   private inputHandler: InputHandler;
   private ideEditor: IdeEditor;
+  private mapPanel: MapPanel;
   private statusElement: HTMLElement;
 
   constructor() {
@@ -37,6 +40,12 @@ class MudClient {
     this.inputHandler = new InputHandler(inputEl, sendBtn);
     this.wsClient = new WebSocketClient();
     this.ideEditor = new IdeEditor();
+    this.mapPanel = new MapPanel('map-container', {
+      onRoomClick: (roomPath) => {
+        // Could implement auto-walk in the future
+        console.log('Room clicked:', roomPath);
+      },
+    });
 
     this.setupEventHandlers();
   }
@@ -72,6 +81,11 @@ class MudClient {
     // IDE events
     this.wsClient.on('ide-message', (message: IdeMessage) => {
       this.handleIdeMessage(message);
+    });
+
+    // Map events
+    this.wsClient.on('map-message', (message: MapMessage) => {
+      this.mapPanel.handleMessage(message);
     });
 
     // Input events
