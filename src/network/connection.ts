@@ -34,6 +34,15 @@ export interface StatsMessage {
 }
 
 /**
+ * GUI protocol message type for modal dialogs.
+ * Full message types are defined in mudlib/lib/gui-types.ts
+ */
+export interface GUIMessage {
+  action: string;
+  [key: string]: unknown;
+}
+
+/**
  * Connection state.
  */
 export type ConnectionState = 'connecting' | 'open' | 'closing' | 'closed';
@@ -233,6 +242,24 @@ export class Connection extends EventEmitter {
     try {
       const json = JSON.stringify(message);
       this.socket.send(`\x00[STATS]${json}`);
+    } catch (error) {
+      this.emit('error', error as Error);
+    }
+  }
+
+  /**
+   * Send a GUI protocol message to the client.
+   * GUI messages are prefixed with \x00[GUI] to distinguish them from regular text.
+   * @param message The GUI message to send
+   */
+  sendGUI(message: GUIMessage): void {
+    if (this._state !== 'open') {
+      return;
+    }
+
+    try {
+      const json = JSON.stringify(message);
+      this.socket.send(`\x00[GUI]${json}`);
     } catch (error) {
       this.emit('error', error as Error);
     }

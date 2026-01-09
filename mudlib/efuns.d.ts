@@ -48,6 +48,15 @@ interface IdeMessage {
 }
 
 /**
+ * GUI message for modal dialogs.
+ * Full types are in lib/gui-types.ts
+ */
+interface GUIMessage {
+  action: string;
+  [key: string]: unknown;
+}
+
+/**
  * Global efuns object provided by the driver.
  */
 declare global {
@@ -299,6 +308,11 @@ declare global {
 
     /** Send an IDE message to the client */
     ideOpen(message: IdeMessage): void;
+
+    // ========== GUI Efuns ==========
+
+    /** Send a GUI message to the client to open/update/close modals */
+    guiSend(message: GUIMessage): void;
 
     // ========== Config Efuns ==========
 

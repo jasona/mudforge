@@ -1188,6 +1188,558 @@ body {
   color: #666666;
 }
 
+/* =============================================================================
+   GUI Modal System
+   ============================================================================= */
+
+/* Modal Overlay */
+.gui-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3000;
+  animation: fadeIn 0.15s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Modal Container */
+.gui-modal {
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
+  overflow: hidden;
+  animation: slideIn 0.2s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Modal Sizes */
+.gui-modal-small { width: 400px; max-width: 95vw; }
+.gui-modal-medium { width: 600px; max-width: 95vw; }
+.gui-modal-large { width: 800px; max-width: 95vw; }
+.gui-modal-fullscreen { width: 95vw; height: 90vh; }
+.gui-modal-auto { max-width: 95vw; min-width: 300px; }
+
+/* Modal Header */
+.gui-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: var(--spacing-md) var(--spacing-lg);
+  background-color: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border-primary);
+  flex-shrink: 0;
+}
+
+.gui-modal-title-wrapper {
+  flex: 1;
+  min-width: 0;
+}
+
+.gui-modal-title {
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.gui-modal-subtitle {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.gui-modal-close {
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-radius: var(--border-radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  flex-shrink: 0;
+  margin-left: var(--spacing-sm);
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.gui-modal-close:hover {
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+/* Modal Body */
+.gui-modal-body {
+  flex: 1;
+  padding: var(--spacing-lg);
+  overflow-y: auto;
+}
+
+/* Modal Footer */
+.gui-modal-footer {
+  display: flex;
+  gap: var(--spacing-sm);
+  justify-content: flex-end;
+  padding: var(--spacing-md) var(--spacing-lg);
+  background-color: var(--bg-tertiary);
+  border-top: 1px solid var(--border-primary);
+  flex-shrink: 0;
+}
+
+.gui-modal-footer:empty {
+  display: none;
+}
+
+/* Global Error */
+.gui-global-error {
+  padding: var(--spacing-sm) var(--spacing-md);
+  margin-bottom: var(--spacing-md);
+  background-color: var(--error-subtle);
+  border: 1px solid var(--error);
+  border-radius: var(--border-radius-sm);
+  color: var(--error);
+  font-size: var(--font-size-sm);
+}
+
+/* =============================================================================
+   GUI Form Elements
+   ============================================================================= */
+
+/* Field Wrapper */
+.gui-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.gui-label {
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+/* Text Input */
+.gui-input,
+.gui-select,
+.gui-textarea {
+  padding: var(--spacing-sm) var(--spacing-md);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-sm);
+  color: var(--text-primary);
+  background-color: var(--bg-tertiary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--border-radius-sm);
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.gui-input:focus,
+.gui-select:focus,
+.gui-textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-subtle);
+}
+
+.gui-input:disabled,
+.gui-select:disabled,
+.gui-textarea:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.gui-input::placeholder,
+.gui-textarea::placeholder {
+  color: var(--text-tertiary);
+}
+
+.gui-input-error {
+  border-color: var(--error) !important;
+}
+
+.gui-field-error {
+  font-size: var(--font-size-xs);
+  color: var(--error);
+  margin-top: 2px;
+}
+
+/* Textarea */
+.gui-textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+/* Select */
+.gui-select {
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%238b8b8e' viewBox='0 0 16 16'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 36px;
+}
+
+/* Radio Group */
+.gui-radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.gui-radio-option {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  color: var(--text-primary);
+}
+
+.gui-radio-option input[type="radio"] {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--border-primary);
+  border-radius: 50%;
+  background-color: var(--bg-tertiary);
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+.gui-radio-option input[type="radio"]:checked {
+  border-color: var(--accent);
+  background: radial-gradient(circle, var(--accent) 40%, transparent 45%);
+}
+
+.gui-radio-option input[type="radio"]:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Checkbox */
+.gui-checkbox-wrapper {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  color: var(--text-primary);
+}
+
+.gui-checkbox {
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--border-primary);
+  border-radius: 4px;
+  background-color: var(--bg-tertiary);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.gui-checkbox:checked {
+  border-color: var(--accent);
+  background-color: var(--accent);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' fill='white' viewBox='0 0 16 16'%3E%3Cpath d='M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+.gui-checkbox:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Slider */
+.gui-slider-wrapper {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.gui-slider {
+  flex: 1;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  background: var(--bg-tertiary);
+  border-radius: 3px;
+  outline: none;
+  border: 1px solid var(--border-primary);
+}
+
+.gui-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  background: var(--accent);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.gui-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.1);
+}
+
+.gui-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  background: var(--accent);
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.gui-slider:disabled {
+  opacity: 0.5;
+}
+
+.gui-slider-value {
+  min-width: 40px;
+  text-align: right;
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+}
+
+/* =============================================================================
+   GUI Buttons
+   ============================================================================= */
+
+.gui-btn {
+  padding: var(--spacing-sm) var(--spacing-lg);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  border-radius: var(--border-radius-sm);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: 1px solid transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-xs);
+}
+
+.gui-btn-primary {
+  background-color: var(--accent);
+  color: white;
+}
+
+.gui-btn-primary:hover:not(:disabled) {
+  background-color: var(--accent-hover);
+}
+
+.gui-btn-secondary {
+  background-color: transparent;
+  border-color: var(--border-primary);
+  color: var(--text-secondary);
+}
+
+.gui-btn-secondary:hover:not(:disabled) {
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.gui-btn-danger {
+  background-color: var(--error);
+  color: white;
+}
+
+.gui-btn-danger:hover:not(:disabled) {
+  background-color: #dc2626;
+}
+
+.gui-btn-success {
+  background-color: var(--success);
+  color: #0d0d0f;
+}
+
+.gui-btn-success:hover:not(:disabled) {
+  background-color: #22c55e;
+}
+
+.gui-btn-ghost {
+  background-color: transparent;
+  color: var(--text-secondary);
+}
+
+.gui-btn-ghost:hover:not(:disabled) {
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.gui-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* =============================================================================
+   GUI Display Elements
+   ============================================================================= */
+
+.gui-text {
+  color: var(--text-primary);
+  font-size: var(--font-size-sm);
+}
+
+.gui-heading {
+  color: var(--text-primary);
+  font-weight: 600;
+  margin: 0;
+}
+
+h1.gui-heading { font-size: 24px; }
+h2.gui-heading { font-size: 20px; }
+h3.gui-heading { font-size: 16px; }
+h4.gui-heading { font-size: 14px; }
+h5.gui-heading { font-size: 13px; }
+h6.gui-heading { font-size: 12px; }
+
+.gui-paragraph {
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+}
+
+.gui-divider {
+  border: none;
+  border-top: 1px solid var(--border-primary);
+  margin: var(--spacing-md) 0;
+}
+
+.gui-image {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--border-radius-sm);
+}
+
+.gui-icon {
+  font-size: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gui-spacer {
+  height: var(--spacing-md);
+}
+
+.gui-progress {
+  width: 100%;
+  height: 8px;
+  background-color: var(--bg-tertiary);
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid var(--border-primary);
+}
+
+.gui-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--accent-hover));
+  transition: width 0.3s ease;
+}
+
+.gui-html {
+  color: var(--text-primary);
+  font-size: var(--font-size-sm);
+}
+
+/* =============================================================================
+   GUI Layout Containers
+   ============================================================================= */
+
+.gui-layout-vertical {
+  display: flex;
+  flex-direction: column;
+}
+
+.gui-layout-horizontal {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+}
+
+.gui-layout-grid {
+  display: grid;
+}
+
+.gui-layout-form {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Tabs */
+.gui-layout-tabs {
+  display: flex;
+  flex-direction: column;
+}
+
+.gui-tab-headers {
+  display: flex;
+  gap: 2px;
+  border-bottom: 1px solid var(--border-primary);
+  padding: 0;
+  margin-bottom: var(--spacing-md);
+}
+
+.gui-tab-header {
+  padding: var(--spacing-sm) var(--spacing-md);
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  font-family: var(--font-sans);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.gui-tab-header:hover {
+  color: var(--text-primary);
+}
+
+.gui-tab-header.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.gui-tab-panels {
+  flex: 1;
+}
+
+.gui-tab-panel {
+  /* Panels are shown/hidden via display property */
+}
+
 /* Responsive - compact floating panels on small screens */
 @media (max-width: 768px) {
   /* Make floating stats more compact on mobile */

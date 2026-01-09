@@ -17,7 +17,8 @@ type WebSocketClientEvent =
   | 'message'
   | 'ide-message'
   | 'map-message'
-  | 'stats-message';
+  | 'stats-message'
+  | 'gui-message';
 
 /**
  * Stats message structure for HP/MP/XP display.
@@ -47,6 +48,20 @@ export interface IdeMessage {
   success?: boolean;
   errors?: Array<{ line: number; column: number; message: string }>;
   message?: string;
+}
+
+/**
+ * GUI message structure for modal dialogs.
+ * Full types are in mudlib/lib/gui-types.ts
+ */
+export interface GUIMessage {
+  action: string;
+  modalId?: string;
+  modal?: unknown;
+  layout?: unknown;
+  buttons?: unknown[];
+  data?: Record<string, unknown>;
+  [key: string]: unknown;
 }
 
 /**
@@ -205,6 +220,14 @@ export class WebSocketClient {
           } catch (error) {
             console.error('Failed to parse STATS message:', error);
           }
+        } else if (line.startsWith('\x00[GUI]')) {
+          const jsonStr = line.slice(6); // Remove \x00[GUI] prefix
+          try {
+            const guiMessage = JSON.parse(jsonStr) as GUIMessage;
+            this.emit('gui-message', guiMessage);
+          } catch (error) {
+            console.error('Failed to parse GUI message:', error);
+          }
         } else {
           this.emit('message', line);
         }
@@ -274,6 +297,23 @@ export class WebSocketClient {
       this.socket!.send(`\x00[IDE]${jsonStr}\n`);
     } catch (error) {
       this.emit('error', `Failed to send IDE message: ${error}`);
+    }
+  }
+
+  /**
+   * Send a GUI message to the server.
+   */
+  sendGUIMessage(message: GUIMessage): void {
+    if (!this.isConnected) {
+      this.emit('error', 'Not connected');
+      return;
+    }
+
+    try {
+      const jsonStr = JSON.stringify(message);
+      this.socket!.send(`\x00[GUI]${jsonStr}\n`);
+    } catch (error) {
+      this.emit('error', `Failed to send GUI message: ${error}`);
     }
   }
 

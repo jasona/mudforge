@@ -5,12 +5,14 @@
  */
 
 import { Terminal } from './terminal.js';
-import { WebSocketClient, IdeMessage, StatsMessage } from './websocket-client.js';
+import { WebSocketClient, IdeMessage, StatsMessage, GUIMessage } from './websocket-client.js';
 import { InputHandler } from './input-handler.js';
 import { IdeEditor } from './ide-editor.js';
 import { MapPanel } from './map-panel.js';
 import { StatsPanel } from './stats-panel.js';
+import { GUIModal } from './gui/gui-modal.js';
 import type { MapMessage } from './map-renderer.js';
+import type { GUIServerMessage, GUIClientMessage } from './gui/gui-types.js';
 
 /**
  * Main client application.
@@ -22,6 +24,7 @@ class MudClient {
   private ideEditor: IdeEditor;
   private mapPanel: MapPanel;
   private statsPanel: StatsPanel;
+  private guiModal: GUIModal;
   private statusElement: HTMLElement;
 
   constructor() {
@@ -49,6 +52,9 @@ class MudClient {
       },
     });
     this.statsPanel = new StatsPanel('stats-container');
+    this.guiModal = new GUIModal((message: GUIClientMessage) => {
+      this.wsClient.sendGUIMessage(message);
+    });
 
     this.setupEventHandlers();
   }
@@ -94,6 +100,11 @@ class MudClient {
     // Stats events
     this.wsClient.on('stats-message', (message: StatsMessage) => {
       this.statsPanel.handleMessage(message);
+    });
+
+    // GUI events
+    this.wsClient.on('gui-message', (message: GUIMessage) => {
+      this.guiModal.handleMessage(message as GUIServerMessage);
     });
 
     // Input events

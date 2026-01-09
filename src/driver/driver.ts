@@ -370,6 +370,12 @@ export class Driver {
     }
 
     try {
+      // Check for GUI message prefix
+      if (input.startsWith('\x00[GUI]')) {
+        await this.handleGUIMessage(handler, input.slice(6));
+        return;
+      }
+
       // Check if handler is login daemon
       if (handler === this.loginDaemon) {
         await this.loginDaemon.processInput(connection, input);
@@ -391,6 +397,36 @@ export class Driver {
     } catch (error) {
       this.logger.error({ error, id: connection.id }, 'Error processing input');
       await this.handleError(error as Error, handler);
+    }
+  }
+
+  /**
+   * Handle a GUI message from the client.
+   * Routes the message to the player's onGUIResponse handler if set.
+   */
+  private async handleGUIMessage(handler: MudObject, jsonStr: string): Promise<void> {
+    // Only process for logged-in players (not login daemon)
+    if (handler === this.loginDaemon) {
+      return;
+    }
+
+    try {
+      const message = JSON.parse(jsonStr);
+      const player = handler as MudObject & {
+        onGUIResponse?: (message: unknown) => void | Promise<void>;
+      };
+
+      if (player.onGUIResponse) {
+        // Set efun context
+        this.efunBridge.setContext({ thisPlayer: player, thisObject: player });
+        try {
+          await player.onGUIResponse(message);
+        } finally {
+          this.efunBridge.clearContext();
+        }
+      }
+    } catch (error) {
+      this.logger.error({ error }, 'Failed to parse GUI message');
     }
   }
 

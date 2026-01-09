@@ -21,6 +21,7 @@ import {
   type ConfigOption,
 } from '../lib/player-config.js';
 import type { PlayerExplorationData, MapMessage } from '../lib/map-types.js';
+import type { GUIMessage } from '../lib/gui-types.js';
 
 /**
  * STATS protocol message for HP/MP/XP display.
@@ -45,6 +46,7 @@ export interface Connection {
   send(message: string): void;
   sendMap?(message: MapMessage): void;
   sendStats?(message: StatsMessage): void;
+  sendGUI?(message: GUIMessage): void;
   close(): void;
   isConnected(): boolean;
 }

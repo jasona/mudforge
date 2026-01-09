@@ -46,6 +46,15 @@ export interface IdeMessage {
   message?: string;
 }
 
+/**
+ * GUI message types for modal dialogs.
+ * Full types are in mudlib/lib/gui-types.ts
+ */
+export interface GUIMessage {
+  action: string;
+  [key: string]: unknown;
+}
+
 export interface EfunBridgeConfig {
   /** Root path for file operations */
   mudlibPath: string;
@@ -1499,6 +1508,37 @@ export class EfunBridge {
     connection.send(`\x00[IDE]${jsonStr}\n`);
   }
 
+  // ========== GUI Efuns ==========
+
+  /**
+   * Send a GUI message to the current player's client.
+   * Messages are prefixed with \x00[GUI] to distinguish from regular text.
+   * This is used to open modal dialogs in the browser client.
+   *
+   * @param message The GUI message object
+   */
+  guiSend(message: GUIMessage): void {
+    const player = this.context.thisPlayer;
+    if (!player) {
+      throw new Error('No player context for GUI');
+    }
+
+    // Get the player's connection to send raw message (bypassing colorization)
+    const playerWithConnection = player as MudObject & {
+      connection?: { send: (msg: string) => void };
+      _connection?: { send: (msg: string) => void };
+    };
+
+    const connection = playerWithConnection.connection || playerWithConnection._connection;
+    if (!connection?.send) {
+      throw new Error('Player has no connection');
+    }
+
+    // Send structured message with GUI prefix (no colorization)
+    const jsonStr = JSON.stringify(message);
+    connection.send(`\x00[GUI]${jsonStr}\n`);
+  }
+
   // ========== Config Efuns ==========
 
   /**
@@ -1860,6 +1900,9 @@ export class EfunBridge {
 
       // IDE
       ideOpen: this.ideOpen.bind(this),
+
+      // GUI
+      guiSend: this.guiSend.bind(this),
 
       // Config
       getMudConfig: this.getMudConfig.bind(this),
