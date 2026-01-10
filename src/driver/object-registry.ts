@@ -5,6 +5,7 @@
  */
 
 import type { MudObject, BlueprintInfo, MudObjectConstructor } from './types.js';
+import { getScheduler } from './scheduler.js';
 
 /**
  * Central registry for all MUD objects in the driver.
@@ -138,6 +139,10 @@ export class ObjectRegistry {
   async destroy(object: MudObject): Promise<void> {
     // Call onDestroy hook
     await object.onDestroy();
+
+    // Clean up scheduler (heartbeats) to prevent memory leaks
+    const scheduler = getScheduler();
+    scheduler.cleanupForObject(object);
 
     // Remove from environment
     if (object.environment) {
@@ -281,6 +286,55 @@ export class ObjectRegistry {
   clear(): void {
     this.objects.clear();
     this.blueprints.clear();
+  }
+
+  /**
+   * Get detailed statistics about registered objects.
+   * Used for memory monitoring and debugging.
+   */
+  getStats(): {
+    totalObjects: number;
+    blueprints: number;
+    clones: number;
+    byType: Record<string, number>;
+    largestInventories: Array<{ objectId: string; count: number }>;
+    blueprintCloneCounts: Array<{ path: string; clones: number }>;
+  } {
+    const byType: Record<string, number> = {};
+    const inventories: Array<{ objectId: string; count: number }> = [];
+
+    for (const obj of this.objects.values()) {
+      // Count by constructor name (type)
+      const typeName = obj.constructor.name;
+      byType[typeName] = (byType[typeName] || 0) + 1;
+
+      // Track inventory sizes
+      if (obj.inventory && obj.inventory.length > 0) {
+        inventories.push({ objectId: obj.objectId, count: obj.inventory.length });
+      }
+    }
+
+    // Sort inventories by size (descending) and take top 10
+    inventories.sort((a, b) => b.count - a.count);
+    const largestInventories = inventories.slice(0, 10);
+
+    // Get clone counts per blueprint
+    const blueprintCloneCounts: Array<{ path: string; clones: number }> = [];
+    for (const [path, info] of this.blueprints) {
+      blueprintCloneCounts.push({ path, clones: info.clones.size });
+    }
+    // Sort by clone count (descending) and take top 10
+    blueprintCloneCounts.sort((a, b) => b.clones - a.clones);
+    const topBlueprints = blueprintCloneCounts.slice(0, 10);
+
+    return {
+      totalObjects: this.objects.size,
+      blueprints: this.blueprints.size,
+      clones: this.objects.size - this.blueprints.size,
+      byType,
+      largestInventories,
+      blueprintCloneCounts: topBlueprints,
+    };
   }
 }
 

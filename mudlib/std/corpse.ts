@@ -2,17 +2,26 @@
  * Corpse - Container created when a living entity dies.
  *
  * Contains the deceased's inventory and any loot drops.
- * Player corpses persist until retrieved; NPC corpses decay.
+ * Both player and NPC corpses decay based on configurable timeouts.
+ * See config settings: corpse.playerDecayMinutes, corpse.npcDecayMinutes
  */
 
 import { Container } from './container.js';
 import type { Living } from './living.js';
 import type { MudObject } from './object.js';
+import { getConfigDaemon } from '../daemons/config.js';
 
 /**
- * Default decay time for NPC corpses (5 minutes).
+ * Get decay time for corpses from config.
+ * @param isPlayer Whether this is a player corpse
+ * @returns Decay time in milliseconds, or 0 for no decay
  */
-const DEFAULT_DECAY_TIME = 5 * 60 * 1000;
+function getDecayTimeMs(isPlayer: boolean): number {
+  const config = getConfigDaemon();
+  const key = isPlayer ? 'corpse.playerDecayMinutes' : 'corpse.npcDecayMinutes';
+  const minutes = config.get<number>(key) ?? (isPlayer ? 60 : 5);
+  return minutes * 60 * 1000;
+}
 
 /**
  * Corpse class for dead entities.
@@ -136,15 +145,16 @@ export class Corpse extends Container {
       }
     }
 
-    // Set up decay for NPC corpses
-    if (!this._isPlayerCorpse) {
-      this.setDecayTime(DEFAULT_DECAY_TIME);
+    // Set up decay based on corpse type
+    const decayTime = getDecayTimeMs(this._isPlayerCorpse);
+    if (decayTime > 0) {
+      this.setDecayTime(decayTime);
     }
   }
 
   /**
    * Set the decay time for this corpse.
-   * Only applies to NPC corpses.
+   * @param ms Time in milliseconds until decay
    */
   setDecayTime(ms: number): void {
     // Cancel existing timer
@@ -187,6 +197,15 @@ export class Corpse extends Container {
    */
   async decay(): Promise<void> {
     const room = this.environment;
+
+    // Notify player ghost if this is a player corpse
+    if (this._isPlayerCorpse && this._ownerId && typeof efuns !== 'undefined' && efuns.findObject) {
+      const ghost = efuns.findObject(this._ownerId);
+      if (ghost && 'tell' in ghost) {
+        (ghost as MudObject & { tell: (msg: string) => void })
+          .tell(`{yellow}Your corpse has decayed! All items have been dropped where you died.{/}\n`);
+      }
+    }
 
     // Notify room
     if (room && 'broadcast' in room) {
@@ -269,8 +288,8 @@ export class Corpse extends Container {
       }
     }
 
-    // Show decay time for non-player corpses
-    if (!this._isPlayerCorpse && this._decayTime > 0) {
+    // Show decay time if applicable
+    if (this._decayTime > 0) {
       const remaining = this.decayRemaining;
       if (remaining > 0) {
         const minutes = Math.ceil(remaining / 60000);
@@ -297,7 +316,7 @@ export class Corpse extends Container {
     if (options.gold !== undefined) {
       this._gold = options.gold;
     }
-    if (options.decayTime !== undefined && !this._isPlayerCorpse) {
+    if (options.decayTime !== undefined) {
       this.setDecayTime(options.decayTime);
     }
   }

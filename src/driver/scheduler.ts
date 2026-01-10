@@ -247,6 +247,16 @@ export class Scheduler {
     this.heartbeatObjects.clear();
     this.callOuts.clear();
   }
+
+  /**
+   * Clean up all scheduler registrations for a destroyed object.
+   * Called when an object is being destroyed to prevent memory leaks.
+   * @param object The object being destroyed
+   */
+  cleanupForObject(object: MudObject): void {
+    // Remove from heartbeat set
+    this.heartbeatObjects.delete(object);
+  }
 }
 
 // Singleton instance

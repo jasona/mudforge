@@ -48,6 +48,32 @@ const DEFAULT_SETTINGS: Record<string, ConfigSetting> = {
     description: 'Allow players to attack and kill other players (PK/PvP)',
     type: 'boolean',
   },
+  'corpse.playerDecayMinutes': {
+    value: 60,
+    description: 'Minutes before player corpses decay (0 = never)',
+    type: 'number',
+    min: 0,
+    max: 480,
+  },
+  'corpse.npcDecayMinutes': {
+    value: 5,
+    description: 'Minutes before NPC corpses decay',
+    type: 'number',
+    min: 1,
+    max: 60,
+  },
+  'reset.intervalMinutes': {
+    value: 15,
+    description: 'Minutes between room resets',
+    type: 'number',
+    min: 5,
+    max: 120,
+  },
+  'reset.cleanupDroppedItems': {
+    value: true,
+    description: 'Clean up non-player-owned items during room reset',
+    type: 'boolean',
+  },
 };
 
 /**

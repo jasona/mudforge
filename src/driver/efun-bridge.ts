@@ -251,6 +251,15 @@ export class EfunBridge {
     return this.registry.find(pathOrId);
   }
 
+  /**
+   * Get all loaded objects in the registry.
+   * Used by daemons that need to iterate over all objects (e.g., reset daemon).
+   * @returns Array of all loaded MudObjects
+   */
+  getAllObjects(): MudObject[] {
+    return Array.from(this.registry.getAllObjects());
+  }
+
   // ========== Hierarchy Efuns ==========
 
   /**
@@ -1822,6 +1831,7 @@ export class EfunBridge {
       destruct: this.destruct.bind(this),
       loadObject: this.loadObject.bind(this),
       findObject: this.findObject.bind(this),
+      getAllObjects: this.getAllObjects.bind(this),
 
       // Hierarchy
       allInventory: this.allInventory.bind(this),
@@ -1910,7 +1920,94 @@ export class EfunBridge {
 
       // Stats
       getDriverStats: this.getDriverStats.bind(this),
+      getObjectStats: this.getObjectStats.bind(this),
+      getMemoryStats: this.getMemoryStats.bind(this),
     };
+  }
+
+  /**
+   * Get detailed object statistics from the registry.
+   * Requires builder permission or higher.
+   *
+   * @returns Detailed object counts, types, and inventory sizes
+   */
+  getObjectStats(): {
+    success: boolean;
+    error?: string;
+    totalObjects?: number;
+    blueprints?: number;
+    clones?: number;
+    byType?: Record<string, number>;
+    largestInventories?: Array<{ objectId: string; count: number }>;
+    blueprintCloneCounts?: Array<{ path: string; clones: number }>;
+  } {
+    // Check builder permission
+    if (!this.isBuilder()) {
+      return {
+        success: false,
+        error: 'Permission denied: builder required',
+      };
+    }
+
+    try {
+      const stats = this.registry.getStats();
+      return {
+        success: true,
+        ...stats,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
+
+  /**
+   * Get current memory usage statistics.
+   * Requires builder permission or higher.
+   *
+   * @returns Memory usage details
+   */
+  getMemoryStats(): {
+    success: boolean;
+    error?: string;
+    heapUsed?: number;
+    heapTotal?: number;
+    external?: number;
+    rss?: number;
+    arrayBuffers?: number;
+    heapUsedMb?: number;
+    heapTotalMb?: number;
+    rssMb?: number;
+  } {
+    // Check builder permission
+    if (!this.isBuilder()) {
+      return {
+        success: false,
+        error: 'Permission denied: builder required',
+      };
+    }
+
+    try {
+      const memUsage = process.memoryUsage();
+      return {
+        success: true,
+        heapUsed: memUsage.heapUsed,
+        heapTotal: memUsage.heapTotal,
+        external: memUsage.external,
+        rss: memUsage.rss,
+        arrayBuffers: memUsage.arrayBuffers,
+        heapUsedMb: Math.round(memUsage.heapUsed / 1024 / 1024 * 100) / 100,
+        heapTotalMb: Math.round(memUsage.heapTotal / 1024 / 1024 * 100) / 100,
+        rssMb: Math.round(memUsage.rss / 1024 / 1024 * 100) / 100,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
   }
 }
 

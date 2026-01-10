@@ -346,6 +346,7 @@ export class Room extends MudObject {
   /**
    * Called when the room should reset.
    * Override or extend this for custom reset behavior.
+   * Default behavior: broadcast reset message and re-clone missing items.
    */
   async onReset(): Promise<void> {
     // Broadcast reset message if set
@@ -353,8 +354,28 @@ export class Room extends MudObject {
       this.broadcast(this._resetMessage);
     }
 
-    // Clone items (would need efuns.cloneObject to actually work)
-    // This is a placeholder for the actual implementation
+    // Re-clone items that are missing from the room
+    if (typeof efuns !== 'undefined' && efuns.cloneObject && this._items.length > 0) {
+      for (const itemPath of this._items) {
+        // Check if an item from this blueprint already exists in the room
+        const hasItem = this.inventory.some((obj) => {
+          const blueprint = (obj as MudObject & { blueprint?: { objectPath?: string } }).blueprint;
+          return blueprint?.objectPath === itemPath;
+        });
+
+        // Clone if missing
+        if (!hasItem) {
+          try {
+            const item = await efuns.cloneObject(itemPath);
+            if (item) {
+              await item.moveTo(this);
+            }
+          } catch (error) {
+            console.error(`[Room] Failed to clone item ${itemPath} during reset:`, error);
+          }
+        }
+      }
+    }
   }
 
   // ========== Description ==========

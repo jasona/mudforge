@@ -94,6 +94,7 @@ export class Master extends MudObject {
       '/daemons/channels',
       '/daemons/config',
       '/daemons/soul',
+      '/daemons/reset',
     ];
   }
 
