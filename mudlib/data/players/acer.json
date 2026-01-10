@@ -1,6 +1,6 @@
 {
   "name": "Acer",
-  "location": "/areas/town/castle",
+  "location": "/areas/valdoria/aldric/center",
   "state": {
     "objectPath": "",
     "isClone": false,
@@ -12,14 +12,14 @@
       "config.screenWidth": 100,
       "config.prompt": "%d >"
     },
-    "timestamp": 1767728398795,
+    "timestamp": 1768056423919,
     "environment": {
       "__type": "object_ref",
-      "path": "/areas/town/castle",
+      "path": "/areas/valdoria/aldric/center",
       "isClone": false
     }
   },
-  "savedAt": 1767728398795,
+  "savedAt": 1768056423919,
   "title": "",
   "gender": "neutral",
   "level": 1,
@@ -60,12 +60,19 @@
     "config.prompt": "%d >"
   },
   "createdAt": 1767588015729,
-  "lastLogin": 1767728398,
-  "playTime": 2733,
+  "lastLogin": 1768056423,
+  "playTime": 2742,
   "monitorEnabled": true,
   "displayName": "Sir {yellow}$N{/} is really digging this AI stuff.",
   "cwd": "/cmds/player",
   "previousLocation": null,
   "enterMessage": "$N arrives from $D.",
-  "exitMessage": "$N leaves $D."
+  "exitMessage": "$N leaves $D.",
+  "exploration": {
+    "exploredRooms": [],
+    "revealedRooms": [],
+    "detectedHiddenExits": {}
+  },
+  "gold": 0,
+  "bankedGold": 0
 }
