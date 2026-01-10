@@ -1,5 +1,9 @@
 # MudForge
 
+<p align="center">
+  <img src="mudforge_logo.png" alt="MudForge Logo" width="400">
+</p>
+
 A modern MUD (Multi-User Dungeon) driver inspired by LDMud, built with Node.js and TypeScript.
 
 ## Overview
