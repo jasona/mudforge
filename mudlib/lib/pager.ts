@@ -5,14 +5,14 @@
  * Similar to 'less' or 'more' in Linux.
  *
  * Controls:
- *   Enter/Space  - Next page
- *   b            - Previous page
- *   q            - Quit
- *   g            - Go to beginning
- *   G            - Go to end
- *   /<pattern>   - Search forward
- *   n            - Next search result
- *   <number>     - Go to line number
+ *   Enter/Space/j - Next page
+ *   b/k           - Previous page
+ *   q             - Quit
+ *   g             - Go to beginning
+ *   G             - Go to end
+ *   /<pattern>    - Search forward
+ *   n             - Next search result
+ *   <number>      - Go to line number
  */
 
 import type { MudObject } from '../std/object.js';
@@ -160,7 +160,7 @@ function showPagerPrompt(player: PagerPlayer, state: PagerState): void {
     player.receive(`{inverse} (END) {/} {dim}Press q to exit, b for previous page{/} `);
   } else {
     player.receive(
-      `{inverse} --More-- (${percent}%) {/} {dim}Enter/Space=next, b=prev, q=quit{/} `
+      `{inverse} --More-- (${percent}%) {/} {dim}Enter/Space/j=next, b=prev, q=quit{/} `
     );
   }
 }
@@ -177,8 +177,8 @@ function handlePagerInput(player: PagerPlayer, state: PagerState, input: string)
     return;
   }
 
-  // Next page (Enter, Space, or 'n' without search)
-  if (cmd === '' || cmd === ' ' || (cmd === 'n' && !state.searchPattern)) {
+  // Next page (Enter, Space, j, or 'n' without search)
+  if (cmd === '' || cmd === ' ' || cmd === 'j' || (cmd === 'n' && !state.searchPattern)) {
     const nextLine = state.currentLine + state.linesPerPage;
     if (nextLine < state.lines.length) {
       state.currentLine = nextLine;
@@ -192,7 +192,7 @@ function handlePagerInput(player: PagerPlayer, state: PagerState, input: string)
   }
 
   // Previous page
-  if (cmd === 'b' || cmd === 'p') {
+  if (cmd === 'b' || cmd === 'p' || cmd === 'k') {
     const prevLine = state.currentLine - state.linesPerPage;
     state.currentLine = Math.max(0, prevLine);
     displayPage(player, state);
@@ -317,15 +317,15 @@ function nextSearchResult(player: PagerPlayer, state: PagerState): void {
 function showPagerHelp(player: PagerPlayer): void {
   player.receive(`
 {cyan}Pager Controls:{/}
-  {bold}Enter/Space{/}  - Next page
-  {bold}b{/}            - Previous page
-  {bold}g{/}            - Go to beginning
-  {bold}G{/}            - Go to end
-  {bold}/<pattern>{/}   - Search for pattern
-  {bold}n{/}            - Next search result
-  {bold}<number>{/}     - Go to line number
-  {bold}q{/}            - Quit
-  {bold}h / ?{/}        - Show this help
+  {bold}Enter/Space/j{/} - Next page
+  {bold}b/k{/}           - Previous page
+  {bold}g{/}             - Go to beginning
+  {bold}G{/}             - Go to end
+  {bold}/<pattern>{/}    - Search for pattern
+  {bold}n{/}             - Next search result
+  {bold}<number>{/}      - Go to line number
+  {bold}q{/}             - Quit
+  {bold}h / ?{/}         - Show this help
 `);
 }
 

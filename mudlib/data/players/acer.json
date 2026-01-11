@@ -12,14 +12,14 @@
       "config.screenWidth": 100,
       "config.prompt": "%d >"
     },
-    "timestamp": 1768056423919,
+    "timestamp": 1768152702696,
     "environment": {
       "__type": "object_ref",
       "path": "/areas/valdoria/aldric/center",
       "isClone": false
     }
   },
-  "savedAt": 1768056423919,
+  "savedAt": 1768152702696,
   "title": "",
   "gender": "neutral",
   "level": 1,
@@ -60,16 +60,25 @@
     "config.prompt": "%d >"
   },
   "createdAt": 1767588015729,
-  "lastLogin": 1768056423,
-  "playTime": 2742,
+  "lastLogin": 1768152702,
+  "playTime": 91130,
   "monitorEnabled": true,
   "displayName": "Sir {yellow}$N{/} is really digging this AI stuff.",
-  "cwd": "/cmds/player",
-  "previousLocation": null,
+  "cwd": "/areas/guilds/cleric",
+  "previousLocation": "/areas/valdoria/aldric_depths/corridor",
   "enterMessage": "$N arrives from $D.",
   "exitMessage": "$N leaves $D.",
   "exploration": {
-    "exploredRooms": [],
+    "exploredRooms": [
+      "/areas/valdoria/aldric/center",
+      "/areas/valdoria/aldric/castle",
+      "/areas/valdoria/aldric_depths/entrance",
+      "/areas/valdoria/aldric_depths/corridor",
+      "/areas/valdoria/aldric_depths/cellblock",
+      "/areas/valdoria/aldric_depths/storage",
+      "/areas/valdoria/aldric_depths/depths",
+      "/areas/valdoria/aldric_depths/guard_room"
+    ],
     "revealedRooms": [],
     "detectedHiddenExits": {}
   },
