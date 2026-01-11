@@ -801,6 +801,7 @@ export class GuildDaemon extends MudObject {
     const buffTarget = skill.target === 'self' ? player : (target ?? player);
 
     // Create effect
+    const statName = effect.combatStatModifier || effect.statModifier || 'stat';
     const effectData = {
       id: `skill_${skill.id}`,
       name: skill.name,
@@ -810,6 +811,8 @@ export class GuildDaemon extends MudObject {
       stat: effect.statModifier,
       combatStat: effect.combatStatModifier,
       source: player,
+      category: 'buff' as const,
+      description: `+${Math.round(magnitude)} ${statName}`,
     };
 
     buffTarget.addEffect(effectData);
@@ -843,18 +846,27 @@ export class GuildDaemon extends MudObject {
     const duration = effect.duration ?? 30000; // Default 30 seconds
 
     // Create negative effect
+    const effectMagnitude = effect.tickInterval ? magnitude : -magnitude; // Negative for stat reduction
+    const statName = effect.combatStatModifier || effect.statModifier;
+    const description = effect.tickInterval
+      ? `${Math.round(magnitude)} dmg/tick`
+      : statName
+        ? `${Math.round(effectMagnitude)} ${statName}`
+        : 'Slowed';
     const effectData = {
       id: `skill_${skill.id}`,
       name: skill.name,
       type: effect.tickInterval ? 'damage_over_time' : (effect.statModifier ? 'stat_modifier' : 'slow'),
       duration,
-      magnitude: effect.tickInterval ? magnitude : -magnitude, // Negative for stat reduction
+      magnitude: effectMagnitude,
       tickInterval: effect.tickInterval,
       nextTick: effect.tickInterval,
       stat: effect.statModifier,
       combatStat: effect.combatStatModifier,
       damageType: effect.damageType,
       source: player,
+      category: 'debuff' as const,
+      description,
     };
 
     target.addEffect(effectData);

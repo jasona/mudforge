@@ -1152,6 +1152,19 @@ export class Living extends MudObject {
           this.addCombatStatModifier(effect.combatStat, -effect.magnitude);
         }
 
+        // Notify when effect expires (unless hidden)
+        if (!effect.hidden) {
+          // Determine message color based on category
+          const category = effect.category;
+          let color = 'yellow';
+          if (category === 'debuff') {
+            color = 'green'; // Debuff wearing off is good
+          } else if (category === 'buff') {
+            color = 'yellow'; // Buff wearing off is a warning
+          }
+          this.receive(`{${color}}${effect.name} has worn off.{/}\n`);
+        }
+
         // Call onExpire callback
         if (effect.onExpire) {
           effect.onExpire(this, effect);

@@ -4,7 +4,7 @@
  * Convenient factory functions for creating common buff/debuff effects.
  */
 
-import type { Effect, EffectType, CombatStatName, DamageType, StatName } from './types.js';
+import type { Effect, EffectType, EffectCategory, CombatStatName, DamageType, StatName } from './types.js';
 
 /**
  * Generate a unique effect ID.
@@ -41,6 +41,8 @@ export const Effects = {
       damageType: 'poison',
       maxStacks,
       stacks: 1,
+      category: 'debuff',
+      description: `${damagePerTick} poison dmg/tick`,
     };
   },
 
@@ -66,6 +68,8 @@ export const Effects = {
       damageType: 'fire',
       maxStacks: 3,
       stacks: 1,
+      category: 'debuff',
+      description: `${damagePerTick} fire dmg/tick`,
     };
   },
 
@@ -91,6 +95,8 @@ export const Effects = {
       damageType: 'slashing',
       maxStacks: 5,
       stacks: 1,
+      category: 'debuff',
+      description: `${damagePerTick} bleed dmg/tick`,
     };
   },
 
@@ -113,6 +119,8 @@ export const Effects = {
       magnitude: healPerTick,
       tickInterval,
       nextTick: tickInterval,
+      category: 'buff',
+      description: `+${healPerTick} HP/tick`,
     };
   },
 
@@ -130,6 +138,8 @@ export const Effects = {
     name?: string
   ): Effect {
     const effectName = name || (amount >= 0 ? `${stat} Buff` : `${stat} Debuff`);
+    const category: EffectCategory = amount >= 0 ? 'buff' : 'debuff';
+    const sign = amount >= 0 ? '+' : '';
     return {
       id: generateId(`stat_${stat}`),
       name: effectName,
@@ -137,6 +147,8 @@ export const Effects = {
       duration,
       magnitude: amount,
       stat,
+      category,
+      description: `${sign}${amount} ${stat}`,
     };
   },
 
@@ -182,6 +194,8 @@ export const Effects = {
     name?: string
   ): Effect {
     const effectName = name || `${stat} Modifier`;
+    const category: EffectCategory = amount >= 0 ? 'buff' : 'debuff';
+    const sign = amount >= 0 ? '+' : '';
     return {
       id: generateId(`combat_${stat}`),
       name: effectName,
@@ -189,6 +203,8 @@ export const Effects = {
       duration,
       magnitude: amount,
       combatStat: stat,
+      category,
+      description: `${sign}${amount} ${stat}`,
     };
   },
 
@@ -219,6 +235,8 @@ export const Effects = {
       duration,
       magnitude: speedBonus,
       combatStat: 'attackSpeed',
+      category: 'buff',
+      description: `+${Math.round(speedBonus * 100)}% speed`,
     };
   },
 
@@ -235,6 +253,8 @@ export const Effects = {
       duration,
       magnitude: -speedPenalty,
       combatStat: 'attackSpeed',
+      category: 'debuff',
+      description: `-${Math.round(speedPenalty * 100)}% speed`,
     };
   },
 
@@ -249,6 +269,8 @@ export const Effects = {
       type: 'stun',
       duration,
       magnitude: 1,
+      category: 'debuff',
+      description: 'Cannot attack',
     };
   },
 
@@ -263,6 +285,8 @@ export const Effects = {
       type: 'invulnerable',
       duration,
       magnitude: 1,
+      category: 'buff',
+      description: 'Immune to damage',
     };
   },
 
@@ -278,6 +302,8 @@ export const Effects = {
       type: 'thorns',
       duration,
       magnitude: reflectDamage,
+      category: 'buff',
+      description: `Reflect ${reflectDamage} damage`,
     };
   },
 
@@ -293,6 +319,8 @@ export const Effects = {
       type: 'damage_shield',
       duration,
       magnitude: amount,
+      category: 'buff',
+      description: `${amount} absorption`,
     };
   },
 
@@ -324,13 +352,11 @@ export const Effects = {
   },
 
   /**
-   * Create a weakness effect (reduce all stats).
+   * Create a weakness effect (reduce strength).
    * @param duration Duration in milliseconds
-   * @param amount Amount to reduce each stat by
+   * @param amount Amount to reduce strength by
    */
   weakness(duration: number, amount: number): Effect {
-    // This creates multiple effects - return one and apply others manually
-    // For simplicity, we'll just reduce strength as the primary effect
     return {
       id: generateId('weakness'),
       name: 'Weakness',
@@ -338,6 +364,8 @@ export const Effects = {
       duration,
       magnitude: -amount,
       stat: 'strength',
+      category: 'debuff',
+      description: `-${amount} strength`,
     };
   },
 
@@ -359,10 +387,41 @@ export const Effects = {
       damageType: config.damageType,
       maxStacks: config.maxStacks,
       stacks: config.stacks || (config.maxStacks ? 1 : undefined),
+      category: config.category,
+      description: config.description,
+      hidden: config.hidden,
       onTick: config.onTick,
       onExpire: config.onExpire,
       onRemove: config.onRemove,
     };
+  },
+
+  /**
+   * Create a generic stat buff.
+   */
+  statBuff(stat: StatName, amount: number, duration: number, name?: string): Effect {
+    return Effects.statModifier(stat, Math.abs(amount), duration, name);
+  },
+
+  /**
+   * Create a generic stat debuff.
+   */
+  statDebuff(stat: StatName, amount: number, duration: number, name?: string): Effect {
+    return Effects.statModifier(stat, -Math.abs(amount), duration, name);
+  },
+
+  /**
+   * Create a generic combat stat buff.
+   */
+  combatBuff(stat: CombatStatName, amount: number, duration: number, name?: string): Effect {
+    return Effects.combatModifier(stat, Math.abs(amount), duration, name);
+  },
+
+  /**
+   * Create a generic combat stat debuff.
+   */
+  combatDebuff(stat: CombatStatName, amount: number, duration: number, name?: string): Effect {
+    return Effects.combatModifier(stat, -Math.abs(amount), duration, name);
   },
 };
 

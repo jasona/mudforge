@@ -130,6 +130,11 @@ export type EffectType =
   | 'invulnerable'; // Cannot take damage
 
 /**
+ * Effect category for display grouping.
+ */
+export type EffectCategory = 'buff' | 'debuff' | 'neutral';
+
+/**
  * A buff or debuff effect applied to a Living.
  */
 export interface Effect {
@@ -162,6 +167,15 @@ export interface Effect {
 
   /** Damage type for DoT effects */
   damageType?: DamageType;
+
+  /** Effect category for display (buff/debuff/neutral) */
+  category?: EffectCategory;
+
+  /** Short description for display (e.g., "+10 Strength") */
+  description?: string;
+
+  /** If true, effect is hidden from the buffs command */
+  hidden?: boolean;
 
   /** Custom tick callback */
   onTick?: (target: Living, effect: Effect) => void;
