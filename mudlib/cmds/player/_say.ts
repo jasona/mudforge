@@ -16,6 +16,7 @@ interface PlayerLike extends MudObject {
   name: string;
   receive?(message: string): void;
   getProperty?(key: string): unknown;
+  hearSay?(speaker: MudObject, message: string): void;
 }
 
 export const name = ['say', "'"];
@@ -45,6 +46,10 @@ export function execute(ctx: CommandContext): void {
         if (other.receive) {
           const otherColor = getPlayerColor(other, 'say');
           other.receive(formatWithColor(otherColor, `${playerName} says: ${args}`) + '\n');
+        }
+        // Notify NPCs so they can respond
+        if (other.hearSay) {
+          other.hearSay(player, args);
         }
       }
     }

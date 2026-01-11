@@ -22,6 +22,7 @@ import {
 } from '../lib/player-config.js';
 import type { PlayerExplorationData, MapMessage } from '../lib/map-types.js';
 import type { GUIMessage } from '../lib/gui-types.js';
+import type { PlayerGuildData } from './guild/types.js';
 
 /**
  * STATS protocol message for HP/MP/XP display.
@@ -89,6 +90,7 @@ export interface PlayerSaveData {
   exploration?: PlayerExplorationData; // Map exploration data
   gold?: number; // Carried gold (lost on death)
   bankedGold?: number; // Banked gold (safe from death)
+  guildData?: PlayerGuildData; // Guild memberships and skills
 }
 
 /**
@@ -1227,6 +1229,7 @@ export class Player extends Living {
       exploration: this.getExplorationData(),
       gold: this._gold,
       bankedGold: this._bankedGold,
+      guildData: this.getProperty<PlayerGuildData>('guildData'),
     };
   }
 
@@ -1318,8 +1321,29 @@ export class Player extends Living {
       this.setProperty('_pendingEquipment', data.equipment);
     }
 
+    // Restore guild data and apply passive skills
+    if (data.guildData) {
+      this.setProperty('guildData', data.guildData);
+      // Apply passives after a short delay to ensure daemon is loaded
+      this._applyGuildPassivesDeferred();
+    }
+
     // Note: Location and inventory need to be handled by the driver
     // after loading, as they require object references
+  }
+
+  /**
+   * Apply guild passive skills after a deferred load.
+   * This ensures the guild daemon is available.
+   */
+  private async _applyGuildPassivesDeferred(): Promise<void> {
+    try {
+      const { getGuildDaemon } = await import('../daemons/guild.js');
+      const guildDaemon = getGuildDaemon();
+      guildDaemon.applyAllPassives(this);
+    } catch {
+      // Guild daemon not available yet - passives will be applied on first skill use
+    }
   }
 
   /**

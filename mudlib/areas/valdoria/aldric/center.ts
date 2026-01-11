@@ -29,6 +29,10 @@ wilderness beyond. A sturdy building to the {green}northeast{/} bears the sign o
 sword and shield - the {cyan}training hall{/}. To the {green}southeast{/}, the solid stone walls of
 the {yellow}Bank of Aldric{/} promise security for your hard-earned gold.
 
+Around the square, guild halls beckon adventurers: the {red}Fighter Guild{/} arena
+({green}fighter{/}), the {blue}Mage Guild{/} tower ({green}mage{/}), the {dim}Thief Guild{/} den ({green}thief{/}),
+and the {yellow}Cleric Guild{/} temple ({green}cleric{/}).
+
 A {magenta}town crier{/} stands near the fountain, occasionally announcing the day's news to
 anyone who will listen.`;
 
@@ -46,6 +50,12 @@ anyone who will listen.`;
     this.addExit('south', '/areas/valdoria/aldric/gates');
     this.addExit('northeast', '/areas/valdoria/aldric/training_hall');
     this.addExit('southeast', '/areas/valdoria/aldric/bank');
+
+    // Guild hall exits
+    this.addExit('fighter', '/areas/guilds/fighter/guild_hall');
+    this.addExit('mage', '/areas/guilds/mage/guild_hall');
+    this.addExit('thief', '/areas/guilds/thief/guild_hall');
+    this.addExit('cleric', '/areas/guilds/cleric/guild_hall');
 
     // Add actions
     this.addAction('look', this.cmdLook.bind(this));
