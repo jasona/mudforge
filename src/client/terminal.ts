@@ -12,7 +12,6 @@ interface AnsiState {
   dim: boolean;
   italic: boolean;
   underline: boolean;
-  blink: boolean;
   reverse: boolean;
   hidden: boolean;
   strikethrough: boolean;
@@ -192,7 +191,6 @@ export class Terminal {
       dim: false,
       italic: false,
       underline: false,
-      blink: false,
       reverse: false,
       hidden: false,
       strikethrough: false,
@@ -207,7 +205,9 @@ export class Terminal {
   private applyAnsiCodes(state: AnsiState, codes: number[]): AnsiState {
     const newState = { ...state };
 
-    for (const code of codes) {
+    for (let i = 0; i < codes.length; i++) {
+      const code = codes[i];
+
       if (code === 0) {
         // Reset
         return this.createDefaultState();
@@ -219,8 +219,6 @@ export class Terminal {
         newState.italic = true;
       } else if (code === 4) {
         newState.underline = true;
-      } else if (code === 5) {
-        newState.blink = true;
       } else if (code === 7) {
         newState.reverse = true;
       } else if (code === 8) {
@@ -229,10 +227,38 @@ export class Terminal {
         newState.strikethrough = true;
       } else if (code >= 30 && code <= 37) {
         newState.fgColor = this.getColorName(code - 30);
+      } else if (code === 38) {
+        // 256-color or RGB foreground: 38;5;N or 38;2;R;G;B
+        if (codes[i + 1] === 5 && codes[i + 2] !== undefined) {
+          // 256-color mode: 38;5;N
+          newState.fgColor = `color-${codes[i + 2]}`;
+          i += 2; // Skip the next two codes
+        } else if (codes[i + 1] === 2 && codes[i + 4] !== undefined) {
+          // RGB mode: 38;2;R;G;B
+          const r = codes[i + 2];
+          const g = codes[i + 3];
+          const b = codes[i + 4];
+          newState.fgColor = `rgb-${r}-${g}-${b}`;
+          i += 4; // Skip the next four codes
+        }
       } else if (code === 39) {
         newState.fgColor = null;
       } else if (code >= 40 && code <= 47) {
         newState.bgColor = this.getColorName(code - 40);
+      } else if (code === 48) {
+        // 256-color or RGB background: 48;5;N or 48;2;R;G;B
+        if (codes[i + 1] === 5 && codes[i + 2] !== undefined) {
+          // 256-color mode: 48;5;N
+          newState.bgColor = `color-${codes[i + 2]}`;
+          i += 2; // Skip the next two codes
+        } else if (codes[i + 1] === 2 && codes[i + 4] !== undefined) {
+          // RGB mode: 48;2;R;G;B
+          const r = codes[i + 2];
+          const g = codes[i + 3];
+          const b = codes[i + 4];
+          newState.bgColor = `rgb-${r}-${g}-${b}`;
+          i += 4; // Skip the next four codes
+        }
       } else if (code === 49) {
         newState.bgColor = null;
       } else if (code >= 90 && code <= 97) {
@@ -277,23 +303,83 @@ export class Terminal {
     if (text.length === 0) return '';
 
     const classes: string[] = [];
+    const styles: string[] = [];
 
     if (state.bold) classes.push('ansi-bold');
     if (state.dim) classes.push('ansi-dim');
     if (state.italic) classes.push('ansi-italic');
     if (state.underline) classes.push('ansi-underline');
-    if (state.blink) classes.push('ansi-blink');
     if (state.reverse) classes.push('ansi-reverse');
     if (state.hidden) classes.push('ansi-hidden');
     if (state.strikethrough) classes.push('ansi-strikethrough');
-    if (state.fgColor) classes.push(`ansi-fg-${state.fgColor}`);
-    if (state.bgColor) classes.push(`ansi-bg-${state.bgColor}`);
 
-    if (classes.length === 0) {
+    // Handle foreground color
+    if (state.fgColor) {
+      if (state.fgColor.startsWith('color-')) {
+        // 256-color mode
+        const colorIndex = parseInt(state.fgColor.slice(6), 10);
+        styles.push(`color: ${this.get256Color(colorIndex)}`);
+      } else if (state.fgColor.startsWith('rgb-')) {
+        // RGB mode
+        const parts = state.fgColor.slice(4).split('-');
+        styles.push(`color: rgb(${parts[0]}, ${parts[1]}, ${parts[2]})`);
+      } else {
+        classes.push(`ansi-fg-${state.fgColor}`);
+      }
+    }
+
+    // Handle background color
+    if (state.bgColor) {
+      if (state.bgColor.startsWith('color-')) {
+        // 256-color mode
+        const colorIndex = parseInt(state.bgColor.slice(6), 10);
+        styles.push(`background-color: ${this.get256Color(colorIndex)}`);
+      } else if (state.bgColor.startsWith('rgb-')) {
+        // RGB mode
+        const parts = state.bgColor.slice(4).split('-');
+        styles.push(`background-color: rgb(${parts[0]}, ${parts[1]}, ${parts[2]})`);
+      } else {
+        classes.push(`ansi-bg-${state.bgColor}`);
+      }
+    }
+
+    if (classes.length === 0 && styles.length === 0) {
       return text;
     }
 
-    return `<span class="${classes.join(' ')}">${text}</span>`;
+    const classAttr = classes.length > 0 ? ` class="${classes.join(' ')}"` : '';
+    const styleAttr = styles.length > 0 ? ` style="${styles.join('; ')}"` : '';
+
+    return `<span${classAttr}${styleAttr}>${text}</span>`;
+  }
+
+  /**
+   * Get CSS color value for 256-color palette index.
+   */
+  private get256Color(index: number): string {
+    // Standard 16 colors (0-15)
+    const standard16 = [
+      '#000000', '#cd0000', '#00cd00', '#cdcd00', '#0000ee', '#cd00cd', '#00cdcd', '#e5e5e5',
+      '#7f7f7f', '#ff0000', '#00ff00', '#ffff00', '#5c5cff', '#ff00ff', '#00ffff', '#ffffff',
+    ];
+
+    if (index < 16) {
+      return standard16[index];
+    }
+
+    // 6x6x6 color cube (16-231)
+    if (index < 232) {
+      const i = index - 16;
+      const r = Math.floor(i / 36);
+      const g = Math.floor((i % 36) / 6);
+      const b = i % 6;
+      const toHex = (v: number) => (v === 0 ? 0 : 55 + v * 40);
+      return `rgb(${toHex(r)}, ${toHex(g)}, ${toHex(b)})`;
+    }
+
+    // Grayscale (232-255)
+    const gray = 8 + (index - 232) * 10;
+    return `rgb(${gray}, ${gray}, ${gray})`;
   }
 
   /**

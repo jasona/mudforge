@@ -253,7 +253,6 @@ body {
 .ansi-dim { opacity: 0.6; }
 .ansi-italic { font-style: italic; }
 .ansi-underline { text-decoration: underline; text-underline-offset: 2px; }
-.ansi-blink { animation: blink 1s infinite; }
 .ansi-reverse { filter: invert(1); }
 .ansi-hidden { visibility: hidden; }
 .ansi-strikethrough { text-decoration: line-through; }
@@ -284,11 +283,6 @@ body {
 .ansi-bg-magenta { background-color: var(--ansi-magenta); }
 .ansi-bg-cyan { background-color: var(--ansi-cyan); }
 .ansi-bg-white { background-color: var(--ansi-white); }
-
-@keyframes blink {
-  0%, 50% { opacity: 1; }
-  51%, 100% { opacity: 0; }
-}
 
 /* Input */
 #input-container {
