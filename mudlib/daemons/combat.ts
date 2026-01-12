@@ -8,6 +8,7 @@
 import { MudObject } from '../lib/std.js';
 import type { Living, Weapon, DamageType, CombatEntry, RoundResult, AttackResult } from '../lib/std.js';
 import type { ConfigDaemon } from './config.js';
+import { getQuestDaemon } from './quest.js';
 
 /**
  * Base round time in milliseconds.
@@ -784,6 +785,26 @@ export class CombatDaemon extends MudObject {
         .broadcast(`{red}${victim.name} has been slain by ${killer.name}!{/}\n`, {
           exclude: [victim, killer],
         });
+    }
+
+    // Quest integration: track kills for quest objectives
+    const questDaemon = getQuestDaemon();
+    const victimPath = victim.objectPath || '';
+    const victimId = victim.objectId || '';
+
+    // Update kill objective for the killer
+    if ('getProperty' in killer) {
+      questDaemon.updateKillObjective(killer as Parameters<typeof questDaemon.updateKillObjective>[0], victimPath, victimId);
+    }
+
+    // Also update for all attackers who contributed to the kill
+    if ('attackers' in victim) {
+      const attackers = (victim as Living & { attackers?: Living[] }).attackers || [];
+      for (const attacker of attackers) {
+        if (attacker !== killer && 'getProperty' in attacker) {
+          questDaemon.updateKillObjective(attacker as Parameters<typeof questDaemon.updateKillObjective>[0], victimPath, victimId);
+        }
+      }
     }
 
     // End all combats for the victim

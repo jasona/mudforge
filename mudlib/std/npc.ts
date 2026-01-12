@@ -11,6 +11,30 @@ import { Room } from './room.js';
 import { Corpse } from './corpse.js';
 import { getCombatDaemon } from '../daemons/combat.js';
 import type { NPCCombatConfig, LootEntry, GoldDrop } from './combat/types.js';
+import type { QuestId, QuestDefinition, PlayerQuestState, QuestPlayer } from './quest/types.js';
+
+// Lazy-loaded quest daemon to avoid circular dependencies
+let _questDaemon: ReturnType<typeof import('../daemons/quest.js').getQuestDaemon> | null = null;
+async function getQuestDaemonLazy() {
+  if (!_questDaemon) {
+    const { getQuestDaemon } = await import('../daemons/quest.js');
+    _questDaemon = getQuestDaemon();
+  }
+  return _questDaemon;
+}
+function getQuestDaemonSync() {
+  if (!_questDaemon) {
+    // If not yet loaded, try synchronous access (may fail during initialization)
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { getQuestDaemon } = require('../daemons/quest.js');
+      _questDaemon = getQuestDaemon();
+    } catch {
+      return null;
+    }
+  }
+  return _questDaemon;
+}
 
 /**
  * Chat message definition.
@@ -47,6 +71,10 @@ export class NPC extends Living {
   // Combat configuration
   private _combatConfig: NPCCombatConfig | null = null;
   private _gold: number = 0;
+
+  // Quest giver configuration
+  private _questsOffered: QuestId[] = [];
+  private _questsTurnedIn: QuestId[] = [];
 
   constructor() {
     super();
@@ -622,6 +650,149 @@ export class NPC extends Living {
         lootTable: options.lootTable,
       });
     }
+  }
+
+  // ========== Quest Giver System ==========
+
+  /**
+   * Get the list of quests this NPC offers.
+   */
+  get questsOffered(): QuestId[] {
+    return [...this._questsOffered];
+  }
+
+  /**
+   * Get the list of quests this NPC accepts turn-ins for.
+   */
+  get questsTurnedIn(): QuestId[] {
+    return [...this._questsTurnedIn];
+  }
+
+  /**
+   * Set the quests this NPC offers.
+   */
+  setQuestsOffered(questIds: QuestId[]): void {
+    this._questsOffered = [...questIds];
+  }
+
+  /**
+   * Set the quests this NPC accepts turn-ins for.
+   */
+  setQuestsTurnedIn(questIds: QuestId[]): void {
+    this._questsTurnedIn = [...questIds];
+  }
+
+  /**
+   * Add a quest to offer.
+   */
+  addQuestOffered(questId: QuestId): void {
+    if (!this._questsOffered.includes(questId)) {
+      this._questsOffered.push(questId);
+    }
+  }
+
+  /**
+   * Add a quest to accept turn-ins for.
+   */
+  addQuestTurnedIn(questId: QuestId): void {
+    if (!this._questsTurnedIn.includes(questId)) {
+      this._questsTurnedIn.push(questId);
+    }
+  }
+
+  /**
+   * Check if this NPC is a quest giver.
+   */
+  isQuestGiver(): boolean {
+    return this._questsOffered.length > 0 || this._questsTurnedIn.length > 0;
+  }
+
+  /**
+   * Get available quests for a player (quests they can accept).
+   */
+  getAvailableQuests(player: QuestPlayer): QuestDefinition[] {
+    const questDaemon = getQuestDaemonSync();
+    if (!questDaemon) return [];
+
+    const available: QuestDefinition[] = [];
+
+    for (const questId of this._questsOffered) {
+      const quest = questDaemon.getQuest(questId);
+      if (!quest) continue;
+
+      // Check if player can accept this quest
+      const canAccept = questDaemon.canAcceptQuest(player, questId);
+      if (canAccept.canAccept) {
+        available.push(quest);
+      }
+    }
+
+    return available;
+  }
+
+  /**
+   * Get quests ready for turn-in at this NPC.
+   */
+  getCompletedQuests(player: QuestPlayer): PlayerQuestState[] {
+    const questDaemon = getQuestDaemonSync();
+    if (!questDaemon) return [];
+
+    const activeQuests = questDaemon.getActiveQuests(player);
+
+    return activeQuests.filter((state) => {
+      // Only completed quests
+      if (state.status !== 'completed') return false;
+
+      // Check if this NPC accepts this quest
+      if (!this._questsTurnedIn.includes(state.questId)) return false;
+
+      return true;
+    });
+  }
+
+  /**
+   * Get all quests this NPC is associated with for a player.
+   * Returns { available, inProgress, completed }
+   */
+  getQuestsForPlayer(player: QuestPlayer): {
+    available: QuestDefinition[];
+    inProgress: PlayerQuestState[];
+    completed: PlayerQuestState[];
+  } {
+    const questDaemon = getQuestDaemonSync();
+    if (!questDaemon) return { available: [], inProgress: [], completed: [] };
+
+    const available = this.getAvailableQuests(player);
+    const completed = this.getCompletedQuests(player);
+
+    // Get in-progress quests that this NPC is the giver or turn-in for
+    const activeQuests = questDaemon.getActiveQuests(player);
+    const inProgress = activeQuests.filter((state) => {
+      if (state.status !== 'active') return false;
+      return (
+        this._questsOffered.includes(state.questId) ||
+        this._questsTurnedIn.includes(state.questId)
+      );
+    });
+
+    return { available, inProgress, completed };
+  }
+
+  /**
+   * Check if there's a quest indicator for this NPC (for display purposes).
+   * Returns:
+   * - '!' if there are available quests
+   * - '?' if there are quests ready for turn-in
+   * - null if no quest activity
+   */
+  getQuestIndicator(player: QuestPlayer): '!' | '?' | null {
+    const completed = this.getCompletedQuests(player);
+    if (completed.length > 0) return '?';
+
+    const available = this.getAvailableQuests(player);
+    if (available.length > 0) return '!';
+
+    return null;
   }
 }
 

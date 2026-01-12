@@ -108,6 +108,26 @@ export class Item extends MudObject {
     if (!this._takeable) {
       return false;
     }
+
+    // Quest integration: track item pickups for fetch objectives
+    if ('getProperty' in taker) {
+      // Use dynamic import to avoid circular dependency
+      import('../daemons/quest.js')
+        .then(({ getQuestDaemon }) => {
+          try {
+            const questDaemon = getQuestDaemon();
+            const itemPath = this.objectPath || '';
+            type QuestPlayer = Parameters<typeof questDaemon.updateFetchObjective>[0];
+            questDaemon.updateFetchObjective(taker as QuestPlayer, itemPath);
+          } catch {
+            // Quest daemon may not be initialized yet
+          }
+        })
+        .catch(() => {
+          // Ignore import errors
+        });
+    }
+
     return true;
   }
 

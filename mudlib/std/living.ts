@@ -681,6 +681,26 @@ export class Living extends MudObject {
       if (typeof newEnv.onEnter === 'function') {
         await newEnv.onEnter(this, env);
       }
+
+      // Quest integration: track room exploration for explore objectives
+      if ('getProperty' in this) {
+        // Use dynamic import to avoid circular dependency
+        import('../daemons/quest.js')
+          .then(({ getQuestDaemon }) => {
+            try {
+              const questDaemon = getQuestDaemon();
+              const roomPath = newEnv.objectPath || '';
+              type QuestPlayer = Parameters<typeof questDaemon.updateExploreObjective>[0];
+              questDaemon.updateExploreObjective(this as unknown as QuestPlayer, roomPath);
+            } catch {
+              // Quest daemon may not be initialized yet
+            }
+          })
+          .catch(() => {
+            // Ignore import errors
+          });
+      }
+
       // Show room description (brief mode shows glance, normal shows full look)
       const self = this as Living & { getConfig?: <T>(key: string) => T };
       const briefMode = typeof self.getConfig === 'function' ? self.getConfig<boolean>('brief') : false;
