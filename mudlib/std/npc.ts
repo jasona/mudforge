@@ -738,6 +738,9 @@ export class NPC extends Living {
       const quest = questDaemon.getQuest(questId);
       if (!quest) continue;
 
+      // Skip hidden quests - they don't appear in NPC quest lists
+      if (quest.hidden) continue;
+
       // Check if player can accept this quest
       const canAccept = await questDaemon.canAcceptQuest(player, questId);
       if (canAccept.canAccept) {

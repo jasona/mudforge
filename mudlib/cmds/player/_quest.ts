@@ -238,6 +238,9 @@ async function handleAcceptQuest(
         const quest = questDaemon.getQuest(questId);
         if (!quest) continue;
 
+        // Skip hidden quests - they won't appear in NPC quest lists
+        if (quest.hidden) continue;
+
         const canAccept = await questDaemon.canAcceptQuest(player, questId);
         if (canAccept.canAccept) {
           availableQuests.push(quest);
