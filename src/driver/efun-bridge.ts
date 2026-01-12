@@ -1669,6 +1669,32 @@ export class EfunBridge {
   }
 
   /**
+   * Get information about a command by name.
+   * Requires builder permission.
+   *
+   * @param name The command name to look up
+   * @returns Command info or undefined if not found
+   */
+  getCommandInfo(name: string): {
+    names: string[];
+    filePath: string;
+    level: number;
+    description: string;
+    usage?: string | undefined;
+  } | undefined {
+    if (!this.isBuilder()) {
+      return undefined;
+    }
+
+    try {
+      const commandManager = getCommandManager();
+      return commandManager.getCommandInfo(name);
+    } catch {
+      return undefined;
+    }
+  }
+
+  /**
    * Rehash commands - reload all commands from the cmds/ directories.
    * This discovers new commands and reloads existing ones.
    * Requires builder permission or higher.
@@ -1904,6 +1930,7 @@ export class EfunBridge {
       reloadObject: this.reloadObject.bind(this),
       reloadCommand: this.reloadCommand.bind(this),
       rehashCommands: this.rehashCommands.bind(this),
+      getCommandInfo: this.getCommandInfo.bind(this),
 
       // Paging
       page: this.page.bind(this),

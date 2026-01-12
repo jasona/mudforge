@@ -437,6 +437,41 @@ export class CommandManager {
   }
 
   /**
+   * Get information about a command by name.
+   * @param name The command name to look up
+   * @returns Command info or undefined if not found
+   */
+  getCommandInfo(name: string): {
+    names: string[];
+    filePath: string;
+    level: PermissionLevel;
+    description: string;
+    usage?: string | undefined;
+  } | undefined {
+    const loaded = this.commands.get(name.toLowerCase());
+    if (!loaded) return undefined;
+
+    const result: {
+      names: string[];
+      filePath: string;
+      level: PermissionLevel;
+      description: string;
+      usage?: string | undefined;
+    } = {
+      names: loaded.names,
+      filePath: loaded.filePath,
+      level: loaded.level,
+      description: loaded.command.description,
+    };
+
+    if (loaded.command.usage) {
+      result.usage = loaded.command.usage;
+    }
+
+    return result;
+  }
+
+  /**
    * Dispose the command manager.
    */
   dispose(): void {
