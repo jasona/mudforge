@@ -12,28 +12,14 @@ import { Corpse } from './corpse.js';
 import { getCombatDaemon } from '../daemons/combat.js';
 import type { NPCCombatConfig, LootEntry, GoldDrop } from './combat/types.js';
 import type { QuestId, QuestDefinition, PlayerQuestState, QuestPlayer } from './quest/types.js';
+import { getQuestDaemon } from '../daemons/quest.js';
 
-// Lazy-loaded quest daemon to avoid circular dependencies
-let _questDaemon: ReturnType<typeof import('../daemons/quest.js').getQuestDaemon> | null = null;
-async function getQuestDaemonLazy() {
-  if (!_questDaemon) {
-    const { getQuestDaemon } = await import('../daemons/quest.js');
-    _questDaemon = getQuestDaemon();
-  }
-  return _questDaemon;
+// Quest daemon accessor functions
+function getQuestDaemonLazy() {
+  return Promise.resolve(getQuestDaemon());
 }
 function getQuestDaemonSync() {
-  if (!_questDaemon) {
-    // If not yet loaded, try synchronous access (may fail during initialization)
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { getQuestDaemon } = require('../daemons/quest.js');
-      _questDaemon = getQuestDaemon();
-    } catch {
-      return null;
-    }
-  }
-  return _questDaemon;
+  return getQuestDaemon();
 }
 
 /**
