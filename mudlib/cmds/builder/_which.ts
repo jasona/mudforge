@@ -25,6 +25,28 @@ const LEVEL_NAMES: Record<number, string> = {
   3: 'admin',
 };
 
+/**
+ * Convert absolute server path to in-game mudlib path.
+ * e.g., "/Users/.../mudforge/mudlib/cmds/player/_look.ts" -> "/cmds/player/_look"
+ */
+function toMudlibPath(absolutePath: string): string {
+  // Find the mudlib directory in the path
+  const mudlibIndex = absolutePath.indexOf('/mudlib/');
+  if (mudlibIndex === -1) {
+    return absolutePath; // Fallback to original if not found
+  }
+
+  // Extract path after /mudlib/
+  let relativePath = absolutePath.substring(mudlibIndex + '/mudlib'.length);
+
+  // Remove .ts extension
+  if (relativePath.endsWith('.ts')) {
+    relativePath = relativePath.slice(0, -3);
+  }
+
+  return relativePath;
+}
+
 export const name = ['which'];
 export const description = 'Show the file path of a command';
 export const usage = 'which <command>';
@@ -51,8 +73,10 @@ export function execute(ctx: CommandContext): void {
 
   const levelName = LEVEL_NAMES[info.level] || `level ${info.level}`;
 
+  const mudlibPath = toMudlibPath(info.filePath);
+
   ctx.sendLine(`{bold}${cmdName}{/}`);
-  ctx.sendLine(`  Path:        ${info.filePath}`);
+  ctx.sendLine(`  Path:        ${mudlibPath}`);
   ctx.sendLine(`  Level:       ${levelName}`);
   ctx.sendLine(`  Description: ${info.description}`);
   if (info.usage) {
