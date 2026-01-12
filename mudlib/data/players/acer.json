@@ -1,6 +1,6 @@
 {
   "name": "Acer",
-  "location": "/areas/valdoria/aldric/tannery",
+  "location": "/areas/valdoria/aldric/center",
   "state": {
     "objectPath": "",
     "isClone": false,
@@ -17,14 +17,14 @@
         "questPoints": 0
       }
     },
-    "timestamp": 1768255854851,
+    "timestamp": 1768257229336,
     "environment": {
       "__type": "object_ref",
-      "path": "/areas/valdoria/aldric/tannery#1",
-      "isClone": true
+      "path": "/areas/valdoria/aldric/center",
+      "isClone": false
     }
   },
-  "savedAt": 1768255854851,
+  "savedAt": 1768257229336,
   "title": "",
   "gender": "neutral",
   "level": 100,
@@ -70,7 +70,7 @@
     }
   },
   "createdAt": 1767588015729,
-  "lastLogin": 1768255822,
+  "lastLogin": 1768257229,
   "playTime": 92365,
   "monitorEnabled": true,
   "displayName": "Sir {yellow}$N{/} is really digging this AI stuff.",

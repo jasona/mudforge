@@ -44,7 +44,7 @@ export async function execute(ctx: CommandContext): Promise<void> {
       break;
     case 'info':
     case 'show':
-      showQuestInfo(ctx, player, questDaemon, questArg);
+      await showQuestInfo(ctx, player, questDaemon, questArg);
       break;
     case 'accept':
       await handleAcceptQuest(ctx, player, questDaemon, questArg);
@@ -72,7 +72,7 @@ export async function execute(ctx: CommandContext): Promise<void> {
     default:
       // Try to find quest by name
       if (args) {
-        showQuestInfo(ctx, player, questDaemon, args);
+        await showQuestInfo(ctx, player, questDaemon, args);
       } else {
         showQuestLog(ctx, player, questDaemon);
       }
@@ -98,12 +98,12 @@ function showQuestLog(
 /**
  * Show detailed info about a specific quest.
  */
-function showQuestInfo(
+async function showQuestInfo(
   ctx: CommandContext,
   player: QuestPlayer,
   questDaemon: ReturnType<typeof getQuestDaemon>,
   questName: string
-): void {
+): Promise<void> {
   if (!questName) {
     ctx.sendLine("{yellow}Usage: quest info <quest name>{/}");
     return;
