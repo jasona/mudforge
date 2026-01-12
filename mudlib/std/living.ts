@@ -656,7 +656,7 @@ export class Living extends MudObject {
     }
 
     // Get destination room
-    const dest = env.resolveExit(exit);
+    const dest = await env.resolveExit(exit);
     if (!dest) {
       this.receive("That exit leads nowhere.");
       return false;

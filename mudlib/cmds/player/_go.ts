@@ -107,6 +107,7 @@ export const name = [
   'n', 's', 'e', 'w', 'u', 'd',
   'northeast', 'northwest', 'southeast', 'southwest',
   'ne', 'nw', 'se', 'sw',
+  'in', 'out', 'enter', 'exit',
 ];
 export const description = 'Move in a direction';
 export const usage = 'go <direction> or just <direction>';
@@ -163,7 +164,7 @@ export async function execute(ctx: CommandContext): Promise<boolean> {
     return false;
   }
 
-  const destination = room.resolveExit(exit);
+  const destination = await room.resolveExit(exit);
   if (!destination) {
     ctx.sendLine(`The way ${direction} seems blocked.`);
     return false;

@@ -36,6 +36,11 @@ and the {yellow}Cleric Guild{/} temple ({green}cleric{/}).
 A {magenta}town crier{/} stands near the fountain, occasionally announcing the day's news to
 anyone who will listen.`;
 
+    // Map coordinates - center of town is the hub
+    this.setMapCoordinates({ x: 0, y: 0, z: 0, area: '/areas/valdoria/aldric' });
+    this.setTerrain('town');
+    this.setMapIcon('*');
+
     this.setupRoom();
   }
 
@@ -56,6 +61,12 @@ anyone who will listen.`;
     this.addExit('mage', '/areas/guilds/mage/guild_hall');
     this.addExit('thief', '/areas/guilds/thief/guild_hall');
     this.addExit('cleric', '/areas/guilds/cleric/guild_hall');
+
+    // Add actions for custom exits (guild halls)
+    this.addAction('fighter', () => this.goCustomExit('fighter'));
+    this.addAction('mage', () => this.goCustomExit('mage'));
+    this.addAction('thief', () => this.goCustomExit('thief'));
+    this.addAction('cleric', () => this.goCustomExit('cleric'));
 
     // Add actions
     this.addAction('look', this.cmdLook.bind(this));
@@ -98,6 +109,22 @@ anyone who will listen.`;
    */
   override async onLeave(obj: MudObject, to?: MudObject): Promise<void> {
     this.broadcast(`${obj.shortDesc} leaves the square.`, { exclude: [obj] });
+  }
+
+  /**
+   * Handle movement through custom guild exits.
+   */
+  private async goCustomExit(direction: string): Promise<boolean> {
+    // Find a connected player in the room
+    const player = this.findPlayerInRoom();
+    if (!player) return false;
+
+    const living = player as MudObject & { moveDirection?: (dir: string) => Promise<boolean> };
+    if (typeof living.moveDirection === 'function') {
+      await living.moveDirection(direction);
+      return true;
+    }
+    return false;
   }
 
   /**

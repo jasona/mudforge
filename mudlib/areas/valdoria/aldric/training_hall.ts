@@ -26,10 +26,17 @@ High windows let in diffused light, and the air carries the faint
 scent of leather and honest sweat.
 
 A chalk board near the entrance displays training schedules and
-motivational quotes from famous warriors of old.`;
+motivational quotes from famous warriors of old.
+
+The town center lies to the {green}southwest{/}.`;
+
+    // Map coordinates - northeast of center
+    this.setMapCoordinates({ x: 1, y: -1, z: 0, area: '/areas/valdoria/aldric' });
+    this.setTerrain('town');
+    this.setMapIcon('H');
 
     // Exits
-    this.addExit('south', '/areas/valdoria/aldric/center');
+    this.addExit('southwest', '/areas/valdoria/aldric/center');
 
     // Add some items for flavor
     this.addId('training hall');

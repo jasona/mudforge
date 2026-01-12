@@ -152,6 +152,14 @@ export class Room extends MudObject {
 
   // ========== Exits ==========
 
+  // Standard directions handled by the go command
+  private static STANDARD_DIRECTIONS = new Set([
+    'north', 'south', 'east', 'west', 'up', 'down',
+    'northeast', 'northwest', 'southeast', 'southwest',
+    'n', 's', 'e', 'w', 'u', 'd', 'ne', 'nw', 'se', 'sw',
+    'in', 'out', 'enter', 'exit',
+  ]);
+
   /**
    * Add an exit to this room.
    * @param direction The direction name
@@ -159,11 +167,49 @@ export class Room extends MudObject {
    * @param description Optional exit description
    */
   addExit(direction: string, destination: string | MudObject, description?: string): void {
-    this._exits.set(direction.toLowerCase(), {
-      direction: direction.toLowerCase(),
+    const dir = direction.toLowerCase();
+    this._exits.set(dir, {
+      direction: dir,
       destination,
       description,
     });
+
+    // For non-standard exits, add an action so typing the direction works
+    if (!Room.STANDARD_DIRECTIONS.has(dir)) {
+      this.addAction(dir, () => this.handleCustomExit(dir));
+    }
+  }
+
+  /**
+   * Handle movement through a custom (non-standard) exit.
+   * This is called when a player types a custom exit name directly.
+   */
+  private async handleCustomExit(direction: string): Promise<boolean> {
+    // Find a connected player in the room
+    const player = this.findConnectedPlayer();
+    if (!player) return false;
+
+    // Use the living's moveDirection method if available
+    const living = player as MudObject & { moveDirection?: (dir: string) => Promise<boolean> };
+    if (typeof living.moveDirection === 'function') {
+      await living.moveDirection(direction);
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Find a connected player in this room.
+   */
+  private findConnectedPlayer(): MudObject | undefined {
+    for (const obj of this.inventory) {
+      const player = obj as MudObject & { isConnected?: () => boolean };
+      if (typeof player.isConnected === 'function' && player.isConnected()) {
+        return obj;
+      }
+    }
+    return undefined;
   }
 
   /**
@@ -179,12 +225,18 @@ export class Room extends MudObject {
     canPass: (who: MudObject) => boolean | Promise<boolean>,
     description?: string
   ): void {
-    this._exits.set(direction.toLowerCase(), {
-      direction: direction.toLowerCase(),
+    const dir = direction.toLowerCase();
+    this._exits.set(dir, {
+      direction: dir,
       destination,
       description,
       canPass,
     });
+
+    // For non-standard exits, add an action so typing the direction works
+    if (!Room.STANDARD_DIRECTIONS.has(dir)) {
+      this.addAction(dir, () => this.handleCustomExit(dir));
+    }
   }
 
   /**
@@ -195,14 +247,20 @@ export class Room extends MudObject {
    * @param description Optional exit description
    */
   addOneWayExit(direction: string, destination: string | MudObject, description?: string): void {
+    const dir = direction.toLowerCase();
     // Mark this exit as explicitly one-way so validation doesn't complain
     const exit: Exit & { oneWay?: boolean } = {
-      direction: direction.toLowerCase(),
+      direction: dir,
       destination,
       description,
     };
     (exit as Exit & { oneWay: boolean }).oneWay = true;
-    this._exits.set(direction.toLowerCase(), exit);
+    this._exits.set(dir, exit);
+
+    // For non-standard exits, add an action so typing the direction works
+    if (!Room.STANDARD_DIRECTIONS.has(dir)) {
+      this.addAction(dir, () => this.handleCustomExit(dir));
+    }
   }
 
   /**
@@ -254,12 +312,21 @@ export class Room extends MudObject {
 
   /**
    * Resolve an exit destination to a room object.
+   * Loads the room on demand if not already loaded.
    * @param exit The exit to resolve
    */
-  resolveExit(exit: Exit): MudObject | undefined {
+  async resolveExit(exit: Exit): Promise<MudObject | undefined> {
     if (typeof exit.destination === 'string') {
       if (typeof efuns !== 'undefined') {
-        return efuns.findObject(exit.destination);
+        // First try to find already-loaded room
+        let room = efuns.findObject(exit.destination);
+        if (room) return room;
+
+        // If not found, try to load/clone it
+        if (efuns.cloneObject) {
+          room = await efuns.cloneObject(exit.destination);
+          return room;
+        }
       }
       return undefined;
     }

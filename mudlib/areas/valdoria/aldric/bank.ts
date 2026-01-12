@@ -36,10 +36,10 @@ the vault chamber deeper in the building, though they remain firmly shut.
 {yellow}Paintings{/} of past bank founders line the walls, their stern gazes watching
 over every transaction. A {cyan}brass plaque{/} on the wall lists the bank's services.
 
-The exit leads {green}west{/} back to the town center.`;
+The exit leads {green}northwest{/} back to the town center.`;
 
-    // Map coordinates - southeast of center (positive x, positive y from center)
-    this.setMapCoordinates({ x: 2, y: 0, z: 0, area: '/areas/valdoria/aldric' });
+    // Map coordinates - southeast of center
+    this.setMapCoordinates({ x: 1, y: 1, z: 0, area: '/areas/valdoria/aldric' });
     this.setTerrain('town');
     this.setMapIcon('$');
 
@@ -50,7 +50,7 @@ The exit leads {green}west{/} back to the town center.`;
    * Set up the room's exits and actions.
    */
   private setupRoom(): void {
-    this.addExit('west', '/areas/valdoria/aldric/center');
+    this.addExit('northwest', '/areas/valdoria/aldric/center');
 
     // Bank commands
     this.addAction('deposit', this.cmdDeposit.bind(this));

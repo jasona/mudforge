@@ -25,6 +25,11 @@ worn {dim}trapdoor{/} in the floor leads down to the cellar.
 
 A narrow alley leads {green}south{/} back to the market square.`;
 
+    // Map coordinates - north of market
+    this.setMapCoordinates({ x: -1, y: -1, z: 0, area: '/areas/valdoria/aldric' });
+    this.setTerrain('town');
+    this.setMapIcon('B');
+
     this.setupRoom();
   }
 

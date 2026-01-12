@@ -27,6 +27,11 @@ their figures small against the vast landscape.
 A small {dim}guardhouse{/} sits beside the gate, and a {yellow}stable{/} offers services to
 those arriving on horseback. The bustle of the town center lies to the {green}north{/}.`;
 
+    // Map coordinates - south of center
+    this.setMapCoordinates({ x: 0, y: 1, z: 0, area: '/areas/valdoria/aldric' });
+    this.setTerrain('town');
+    this.setMapIcon('G');
+
     this.setupRoom();
   }
 

@@ -28,6 +28,11 @@ strums a lute, adding melody to the general din.
 
 The exit to the town square lies to the {green}west{/}.`;
 
+    // Map coordinates - east of center
+    this.setMapCoordinates({ x: 1, y: 0, z: 0, area: '/areas/valdoria/aldric' });
+    this.setTerrain('town');
+    this.setMapIcon('T');
+
     this.setupRoom();
   }
 

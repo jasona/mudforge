@@ -22,6 +22,11 @@ awls of various sizes.
 
 The {green}market square{/} lies to the {green}east{/}.`;
 
+    // Map coordinates - west of market
+    this.setMapCoordinates({ x: -2, y: 0, z: 0, area: '/areas/valdoria/aldric' });
+    this.setTerrain('town');
+    this.setMapIcon('L');
+
     this.setupRoom();
   }
 

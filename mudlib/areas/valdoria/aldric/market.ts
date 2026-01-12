@@ -28,6 +28,11 @@ from a bloody stall.
 A narrow alley to the {green}north{/} leads to the {yellow}bakery{/}. The {yellow}tannery{/} lies to the
 {green}west{/}, its pungent smell occasionally drifting over. The town center lies to the {green}east{/}.`;
 
+    // Map coordinates - west of center
+    this.setMapCoordinates({ x: -1, y: 0, z: 0, area: '/areas/valdoria/aldric' });
+    this.setTerrain('town');
+    this.setMapIcon('M');
+
     this.setupRoom();
   }
 

@@ -27,6 +27,11 @@ distant fountain visible past the crowds of petitioners waiting to enter.
 To one side, a {dim}heavy iron grate{/} in the cobblestones marks the entrance to
 the castle {red}dungeons{/} below. A set of worn stone steps leads {green}down{/} into darkness.`;
 
+    // Map coordinates - north of center
+    this.setMapCoordinates({ x: 0, y: -1, z: 0, area: '/areas/valdoria/aldric' });
+    this.setTerrain('town');
+    this.setMapIcon('C');
+
     this.setupRoom();
   }
 
