@@ -822,7 +822,28 @@ export class QuestDaemon extends MudObject {
       }
     }
 
-    // Check items (TODO: integrate with inventory)
+    // Check items
+    if (prereqs.items && prereqs.items.length > 0) {
+      const playerObj = player as unknown as MudObject;
+      const inventory = playerObj.inventory || [];
+
+      for (const requiredItemPath of prereqs.items) {
+        const hasItem = inventory.some((item) => {
+          const itemPath = (item as MudObject).objectPath || '';
+          return (
+            itemPath.includes(requiredItemPath) ||
+            itemPath === requiredItemPath ||
+            (item as MudObject).matchesName?.(requiredItemPath)
+          );
+        });
+
+        if (!hasItem) {
+          // Try to get a readable name from the path
+          const itemName = requiredItemPath.split('/').pop()?.replace(/_/g, ' ') || requiredItemPath;
+          return { met: false, reason: `Requires item: ${itemName}.` };
+        }
+      }
+    }
 
     // Check custom handler
     if (prereqs.customHandler) {
