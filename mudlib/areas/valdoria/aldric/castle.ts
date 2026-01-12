@@ -43,6 +43,20 @@ the castle {red}dungeons{/} below. A set of worn stone steps leads {green}down{/
   }
 
   override async onCreate(): Promise<void> {
+    await super.onCreate();
+
+    // Spawn Captain Marcus
+    if (typeof efuns !== 'undefined' && efuns.cloneObject) {
+      try {
+        const captain = await efuns.cloneObject('/areas/valdoria/aldric/guard_captain');
+        if (captain && typeof captain.moveTo === 'function') {
+          await captain.moveTo(this);
+        }
+      } catch (e) {
+        console.error('[CastleGate] Failed to spawn guard captain:', e);
+      }
+    }
+
     console.log('[CastleGate] The castle gate has been initialized.');
   }
 

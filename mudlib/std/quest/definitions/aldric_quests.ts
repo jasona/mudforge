@@ -120,7 +120,7 @@ export const URGENT_MESSAGE: QuestDefinition = {
   name: 'Urgent Message',
   description: 'Deliver a sealed letter to Master Vorn.',
   storyText: `The town crier has an urgent message that must reach Master Vorn
-at the Fighter Guild training hall immediately. Time is of the essence!
+at the training hall immediately. Time is of the essence!
 
 "This letter came by courier this morning. It's marked urgent, but I can't leave my post.
 Please take it to Master Vorn at the training hall right away!"`,
@@ -158,23 +158,23 @@ Visit each guildmaster and learn about what their guild has to offer.`,
   objectives: [
     {
       type: 'talk',
-      npcPath: '/areas/valdoria/aldric/master_vorn',
-      npcName: 'Master Vorn (Fighter Guild)',
+      npcPath: '/areas/guilds/fighter/guildmaster',
+      npcName: 'Garrok (Fighter Guild)',
     },
     {
       type: 'talk',
-      npcPath: '/areas/valdoria/aldric/archmage_lyra',
-      npcName: 'Archmage Lyra (Mage Guild)',
+      npcPath: '/areas/guilds/mage/guildmaster',
+      npcName: 'Elyndra (Mage Guild)',
     },
     {
       type: 'talk',
-      npcPath: '/areas/valdoria/aldric/shadow_master',
+      npcPath: '/areas/guilds/thief/guildmaster',
       npcName: 'Shadow (Thief Guild)',
     },
     {
       type: 'talk',
-      npcPath: '/areas/valdoria/aldric/high_priest',
-      npcName: 'Father Aldric (Cleric Guild)',
+      npcPath: '/areas/guilds/cleric/guildmaster',
+      npcName: 'Seraphina (Cleric Guild)',
     },
   ],
   rewards: {

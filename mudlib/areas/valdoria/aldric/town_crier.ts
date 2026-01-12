@@ -35,6 +35,10 @@ news from the castle.`,
     this.addId('town crier');
     this.addId('man');
 
+    // Quest giver configuration
+    this.setQuestsOffered(['aldric:urgent_message', 'aldric:meet_guildmasters']);
+    this.setQuestsTurnedIn(['aldric:urgent_message', 'aldric:meet_guildmasters']);
+
     this.setupAnnouncements();
     this.setupResponses();
   }

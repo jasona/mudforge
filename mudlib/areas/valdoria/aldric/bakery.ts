@@ -16,13 +16,12 @@ aroma of {yellow}fresh-baked bread{/}. The warmth from the great stone {red}oven
 provides a welcome respite from the outside air.
 
 Wooden {dim}shelves{/} line the walls, displaying the baker's wares: crusty {yellow}loaves{/} of
-various sizes, sweet {YELLOW}pastries{/} glistening with honey glaze, {yellow}meat pies{/} with
+various sizes, sweet {yellow}pastries{/} glistening with honey glaze, {yellow}meat pies{/} with
 golden crusts, and delicate {magenta}cakes{/} decorated with candied fruits.
 
-A flour-dusted counter separates the shop from the kitchen area, where you
-can see the {magenta}baker{/} - a plump, cheerful woman with rosy cheeks - pulling a
-fresh batch of rolls from the oven. Her young {cyan}apprentice{/} kneads dough at
-a wooden table, flour up to his elbows.
+A flour-dusted counter separates the shop from the kitchen area. A young
+{cyan}apprentice{/} kneads dough at a wooden table, flour up to his elbows. A
+worn {dim}trapdoor{/} in the floor leads down to the cellar.
 
 A narrow alley leads {green}south{/} back to the market square.`;
 
@@ -38,6 +37,20 @@ A narrow alley leads {green}south{/} back to the market square.`;
   }
 
   override async onCreate(): Promise<void> {
+    await super.onCreate();
+
+    // Spawn Baker Hilda
+    if (typeof efuns !== 'undefined' && efuns.cloneObject) {
+      try {
+        const baker = await efuns.cloneObject('/areas/valdoria/aldric/baker');
+        if (baker && typeof baker.moveTo === 'function') {
+          await baker.moveTo(this);
+        }
+      } catch (e) {
+        console.error('[Bakery] Failed to spawn baker:', e);
+      }
+    }
+
     console.log('[Bakery] The bakery has been initialized.');
   }
 

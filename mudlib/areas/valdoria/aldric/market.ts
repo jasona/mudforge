@@ -25,8 +25,8 @@ To your left, a row of permanent shops lines the street - a {cyan}tailor{/}, an
 farmers display baskets of fresh {green}produce{/} while a {red}butcher{/} hawks cuts of meat
 from a bloody stall.
 
-A narrow alley to the {green}north{/} leads to the {yellow}bakery{/}, its warm aromas wafting
-enticingly. The town center lies to the {green}east{/}.`;
+A narrow alley to the {green}north{/} leads to the {yellow}bakery{/}. The {yellow}tannery{/} lies to the
+{green}west{/}, its pungent smell occasionally drifting over. The town center lies to the {green}east{/}.`;
 
     this.setupRoom();
   }
@@ -34,6 +34,7 @@ enticingly. The town center lies to the {green}east{/}.`;
   private setupRoom(): void {
     this.addExit('east', '/areas/valdoria/aldric/center');
     this.addExit('north', '/areas/valdoria/aldric/bakery');
+    this.addExit('west', '/areas/valdoria/aldric/tannery');
 
     this.addAction('look', this.cmdLook.bind(this));
     this.addAction('browse', this.cmdBrowse.bind(this));
@@ -41,6 +42,20 @@ enticingly. The town center lies to the {green}east{/}.`;
   }
 
   override async onCreate(): Promise<void> {
+    await super.onCreate();
+
+    // Spawn Merchant Aldwin
+    if (typeof efuns !== 'undefined' && efuns.cloneObject) {
+      try {
+        const merchant = await efuns.cloneObject('/areas/valdoria/aldric/merchant');
+        if (merchant && typeof merchant.moveTo === 'function') {
+          await merchant.moveTo(this);
+        }
+      } catch (e) {
+        console.error('[MarketSquare] Failed to spawn merchant:', e);
+      }
+    }
+
     console.log('[MarketSquare] The market square has been initialized.');
   }
 

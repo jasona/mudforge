@@ -166,6 +166,24 @@ export class NPC extends Living {
   hearSay(speaker: MudObject, message: string): void {
     if (speaker === this) return;
 
+    // Quest integration: track talk objectives when a player talks to this NPC
+    if ('getProperty' in speaker) {
+      import('../daemons/quest.js')
+        .then(({ getQuestDaemon }) => {
+          try {
+            const questDaemon = getQuestDaemon();
+            const npcPath = this.objectPath || '';
+            type QuestPlayerType = Parameters<typeof questDaemon.updateTalkObjective>[0];
+            questDaemon.updateTalkObjective(speaker as QuestPlayerType, npcPath);
+          } catch {
+            // Quest daemon may not be initialized yet
+          }
+        })
+        .catch(() => {
+          // Ignore import errors
+        });
+    }
+
     for (const trigger of this._responses) {
       const match =
         typeof trigger.pattern === 'string'
