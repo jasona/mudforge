@@ -31,6 +31,16 @@ import {
 } from '../std/quest/types.js';
 import { getAllQuestDefinitions } from '../std/quest/definitions/index.js';
 
+// Lazy-loaded guild daemon to avoid circular dependencies
+let _guildDaemon: ReturnType<typeof import('./guild.js').getGuildDaemon> | null = null;
+async function getGuildDaemonLazy() {
+  if (!_guildDaemon) {
+    const { getGuildDaemon } = await import('./guild.js');
+    _guildDaemon = getGuildDaemon();
+  }
+  return _guildDaemon;
+}
+
 /**
  * Quest Daemon class.
  */
@@ -138,6 +148,7 @@ export class QuestDaemon extends MudObject {
 
   /**
    * Get player's quest data (creates default if not exists).
+   * Also checks for and handles expired time-limited quests.
    */
   getPlayerQuestData(player: QuestPlayer): PlayerQuestData {
     const data = player.getProperty(QUEST_CONSTANTS.PLAYER_DATA_KEY) as PlayerQuestData | undefined;
@@ -146,6 +157,10 @@ export class QuestDaemon extends MudObject {
       player.setProperty(QUEST_CONSTANTS.PLAYER_DATA_KEY, newData);
       return newData;
     }
+
+    // Check for expired quests
+    this.checkExpiredQuests(player, data);
+
     return data;
   }
 
@@ -154,6 +169,75 @@ export class QuestDaemon extends MudObject {
    */
   private savePlayerQuestData(player: QuestPlayer, data: PlayerQuestData): void {
     player.setProperty(QUEST_CONSTANTS.PLAYER_DATA_KEY, data);
+  }
+
+  /**
+   * Check for and fail any expired time-limited quests.
+   */
+  private checkExpiredQuests(player: QuestPlayer, data: PlayerQuestData): void {
+    const now = Date.now();
+    const expiredQuests: PlayerQuestState[] = [];
+
+    for (const state of data.active) {
+      if (state.deadline && now > state.deadline && state.status === 'active') {
+        expiredQuests.push(state);
+      }
+    }
+
+    if (expiredQuests.length === 0) return;
+
+    // Process expired quests
+    for (const state of expiredQuests) {
+      const quest = this.getQuest(state.questId);
+      state.status = 'failed';
+
+      // Notify player
+      if (quest) {
+        player.receive(`{red}[Quest Failed] ${quest.name} - Time limit expired!{/}\n`);
+      }
+
+      // Track failed quest
+      if (!data.failed) {
+        data.failed = [];
+      }
+      data.failed.push(state.questId);
+    }
+
+    // Remove failed quests from active list
+    data.active = data.active.filter((s) => s.status !== 'failed');
+
+    this.savePlayerQuestData(player, data);
+  }
+
+  /**
+   * Manually fail a quest (e.g., from custom handler or escort failure).
+   */
+  failQuest(player: QuestPlayer, questId: QuestId, reason?: string): { success: boolean; message: string } {
+    const data = this.getPlayerQuestData(player);
+    const index = data.active.findIndex((q) => q.questId === questId);
+
+    if (index === -1) {
+      return { success: false, message: 'You are not on that quest.' };
+    }
+
+    const quest = this.getQuest(questId);
+    const state = data.active[index];
+    state.status = 'failed';
+
+    // Track failed quest
+    if (!data.failed) {
+      data.failed = [];
+    }
+    data.failed.push(questId);
+
+    // Remove from active
+    data.active.splice(index, 1);
+    this.savePlayerQuestData(player, data);
+
+    const failReason = reason || 'Quest failed';
+    player.receive(`{red}[Quest Failed] ${quest?.name || questId} - ${failReason}{/}\n`);
+
+    return { success: true, message: `Quest failed: ${quest?.name || questId}` };
   }
 
   // ==================== Quest State Queries ====================
@@ -202,7 +286,7 @@ export class QuestDaemon extends MudObject {
   /**
    * Check if player can accept a quest.
    */
-  canAcceptQuest(player: QuestPlayer, questId: QuestId): CanAcceptQuestResult {
+  async canAcceptQuest(player: QuestPlayer, questId: QuestId): Promise<CanAcceptQuestResult> {
     const quest = this.getQuest(questId);
     if (!quest) {
       return { canAccept: false, reason: 'Quest not found.' };
@@ -238,7 +322,7 @@ export class QuestDaemon extends MudObject {
     }
 
     // Check prerequisites
-    const prereqResult = this.checkPrerequisites(player, quest);
+    const prereqResult = await this.checkPrerequisites(player, quest);
     if (!prereqResult.met) {
       return { canAccept: false, reason: prereqResult.reason };
     }
@@ -767,10 +851,10 @@ export class QuestDaemon extends MudObject {
   /**
    * Check quest prerequisites.
    */
-  private checkPrerequisites(
+  private async checkPrerequisites(
     player: QuestPlayer,
     quest: QuestDefinition
-  ): { met: boolean; reason?: string } {
+  ): Promise<{ met: boolean; reason?: string }> {
     const prereqs = quest.prerequisites;
     if (!prereqs) return { met: true };
 
@@ -789,9 +873,51 @@ export class QuestDaemon extends MudObject {
       }
     }
 
-    // Check guilds (TODO: integrate with guild daemon)
+    // Check guilds
+    if (prereqs.guilds) {
+      try {
+        const guildDaemon = await getGuildDaemonLazy();
+        for (const [guildId, requiredLevel] of Object.entries(prereqs.guilds)) {
+          const currentLevel = guildDaemon.getGuildLevel(
+            player as unknown as Parameters<typeof guildDaemon.getGuildLevel>[0],
+            guildId
+          );
+          if (currentLevel < requiredLevel) {
+            const guild = guildDaemon.getGuild(guildId);
+            const guildName = guild?.name || guildId;
+            if (currentLevel === 0) {
+              return { met: false, reason: `Requires membership in the ${guildName}.` };
+            }
+            return { met: false, reason: `Requires ${guildName} level ${requiredLevel} (you are level ${currentLevel}).` };
+          }
+        }
+      } catch {
+        // Guild daemon may not be available - skip guild check
+      }
+    }
 
-    // Check items (TODO: integrate with inventory)
+    // Check items
+    if (prereqs.items && prereqs.items.length > 0) {
+      const playerObj = player as unknown as MudObject;
+      const inventory = playerObj.inventory || [];
+
+      for (const requiredItemPath of prereqs.items) {
+        const hasItem = inventory.some((item) => {
+          const itemPath = (item as MudObject).objectPath || '';
+          return (
+            itemPath.includes(requiredItemPath) ||
+            itemPath === requiredItemPath ||
+            (item as MudObject).matchesName?.(requiredItemPath)
+          );
+        });
+
+        if (!hasItem) {
+          // Try to get a readable name from the path
+          const itemName = requiredItemPath.split('/').pop()?.replace(/_/g, ' ') || requiredItemPath;
+          return { met: false, reason: `Requires item: ${itemName}.` };
+        }
+      }
+    }
 
     // Check custom handler
     if (prereqs.customHandler) {
@@ -850,7 +976,19 @@ export class QuestDaemon extends MudObject {
       }
     }
 
-    // Guild XP (TODO: integrate with guild daemon)
+    // Guild XP
+    if (rewards.guildXP) {
+      try {
+        const guildDaemon = await getGuildDaemonLazy();
+        for (const [guildId, amount] of Object.entries(rewards.guildXP)) {
+          if (guildDaemon.awardGuildXP(player as unknown as Parameters<typeof guildDaemon.awardGuildXP>[0], guildId, amount)) {
+            rewardLines.push(`  {blue}+${amount} ${guildId} Guild XP{/}`);
+          }
+        }
+      } catch {
+        // Guild daemon may not be available
+      }
+    }
 
     // Custom handler
     if (rewards.customHandler) {
@@ -870,11 +1008,37 @@ export class QuestDaemon extends MudObject {
   /**
    * Consume quest items on turn-in.
    */
-  private consumeQuestItems(player: QuestPlayer, quest: QuestDefinition): void {
+  private async consumeQuestItems(player: QuestPlayer, quest: QuestDefinition): Promise<void> {
     for (const obj of quest.objectives) {
       if (obj.type === 'fetch' && obj.consumeOnComplete) {
-        // TODO: Find and remove items from player inventory
-        // This requires integration with inventory system
+        // Find and remove items from player inventory
+        const playerObj = player as unknown as MudObject;
+        const inventory = playerObj.inventory || [];
+        let consumed = 0;
+
+        for (const item of [...inventory]) {
+          if (consumed >= obj.required) break;
+
+          // Check if item matches any of the itemPaths
+          const itemPath = (item as MudObject).objectPath || '';
+          const matches = obj.itemPaths.some(
+            (path) => itemPath.includes(path) || itemPath === path ||
+              (item as MudObject).matchesName?.(path)
+          );
+
+          if (matches) {
+            // Remove item from player and destruct it
+            await (item as MudObject).moveTo(null);
+            if (typeof efuns !== 'undefined' && efuns.destruct) {
+              await efuns.destruct(item as MudObject);
+            }
+            consumed++;
+          }
+        }
+
+        if (consumed > 0) {
+          player.receive(`{dim}${consumed} ${obj.itemName} consumed.{/}\n`);
+        }
       }
     }
   }
@@ -936,7 +1100,22 @@ export class QuestDaemon extends MudObject {
 
     const lines: string[] = [];
     const statusColor = state.status === 'completed' ? 'green' : 'yellow';
-    const statusText = state.status === 'completed' ? '(Ready to Turn In!)' : '(In Progress)';
+    let statusText = state.status === 'completed' ? '(Ready to Turn In!)' : '(In Progress)';
+
+    // Add time remaining for time-limited quests
+    if (state.deadline && state.status === 'active') {
+      const remaining = state.deadline - Date.now();
+      if (remaining > 0) {
+        const minutes = Math.ceil(remaining / 1000 / 60);
+        if (minutes < 60) {
+          statusText += ` {red}[${minutes}m remaining]{/}`;
+        } else {
+          const hours = Math.floor(minutes / 60);
+          const mins = minutes % 60;
+          statusText += ` {yellow}[${hours}h ${mins}m remaining]{/}`;
+        }
+      }
+    }
 
     lines.push(`{bold}{${statusColor}}${quest.name}{/} ${statusText}`);
     lines.push(`  {dim}${quest.description}{/}`);

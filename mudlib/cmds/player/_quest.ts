@@ -186,7 +186,7 @@ function showQuestInfo(
   } else if (questDaemon.hasCompletedQuest(player, quest.id)) {
     ctx.sendLine('{bold}Status:{/} {dim}Already Completed{/}');
   } else {
-    const canAccept = questDaemon.canAcceptQuest(player, quest.id);
+    const canAccept = await questDaemon.canAcceptQuest(player, quest.id);
     if (canAccept.canAccept) {
       ctx.sendLine("{bold}Status:{/} {green}Available{/} - Use 'quest accept' near the quest giver");
     } else {
@@ -238,7 +238,10 @@ async function handleAcceptQuest(
         const quest = questDaemon.getQuest(questId);
         if (!quest) continue;
 
-        const canAccept = questDaemon.canAcceptQuest(player, questId);
+        // Skip hidden quests - they won't appear in NPC quest lists
+        if (quest.hidden) continue;
+
+        const canAccept = await questDaemon.canAcceptQuest(player, questId);
         if (canAccept.canAccept) {
           availableQuests.push(quest);
         } else if (canAccept.reason) {

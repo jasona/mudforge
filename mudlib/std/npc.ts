@@ -728,8 +728,8 @@ export class NPC extends Living {
   /**
    * Get available quests for a player (quests they can accept).
    */
-  getAvailableQuests(player: QuestPlayer): QuestDefinition[] {
-    const questDaemon = getQuestDaemonSync();
+  async getAvailableQuests(player: QuestPlayer): Promise<QuestDefinition[]> {
+    const questDaemon = await getQuestDaemonLazy();
     if (!questDaemon) return [];
 
     const available: QuestDefinition[] = [];
@@ -738,8 +738,11 @@ export class NPC extends Living {
       const quest = questDaemon.getQuest(questId);
       if (!quest) continue;
 
+      // Skip hidden quests - they don't appear in NPC quest lists
+      if (quest.hidden) continue;
+
       // Check if player can accept this quest
-      const canAccept = questDaemon.canAcceptQuest(player, questId);
+      const canAccept = await questDaemon.canAcceptQuest(player, questId);
       if (canAccept.canAccept) {
         available.push(quest);
       }
@@ -772,15 +775,15 @@ export class NPC extends Living {
    * Get all quests this NPC is associated with for a player.
    * Returns { available, inProgress, completed }
    */
-  getQuestsForPlayer(player: QuestPlayer): {
+  async getQuestsForPlayer(player: QuestPlayer): Promise<{
     available: QuestDefinition[];
     inProgress: PlayerQuestState[];
     completed: PlayerQuestState[];
-  } {
-    const questDaemon = getQuestDaemonSync();
+  }> {
+    const questDaemon = await getQuestDaemonLazy();
     if (!questDaemon) return { available: [], inProgress: [], completed: [] };
 
-    const available = this.getAvailableQuests(player);
+    const available = await this.getAvailableQuests(player);
     const completed = this.getCompletedQuests(player);
 
     // Get in-progress quests that this NPC is the giver or turn-in for
@@ -803,12 +806,49 @@ export class NPC extends Living {
    * - '?' if there are quests ready for turn-in
    * - null if no quest activity
    */
-  getQuestIndicator(player: QuestPlayer): '!' | '?' | null {
+  async getQuestIndicator(player: QuestPlayer): Promise<'!' | '?' | null> {
     const completed = this.getCompletedQuests(player);
     if (completed.length > 0) return '?';
 
-    const available = this.getAvailableQuests(player);
+    const available = await this.getAvailableQuests(player);
     if (available.length > 0) return '!';
+
+    return null;
+  }
+
+  /**
+   * Synchronous quest indicator check for room descriptions.
+   * This is a simplified check that shows '?' for turn-ins (sync check)
+   * and '!' for NPCs that offer quests (without full prerequisite check).
+   * For accurate indicator, use the async getQuestIndicator().
+   */
+  getQuestIndicatorSync(player: QuestPlayer): '!' | '?' | null {
+    // Check for quests ready for turn-in first (sync check)
+    const completed = this.getCompletedQuests(player);
+    if (completed.length > 0) return '?';
+
+    // Check if this NPC offers any quests the player might be able to accept
+    // We can't do full prerequisite check synchronously, so just check if
+    // they have quests offered and the player isn't already on them
+    if (this._questsOffered.length > 0) {
+      const questDaemon = getQuestDaemonSync();
+      if (questDaemon) {
+        // Check if any offered quest is available (not active, not completed or repeatable)
+        for (const questId of this._questsOffered) {
+          const quest = questDaemon.getQuest(questId);
+          if (!quest || quest.hidden) continue;
+
+          // Skip if already active
+          if (questDaemon.isQuestActive(player, questId)) continue;
+
+          // Skip if completed and not repeatable
+          if (questDaemon.hasCompletedQuest(player, questId) && !quest.repeatable) continue;
+
+          // There's at least one potentially available quest
+          return '!';
+        }
+      }
+    }
 
     return null;
   }

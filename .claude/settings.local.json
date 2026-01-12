@@ -25,7 +25,29 @@
       "Bash(powershell -Command:*)",
       "Bash(npm run build:mudlib:*)",
       "Bash(npm run:*)",
-      "Bash(npx tsx:*)"
+      "Bash(npx tsx:*)",
+      "Bash(xargs cat:*)",
+      "Bash(./node_modules/.bin/tsc:*)",
+      "Bash(node --version:*)",
+      "Bash(npm ls:*)",
+      "Bash(pkill:*)",
+      "Bash(mudlib/efuns.d.ts )",
+      "Bash(mudlib/std/player.ts )",
+      "Bash(mudlib/lib/gui-types.ts )",
+      "Bash(mudlib/cmds/builder/_testgui.ts )",
+      "Bash(package.json )",
+      "Bash(src/client/client.ts )",
+      "Bash(src/client/styles.css )",
+      "Bash(src/client/websocket-client.ts )",
+      "Bash(src/client/gui/ )",
+      "Bash(src/driver/driver.ts )",
+      "Bash(src/driver/efun-bridge.ts )",
+      "Bash(src/network/connection.ts )",
+      "Bash(docs/gui-modals.md )",
+      "Bash(tasks/plan-gui-interface.md)",
+      "Bash(grep:*)",
+      "Bash(node -e:*)",
+      "Bash(git restore:*)"
     ]
   }
 }
