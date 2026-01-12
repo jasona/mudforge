@@ -870,11 +870,37 @@ export class QuestDaemon extends MudObject {
   /**
    * Consume quest items on turn-in.
    */
-  private consumeQuestItems(player: QuestPlayer, quest: QuestDefinition): void {
+  private async consumeQuestItems(player: QuestPlayer, quest: QuestDefinition): Promise<void> {
     for (const obj of quest.objectives) {
       if (obj.type === 'fetch' && obj.consumeOnComplete) {
-        // TODO: Find and remove items from player inventory
-        // This requires integration with inventory system
+        // Find and remove items from player inventory
+        const playerObj = player as unknown as MudObject;
+        const inventory = playerObj.inventory || [];
+        let consumed = 0;
+
+        for (const item of [...inventory]) {
+          if (consumed >= obj.required) break;
+
+          // Check if item matches any of the itemPaths
+          const itemPath = (item as MudObject).objectPath || '';
+          const matches = obj.itemPaths.some(
+            (path) => itemPath.includes(path) || itemPath === path ||
+              (item as MudObject).matchesName?.(path)
+          );
+
+          if (matches) {
+            // Remove item from player and destruct it
+            await (item as MudObject).moveTo(null);
+            if (typeof efuns !== 'undefined' && efuns.destruct) {
+              await efuns.destruct(item as MudObject);
+            }
+            consumed++;
+          }
+        }
+
+        if (consumed > 0) {
+          player.receive(`{dim}${consumed} ${obj.itemName} consumed.{/}\n`);
+        }
       }
     }
   }
