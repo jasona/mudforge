@@ -212,7 +212,7 @@ export class QuestDaemon extends MudObject {
   /**
    * Check if player can accept a quest.
    */
-  canAcceptQuest(player: QuestPlayer, questId: QuestId): CanAcceptQuestResult {
+  async canAcceptQuest(player: QuestPlayer, questId: QuestId): Promise<CanAcceptQuestResult> {
     const quest = this.getQuest(questId);
     if (!quest) {
       return { canAccept: false, reason: 'Quest not found.' };
@@ -248,7 +248,7 @@ export class QuestDaemon extends MudObject {
     }
 
     // Check prerequisites
-    const prereqResult = this.checkPrerequisites(player, quest);
+    const prereqResult = await this.checkPrerequisites(player, quest);
     if (!prereqResult.met) {
       return { canAccept: false, reason: prereqResult.reason };
     }
@@ -777,10 +777,10 @@ export class QuestDaemon extends MudObject {
   /**
    * Check quest prerequisites.
    */
-  private checkPrerequisites(
+  private async checkPrerequisites(
     player: QuestPlayer,
     quest: QuestDefinition
-  ): { met: boolean; reason?: string } {
+  ): Promise<{ met: boolean; reason?: string }> {
     const prereqs = quest.prerequisites;
     if (!prereqs) return { met: true };
 
@@ -799,7 +799,28 @@ export class QuestDaemon extends MudObject {
       }
     }
 
-    // Check guilds (TODO: integrate with guild daemon)
+    // Check guilds
+    if (prereqs.guilds) {
+      try {
+        const guildDaemon = await getGuildDaemonLazy();
+        for (const [guildId, requiredLevel] of Object.entries(prereqs.guilds)) {
+          const currentLevel = guildDaemon.getGuildLevel(
+            player as unknown as Parameters<typeof guildDaemon.getGuildLevel>[0],
+            guildId
+          );
+          if (currentLevel < requiredLevel) {
+            const guild = guildDaemon.getGuild(guildId);
+            const guildName = guild?.name || guildId;
+            if (currentLevel === 0) {
+              return { met: false, reason: `Requires membership in the ${guildName}.` };
+            }
+            return { met: false, reason: `Requires ${guildName} level ${requiredLevel} (you are level ${currentLevel}).` };
+          }
+        }
+      } catch {
+        // Guild daemon may not be available - skip guild check
+      }
+    }
 
     // Check items (TODO: integrate with inventory)
 

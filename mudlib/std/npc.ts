@@ -728,8 +728,8 @@ export class NPC extends Living {
   /**
    * Get available quests for a player (quests they can accept).
    */
-  getAvailableQuests(player: QuestPlayer): QuestDefinition[] {
-    const questDaemon = getQuestDaemonSync();
+  async getAvailableQuests(player: QuestPlayer): Promise<QuestDefinition[]> {
+    const questDaemon = await getQuestDaemonLazy();
     if (!questDaemon) return [];
 
     const available: QuestDefinition[] = [];
@@ -739,7 +739,7 @@ export class NPC extends Living {
       if (!quest) continue;
 
       // Check if player can accept this quest
-      const canAccept = questDaemon.canAcceptQuest(player, questId);
+      const canAccept = await questDaemon.canAcceptQuest(player, questId);
       if (canAccept.canAccept) {
         available.push(quest);
       }
@@ -772,15 +772,15 @@ export class NPC extends Living {
    * Get all quests this NPC is associated with for a player.
    * Returns { available, inProgress, completed }
    */
-  getQuestsForPlayer(player: QuestPlayer): {
+  async getQuestsForPlayer(player: QuestPlayer): Promise<{
     available: QuestDefinition[];
     inProgress: PlayerQuestState[];
     completed: PlayerQuestState[];
-  } {
-    const questDaemon = getQuestDaemonSync();
+  }> {
+    const questDaemon = await getQuestDaemonLazy();
     if (!questDaemon) return { available: [], inProgress: [], completed: [] };
 
-    const available = this.getAvailableQuests(player);
+    const available = await this.getAvailableQuests(player);
     const completed = this.getCompletedQuests(player);
 
     // Get in-progress quests that this NPC is the giver or turn-in for
@@ -803,11 +803,11 @@ export class NPC extends Living {
    * - '?' if there are quests ready for turn-in
    * - null if no quest activity
    */
-  getQuestIndicator(player: QuestPlayer): '!' | '?' | null {
+  async getQuestIndicator(player: QuestPlayer): Promise<'!' | '?' | null> {
     const completed = this.getCompletedQuests(player);
     if (completed.length > 0) return '?';
 
-    const available = this.getAvailableQuests(player);
+    const available = await this.getAvailableQuests(player);
     if (available.length > 0) return '!';
 
     return null;
