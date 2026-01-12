@@ -31,6 +31,16 @@ import {
 } from '../std/quest/types.js';
 import { getAllQuestDefinitions } from '../std/quest/definitions/index.js';
 
+// Lazy-loaded guild daemon to avoid circular dependencies
+let _guildDaemon: ReturnType<typeof import('./guild.js').getGuildDaemon> | null = null;
+async function getGuildDaemonLazy() {
+  if (!_guildDaemon) {
+    const { getGuildDaemon } = await import('./guild.js');
+    _guildDaemon = getGuildDaemon();
+  }
+  return _guildDaemon;
+}
+
 /**
  * Quest Daemon class.
  */
@@ -850,7 +860,19 @@ export class QuestDaemon extends MudObject {
       }
     }
 
-    // Guild XP (TODO: integrate with guild daemon)
+    // Guild XP
+    if (rewards.guildXP) {
+      try {
+        const guildDaemon = await getGuildDaemonLazy();
+        for (const [guildId, amount] of Object.entries(rewards.guildXP)) {
+          if (guildDaemon.awardGuildXP(player as unknown as Parameters<typeof guildDaemon.awardGuildXP>[0], guildId, amount)) {
+            rewardLines.push(`  {blue}+${amount} ${guildId} Guild XP{/}`);
+          }
+        }
+      } catch {
+        // Guild daemon may not be available
+      }
+    }
 
     // Custom handler
     if (rewards.customHandler) {
