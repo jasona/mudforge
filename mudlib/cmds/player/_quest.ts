@@ -215,7 +215,9 @@ async function handleAcceptQuest(
 
     // Find quest-giving NPCs in the room
     const npcs = (room.inventory || []).filter(
-      (obj: MudObject) => 'isQuestGiver' in obj && (obj as unknown as NPC).isQuestGiver()
+      (obj: MudObject) => 'questsOffered' in obj &&
+        Array.isArray((obj as unknown as NPC).questsOffered) &&
+        (obj as unknown as NPC).questsOffered.length > 0
     ) as unknown as NPC[];
 
     if (npcs.length === 0) {
@@ -223,25 +225,55 @@ async function handleAcceptQuest(
       return;
     }
 
-    // Show available quests
+    // Show available quests (use daemon directly instead of NPC method)
     let hasQuests = false;
+    let hasUnavailable = false;
+    const unavailableQuests: Array<{ quest: QuestDefinition; reason: string; npcName: string }> = [];
+
     for (const npc of npcs) {
-      const available = npc.getAvailableQuests(player);
-      if (available.length > 0) {
+      const availableQuests: QuestDefinition[] = [];
+
+      // Check each quest this NPC offers
+      for (const questId of npc.questsOffered) {
+        const quest = questDaemon.getQuest(questId);
+        if (!quest) continue;
+
+        const canAccept = questDaemon.canAcceptQuest(player, questId);
+        if (canAccept.canAccept) {
+          availableQuests.push(quest);
+        } else if (canAccept.reason) {
+          // Track unavailable quests to show as locked
+          unavailableQuests.push({ quest, reason: canAccept.reason, npcName: npc.name });
+        }
+      }
+
+      if (availableQuests.length > 0) {
         if (!hasQuests) {
           ctx.sendLine('');
           ctx.sendLine('{bold}{cyan}Available Quests:{/}');
           hasQuests = true;
         }
         ctx.sendLine(`\n{bold}${npc.name}:{/}`);
-        for (const q of available) {
+        for (const q of availableQuests) {
           ctx.sendLine(`  {yellow}!{/} ${q.name} - ${q.description}`);
         }
       }
     }
 
-    if (!hasQuests) {
+    // Show unavailable quests with reasons
+    if (unavailableQuests.length > 0) {
+      hasUnavailable = true;
+      ctx.sendLine('');
+      ctx.sendLine('{dim}Locked Quests:{/}');
+      for (const { quest, reason, npcName } of unavailableQuests) {
+        ctx.sendLine(`  {dim}[X] ${quest.name} (${npcName}) - ${reason}{/}`);
+      }
+    }
+
+    if (!hasQuests && !hasUnavailable) {
       ctx.sendLine('{yellow}No quests available from NPCs here.{/}');
+    } else if (!hasQuests && hasUnavailable) {
+      ctx.sendLine("\n{dim}No quests available yet. Complete prerequisites to unlock them.{/}");
     } else {
       ctx.sendLine("\n{dim}Use 'quest accept <quest name>' to accept a quest.{/}");
     }

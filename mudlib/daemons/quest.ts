@@ -51,6 +51,15 @@ export class QuestDaemon extends MudObject {
    */
   async load(): Promise<void> {
     if (this._loaded) return;
+    this.loadSync();
+  }
+
+  /**
+   * Synchronously load all quests from definitions.
+   * Used to ensure quests are available immediately on first access.
+   */
+  loadSync(): void {
+    if (this._loaded) return;
 
     try {
       const quests = getAllQuestDefinitions();
@@ -991,12 +1000,8 @@ let questDaemon: QuestDaemon | null = null;
 export function getQuestDaemon(): QuestDaemon {
   if (!questDaemon) {
     questDaemon = new QuestDaemon();
-    // Defer loading to avoid circular import issues
-    setTimeout(() => {
-      questDaemon?.load().catch((err) => {
-        console.error('[QuestDaemon] Failed to load:', err);
-      });
-    }, 0);
+    // Load synchronously to ensure quests are available immediately
+    questDaemon.loadSync();
   }
   return questDaemon;
 }
@@ -1006,6 +1011,14 @@ export function getQuestDaemon(): QuestDaemon {
  */
 export function resetQuestDaemon(): void {
   questDaemon = null;
+}
+
+/**
+ * Get the quest daemon instance if it exists (for use by other modules).
+ * Returns null if daemon hasn't been initialized yet.
+ */
+export function getQuestDaemonInstance(): QuestDaemon | null {
+  return questDaemon;
 }
 
 export default QuestDaemon;
