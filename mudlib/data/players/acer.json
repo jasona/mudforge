@@ -1,6 +1,6 @@
 {
   "name": "Acer",
-  "location": "/areas/void/void",
+  "location": "/areas/valdoria/aldric/center",
   "state": {
     "objectPath": "",
     "isClone": false,
@@ -10,16 +10,17 @@
       "permissionLevel": 3,
       "config.brief": false,
       "config.screenWidth": 100,
-      "config.prompt": "%d >"
+      "config.prompt": "%d >",
+      "questData": {
+        "active": [],
+        "completed": {},
+        "questPoints": 0
+      }
     },
-    "timestamp": 1768154513874,
-    "environment": {
-      "__type": "object_ref",
-      "path": "/areas/void/void",
-      "isClone": false
-    }
+    "timestamp": 1768254949510,
+    "environment": null
   },
-  "savedAt": 1768154513874,
+  "savedAt": 1768254949510,
   "title": "",
   "gender": "neutral",
   "level": 1,
@@ -57,11 +58,16 @@
     "permissionLevel": 3,
     "config.brief": false,
     "config.screenWidth": 100,
-    "config.prompt": "%d >"
+    "config.prompt": "%d >",
+    "questData": {
+      "active": [],
+      "completed": {},
+      "questPoints": 0
+    }
   },
   "createdAt": 1767588015729,
-  "lastLogin": 1768154513,
-  "playTime": 92235,
+  "lastLogin": 1768254949,
+  "playTime": 92333,
   "monitorEnabled": true,
   "displayName": "Sir {yellow}$N{/} is really digging this AI stuff.",
   "cwd": "/areas/guilds/cleric",
@@ -77,7 +83,14 @@
       "/areas/valdoria/aldric_depths/cellblock",
       "/areas/valdoria/aldric_depths/storage",
       "/areas/valdoria/aldric_depths/depths",
-      "/areas/valdoria/aldric_depths/guard_room"
+      "/areas/valdoria/aldric_depths/guard_room",
+      "/areas/valdoria/aldric/market",
+      "/areas/valdoria/aldric/tavern",
+      "/areas/valdoria/aldric/training_hall",
+      "/areas/valdoria/aldric/bank",
+      "/areas/valdoria/aldric/gates",
+      "/areas/valdoria/aldric/bakery",
+      "/areas/valdoria/aldric/tannery"
     ],
     "revealedRooms": [],
     "detectedHiddenExits": {}

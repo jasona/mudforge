@@ -9958,10 +9958,6 @@
   "nuzzle": {
     "LIV": "$N $vnuzzle $t warmly."
   },
-  "nw": {
-    "": "$N $vmutter 'No worries.'",
-    "LIV": "$N $vassure $t 'No worries!'"
-  },
   "nyah": {
     "": "$N $vgo \"Nyaaahh!\"",
     "LIV": "$N $vgo \"Nyaaahh!\" at $t."
