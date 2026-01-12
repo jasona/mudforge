@@ -515,9 +515,21 @@ export class Room extends MudObject {
         if (obj instanceof GoldPile) {
           desc = `{bold}{yellow}${desc}{/}`;
         }
-        // NPCs displayed in red (non-bold)
+        // NPCs displayed in red (non-bold), with quest indicators
         else if (obj instanceof NPC) {
-          desc = `{red}${desc}{/}`;
+          // Check for quest indicator if viewer is a player with quest data
+          let questIndicator = '';
+          if (viewer && 'getProperty' in viewer) {
+            const indicator = obj.getQuestIndicatorSync(
+              viewer as Parameters<typeof obj.getQuestIndicatorSync>[0]
+            );
+            if (indicator === '?') {
+              questIndicator = ' {green}?{/}';
+            } else if (indicator === '!') {
+              questIndicator = ' {yellow}!{/}';
+            }
+          }
+          desc = `{red}${desc}{/}${questIndicator}`;
         }
         lines.push(`  ${desc}`);
       }

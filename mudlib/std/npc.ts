@@ -815,6 +815,43 @@ export class NPC extends Living {
 
     return null;
   }
+
+  /**
+   * Synchronous quest indicator check for room descriptions.
+   * This is a simplified check that shows '?' for turn-ins (sync check)
+   * and '!' for NPCs that offer quests (without full prerequisite check).
+   * For accurate indicator, use the async getQuestIndicator().
+   */
+  getQuestIndicatorSync(player: QuestPlayer): '!' | '?' | null {
+    // Check for quests ready for turn-in first (sync check)
+    const completed = this.getCompletedQuests(player);
+    if (completed.length > 0) return '?';
+
+    // Check if this NPC offers any quests the player might be able to accept
+    // We can't do full prerequisite check synchronously, so just check if
+    // they have quests offered and the player isn't already on them
+    if (this._questsOffered.length > 0) {
+      const questDaemon = getQuestDaemonSync();
+      if (questDaemon) {
+        // Check if any offered quest is available (not active, not completed or repeatable)
+        for (const questId of this._questsOffered) {
+          const quest = questDaemon.getQuest(questId);
+          if (!quest || quest.hidden) continue;
+
+          // Skip if already active
+          if (questDaemon.isQuestActive(player, questId)) continue;
+
+          // Skip if completed and not repeatable
+          if (questDaemon.hasCompletedQuest(player, questId) && !quest.repeatable) continue;
+
+          // There's at least one potentially available quest
+          return '!';
+        }
+      }
+    }
+
+    return null;
+  }
 }
 
 export default NPC;
