@@ -14,19 +14,25 @@ MudForge brings the architectural elegance of classic LPMud drivers into the mod
 
 - **TypeScript Scripting** - Write game content in TypeScript with full IDE support, type safety, and modern syntax
 - **Runtime Hot-Reload** - Create and modify objects while the game is running without server restarts
-- **Modern Web Client** - Clean, Linear.app-inspired browser interface with dark theme
-- **Graphical Stats Panel** - Floating, draggable HP/MP/XP bars with real-time updates
+- **Modern Web Client** - Clean, Linear.app-inspired browser interface with dark theme and 256-color support
+- **Graphical Stats Panel** - Floating, draggable HP/MP/XP/gold bars with real-time updates
 - **Interactive Map Panel** - Floating, resizable map showing explored areas
 - **LDMud-Inspired Architecture** - Everything is an object with consistent inheritance hierarchy
-- **Combat System** - Real-time combat with NPCs, death/resurrection, and corpse looting
+- **Multi-Guild System** - Join up to 3 guilds with skill trees, guild XP, and progression (Fighter, Mage, Thief, Cleric)
+- **Quest System** - MMO-style quests with kill, fetch, deliver, escort, explore, and talk objectives
+- **Buffs & Debuffs** - Temporary stat modifiers with stacking, duration, and visual indicators
+- **Combat System** - Real-time combat with NPCs, death/resurrection, corpse looting, and wimpy auto-flee
 - **Gold Economy** - Currency system with carrying gold, banking, giving, and dropping
 - **Tiered Permission System** - Player, Builder, Senior Builder, and Administrator roles
 - **Equipment System** - Weapons, armor, and shields with slot management and dual-wielding
 - **Container System** - Chests, bags, and lockable containers
-- **NPC System** - Non-player characters with combat AI, loot drops, and autonomous behavior
-- **Communication Channels** - OOC, shout, tell, builder, admin, and extensible channel system
+- **NPC System** - NPCs with combat AI, loot drops, autonomous behavior, quest giving, and training
+- **Communication Channels** - OOC, shout, tell, guild channels, and extensible channel system
+- **Command Aliases** - Player-defined command shortcuts and macro sequences
 - **Session Reconnection** - Seamlessly reconnect to existing game sessions after disconnection
 - **Link-Dead Handling** - Disconnected players fade to a holding area and auto-quit after configurable timeout
+- **GUI Modal System** - Rich client-side dialogs for complex interactions
+- **Memory Management** - Automatic object cleanup and garbage collection
 - **Mud-Wide Configuration** - Persistent ConfigDaemon for game-wide settings adjustable by admins
 - **File-Based Persistence** - Human-readable TypeScript/JSON files that work with version control
 
@@ -91,9 +97,18 @@ MudObject                          # Root of all objects
 |   |   +-- Corpse                 # Dead creatures (lootable)
 |   +-- GoldPile                   # Dropped gold coins
 +-- Living                         # Entities that can act
-|   +-- Player                     # Human players with equipment
+|   +-- Player                     # Human players with equipment, guilds, quests
 |   +-- NPC                        # Computer-controlled characters
+|   |   +-- Trainer                # NPCs that train stats/levels
+|   |   +-- GuildMaster            # NPCs that manage guild membership
 +-- Daemon                         # Background services
+    +-- GuildDaemon                # Guild and skill management
+    +-- QuestDaemon                # Quest registration and tracking
+    +-- CombatDaemon               # Combat resolution
+    +-- ChannelDaemon              # Communication channels
+    +-- SoulDaemon                 # Emote management
+    +-- ResetDaemon                # Periodic room resets
+    +-- ConfigDaemon               # Game-wide configuration
 ```
 
 ## Technology Stack
@@ -209,14 +224,20 @@ mudlib/
 +-- std/              # Standard library
 |   +-- object.ts, room.ts, living.ts, player.ts
 |   +-- item.ts, weapon.ts, armor.ts, container.ts
-|   +-- npc.ts, equipment.ts
+|   +-- npc.ts, equipment.ts, trainer.ts
+|   +-- combat/       # Combat system types and utilities
+|   +-- guild/        # Guild system types and definitions
+|   +-- quest/        # Quest system types and definitions
 +-- daemons/          # Background services
-|   +-- login.ts, channels.ts, help.ts, admin.ts, config.ts
+|   +-- login.ts, channels.ts, combat.ts, config.ts
+|   +-- guild.ts, quest.ts, soul.ts, reset.ts
 +-- cmds/             # Player commands
 |   +-- player/       # Commands for all players
 |   +-- builder/      # Builder-only commands
 |   +-- admin/        # Admin-only commands
 +-- areas/            # Game world
+|   +-- valdoria/     # Valdoria continent
+|   +-- guilds/       # Guild halls
 +-- data/             # Persistent state
 +-- lib/              # Utility libraries
 
@@ -266,6 +287,53 @@ wimpy 20                     # Auto-flee at 20% health
 
 When defeated, players become ghosts and can `resurrect` at the resurrection point. Your corpse remains at the death location with your carried gold - return to loot it!
 
+### Guilds & Skills
+
+Join up to 3 guilds simultaneously and learn unique skills:
+
+```
+guild list                   # See all available guilds
+guild info fighter           # Learn about a specific guild
+guild join fighter           # Join a guild (must meet requirements)
+guild leave fighter          # Leave a guild
+skills                       # View your learned skills
+skill use bash goblin        # Use an active skill
+bash goblin                  # Shorthand for learned skills
+advance                      # See advancement options
+advance fighter              # Advance guild level (costs guild XP)
+advance bash                  # Advance skill level (costs player XP)
+```
+
+**Starter Guilds**: Fighter (melee combat), Mage (arcane magic), Thief (stealth & precision), Cleric (healing & divine power)
+
+### Quests
+
+Accept and complete quests for XP, gold, and quest points:
+
+```
+quest                        # Show active quests
+quest log                    # Full quest log with progress
+quest info <name>            # Detailed quest information
+quest accept                 # See available quests from nearby NPCs
+quest accept <name>          # Accept a specific quest
+quest abandon <name>         # Abandon an active quest
+quest turn-in <name>         # Turn in a completed quest
+quest history                # View completed quests
+quest points                 # Check quest point balance
+```
+
+Quest types include: kill targets, collect items, deliver packages, escort NPCs, explore locations, and talk to characters.
+
+### Buffs & Debuffs
+
+Temporary effects that modify your stats:
+
+```
+buffs                        # View active buffs and debuffs
+```
+
+Effects can come from skills, potions, equipment, or environmental sources. Multiple effects of the same type stack, and durations are tracked automatically.
+
 ### Gold & Economy
 
 ```
@@ -291,11 +359,29 @@ displayname Sir {blue}$N{/} the {green}Bold{/}
 
 ### Communication
 
-- `say <message>` - Talk to players in the same room
-- `tell <player> <message>` - Private message to a player
-- `reply <message>` - Reply to last tell
-- `shout <message>` - Broadcast to all players
-- `ooc <message>` - Out-of-character chat channel
+```
+say <message>                # Talk to players in the same room
+tell <player> <message>      # Private message to a player
+reply <message>              # Reply to last tell
+shout <message>              # Broadcast to all players
+ooc <message>                # Out-of-character chat channel
+fighter <message>            # Guild channel (if member)
+emote <action>               # Perform an emote
+emote smile at bob           # Target someone with an emote
+remote bob wave              # Emote at someone in another room
+```
+
+### Command Aliases & Macros
+
+Create shortcuts for frequently used commands:
+
+```
+alias                        # View all aliases
+alias k kill                 # Create alias 'k' for 'kill'
+alias atk kill $*            # Alias with arguments
+unalias k                    # Remove an alias
+do n;n;e;get sword           # Execute multiple commands
+```
 
 ### Session Reconnection & Link-Dead Handling
 
@@ -396,9 +482,15 @@ Detailed documentation is available in the `/docs` directory:
 - [Efuns Reference](docs/efuns.md) - Driver API functions
 - [Commands](docs/commands.md) - Command reference
 - [Player Features](docs/player-features.md) - Display names, channels, who list
+- [Guilds](docs/guilds.md) - Multi-guild system with skills and progression
+- [Quests](docs/quests.md) - Quest system with objectives and rewards
+- [Buffs & Debuffs](docs/buffs-debuffs.md) - Temporary stat modifiers
+- [Colors](docs/colors.md) - Color codes and 256-color support
 - [Daemons](docs/daemons.md) - Background services
 - [Permissions](docs/permissions.md) - Permission system
 - [Web Client](docs/client.md) - Browser client documentation
+- [GUI Modals](docs/gui-modals.md) - Rich client-side dialogs
+- [Memory Management](docs/memory-management.md) - Object cleanup system
 - [Deployment](docs/deployment.md) - Production deployment
 
 ## Deployment
