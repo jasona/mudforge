@@ -148,6 +148,7 @@ export class QuestDaemon extends MudObject {
 
   /**
    * Get player's quest data (creates default if not exists).
+   * Also checks for and handles expired time-limited quests.
    */
   getPlayerQuestData(player: QuestPlayer): PlayerQuestData {
     const data = player.getProperty(QUEST_CONSTANTS.PLAYER_DATA_KEY) as PlayerQuestData | undefined;
@@ -156,6 +157,10 @@ export class QuestDaemon extends MudObject {
       player.setProperty(QUEST_CONSTANTS.PLAYER_DATA_KEY, newData);
       return newData;
     }
+
+    // Check for expired quests
+    this.checkExpiredQuests(player, data);
+
     return data;
   }
 
@@ -164,6 +169,75 @@ export class QuestDaemon extends MudObject {
    */
   private savePlayerQuestData(player: QuestPlayer, data: PlayerQuestData): void {
     player.setProperty(QUEST_CONSTANTS.PLAYER_DATA_KEY, data);
+  }
+
+  /**
+   * Check for and fail any expired time-limited quests.
+   */
+  private checkExpiredQuests(player: QuestPlayer, data: PlayerQuestData): void {
+    const now = Date.now();
+    const expiredQuests: PlayerQuestState[] = [];
+
+    for (const state of data.active) {
+      if (state.deadline && now > state.deadline && state.status === 'active') {
+        expiredQuests.push(state);
+      }
+    }
+
+    if (expiredQuests.length === 0) return;
+
+    // Process expired quests
+    for (const state of expiredQuests) {
+      const quest = this.getQuest(state.questId);
+      state.status = 'failed';
+
+      // Notify player
+      if (quest) {
+        player.receive(`{red}[Quest Failed] ${quest.name} - Time limit expired!{/}\n`);
+      }
+
+      // Track failed quest
+      if (!data.failed) {
+        data.failed = [];
+      }
+      data.failed.push(state.questId);
+    }
+
+    // Remove failed quests from active list
+    data.active = data.active.filter((s) => s.status !== 'failed');
+
+    this.savePlayerQuestData(player, data);
+  }
+
+  /**
+   * Manually fail a quest (e.g., from custom handler or escort failure).
+   */
+  failQuest(player: QuestPlayer, questId: QuestId, reason?: string): { success: boolean; message: string } {
+    const data = this.getPlayerQuestData(player);
+    const index = data.active.findIndex((q) => q.questId === questId);
+
+    if (index === -1) {
+      return { success: false, message: 'You are not on that quest.' };
+    }
+
+    const quest = this.getQuest(questId);
+    const state = data.active[index];
+    state.status = 'failed';
+
+    // Track failed quest
+    if (!data.failed) {
+      data.failed = [];
+    }
+    data.failed.push(questId);
+
+    // Remove from active
+    data.active.splice(index, 1);
+    this.savePlayerQuestData(player, data);
+
+    const failReason = reason || 'Quest failed';
+    player.receive(`{red}[Quest Failed] ${quest?.name || questId} - ${failReason}{/}\n`);
+
+    return { success: true, message: `Quest failed: ${quest?.name || questId}` };
   }
 
   // ==================== Quest State Queries ====================
@@ -1026,7 +1100,22 @@ export class QuestDaemon extends MudObject {
 
     const lines: string[] = [];
     const statusColor = state.status === 'completed' ? 'green' : 'yellow';
-    const statusText = state.status === 'completed' ? '(Ready to Turn In!)' : '(In Progress)';
+    let statusText = state.status === 'completed' ? '(Ready to Turn In!)' : '(In Progress)';
+
+    // Add time remaining for time-limited quests
+    if (state.deadline && state.status === 'active') {
+      const remaining = state.deadline - Date.now();
+      if (remaining > 0) {
+        const minutes = Math.ceil(remaining / 1000 / 60);
+        if (minutes < 60) {
+          statusText += ` {red}[${minutes}m remaining]{/}`;
+        } else {
+          const hours = Math.floor(minutes / 60);
+          const mins = minutes % 60;
+          statusText += ` {yellow}[${hours}h ${mins}m remaining]{/}`;
+        }
+      }
+    }
 
     lines.push(`{bold}{${statusColor}}${quest.name}{/} ${statusText}`);
     lines.push(`  {dim}${quest.description}{/}`);
