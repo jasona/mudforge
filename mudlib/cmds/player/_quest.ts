@@ -305,7 +305,7 @@ async function handleAcceptQuest(
   }
 
   // Accept the quest
-  const result = questDaemon.acceptQuest(player, quest.id);
+  const result = await questDaemon.acceptQuest(player, quest.id);
   if (!result.success) {
     ctx.sendLine(`{red}${result.message}{/}`);
   }

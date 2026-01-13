@@ -333,8 +333,8 @@ export class QuestDaemon extends MudObject {
   /**
    * Accept a quest.
    */
-  acceptQuest(player: QuestPlayer, questId: QuestId): AcceptQuestResult {
-    const canAccept = this.canAcceptQuest(player, questId);
+  async acceptQuest(player: QuestPlayer, questId: QuestId): Promise<AcceptQuestResult> {
+    const canAccept = await this.canAcceptQuest(player, questId);
     if (!canAccept.canAccept) {
       return { success: false, message: canAccept.reason || 'Cannot accept quest.' };
     }
