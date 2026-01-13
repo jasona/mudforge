@@ -18,7 +18,8 @@ type WebSocketClientEvent =
   | 'ide-message'
   | 'map-message'
   | 'stats-message'
-  | 'gui-message';
+  | 'gui-message'
+  | 'completion-message';
 
 /**
  * Stats message structure for HP/MP/XP display.
@@ -34,6 +35,17 @@ export interface StatsMessage {
   xpToLevel: number;
   gold: number;
   bankedGold: number;
+  permissionLevel: number;
+  cwd: string;
+}
+
+/**
+ * Tab completion response message.
+ */
+export interface CompletionMessage {
+  type: 'completion';
+  prefix: string;
+  completions: string[];
 }
 
 /**
@@ -228,6 +240,14 @@ export class WebSocketClient {
           } catch (error) {
             console.error('Failed to parse GUI message:', error);
           }
+        } else if (line.startsWith('\x00[COMPLETE]')) {
+          const jsonStr = line.slice(11); // Remove \x00[COMPLETE] prefix
+          try {
+            const completionMessage = JSON.parse(jsonStr) as CompletionMessage;
+            this.emit('completion-message', completionMessage);
+          } catch (error) {
+            console.error('Failed to parse COMPLETE message:', error);
+          }
         } else {
           this.emit('message', line);
         }
@@ -314,6 +334,23 @@ export class WebSocketClient {
       this.socket!.send(`\x00[GUI]${jsonStr}\n`);
     } catch (error) {
       this.emit('error', `Failed to send GUI message: ${error}`);
+    }
+  }
+
+  /**
+   * Send a completion request to the server.
+   */
+  sendCompletionRequest(prefix: string): void {
+    if (!this.isConnected) {
+      return; // Silently fail - not an error condition
+    }
+
+    try {
+      const message = { prefix };
+      const jsonStr = JSON.stringify(message);
+      this.socket!.send(`\x00[COMPLETE]${jsonStr}\n`);
+    } catch (error) {
+      console.error('Failed to send completion request:', error);
     }
   }
 

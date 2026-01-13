@@ -31,6 +31,17 @@ export interface StatsMessage {
   xpToLevel: number;
   gold: number;
   bankedGold: number;
+  permissionLevel: number;
+  cwd: string;
+}
+
+/**
+ * Tab completion response message.
+ */
+export interface CompletionMessage {
+  type: 'completion';
+  prefix: string;
+  completions: string[];
 }
 
 /**
@@ -260,6 +271,24 @@ export class Connection extends EventEmitter {
     try {
       const json = JSON.stringify(message);
       this.socket.send(`\x00[GUI]${json}`);
+    } catch (error) {
+      this.emit('error', error as Error);
+    }
+  }
+
+  /**
+   * Send a tab completion response to the client.
+   * COMPLETE messages are prefixed with \x00[COMPLETE] to distinguish them from regular text.
+   * @param message The completion message to send
+   */
+  sendCompletion(message: CompletionMessage): void {
+    if (this._state !== 'open') {
+      return;
+    }
+
+    try {
+      const json = JSON.stringify(message);
+      this.socket.send(`\x00[COMPLETE]${json}`);
     } catch (error) {
       this.emit('error', error as Error);
     }

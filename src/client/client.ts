@@ -5,7 +5,13 @@
  */
 
 import { Terminal } from './terminal.js';
-import { WebSocketClient, IdeMessage, StatsMessage, GUIMessage } from './websocket-client.js';
+import {
+  WebSocketClient,
+  IdeMessage,
+  StatsMessage,
+  GUIMessage,
+  CompletionMessage,
+} from './websocket-client.js';
 import { InputHandler } from './input-handler.js';
 import { IdeEditor } from './ide-editor.js';
 import { MapPanel } from './map-panel.js';
@@ -26,6 +32,8 @@ class MudClient {
   private statsPanel: StatsPanel;
   private guiModal: GUIModal;
   private statusElement: HTMLElement;
+  private permissionLevel: number = 0;
+  private cwd: string = '/';
 
   constructor() {
     // Get DOM elements
@@ -100,6 +108,9 @@ class MudClient {
     // Stats events
     this.wsClient.on('stats-message', (message: StatsMessage) => {
       this.statsPanel.handleMessage(message);
+      // Track permission level and cwd for tab completion
+      this.permissionLevel = message.permissionLevel ?? 0;
+      this.cwd = message.cwd ?? '/';
     });
 
     // GUI events
@@ -107,9 +118,21 @@ class MudClient {
       this.guiModal.handleMessage(message as GUIServerMessage);
     });
 
+    // Completion events
+    this.wsClient.on('completion-message', (message: CompletionMessage) => {
+      this.inputHandler.setCompletions(message.prefix, message.completions);
+    });
+
     // Input events
     this.inputHandler.on('submit', (command: string) => {
       this.sendCommand(command);
+    });
+
+    // Tab completion handler - only active for builders+
+    this.inputHandler.setTabCompleteHandler((prefix: string) => {
+      if (this.permissionLevel >= 1) {
+        this.wsClient.sendCompletionRequest(prefix);
+      }
     });
   }
 

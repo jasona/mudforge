@@ -8,12 +8,17 @@
 /**
  * Event types for the input handler.
  */
-type InputHandlerEvent = 'submit';
+type InputHandlerEvent = 'submit' | 'tab-complete';
 
 /**
  * Event handler type.
  */
 type EventHandler = (command: string) => void;
+
+/**
+ * Tab completion callback type.
+ */
+type TabCompleteHandler = (prefix: string, cursorPosition: number) => void;
 
 /**
  * localStorage key for command history.
@@ -31,6 +36,12 @@ export class InputHandler {
   private maxHistory: number = 20;
   private currentInput: string = '';
   private handlers: Map<InputHandlerEvent, Set<EventHandler>> = new Map();
+  private tabCompleteHandler: TabCompleteHandler | null = null;
+  private completions: string[] = [];
+  private completionIndex: number = -1;
+  private completionPrefix: string = '';
+  private completionStartPos: number = 0; // Where the word being completed starts
+  private completionEndPos: number = 0; // Where the current completion ends
 
   constructor(inputElement: HTMLInputElement, sendButton: HTMLElement) {
     this.inputElement = inputElement;
@@ -100,24 +111,133 @@ export class InputHandler {
     switch (event.key) {
       case 'Enter':
         event.preventDefault();
+        this.resetCompletions();
         this.submit();
         break;
 
       case 'ArrowUp':
         event.preventDefault();
+        this.resetCompletions();
         this.navigateHistory(1);
         break;
 
       case 'ArrowDown':
         event.preventDefault();
+        this.resetCompletions();
         this.navigateHistory(-1);
         break;
 
       case 'Escape':
         event.preventDefault();
+        this.resetCompletions();
         this.clear();
         break;
+
+      case 'Tab':
+        event.preventDefault();
+        this.handleTabComplete();
+        break;
+
+      default:
+        // Reset completions on any other keypress
+        if (this.completions.length > 0 && event.key.length === 1) {
+          this.resetCompletions();
+        }
+        break;
     }
+  }
+
+  /**
+   * Handle tab completion.
+   */
+  private handleTabComplete(): void {
+    // If we have completions, cycle through them
+    if (this.completions.length > 0) {
+      this.completionIndex = (this.completionIndex + 1) % this.completions.length;
+      this.applyCompletion();
+      return;
+    }
+
+    // Otherwise, request completions from server
+    if (this.tabCompleteHandler) {
+      const value = this.inputElement.value;
+      const cursorPos = this.inputElement.selectionStart ?? value.length;
+
+      // Find the word at cursor position for completion
+      const textBeforeCursor = value.substring(0, cursorPos);
+      const lastSpace = textBeforeCursor.lastIndexOf(' ');
+      this.completionStartPos = lastSpace + 1; // Word starts after the space
+      this.completionEndPos = cursorPos; // Initially ends at cursor
+      this.completionPrefix = textBeforeCursor.substring(this.completionStartPos);
+
+      this.tabCompleteHandler(this.completionPrefix, cursorPos);
+    }
+  }
+
+  /**
+   * Apply the current completion.
+   */
+  private applyCompletion(): void {
+    if (this.completionIndex < 0 || this.completionIndex >= this.completions.length) {
+      return;
+    }
+
+    const completion = this.completions[this.completionIndex];
+    const value = this.inputElement.value;
+
+    // Get the text before the word being completed and after the current completion
+    const beforeWord = value.substring(0, this.completionStartPos);
+    const afterCompletion = value.substring(this.completionEndPos);
+
+    // Replace the completion region with the new completion
+    this.inputElement.value = beforeWord + completion + afterCompletion;
+
+    // Update the end position to reflect the new completion length
+    this.completionEndPos = this.completionStartPos + completion.length;
+
+    // Position cursor after the completion
+    this.inputElement.setSelectionRange(this.completionEndPos, this.completionEndPos);
+  }
+
+  /**
+   * Reset completion state.
+   */
+  private resetCompletions(): void {
+    this.completions = [];
+    this.completionIndex = -1;
+    this.completionPrefix = '';
+    this.completionStartPos = 0;
+    this.completionEndPos = 0;
+  }
+
+  /**
+   * Set completions received from the server.
+   */
+  setCompletions(prefix: string, completions: string[]): void {
+    // Only apply if the prefix matches what we're completing
+    if (prefix !== this.completionPrefix) {
+      return;
+    }
+
+    this.completions = completions;
+
+    if (completions.length === 1) {
+      // Single match: apply it immediately
+      this.completionIndex = 0;
+      this.applyCompletion();
+      this.resetCompletions();
+    } else if (completions.length > 1) {
+      // Multiple matches: apply first and allow cycling
+      this.completionIndex = 0;
+      this.applyCompletion();
+    }
+  }
+
+  /**
+   * Set the tab completion handler.
+   */
+  setTabCompleteHandler(handler: TabCompleteHandler | null): void {
+    this.tabCompleteHandler = handler;
   }
 
   /**

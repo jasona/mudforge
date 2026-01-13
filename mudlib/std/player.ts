@@ -38,6 +38,17 @@ export interface StatsMessage {
   xpToLevel: number;
   gold: number;
   bankedGold: number;
+  permissionLevel: number;
+  cwd: string;
+}
+
+/**
+ * Tab completion response message.
+ */
+export interface CompletionMessage {
+  type: 'completion';
+  prefix: string;
+  completions: string[];
 }
 
 /**
@@ -48,6 +59,7 @@ export interface Connection {
   sendMap?(message: MapMessage): void;
   sendStats?(message: StatsMessage): void;
   sendGUI?(message: GUIMessage): void;
+  sendCompletion?(message: CompletionMessage): void;
   close(): void;
   isConnected(): boolean;
 }
@@ -832,6 +844,20 @@ export class Player extends Living {
     this._permissionLevel = value;
   }
 
+  /**
+   * Get the permission level as a method (for driver compatibility).
+   */
+  getPermissionLevel(): number {
+    return this._permissionLevel;
+  }
+
+  /**
+   * Get the current working directory as a method (for driver compatibility).
+   */
+  getCwd(): string {
+    return this._cwd;
+  }
+
   // ========== Monitor ==========
 
   /**
@@ -878,6 +904,8 @@ export class Player extends Living {
         xpToLevel: this.xpForNextLevel,
         gold: this._gold,
         bankedGold: this._bankedGold,
+        permissionLevel: this._permissionLevel,
+        cwd: this._cwd,
       });
     }
 

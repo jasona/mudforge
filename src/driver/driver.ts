@@ -376,6 +376,12 @@ export class Driver {
         return;
       }
 
+      // Check for completion request prefix
+      if (input.startsWith('\x00[COMPLETE]')) {
+        await this.handleCompletionRequest(connection, handler, input.slice(11));
+        return;
+      }
+
       // Check if handler is login daemon
       if (handler === this.loginDaemon) {
         await this.loginDaemon.processInput(connection, input);
@@ -427,6 +433,117 @@ export class Driver {
       }
     } catch (error) {
       this.logger.error({ error }, 'Failed to parse GUI message');
+    }
+  }
+
+  /**
+   * Handle a tab completion request from the client.
+   * Only works for builders and above, completes file paths in the player's cwd.
+   */
+  private async handleCompletionRequest(
+    connection: Connection,
+    handler: MudObject,
+    jsonStr: string
+  ): Promise<void> {
+    // Only process for logged-in players (not login daemon)
+    if (handler === this.loginDaemon) {
+      return;
+    }
+
+    try {
+      const request = JSON.parse(jsonStr) as { prefix: string };
+      const player = handler as MudObject & {
+        getPermissionLevel?: () => number;
+        getCwd?: () => string;
+      };
+
+      // Only builders (level 1+) get tab completion
+      const permLevel = player.getPermissionLevel?.() ?? 0;
+      if (permLevel < 1) {
+        return;
+      }
+
+      const cwd = player.getCwd?.() ?? '/';
+      const prefix = request.prefix || '';
+
+      // Get completions from the file system
+      const completions = await this.getFileCompletions(cwd, prefix);
+
+      // Send response
+      connection.sendCompletion({
+        type: 'completion',
+        prefix,
+        completions,
+      });
+    } catch (error) {
+      this.logger.error({ error }, 'Failed to handle completion request');
+    }
+  }
+
+  /**
+   * Get file completions for a prefix in a directory.
+   */
+  private async getFileCompletions(cwd: string, prefix: string): Promise<string[]> {
+    try {
+      // Determine the directory to search and the filename prefix
+      let searchDir = cwd;
+      let filePrefix = prefix;
+
+      // If prefix contains a path separator, split it
+      const lastSlash = prefix.lastIndexOf('/');
+      if (lastSlash >= 0) {
+        const pathPart = prefix.substring(0, lastSlash + 1);
+        filePrefix = prefix.substring(lastSlash + 1);
+
+        // Handle absolute vs relative paths
+        if (pathPart.startsWith('/')) {
+          searchDir = pathPart;
+        } else {
+          searchDir = cwd.endsWith('/') ? cwd + pathPart : cwd + '/' + pathPart;
+        }
+      }
+
+      // Normalize the search directory
+      searchDir = searchDir.replace(/\/+/g, '/');
+      if (!searchDir.startsWith('/')) {
+        searchDir = '/' + searchDir;
+      }
+
+      // Read directory contents
+      const entries = await this.efunBridge.readDir(searchDir);
+
+      // Filter by prefix and get file info
+      const completions: string[] = [];
+      const lowerPrefix = filePrefix.toLowerCase();
+
+      for (const entry of entries) {
+        if (entry.toLowerCase().startsWith(lowerPrefix)) {
+          try {
+            const entryPath = searchDir.endsWith('/')
+              ? searchDir + entry
+              : searchDir + '/' + entry;
+            const stat = await this.efunBridge.fileStat(entryPath);
+
+            // Add trailing slash for directories
+            if (stat.isDirectory) {
+              completions.push(entry + '/');
+            } else {
+              completions.push(entry);
+            }
+          } catch {
+            // Skip entries we can't stat
+            completions.push(entry);
+          }
+        }
+      }
+
+      // Sort completions
+      completions.sort();
+
+      return completions;
+    } catch {
+      // Directory doesn't exist or can't be read
+      return [];
     }
   }
 
