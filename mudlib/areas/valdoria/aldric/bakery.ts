@@ -36,6 +36,9 @@ A narrow alley leads {green}south{/} back to the market square.`;
   private setupRoom(): void {
     this.addExit('south', '/areas/valdoria/aldric/market');
 
+    // Set NPCs that belong to this room - they'll respawn on reset if missing
+    this.setNpcs(['/areas/valdoria/aldric/baker']);
+
     this.addAction('look', this.cmdLook.bind(this));
     this.addAction('buy', this.cmdBuy.bind(this));
     this.addAction('smell', this.cmdSmell.bind(this));
@@ -44,17 +47,8 @@ A narrow alley leads {green}south{/} back to the market square.`;
   override async onCreate(): Promise<void> {
     await super.onCreate();
 
-    // Spawn Baker Hilda
-    if (typeof efuns !== 'undefined' && efuns.cloneObject) {
-      try {
-        const baker = await efuns.cloneObject('/areas/valdoria/aldric/baker');
-        if (baker && typeof baker.moveTo === 'function') {
-          await baker.moveTo(this);
-        }
-      } catch (e) {
-        console.error('[Bakery] Failed to spawn baker:', e);
-      }
-    }
+    // Spawn NPCs defined via setNpcs()
+    await this.spawnMissingNpcs();
 
     console.log('[Bakery] The bakery has been initialized.');
   }

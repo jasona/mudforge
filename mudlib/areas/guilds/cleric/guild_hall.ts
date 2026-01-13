@@ -3,7 +3,6 @@
  */
 
 import { Room } from '../../../lib/std.js';
-import type { GuildMaster } from '../../../std/guild/guild-master.js';
 
 export class ClericGuildHall extends Room {
   constructor() {
@@ -26,18 +25,16 @@ is inlaid in the marble floor before the altar.`;
     this.addExit('out', '/areas/valdoria/aldric/center');
     this.addId('cleric guild');
     this.addId('temple');
+
+    // Set NPCs that belong to this room - they'll respawn on reset if missing
+    this.setNpcs(['/areas/guilds/cleric/guildmaster']);
   }
 
   override async onCreate(): Promise<void> {
     await super.onCreate();
 
-    const hasGuildmaster = this.inventory.some(obj => obj.id('guildmaster') || obj.id('seraphina'));
-    if (hasGuildmaster) return;
-
-    if (typeof efuns !== 'undefined' && efuns.cloneObject) {
-      const gm = await efuns.cloneObject<GuildMaster>('/areas/guilds/cleric/guildmaster', 'ClericGuildmaster');
-      if (gm) await gm.moveTo(this);
-    }
+    // Spawn NPCs defined via setNpcs()
+    await this.spawnMissingNpcs();
   }
 }
 

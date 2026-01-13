@@ -62,6 +62,9 @@ anyone who will listen.`;
     this.addExit('thief', '/areas/guilds/thief/guild_hall');
     this.addExit('cleric', '/areas/guilds/cleric/guild_hall');
 
+    // Set NPCs that belong to this room - they'll respawn on reset if missing
+    this.setNpcs(['/areas/valdoria/aldric/town_crier']);
+
     // Add actions for custom exits (guild halls)
     this.addAction('fighter', () => this.goCustomExit('fighter'));
     this.addAction('mage', () => this.goCustomExit('mage'));
@@ -78,17 +81,10 @@ anyone who will listen.`;
    * Called when the room is created.
    */
   override async onCreate(): Promise<void> {
-    // Clone the Town Crier NPC into the room
-    if (typeof efuns !== 'undefined' && efuns.cloneObject) {
-      try {
-        const townCrier = await efuns.cloneObject('/areas/valdoria/aldric/town_crier');
-        if (townCrier) {
-          await townCrier.moveTo(this);
-        }
-      } catch (error) {
-        console.error('[CenterOfTown] Failed to clone Town Crier:', error);
-      }
-    }
+    await super.onCreate();
+
+    // Spawn NPCs defined via setNpcs()
+    await this.spawnMissingNpcs();
   }
 
   /**

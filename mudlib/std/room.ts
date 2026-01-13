@@ -50,6 +50,7 @@ export interface BroadcastOptions {
 export class Room extends MudObject {
   private _exits: Map<string, Exit> = new Map();
   private _items: string[] = [];
+  private _npcs: string[] = [];
   private _resetMessage: string = '';
   private _terrain: TerrainType = getDefaultTerrain();
   private _mapData: RoomMapData = {};
@@ -403,6 +404,61 @@ export class Room extends MudObject {
   }
 
   /**
+   * Set NPCs to clone and maintain in this room.
+   * NPCs set here will be spawned on room creation and respawned on reset if missing.
+   * @param npcPaths Array of NPC paths to clone
+   */
+  setNpcs(npcPaths: string[]): void {
+    this._npcs = [...npcPaths];
+  }
+
+  /**
+   * Get the list of NPC paths maintained by this room.
+   */
+  getNpcs(): string[] {
+    return [...this._npcs];
+  }
+
+  /**
+   * Spawn all NPCs that should be in this room but are missing.
+   * Called during onCreate and onReset.
+   */
+  async spawnMissingNpcs(): Promise<void> {
+    if (typeof efuns === 'undefined' || !efuns.cloneObject || this._npcs.length === 0) {
+      return;
+    }
+
+    for (const npcPath of this._npcs) {
+      // Check if an NPC from this blueprint already exists in the room
+      const hasNpc = this.inventory.some((obj) => {
+        const blueprint = (obj as MudObject & { blueprint?: { objectPath?: string } }).blueprint;
+        return blueprint?.objectPath === npcPath;
+      });
+
+      // Clone if missing
+      if (!hasNpc) {
+        try {
+          const npc = await efuns.cloneObject(npcPath);
+          if (npc) {
+            // Set the NPC's spawn room to this room for respawning
+            const npcWithRespawn = npc as MudObject & {
+              setRespawn?: (seconds: number, room: MudObject) => void;
+              _respawnTime?: number;
+            };
+            // Only set spawn room if the NPC has respawn enabled
+            if (npcWithRespawn.setRespawn && npcWithRespawn._respawnTime && npcWithRespawn._respawnTime > 0) {
+              npcWithRespawn.setRespawn(npcWithRespawn._respawnTime, this);
+            }
+            await npc.moveTo(this);
+          }
+        } catch (error) {
+          console.error(`[Room] Failed to clone NPC ${npcPath}:`, error);
+        }
+      }
+    }
+  }
+
+  /**
    * Set a message to display when the room resets.
    * @param message The reset message
    */
@@ -413,7 +469,7 @@ export class Room extends MudObject {
   /**
    * Called when the room should reset.
    * Override or extend this for custom reset behavior.
-   * Default behavior: broadcast reset message and re-clone missing items.
+   * Default behavior: broadcast reset message and re-clone missing items/NPCs.
    */
   async onReset(): Promise<void> {
     // Broadcast reset message if set
@@ -443,6 +499,9 @@ export class Room extends MudObject {
         }
       }
     }
+
+    // Re-clone NPCs that are missing from the room
+    await this.spawnMissingNpcs();
   }
 
   // ========== Description ==========

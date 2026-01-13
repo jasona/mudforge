@@ -43,6 +43,9 @@ the castle {red}dungeons{/} below. A set of worn stone steps leads {green}down{/
     this.addExit('down', '/areas/valdoria/aldric_depths/entrance');
     // Could add 'enter' or 'north' to castle interior later
 
+    // Set NPCs that belong to this room - they'll respawn on reset if missing
+    this.setNpcs(['/areas/valdoria/aldric/guard_captain']);
+
     this.addAction('look', this.cmdLook.bind(this));
     this.addAction('read', this.cmdRead.bind(this));
   }
@@ -50,17 +53,8 @@ the castle {red}dungeons{/} below. A set of worn stone steps leads {green}down{/
   override async onCreate(): Promise<void> {
     await super.onCreate();
 
-    // Spawn Captain Marcus
-    if (typeof efuns !== 'undefined' && efuns.cloneObject) {
-      try {
-        const captain = await efuns.cloneObject('/areas/valdoria/aldric/guard_captain');
-        if (captain && typeof captain.moveTo === 'function') {
-          await captain.moveTo(this);
-        }
-      } catch (e) {
-        console.error('[CastleGate] Failed to spawn guard captain:', e);
-      }
-    }
+    // Spawn NPCs defined via setNpcs()
+    await this.spawnMissingNpcs();
 
     console.log('[CastleGate] The castle gate has been initialized.');
   }

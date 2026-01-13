@@ -1,6 +1,6 @@
 {
   "name": "Acer",
-  "location": "/areas/valdoria/aldric/center",
+  "location": "/users/acer/workroom",
   "state": {
     "objectPath": "",
     "isClone": false,
@@ -12,19 +12,68 @@
       "config.screenWidth": 100,
       "config.prompt": "%d >",
       "questData": {
-        "active": [],
+        "active": [
+          {
+            "questId": "aldric:map_the_depths",
+            "status": "active",
+            "objectives": [
+              {
+                "index": 0,
+                "current": 0,
+                "required": 5,
+                "complete": false,
+                "data": {
+                  "visited": []
+                }
+              }
+            ],
+            "acceptedAt": 1768270683005
+          },
+          {
+            "questId": "aldric:wolf_pelts",
+            "status": "active",
+            "objectives": [
+              {
+                "index": 0,
+                "current": 0,
+                "required": 8,
+                "complete": false
+              },
+              {
+                "index": 1,
+                "current": 0,
+                "required": 5,
+                "complete": false
+              }
+            ],
+            "acceptedAt": 1768270750716
+          },
+          {
+            "questId": "aldric:urgent_message",
+            "status": "active",
+            "objectives": [
+              {
+                "index": 0,
+                "current": 0,
+                "required": 1,
+                "complete": false
+              }
+            ],
+            "acceptedAt": 1768270952999
+          }
+        ],
         "completed": {},
         "questPoints": 0
       }
     },
-    "timestamp": 1768268682020,
+    "timestamp": 1768270963641,
     "environment": {
       "__type": "object_ref",
-      "path": "/areas/valdoria/aldric/center",
+      "path": "/users/acer/workroom",
       "isClone": false
     }
   },
-  "savedAt": 1768268682020,
+  "savedAt": 1768270963641,
   "title": "",
   "gender": "neutral",
   "level": 100,
@@ -44,7 +93,8 @@
   },
   "inventory": [
     "/users/acer/sword",
-    "/users/acer/iron_helmet"
+    "/users/acer/iron_helmet",
+    "/items/quest/sealed_letter"
   ],
   "equipment": [
     {
@@ -64,14 +114,63 @@
     "config.screenWidth": 100,
     "config.prompt": "%d >",
     "questData": {
-      "active": [],
+      "active": [
+        {
+          "questId": "aldric:map_the_depths",
+          "status": "active",
+          "objectives": [
+            {
+              "index": 0,
+              "current": 0,
+              "required": 5,
+              "complete": false,
+              "data": {
+                "visited": []
+              }
+            }
+          ],
+          "acceptedAt": 1768270683005
+        },
+        {
+          "questId": "aldric:wolf_pelts",
+          "status": "active",
+          "objectives": [
+            {
+              "index": 0,
+              "current": 0,
+              "required": 8,
+              "complete": false
+            },
+            {
+              "index": 1,
+              "current": 0,
+              "required": 5,
+              "complete": false
+            }
+          ],
+          "acceptedAt": 1768270750716
+        },
+        {
+          "questId": "aldric:urgent_message",
+          "status": "active",
+          "objectives": [
+            {
+              "index": 0,
+              "current": 0,
+              "required": 1,
+              "complete": false
+            }
+          ],
+          "acceptedAt": 1768270952999
+        }
+      ],
       "completed": {},
       "questPoints": 0
     }
   },
   "createdAt": 1767588015729,
-  "lastLogin": 1768268682,
-  "playTime": 92365,
+  "lastLogin": 1768270933,
+  "playTime": 92505,
   "monitorEnabled": true,
   "displayName": "Sir {yellow}$N{/} is really digging this AI stuff.",
   "cwd": "/areas/guilds/cleric",

@@ -368,7 +368,32 @@ export class QuestDaemon extends MudObject {
     player.receive(`{cyan}${quest.storyText}{/}\n\n`);
     this.showQuestObjectives(player, quest, questState);
 
+    // Give delivery items to player
+    await this.giveDeliveryItems(player, quest);
+
     return { success: true, message: `Quest accepted: ${quest.name}`, quest: questState };
+  }
+
+  /**
+   * Give delivery items to player when accepting a delivery quest.
+   */
+  private async giveDeliveryItems(player: QuestPlayer, quest: QuestDefinition): Promise<void> {
+    for (const obj of quest.objectives) {
+      if (obj.type === 'deliver' && obj.itemPath) {
+        try {
+          if (typeof efuns !== 'undefined' && efuns.cloneObject) {
+            const item = await efuns.cloneObject(obj.itemPath);
+            if (item) {
+              const playerObj = player as unknown as MudObject;
+              await item.moveTo(playerObj);
+              player.receive(`{green}You receive: ${obj.itemName}{/}\n`);
+            }
+          }
+        } catch (error) {
+          console.error(`[QuestDaemon] Failed to give delivery item ${obj.itemPath}:`, error);
+        }
+      }
+    }
   }
 
   /**

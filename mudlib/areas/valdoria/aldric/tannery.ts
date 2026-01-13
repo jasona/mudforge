@@ -33,6 +33,9 @@ The {green}market square{/} lies to the {green}east{/}.`;
   private setupRoom(): void {
     this.addExit('east', '/areas/valdoria/aldric/market');
 
+    // Set NPCs that belong to this room - they'll respawn on reset if missing
+    this.setNpcs(['/areas/valdoria/aldric/tanner']);
+
     this.addAction('look', this.cmdLook.bind(this));
     this.addAction('smell', this.cmdSmell.bind(this));
   }
@@ -40,17 +43,8 @@ The {green}market square{/} lies to the {green}east{/}.`;
   override async onCreate(): Promise<void> {
     await super.onCreate();
 
-    // Spawn Tanner Gorik
-    if (typeof efuns !== 'undefined' && efuns.cloneObject) {
-      try {
-        const tanner = await efuns.cloneObject('/areas/valdoria/aldric/tanner');
-        if (tanner && typeof tanner.moveTo === 'function') {
-          await tanner.moveTo(this);
-        }
-      } catch (e) {
-        console.error('[Tannery] Failed to spawn tanner:', e);
-      }
-    }
+    // Spawn NPCs defined via setNpcs()
+    await this.spawnMissingNpcs();
 
     console.log('[Tannery] The tannery has been initialized.');
   }

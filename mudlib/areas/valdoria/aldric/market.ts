@@ -41,6 +41,9 @@ A narrow alley to the {green}north{/} leads to the {yellow}bakery{/}. The {yello
     this.addExit('north', '/areas/valdoria/aldric/bakery');
     this.addExit('west', '/areas/valdoria/aldric/tannery');
 
+    // Set NPCs that belong to this room - they'll respawn on reset if missing
+    this.setNpcs(['/areas/valdoria/aldric/merchant']);
+
     this.addAction('look', this.cmdLook.bind(this));
     this.addAction('browse', this.cmdBrowse.bind(this));
     this.addAction('smell', this.cmdSmell.bind(this));
@@ -49,17 +52,8 @@ A narrow alley to the {green}north{/} leads to the {yellow}bakery{/}. The {yello
   override async onCreate(): Promise<void> {
     await super.onCreate();
 
-    // Spawn Merchant Aldwin
-    if (typeof efuns !== 'undefined' && efuns.cloneObject) {
-      try {
-        const merchant = await efuns.cloneObject('/areas/valdoria/aldric/merchant');
-        if (merchant && typeof merchant.moveTo === 'function') {
-          await merchant.moveTo(this);
-        }
-      } catch (e) {
-        console.error('[MarketSquare] Failed to spawn merchant:', e);
-      }
-    }
+    // Spawn NPCs defined via setNpcs()
+    await this.spawnMissingNpcs();
 
     console.log('[MarketSquare] The market square has been initialized.');
   }

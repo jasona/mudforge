@@ -3,7 +3,6 @@
  */
 
 import { Room } from '../../../lib/std.js';
-import type { GuildMaster } from '../../../std/guild/guild-master.js';
 
 export class FighterGuildHall extends Room {
   constructor() {
@@ -25,18 +24,16 @@ proudly above the guildmaster's elevated platform.`;
     this.addExit('out', '/areas/valdoria/aldric/center');
     this.addId('fighter guild');
     this.addId('guild hall');
+
+    // Set NPCs that belong to this room - they'll respawn on reset if missing
+    this.setNpcs(['/areas/guilds/fighter/guildmaster']);
   }
 
   override async onCreate(): Promise<void> {
     await super.onCreate();
 
-    const hasGuildmaster = this.inventory.some(obj => obj.id('guildmaster') || obj.id('garrok'));
-    if (hasGuildmaster) return;
-
-    if (typeof efuns !== 'undefined' && efuns.cloneObject) {
-      const gm = await efuns.cloneObject<GuildMaster>('/areas/guilds/fighter/guildmaster', 'FighterGuildmaster');
-      if (gm) await gm.moveTo(this);
-    }
+    // Spawn NPCs defined via setNpcs()
+    await this.spawnMissingNpcs();
   }
 }
 

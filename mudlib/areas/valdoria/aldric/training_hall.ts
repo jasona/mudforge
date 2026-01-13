@@ -6,7 +6,6 @@
  */
 
 import { Room } from '../../../lib/std.js';
-import type { MasterVorn } from './master_vorn.js';
 
 /**
  * The Training Hall room.
@@ -38,6 +37,9 @@ The town center lies to the {green}southwest{/}.`;
     // Exits
     this.addExit('southwest', '/areas/valdoria/aldric/center');
 
+    // Set NPCs that belong to this room - they'll respawn on reset if missing
+    this.setNpcs(['/areas/valdoria/aldric/master_vorn']);
+
     // Add some items for flavor
     this.addId('training hall');
     this.addId('hall');
@@ -46,19 +48,8 @@ The town center lies to the {green}southwest{/}.`;
   override async onCreate(): Promise<void> {
     await super.onCreate();
 
-    // Check if a trainer already exists (prevents duplicates on hot-reload)
-    const hasTrainer = this.inventory.some(obj => obj.id('trainer') || obj.id('vorn'));
-    if (hasTrainer) {
-      return;
-    }
-
-    // Clone and place Master Vorn from separate file to avoid hot-reload loops
-    if (typeof efuns !== 'undefined' && efuns.cloneObject) {
-      const vorn = await efuns.cloneObject<MasterVorn>('/areas/valdoria/aldric/master_vorn', 'MasterVorn');
-      if (vorn) {
-        await vorn.moveTo(this);
-      }
-    }
+    // Spawn NPCs defined via setNpcs()
+    await this.spawnMissingNpcs();
   }
 }
 

@@ -3,7 +3,6 @@
  */
 
 import { Room } from '../../../lib/std.js';
-import type { GuildMaster } from '../../../std/guild/guild-master.js';
 
 export class MageGuildHall extends Room {
   constructor() {
@@ -27,18 +26,16 @@ hangs above an ornate lectern.`;
     this.addExit('out', '/areas/valdoria/aldric/center');
     this.addId('mage guild');
     this.addId('guild tower');
+
+    // Set NPCs that belong to this room - they'll respawn on reset if missing
+    this.setNpcs(['/areas/guilds/mage/guildmaster']);
   }
 
   override async onCreate(): Promise<void> {
     await super.onCreate();
 
-    const hasGuildmaster = this.inventory.some(obj => obj.id('guildmaster') || obj.id('elyndra'));
-    if (hasGuildmaster) return;
-
-    if (typeof efuns !== 'undefined' && efuns.cloneObject) {
-      const gm = await efuns.cloneObject<GuildMaster>('/areas/guilds/mage/guildmaster', 'MageGuildmaster');
-      if (gm) await gm.moveTo(this);
-    }
+    // Spawn NPCs defined via setNpcs()
+    await this.spawnMissingNpcs();
   }
 }
 
