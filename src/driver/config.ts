@@ -72,7 +72,8 @@ export function loadConfig(): DriverConfig {
 
     // Logging
     logLevel: parseLogLevel(process.env['LOG_LEVEL'], 'info'),
-    logPretty: parseBoolean(process.env['LOG_PRETTY'], true),
+    // Default to pretty logs in development, JSON logs in production
+    logPretty: parseBoolean(process.env['LOG_PRETTY'], process.env['NODE_ENV'] !== 'production'),
 
     // Isolation/Sandbox
     isolateMemoryMb: parseNumber(process.env['ISOLATE_MEMORY_MB'], 128),
