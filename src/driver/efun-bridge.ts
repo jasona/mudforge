@@ -1051,7 +1051,7 @@ export class EfunBridge {
 
   /**
    * Set a player's permission level.
-   * Requires admin permission.
+   * Requires admin permission, OR allows setting first admin when no admins exist.
    * @param playerName The player's name
    * @param level The permission level (0=player, 1=builder, 2=senior, 3=admin)
    */
@@ -1059,20 +1059,34 @@ export class EfunBridge {
     playerName: string,
     level: number
   ): { success: boolean; error?: string } {
-    // Check admin permission
-    const player = this.context.thisPlayer;
-    if (!player || !this.permissions.isAdmin(player)) {
-      return { success: false, error: 'Admin permission required' };
-    }
-
     // Validate level
     if (level < 0 || level > 3) {
       return { success: false, error: 'Invalid level (must be 0-3)' };
     }
 
-    // Set the level
-    this.permissions.setLevel(playerName, level);
-    return { success: true };
+    // Check admin permission
+    const player = this.context.thisPlayer;
+    const isAdmin = player && this.permissions.isAdmin(player);
+
+    // Allow if caller is admin
+    if (isAdmin) {
+      this.permissions.setLevel(playerName, level);
+      return { success: true };
+    }
+
+    // Allow setting first admin (no context player = internal mudlib call, setting level 3)
+    // This is used by the login daemon to make the first player an admin
+    if (!player && level === 3) {
+      // Check if there are any existing admins
+      const data = this.permissions.export();
+      const hasAdmin = Object.values(data.levels).some((l) => l === 3);
+      if (!hasAdmin) {
+        this.permissions.setLevel(playerName, level);
+        return { success: true };
+      }
+    }
+
+    return { success: false, error: 'Admin permission required' };
   }
 
   /**
@@ -1085,12 +1099,12 @@ export class EfunBridge {
 
   /**
    * Save permissions to disk.
-   * Requires admin permission.
+   * Requires admin permission, or allows internal mudlib calls (no player context).
    */
   async savePermissions(): Promise<{ success: boolean; error?: string }> {
-    // Check admin permission
+    // Check admin permission (allow if no player context - internal mudlib call)
     const player = this.context.thisPlayer;
-    if (!player || !this.permissions.isAdmin(player)) {
+    if (player && !this.permissions.isAdmin(player)) {
       return { success: false, error: 'Admin permission required' };
     }
 

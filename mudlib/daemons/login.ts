@@ -376,7 +376,13 @@ export class LoginDaemon extends MudObject {
 
     // Grant admin permissions to the first player
     if (isFirstPlayer) {
-      player.permissionLevel = 3; // Administrator
+      player.permissionLevel = 3; // Administrator (local cache)
+      // Update central permissions system
+      const result = efuns.setPermissionLevel(session.name, 3);
+      if (result.success) {
+        // Save permissions to disk
+        await efuns.savePermissions();
+      }
       session.connection.send('\n*** You are the first player - granting Administrator privileges! ***\n');
     }
 
