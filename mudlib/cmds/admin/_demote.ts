@@ -111,12 +111,27 @@ export async function execute(ctx: CommandContext): Promise<void> {
   ctx.sendLine(`  From: {yellow}${currentName}{/} (${currentLevel})`);
   ctx.sendLine(`  To: {red}${newName}{/} (${newLevel})`);
 
+  // Build command paths message based on new level
+  const commandPaths: string[] = [];
+  if (newLevel >= 1) commandPaths.push('/cmds/builder/');
+  if (newLevel >= 2) commandPaths.push('/cmds/senior/');
+  if (newLevel >= 3) commandPaths.push('/cmds/admin/');
+
+  if (commandPaths.length > 0) {
+    ctx.sendLine(`  Commands: {dim}${commandPaths.join(', ')}{/}`);
+  } else {
+    ctx.sendLine(`  Commands: {dim}/cmds/player/ only{/}`);
+  }
+
   // Notify the target player if online
   if (targetPlayer && targetPlayer !== ctx.player) {
-    efuns.send(
-      targetPlayer,
-      `\n{yellow}Your permission level has been changed to ${newName} by ${(ctx.player as MudObject & { name?: string }).name ?? 'an administrator'}.{/}\n`
-    );
+    let message = `\n{yellow}Your permission level has been changed to ${newName} by ${(ctx.player as MudObject & { name?: string }).name ?? 'an administrator'}.{/}\n`;
+    if (commandPaths.length > 0) {
+      message += `{dim}You now have access to commands in: ${commandPaths.join(', ')}{/}\n`;
+    } else {
+      message += `{dim}You now have access to player commands only.{/}\n`;
+    }
+    efuns.send(targetPlayer, message);
   }
 }
 

@@ -103,12 +103,24 @@ export async function execute(ctx: CommandContext): Promise<void> {
   ctx.sendLine(`  From: {yellow}${currentName}{/} (${currentLevel})`);
   ctx.sendLine(`  To: {green}${newName}{/} (${newLevel})`);
 
+  // Build command paths message based on new level
+  const commandPaths: string[] = [];
+  if (newLevel >= 1) commandPaths.push('/cmds/builder/');
+  if (newLevel >= 2) commandPaths.push('/cmds/senior/');
+  if (newLevel >= 3) commandPaths.push('/cmds/admin/');
+
+  if (commandPaths.length > 0) {
+    ctx.sendLine(`  Commands: {dim}${commandPaths.join(', ')}{/}`);
+  }
+
   // Notify the target player if online
   if (targetPlayer && targetPlayer !== ctx.player) {
-    efuns.send(
-      targetPlayer,
-      `\n{green}Your permission level has been changed to ${newName} by ${(ctx.player as MudObject & { name?: string }).name ?? 'an administrator'}.{/}\n`
-    );
+    let message = `\n{green}Your permission level has been changed to ${newName} by ${(ctx.player as MudObject & { name?: string }).name ?? 'an administrator'}.{/}\n`;
+    if (commandPaths.length > 0) {
+      message += `{cyan}You now have access to commands in: ${commandPaths.join(', ')}{/}\n`;
+      message += `{dim}Use "help commands" to see available commands.{/}\n`;
+    }
+    efuns.send(targetPlayer, message);
   }
 }
 

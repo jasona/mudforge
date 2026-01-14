@@ -783,8 +783,9 @@ export class Player extends Living {
     }
 
     // First, try the command manager (cmds/ directory commands)
+    // Use getter to get permission level from central permissions system
     if (typeof efuns !== 'undefined' && efuns.executeCommand) {
-      const handled = await efuns.executeCommand(this, input, this._permissionLevel);
+      const handled = await efuns.executeCommand(this, input, this.permissionLevel);
       if (handled) {
         this.sendPrompt();
         return;
