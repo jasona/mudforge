@@ -172,6 +172,64 @@ export class QuestDaemon extends MudObject {
   }
 
   /**
+   * Send quest panel update to the client.
+   * Call this after any quest state change to update the client's quest sidebar.
+   */
+  sendQuestPanelUpdate(player: QuestPlayer): void {
+    if (typeof efuns === 'undefined' || !efuns.sendQuestUpdate) {
+      return;
+    }
+
+    const data = this.getPlayerQuestData(player);
+
+    // Sort by acceptedAt descending (most recent first) and take last 3
+    const sortedQuests = [...data.active]
+      .sort((a, b) => b.acceptedAt - a.acceptedAt)
+      .slice(0, 3);
+
+    // Format for the client
+    const questsForClient = sortedQuests.map((state) => {
+      const quest = this.getQuest(state.questId);
+
+      // Calculate overall progress percentage
+      let totalRequired = 0;
+      let totalCurrent = 0;
+      for (const obj of state.objectives) {
+        totalRequired += obj.required;
+        totalCurrent += obj.current;
+      }
+      const progress = totalRequired > 0 ? Math.round((totalCurrent / totalRequired) * 100) : 0;
+
+      // Generate progress text from first incomplete objective
+      let progressText = '';
+      if (quest) {
+        for (let i = 0; i < state.objectives.length; i++) {
+          const obj = state.objectives[i];
+          if (!obj.complete) {
+            progressText = `${this.getObjectiveDescription(quest.objectives[i])}: ${obj.current}/${obj.required}`;
+            break;
+          }
+        }
+        // If all complete, show "Ready to turn in"
+        if (state.status === 'completed' || state.objectives.every((o) => o.complete)) {
+          progressText = 'Ready to turn in';
+        }
+      }
+
+      return {
+        questId: state.questId,
+        name: quest?.name || state.questId,
+        progress,
+        progressText,
+        status: state.status === 'completed' ? ('completed' as const) : ('active' as const),
+      };
+    });
+
+    // Pass the player object so the efun can send to the correct connection
+    efuns.sendQuestUpdate(questsForClient, player as unknown as MudObject);
+  }
+
+  /**
    * Check for and fail any expired time-limited quests.
    */
   private checkExpiredQuests(player: QuestPlayer, data: PlayerQuestData): void {
@@ -371,6 +429,9 @@ export class QuestDaemon extends MudObject {
     // Give delivery items to player
     await this.giveDeliveryItems(player, quest);
 
+    // Update client quest panel
+    this.sendQuestPanelUpdate(player);
+
     return { success: true, message: `Quest accepted: ${quest.name}`, quest: questState };
   }
 
@@ -412,6 +473,9 @@ export class QuestDaemon extends MudObject {
     this.savePlayerQuestData(player, data);
 
     player.receive(`{yellow}You have abandoned the quest: ${quest?.name || questId}{/}\n`);
+
+    // Update client quest panel
+    this.sendQuestPanelUpdate(player);
 
     return { success: true, message: `Quest abandoned: ${quest?.name || questId}` };
   }
@@ -477,6 +541,9 @@ export class QuestDaemon extends MudObject {
       }
     }
 
+    // Update client quest panel
+    this.sendQuestPanelUpdate(player);
+
     return {
       success: true,
       message: `Quest complete: ${quest.name}`,
@@ -540,6 +607,7 @@ export class QuestDaemon extends MudObject {
 
     if (results.length > 0) {
       this.savePlayerQuestData(player, data);
+      this.sendQuestPanelUpdate(player);
     }
 
     return results;
@@ -596,6 +664,7 @@ export class QuestDaemon extends MudObject {
 
     if (results.length > 0) {
       this.savePlayerQuestData(player, data);
+      this.sendQuestPanelUpdate(player);
     }
 
     return results;
@@ -663,6 +732,7 @@ export class QuestDaemon extends MudObject {
 
     if (results.length > 0) {
       this.savePlayerQuestData(player, data);
+      this.sendQuestPanelUpdate(player);
     }
 
     return results;
@@ -721,6 +791,7 @@ export class QuestDaemon extends MudObject {
 
     if (results.length > 0) {
       this.savePlayerQuestData(player, data);
+      this.sendQuestPanelUpdate(player);
     }
 
     return results;
@@ -779,6 +850,7 @@ export class QuestDaemon extends MudObject {
 
     if (results.length > 0) {
       this.savePlayerQuestData(player, data);
+      this.sendQuestPanelUpdate(player);
     }
 
     return results;
@@ -837,6 +909,7 @@ export class QuestDaemon extends MudObject {
 
     if (results.length > 0) {
       this.savePlayerQuestData(player, data);
+      this.sendQuestPanelUpdate(player);
     }
 
     return results;

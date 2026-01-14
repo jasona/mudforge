@@ -420,16 +420,21 @@ export class Driver {
       const message = JSON.parse(jsonStr);
       const player = handler as MudObject & {
         onGUIResponse?: (message: unknown) => void | Promise<void>;
+        handleGUIResponse?: (message: unknown) => void | Promise<void>;
       };
 
-      if (player.onGUIResponse) {
-        // Set efun context
-        this.efunBridge.setContext({ thisPlayer: player, thisObject: player });
-        try {
+      // Set efun context
+      this.efunBridge.setContext({ thisPlayer: player, thisObject: player });
+      try {
+        if (player.onGUIResponse) {
+          // Use modal-specific handler if set
           await player.onGUIResponse(message);
-        } finally {
-          this.efunBridge.clearContext();
+        } else if (player.handleGUIResponse) {
+          // Fall back to default player handler
+          await player.handleGUIResponse(message);
         }
+      } finally {
+        this.efunBridge.clearContext();
       }
     } catch (error) {
       this.logger.error({ error }, 'Failed to parse GUI message');

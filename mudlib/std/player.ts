@@ -21,8 +21,9 @@ import {
   type ConfigOption,
 } from '../lib/player-config.js';
 import type { PlayerExplorationData, MapMessage } from '../lib/map-types.js';
-import type { GUIMessage } from '../lib/gui-types.js';
+import type { GUIMessage, GUIClientMessage } from '../lib/gui-types.js';
 import type { PlayerGuildData } from './guild/types.js';
+import type { QuestPlayer } from './quest/types.js';
 
 /**
  * STATS protocol message for HP/MP/XP display.
@@ -1775,6 +1776,25 @@ export class Player extends Living {
     } else {
       this.receive(`{dim}You drop ${unsavableItems.length} unsavable items.{/}\n`);
     }
+  }
+
+  // ========== GUI Response Handler ==========
+
+  /**
+   * Handle GUI messages from the client.
+   * This is the default handler - specific modals may override this via player.onGUIResponse.
+   */
+  async handleGUIResponse(message: GUIClientMessage): Promise<void> {
+    // Handle quest panel click - open quest log modal
+    if (message.action === 'quest-panel-click') {
+      // Dynamically import to avoid circular dependencies
+      const { openQuestLogModal } = await import('../lib/quest-gui.js');
+      const { getQuestDaemon } = await import('../daemons/quest.js');
+      openQuestLogModal(this as unknown as QuestPlayer, getQuestDaemon());
+      return;
+    }
+
+    // No default handling for other actions
   }
 
   // ========== Setup ==========

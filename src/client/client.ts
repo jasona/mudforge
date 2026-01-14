@@ -10,12 +10,14 @@ import {
   IdeMessage,
   StatsMessage,
   GUIMessage,
+  QuestMessage,
   CompletionMessage,
 } from './websocket-client.js';
 import { InputHandler } from './input-handler.js';
 import { IdeEditor } from './ide-editor.js';
 import { MapPanel } from './map-panel.js';
 import { StatsPanel } from './stats-panel.js';
+import { QuestPanel } from './quest-panel.js';
 import { GUIModal } from './gui/gui-modal.js';
 import type { MapMessage } from './map-renderer.js';
 import type { GUIServerMessage, GUIClientMessage } from './gui/gui-types.js';
@@ -30,6 +32,7 @@ class MudClient {
   private ideEditor: IdeEditor;
   private mapPanel: MapPanel;
   private statsPanel: StatsPanel;
+  private questPanel: QuestPanel;
   private guiModal: GUIModal;
   private statusElement: HTMLElement;
   private permissionLevel: number = 0;
@@ -60,6 +63,15 @@ class MudClient {
       },
     });
     this.statsPanel = new StatsPanel('stats-container');
+    this.questPanel = new QuestPanel('quest-container', {
+      onQuestClick: (questId: string) => {
+        // Send request to server to open quest log GUI
+        this.wsClient.sendGUIMessage({
+          action: 'quest-panel-click',
+          questId,
+        });
+      },
+    });
     this.guiModal = new GUIModal((message: GUIClientMessage) => {
       this.wsClient.sendGUIMessage(message);
     });
@@ -116,6 +128,11 @@ class MudClient {
     // GUI events
     this.wsClient.on('gui-message', (message: GUIMessage) => {
       this.guiModal.handleMessage(message as GUIServerMessage);
+    });
+
+    // Quest events
+    this.wsClient.on('quest-message', (message: QuestMessage) => {
+      this.questPanel.handleMessage(message);
     });
 
     // Completion events

@@ -54,6 +54,20 @@ export interface GUIMessage {
 }
 
 /**
+ * Quest panel update message.
+ */
+export interface QuestMessage {
+  type: 'update';
+  quests: Array<{
+    questId: string;
+    name: string;
+    progress: number;
+    progressText: string;
+    status: 'active' | 'completed';
+  }>;
+}
+
+/**
  * Connection state.
  */
 export type ConnectionState = 'connecting' | 'open' | 'closing' | 'closed';
@@ -271,6 +285,24 @@ export class Connection extends EventEmitter {
     try {
       const json = JSON.stringify(message);
       this.socket.send(`\x00[GUI]${json}`);
+    } catch (error) {
+      this.emit('error', error as Error);
+    }
+  }
+
+  /**
+   * Send a QUEST protocol message to the client.
+   * QUEST messages are prefixed with \x00[QUEST] to distinguish them from regular text.
+   * @param message The quest message to send
+   */
+  sendQuest(message: QuestMessage): void {
+    if (this._state !== 'open') {
+      return;
+    }
+
+    try {
+      const json = JSON.stringify(message);
+      this.socket.send(`\x00[QUEST]${json}`);
     } catch (error) {
       this.emit('error', error as Error);
     }

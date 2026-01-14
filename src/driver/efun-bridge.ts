@@ -1548,6 +1548,48 @@ export class EfunBridge {
     connection.send(`\x00[GUI]${jsonStr}\n`);
   }
 
+  /**
+   * Send quest panel update to the client.
+   * The quest daemon should call this to update the client's quest panel.
+   *
+   * @param quests Array of quest data to display (max 3 shown)
+   * @param targetPlayer Optional player to send to (uses context.thisPlayer if not provided)
+   */
+  sendQuestUpdate(
+    quests: Array<{
+      questId: string;
+      name: string;
+      progress: number;
+      progressText: string;
+      status: 'active' | 'completed';
+    }>,
+    targetPlayer?: MudObject
+  ): void {
+    const player = targetPlayer || this.context.thisPlayer;
+    if (!player) {
+      return; // Silently fail if no player context
+    }
+
+    // Get the player's connection
+    const playerWithConnection = player as MudObject & {
+      connection?: { send: (msg: string) => void };
+      _connection?: { send: (msg: string) => void };
+    };
+
+    const connection = playerWithConnection.connection || playerWithConnection._connection;
+    if (!connection?.send) {
+      return; // Silently fail if no connection
+    }
+
+    // Send structured message with QUEST prefix
+    const message = {
+      type: 'update',
+      quests: quests.slice(0, 3), // Limit to 3 quests
+    };
+    const jsonStr = JSON.stringify(message);
+    connection.send(`\x00[QUEST]${jsonStr}\n`);
+  }
+
   // ========== Config Efuns ==========
 
   /**
@@ -1940,6 +1982,7 @@ export class EfunBridge {
 
       // GUI
       guiSend: this.guiSend.bind(this),
+      sendQuestUpdate: this.sendQuestUpdate.bind(this),
 
       // Config
       getMudConfig: this.getMudConfig.bind(this),

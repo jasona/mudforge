@@ -19,6 +19,7 @@ type WebSocketClientEvent =
   | 'map-message'
   | 'stats-message'
   | 'gui-message'
+  | 'quest-message'
   | 'completion-message';
 
 /**
@@ -74,6 +75,20 @@ export interface GUIMessage {
   buttons?: unknown[];
   data?: Record<string, unknown>;
   [key: string]: unknown;
+}
+
+/**
+ * Quest panel update message.
+ */
+export interface QuestMessage {
+  type: 'update';
+  quests: Array<{
+    questId: string;
+    name: string;
+    progress: number;
+    progressText: string;
+    status: 'active' | 'completed';
+  }>;
 }
 
 /**
@@ -239,6 +254,14 @@ export class WebSocketClient {
             this.emit('gui-message', guiMessage);
           } catch (error) {
             console.error('Failed to parse GUI message:', error);
+          }
+        } else if (line.startsWith('\x00[QUEST]')) {
+          const jsonStr = line.slice(8); // Remove \x00[QUEST] prefix
+          try {
+            const questMessage = JSON.parse(jsonStr) as QuestMessage;
+            this.emit('quest-message', questMessage);
+          } catch (error) {
+            console.error('Failed to parse QUEST message:', error);
           }
         } else if (line.startsWith('\x00[COMPLETE]')) {
           const jsonStr = line.slice(11); // Remove \x00[COMPLETE] prefix

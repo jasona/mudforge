@@ -314,6 +314,23 @@ declare global {
     /** Send a GUI message to the client to open/update/close modals */
     guiSend(message: GUIMessage): void;
 
+    /**
+     * Send quest panel update to the client.
+     * Updates the client's quest sidebar with the provided quest data.
+     * @param quests Array of quest data (max 3 shown, most recent first)
+     * @param targetPlayer Optional player to send to (uses context.thisPlayer if not provided)
+     */
+    sendQuestUpdate(
+      quests: Array<{
+        questId: string;
+        name: string;
+        progress: number;
+        progressText: string;
+        status: 'active' | 'completed';
+      }>,
+      targetPlayer?: MudObject
+    ): void;
+
     // ========== Config Efuns ==========
 
     /**

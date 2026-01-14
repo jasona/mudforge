@@ -8,6 +8,8 @@
 import { MudObject, Player } from '../lib/std.js';
 import type { PlayerSaveData } from '../std/player.js';
 import { getChannelDaemon } from './channels.js';
+import { getQuestDaemon } from './quest.js';
+import type { QuestPlayer } from '../std/quest/types.js';
 import { scrypt, randomBytes, timingSafeEqual } from 'crypto';
 import { promisify } from 'util';
 import * as dns from 'dns';
@@ -463,6 +465,9 @@ export class LoginDaemon extends MudObject {
         // Send prompt
         player.sendPrompt();
 
+        // Send quest panel update
+        getQuestDaemon().sendQuestPanelUpdate(player as unknown as QuestPlayer);
+
         // Update session state and clean up
         session.state = 'playing';
         this._sessions.delete(session.connection);
@@ -582,6 +587,9 @@ export class LoginDaemon extends MudObject {
 
     // Send prompt
     player.sendPrompt();
+
+    // Send quest panel update
+    getQuestDaemon().sendQuestPanelUpdate(player as unknown as QuestPlayer);
 
     // Execute login alias if defined
     await this.executeLoginAlias(player);

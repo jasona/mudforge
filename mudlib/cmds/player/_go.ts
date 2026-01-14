@@ -255,6 +255,25 @@ export async function execute(ctx: CommandContext): Promise<boolean> {
     ctx.sendLine(newRoom.longDesc);
   }
 
+  // Quest integration: track room exploration for explore objectives
+  const playerWithQuests = player as MudObject & { getProperty?: (key: string) => unknown };
+  if (playerWithQuests.getProperty) {
+    import('../../daemons/quest.js')
+      .then(({ getQuestDaemon }) => {
+        try {
+          const questDaemon = getQuestDaemon();
+          const roomPath = destination.objectPath || '';
+          type QuestPlayer = Parameters<typeof questDaemon.updateExploreObjective>[0];
+          questDaemon.updateExploreObjective(player as unknown as QuestPlayer, roomPath);
+        } catch {
+          // Quest daemon may not be initialized yet
+        }
+      })
+      .catch(() => {
+        // Ignore import errors
+      });
+  }
+
   return true;
 }
 
