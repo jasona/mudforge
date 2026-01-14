@@ -176,7 +176,8 @@ describe('Room', () => {
       obj.moveTo(room);
 
       const desc = room.getFullDescription();
-      expect(desc).toContain('a shiny gem');
+      // Room descriptions capitalize first letter of items
+      expect(desc).toContain('A shiny gem');
     });
   });
 

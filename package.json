@@ -36,7 +36,7 @@
   },
   "homepage": "https://github.com/jasona/mudforge#readme",
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=22.0.0"
   },
   "dependencies": {
     "@codemirror/lang-css": "^6.3.1",

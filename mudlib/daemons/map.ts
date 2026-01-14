@@ -9,7 +9,7 @@
  * - Euclidean exit validation
  */
 
-import { MudObject } from '../lib/std.js';
+import { MudObject } from '../std/object.js';
 import type { TerrainType } from '../lib/terrain.js';
 import { getDirectionDelta, OPPOSITE_DIRECTIONS } from '../lib/terrain.js';
 import type {

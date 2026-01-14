@@ -5,7 +5,8 @@
  * It guides the user through login or character creation.
  */
 
-import { MudObject, Player } from '../lib/std.js';
+import { MudObject } from '../std/object.js';
+import { Player } from '../std/player.js';
 import type { PlayerSaveData } from '../std/player.js';
 import { getChannelDaemon } from './channels.js';
 import { getQuestDaemon } from './quest.js';

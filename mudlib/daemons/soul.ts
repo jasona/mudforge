@@ -13,7 +13,7 @@
  *   $N - Actor name, $T - Target name, $vverb - Conjugated verb, etc.
  */
 
-import { MudObject } from '../lib/std.js';
+import { MudObject } from '../std/object.js';
 import { composeAllMessages, makeRemoteMessage, type ComposedMessages } from '../lib/message-composer.js';
 import { getPlayerColor, formatWithColor } from '../lib/chat-colors.js';
 

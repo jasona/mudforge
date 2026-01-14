@@ -11,7 +11,7 @@
  *   daemon.useSkill(player, 'fighter:bash', target);
  */
 
-import { MudObject } from '../lib/std.js';
+import { MudObject } from '../std/object.js';
 import type { Living } from '../std/living.js';
 import { getChannelDaemon } from './channels.js';
 import {

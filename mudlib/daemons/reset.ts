@@ -11,7 +11,7 @@
  *   reset.cleanupDroppedItems - Clean up non-player items (default: true)
  */
 
-import { MudObject } from '../lib/std.js';
+import { MudObject } from '../std/object.js';
 import { Room } from '../std/room.js';
 import { getConfigDaemon } from './config.js';
 

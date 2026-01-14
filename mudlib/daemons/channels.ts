@@ -7,7 +7,7 @@
  * - Membership: Requires membership in a group (e.g., class, clan)
  */
 
-import { MudObject } from '../lib/std.js';
+import { MudObject } from '../std/object.js';
 import { composeMessage } from '../lib/message-composer.js';
 
 /**

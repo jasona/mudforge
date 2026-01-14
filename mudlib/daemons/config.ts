@@ -11,7 +11,7 @@
  *   config.set('disconnect.timeoutMinutes', 30);
  */
 
-import { MudObject } from '../lib/std.js';
+import { MudObject } from '../std/object.js';
 
 /**
  * Configuration setting definition.

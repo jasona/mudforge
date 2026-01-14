@@ -10,7 +10,7 @@
  *   daemon.updateKillObjective(player, '/areas/valdoria/aldric/rat');
  */
 
-import { MudObject } from '../lib/std.js';
+import { MudObject } from '../std/object.js';
 import {
   type QuestId,
   type QuestDefinition,

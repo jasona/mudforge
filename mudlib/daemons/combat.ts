@@ -5,7 +5,7 @@
  * Uses variable timing based on attacker's weapon speed and dexterity.
  */
 
-import { MudObject } from '../lib/std.js';
+import { MudObject } from '../std/object.js';
 import type { Living, Weapon, DamageType, CombatEntry, RoundResult, AttackResult } from '../lib/std.js';
 import type { ConfigDaemon } from './config.js';
 import { getQuestDaemon } from './quest.js';

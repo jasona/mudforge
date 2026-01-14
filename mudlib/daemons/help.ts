@@ -7,7 +7,7 @@
  * - Custom groups (guilds, clans, etc.)
  */
 
-import { MudObject } from '../lib/std.js';
+import { MudObject } from '../std/object.js';
 
 /**
  * Access requirements for help topics.
