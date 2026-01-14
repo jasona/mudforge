@@ -13,6 +13,7 @@ import { ObjectRegistry, getRegistry, resetRegistry } from './object-registry.js
 import { Scheduler, getScheduler, resetScheduler } from './scheduler.js';
 import { EfunBridge, getEfunBridge, resetEfunBridge } from './efun-bridge.js';
 import { MudlibLoader, getMudlibLoader, resetMudlibLoader } from './mudlib-loader.js';
+import { initializeClaudeClient } from './claude-client.js';
 import { CommandManager, getCommandManager, resetCommandManager, PermissionLevel } from './command-manager.js';
 import { Compiler } from './compiler.js';
 import { HotReload } from './hot-reload.js';
@@ -116,6 +117,18 @@ export class Driver {
     this.efunBridge = getEfunBridge({
       mudlibPath: this.config.mudlibPath,
     });
+
+    // Initialize Claude AI client if configured
+    if (this.config.claudeApiKey) {
+      initializeClaudeClient({
+        apiKey: this.config.claudeApiKey,
+        model: this.config.claudeModel,
+        maxTokens: this.config.claudeMaxTokens,
+        rateLimitPerMinute: this.config.claudeRateLimitPerMinute,
+        cacheTtlMs: this.config.claudeCacheTtlMs,
+      });
+      this.logger.info('Claude AI client initialized');
+    }
 
     // Set up the bind player callback so login daemon can bind players
     this.efunBridge.setBindPlayerCallback((connection, player) => {

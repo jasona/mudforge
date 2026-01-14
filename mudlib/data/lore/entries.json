@@ -1,0 +1,117 @@
+{
+  "entries": [
+    {
+      "id": "world:creation-myth",
+      "category": "world",
+      "title": "The Creation Myth",
+      "content": "In the beginning, the world was forged from the dreams of the sleeping god Moradin. His breath became the winds, his tears the oceans, and his heartbeat the pulse of magic that flows through all living things. When he finally awakened, he wept at the beauty of his creation and swore never to sleep again.",
+      "tags": [
+        "mythology",
+        "gods",
+        "origin"
+      ],
+      "priority": 10,
+      "relatedLore": []
+    },
+    {
+      "id": "faction:thieves-guild",
+      "category": "faction",
+      "title": "The Shadow Hand",
+      "content": "The Shadow Hand is the largest thieves' guild operating in the realm. They control the black market, run protection rackets, and maintain a network of informants throughout the major cities. Their leader, known only as 'The Finger,' has never been seen by outsiders. Members identify each other through a subtle hand gesture resembling a closed fist with the thumb extended.",
+      "tags": [
+        "criminal",
+        "underground",
+        "secrets"
+      ],
+      "priority": 5,
+      "relatedLore": []
+    },
+    {
+      "id": "mechanics:magic-system",
+      "category": "mechanics",
+      "title": "The Weave",
+      "content": "Magic flows through the Weave, an invisible lattice of mystical energy connecting all living things. Spellcasters learn to tap into the Weave and shape its energy. However, drawing too much power can tear the Weave locally, causing wild magic surges. The Weave is maintained by the goddess Mystra, and some say it was nearly destroyed during the Sundering.",
+      "tags": [
+        "magic",
+        "spellcasting"
+      ],
+      "priority": 8,
+      "relatedLore": []
+    },
+    {
+      "id": "faith:sun-god",
+      "category": "faith",
+      "title": "Solarius, the Burning Light",
+      "content": "Solarius is the god of the sun, healing, and righteous fury. He is worshipped by paladins, healers, and those who fight against undead. His temples always face east and feature golden sun motifs. Followers believe that truth and light are one, and that deception is the greatest sin. His holy symbol is a golden sun with twelve rays.",
+      "tags": [
+        "gods",
+        "light",
+        "healing",
+        "paladins"
+      ],
+      "priority": 5,
+      "relatedLore": []
+    },
+    {
+      "id": "economics:trade-routes",
+      "category": "economics",
+      "title": "The Merchant Roads",
+      "content": "Three major trade routes connect the kingdoms: the Silk Road running east through the desert, the Iron Way heading north to the dwarven holds, and the Salt Path following the coast. Each route is controlled by merchant houses who charge tolls and provide protection. The Merchant's Guild arbitrates disputes and maintains way stations.",
+      "tags": [
+        "trade",
+        "commerce",
+        "travel"
+      ],
+      "priority": 3,
+      "relatedLore": []
+    },
+    {
+      "id": "region:valdoria",
+      "category": "region",
+      "title": "The Kingdom of Valdoria",
+      "content": "Valdoria is a prosperous human kingdom known for its fertile farmlands and strong military tradition. The capital city of Aldric sits at the confluence of two rivers. King Aldric III rules from the Sunspire Castle, advised by a council of nobles. The kingdom has been at peace for thirty years since the end of the Orc Wars.",
+      "tags": [
+        "kingdom",
+        "human",
+        "aldric"
+      ],
+      "priority": 6,
+      "relatedLore": []
+    },
+    {
+      "id": "creature:wolves",
+      "category": "creature",
+      "title": "Dire Wolves",
+      "content": "Dire wolves are larger, more aggressive cousins of common wolves found in the wilderness. They hunt in packs of 4-8 and are known to attack travelers on remote roads. Their pelts are valuable to furriers, and their teeth are used in certain alchemical preparations. They are particularly active during winter months when prey is scarce.",
+      "tags": [
+        "beasts",
+        "wilderness",
+        "hunting"
+      ],
+      "priority": 2,
+      "relatedLore": []
+    },
+    {
+      "id": "event:sundering",
+      "category": "event",
+      "title": "The Sundering",
+      "content": "The Sundering was a catastrophic magical event that occurred two centuries ago when an archmage attempted to become a god. The resulting explosion tore rifts in reality, unleashed demons into the material plane, and nearly destroyed the Weave. Thousands died, and entire cities were swallowed by the earth. The scars of the Sundering can still be seen in the Blasted Lands.",
+      "tags": [
+        "history",
+        "magic",
+        "disaster"
+      ],
+      "priority": 7,
+      "relatedLore": []
+    },
+    {
+      "id": "faith:moon-goddess",
+      "category": "faith",
+      "title": "Moon Goddess",
+      "content": "Selenara, the Moon Goddess, watches over travelers and dreamers from her silver throne in the night sky, her three phases representing maiden, mother, and crone. Her faithful leave offerings of white flowers and polished stones at crossroads during the full moon, believing she guides lost souls safely home and grants prophetic visions to those pure of heart. The lunar eclipses are said to be times when Selenara descends to walk among mortals, appearing as a pale woman in flowing robes who aids the desperate and punishes oath-breakers with madness.",
+      "tags": [],
+      "priority": 5,
+      "relatedLore": []
+    }
+  ]
+}

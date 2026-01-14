@@ -57,6 +57,81 @@ interface GUIMessage {
 }
 
 /**
+ * NPC AI context for configuring AI-powered dialogue.
+ */
+interface NPCAIContext {
+  name: string;
+  personality: string;
+  background: string;
+  currentMood?: string;
+  knowledgeScope?: {
+    worldLore?: string[];
+    localKnowledge?: string[];
+    topics?: string[];
+    forbidden?: string[];
+  };
+  speakingStyle?: {
+    formality?: 'casual' | 'formal' | 'archaic';
+    verbosity?: 'terse' | 'normal' | 'verbose';
+    accent?: string;
+  };
+  maxResponseLength?: number;
+}
+
+/**
+ * AI generation options.
+ */
+interface AIGenerateOptions {
+  maxTokens?: number;
+  temperature?: number;
+  cacheKey?: string;
+  /** If true, will continue generating if response is truncated (for long-form content) */
+  useContinuation?: boolean;
+  /** Maximum continuation requests (default: 2) */
+  maxContinuations?: number;
+}
+
+/**
+ * AI description details.
+ */
+interface AIDescribeDetails {
+  name: string;
+  keywords?: string[];
+  theme?: string;
+  existing?: string;
+}
+
+/**
+ * AI generation result.
+ */
+interface AIGenerateResult {
+  success: boolean;
+  text?: string;
+  error?: string;
+  cached?: boolean;
+}
+
+/**
+ * AI description result.
+ */
+interface AIDescribeResult {
+  success: boolean;
+  shortDesc?: string;
+  longDesc?: string;
+  error?: string;
+}
+
+/**
+ * AI NPC response result.
+ */
+interface AINpcResponseResult {
+  success: boolean;
+  response?: string;
+  error?: string;
+  fallback?: boolean;
+}
+
+/**
  * Global efuns object provided by the driver.
  */
 declare global {
@@ -390,6 +465,47 @@ declare global {
       nodeVersion?: string;
       platform?: string;
     };
+
+    // ========== AI Efuns ==========
+
+    /** Check if Claude AI is configured and available */
+    aiAvailable(): boolean;
+
+    /**
+     * Generate text using Claude AI.
+     * @param prompt The prompt/instruction
+     * @param context Optional context (world lore, NPC background, etc.)
+     * @param options Optional configuration
+     */
+    aiGenerate(
+      prompt: string,
+      context?: string,
+      options?: AIGenerateOptions
+    ): Promise<AIGenerateResult>;
+
+    /**
+     * Generate a description for a room, item, or NPC.
+     * @param type The object type
+     * @param details Details about what to describe
+     * @param style Optional style hints
+     */
+    aiDescribe(
+      type: 'room' | 'item' | 'npc' | 'weapon' | 'armor',
+      details: AIDescribeDetails,
+      style?: 'verbose' | 'concise' | 'atmospheric'
+    ): Promise<AIDescribeResult>;
+
+    /**
+     * Get an NPC response using AI with conversation history.
+     * @param npcContext The NPC's context/personality
+     * @param playerMessage What the player said
+     * @param conversationHistory Previous messages in this conversation
+     */
+    aiNpcResponse(
+      npcContext: NPCAIContext,
+      playerMessage: string,
+      conversationHistory?: Array<{ role: 'player' | 'npc'; content: string }>
+    ): Promise<AINpcResponseResult>;
   };
 }
 

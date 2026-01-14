@@ -1,8 +1,10 @@
 /**
- * Town Crier - An NPC who announces news in the town square.
+ * Town Crier - An AI-enabled NPC who announces news in the town square.
  *
  * The town crier stands near the fountain, ringing his bell and
- * announcing the day's news to anyone who will listen.
+ * announcing the day's news to anyone who will listen. He is AI-enabled
+ * and can engage in dynamic conversations with players about local news,
+ * rumors, and happenings in the kingdom.
  */
 
 import { NPC, MudObject } from '../../../lib/std.js';
@@ -39,81 +41,75 @@ news from the castle.`,
     this.setQuestsOffered(['aldric:urgent_message', 'aldric:meet_guildmasters']);
     this.setQuestsTurnedIn(['aldric:urgent_message', 'aldric:meet_guildmasters']);
 
-    this.setupAnnouncements();
-    this.setupResponses();
+    this.setupAIContext();
   }
 
   /**
-   * Set up the crier's periodic announcements.
+   * Configure AI-powered dialogue for dynamic conversations.
    */
-  private setupAnnouncements(): void {
-    // Bell ring before announcements
-    this.addChat('rings his brass bell loudly.', 'emote', 100);
-
-    // Various announcements
-    this.addChat('Hear ye, hear ye! The castle seeks brave adventurers!', 'say');
-    this.addChat('Fresh bread at the bakery! Get it while it\'s warm!', 'say');
-    this.addChat('The tavern offers half-price ale this evening!', 'say');
-    this.addChat('Beware the roads south - bandits have been spotted!', 'say');
-    this.addChat('The blacksmith has new weapons in stock!', 'say');
-    this.addChat('All citizens are reminded to pay their taxes promptly!', 'say');
-    this.addChat('The harvest festival approaches! Prepare your offerings!', 'say');
-    this.addChat('Lost: One gray cat. Answers to "Whiskers". Reward offered.', 'say');
-    this.addChat('The castle guards are recruiting new members!', 'say');
-    this.addChat('Market day is tomorrow! Merchants welcome!', 'say');
-    this.addChat('glances at his parchment and clears his throat.', 'emote');
-    this.addChat('straightens his blue coat importantly.', 'emote');
-  }
-
-  /**
-   * Set up responses to players.
-   */
-  private setupResponses(): void {
-    // Respond to greetings
-    this.addResponse(
-      /hello|hi|greetings|hey/i,
-      (speaker) => `Good day to you, ${speaker.name || 'traveler'}! Fine weather for news!`,
-      'say'
-    );
-
-    // Respond to questions about news
-    this.addResponse(
-      /news|what.*happening|tell me/i,
-      'Ah, you seek the latest news? The castle has posted new bounties, and there are rumors of treasure in the old ruins to the south!',
-      'say'
-    );
-
-    // Respond to questions about the town
-    this.addResponse(
-      /town|where|directions/i,
-      'This is the heart of our fair town! The castle lies north, the tavern east, merchants to the west, and the gates south. What destination do you seek?',
-      'say'
-    );
-
-    // Respond to thanks
-    this.addResponse(
-      /thank|thanks/i,
-      'tips his hat politely.',
-      'emote'
-    );
-
-    // Respond to questions about himself
-    this.addResponse(
-      /who are you|your name|yourself/i,
-      'I am the town crier! It is my duty to keep the good citizens informed of all important happenings!',
-      'say'
-    );
-
-    // Respond to questions about the bell
-    this.addResponse(
-      /bell/i,
-      (speaker) => {
-        this.emote('proudly shows off his polished brass bell.');
-        return 'This bell has served three generations of criers before me. Its ring can be heard across the entire square!';
+  private setupAIContext(): void {
+    this.setAIContext({
+      name: 'Bartleby the Town Crier',
+      personality: `Bartleby is a jovial, garrulous man who takes immense pride in his role as
+the official voice of the town. He loves gossip and news of all kinds, and has an
+encyclopedic knowledge of local happenings. He speaks in a booming, theatrical voice
+even in casual conversation - a habit from years of proclamations. He's friendly and
+helpful, always eager to share what he knows, though he sometimes embellishes stories
+for dramatic effect.`,
+      background: `Bartleby has served as town crier of Aldric for twenty years, inheriting the
+position from his father. His brass bell is a family heirloom passed down through three
+generations of criers. He knows everyone in town and is privy to most of the official
+news from the castle, as well as unofficial rumors from the tavern. He's a patriotic
+citizen who genuinely cares about the wellbeing of Valdoria and its people.`,
+      knowledgeScope: {
+        topics: [
+          'local news and announcements',
+          'town layout and directions',
+          'merchants and shops in town',
+          'the castle and King Aldric III',
+          'local gossip and rumors',
+          'tavern happenings',
+          'market days and festivals',
+          'weather and farming conditions',
+          'nearby dangers like bandits',
+          'adventuring opportunities',
+          'his bell and the crier tradition',
+        ],
+        forbidden: [
+          'castle secrets or confidential royal matters',
+          'thieves guild activities or criminal networks',
+          'magic theory or spellcasting',
+          'detailed military strategy',
+          'things happening in distant lands he\'s never been to',
+        ],
+        localKnowledge: [
+          'The castle lies north of the square, the tavern is east, merchants are west, and the gates are south',
+          'King Aldric III rules from Sunspire Castle with his council of nobles',
+          'Valdoria has been at peace for thirty years since the Orc Wars ended',
+          'The harvest festival approaches in the coming weeks',
+          'Bandits have been spotted on the roads south of town',
+          'The blacksmith has the finest weapons in the region',
+          'The tavern offers half-price ale on certain evenings',
+          'Market day brings merchants from across the kingdom',
+          'There are rumors of treasure in the old ruins to the south',
+          'The castle guards are always recruiting brave souls',
+        ],
+        worldLore: [
+          'region:valdoria',
+          'economics:trade-routes',
+          'faith:sun-god',
+        ],
       },
-      'say'
-    );
+      speakingStyle: {
+        formality: 'casual',
+        verbosity: 'verbose',
+        accent: 'Speaks in a booming, theatrical manner. Often starts sentences with "Hear ye!" or "Mark my words!" Uses dramatic pauses and flourishes.',
+      },
+    });
   }
+
+
+
 
   /**
    * Called when the NPC is created.

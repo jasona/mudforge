@@ -490,3 +490,129 @@ Get current player's assigned domains.
 const domains = efuns.getDomains();
 // Returns: string[] (e.g., ['/areas/castle/', '/areas/forest/'])
 ```
+
+## AI Integration
+
+These efuns provide access to the Claude AI API for content generation and NPC dialogue. They require `CLAUDE_API_KEY` to be configured in the `.env` file.
+
+### aiAvailable()
+
+Check if AI features are available and configured.
+
+```typescript
+if (efuns.aiAvailable()) {
+  // AI is ready to use
+}
+// Returns: boolean
+```
+
+### aiGenerate(prompt, context?, options?)
+
+Generate text using the AI model. This is the low-level API for custom prompts.
+
+```typescript
+const result = await efuns.aiGenerate(
+  'Describe a haunted forest in a fantasy setting.',
+  'This is for a dark fantasy MUD game.',
+  { maxTokens: 500 }
+);
+
+if (result.success) {
+  console.log(result.text);
+} else {
+  console.log(result.error);
+}
+// Returns: { success: boolean, text?: string, error?: string }
+```
+
+**Options:**
+- `maxTokens?: number` - Maximum tokens in response (default: 1024)
+
+### aiDescribe(type, details)
+
+Generate descriptions for game objects. Specialized wrapper around `aiGenerate`.
+
+```typescript
+const result = await efuns.aiDescribe('room', {
+  name: 'Dusty Library',
+  theme: 'abandoned, scholarly, mysterious',
+});
+
+if (result.success) {
+  console.log(result.shortDesc); // "A dusty, abandoned library"
+  console.log(result.longDesc);  // Full description paragraph
+}
+// Returns: { success: boolean, shortDesc?: string, longDesc?: string, error?: string }
+```
+
+**Types:** `room`, `item`, `npc`, `weapon`, `armor`
+
+### aiNpcResponse(npcContext, playerMessage, history?)
+
+Generate an AI-powered NPC response to a player message.
+
+```typescript
+const result = await efuns.aiNpcResponse(
+  {
+    name: 'Bartleby the Innkeeper',
+    personality: 'Friendly and gossipy',
+    background: 'Former adventurer who retired to run the inn.',
+    knowledgeScope: {
+      topics: ['local news', 'drinks', 'adventuring'],
+      forbidden: ['his adventuring past'],
+      localKnowledge: ['The inn has 6 rooms for rent'],
+      worldLore: ['region:valdoria', 'economics:trade-routes'],
+    },
+    speakingStyle: {
+      formality: 'casual',
+      verbosity: 'verbose',
+    },
+  },
+  'What do you know about the thieves guild?',
+  [
+    { role: 'player', content: 'Hello!' },
+    { role: 'npc', content: 'Welcome to the Silver Tankard!' },
+  ]
+);
+
+if (result.success && result.response) {
+  npc.say(result.response);
+} else if (result.fallback) {
+  // AI unavailable, use static responses
+}
+// Returns: { success: boolean, response?: string, fallback?: boolean, error?: string }
+```
+
+**NPCAIContext fields:**
+- `name: string` - NPC's full name for the AI
+- `personality: string` - Personality description
+- `background?: string` - Character background
+- `currentMood?: string` - Current emotional state
+- `knowledgeScope.topics?: string[]` - Topics they know about
+- `knowledgeScope.forbidden?: string[]` - Topics they avoid
+- `knowledgeScope.localKnowledge?: string[]` - Specific facts they know
+- `knowledgeScope.worldLore?: string[]` - Lore IDs to include (fetched from lore daemon)
+- `speakingStyle.formality?: 'casual' | 'formal' | 'archaic'`
+- `speakingStyle.verbosity?: 'terse' | 'normal' | 'verbose'`
+- `speakingStyle.accent?: string` - Speech pattern notes
+
+**ConversationMessage:**
+- `role: 'player' | 'npc'`
+- `content: string`
+
+The `worldLore` array references lore entry IDs. The system automatically fetches these from the lore daemon and includes them in the AI prompt.
+
+## IDE Integration
+
+### ideOpen(filePath, content, options?)
+
+Open the web-based IDE for editing content.
+
+```typescript
+efuns.ideOpen('/areas/town/tavern.ts', sourceCode, {
+  language: 'typescript',
+  readOnly: false,
+});
+```
+
+Used by the `ide` and `lore edit` commands to provide visual editing.

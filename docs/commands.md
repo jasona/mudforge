@@ -743,6 +743,117 @@ Features:
 - Real-time error display on save
 - Keyboard shortcuts: Ctrl+S (save), Escape (close)
 
+### AI Content Generation
+
+These commands use the Claude AI API to generate game content. They require `CLAUDE_API_KEY` to be configured in the `.env` file.
+
+#### aidescribe (aid)
+Generate AI descriptions for game objects.
+
+```
+aidescribe <type> <name> [theme/keywords]
+```
+
+Types: `room`, `item`, `npc`, `weapon`, `armor`
+
+Examples:
+```
+aidescribe room "Dusty Library" fantasy
+aidescribe npc "Old Blacksmith" "gruff, experienced"
+aidescribe weapon "Iron Sword" "rusty, old"
+aidescribe item "Leather Bag" "worn, travel"
+```
+
+Generates short and long descriptions. Uses world lore from the lore daemon for consistency.
+
+#### airoom
+Generate a complete room definition using AI.
+
+```
+airoom <theme> [exits]
+```
+
+Examples:
+```
+airoom "abandoned mine"
+airoom "cozy tavern" "north,east,west"
+airoom "forest clearing" "north,south,east,west"
+airoom "dark dungeon cell" "north"
+```
+
+Generates:
+- Short and long descriptions
+- Terrain type
+- Suggested items
+- Suggested NPCs
+- Ambiance message
+- Code snippet ready to copy
+
+Uses world lore for consistency with the game world.
+
+#### ainpc
+Generate a complete NPC definition using AI.
+
+```
+ainpc <name> <role> [personality]
+```
+
+Examples:
+```
+ainpc "Old Fisherman" "quest giver" "grumpy, knows about sea monsters"
+ainpc "Blacksmith" "merchant" "gruff, experienced, former soldier"
+ainpc "Town Guard" "guard" "vigilant, by-the-book"
+ainpc "Mysterious Stranger" "information broker"
+```
+
+Generates:
+- Short and long descriptions
+- Personality and background
+- Speaking style (formality, verbosity, accent)
+- Chat messages (idle actions)
+- Static responses (fallback triggers)
+- Knowledge topics and forbidden subjects
+- Local knowledge facts
+- Complete code snippet with AI context
+
+Uses world lore and provides matching lore IDs for the NPC's `worldLore` configuration.
+
+### Lore Management
+
+#### lore
+Manage world lore entries for AI consistency.
+
+```
+lore list [category]              # List all lore entries
+lore show <id>                    # Show a specific entry
+lore add <category> <title>       # Add new lore (opens IDE)
+lore edit <id>                    # Edit existing lore (opens IDE)
+lore remove <id>                  # Remove a lore entry
+lore generate <category> <title> [theme]  # AI-generate lore
+lore search <keyword>             # Search lore content
+lore tags                         # List all tags
+```
+
+Categories: `world`, `region`, `faction`, `history`, `character`, `event`, `item`, `creature`, `location`, `economics`, `mechanics`, `faith`
+
+Examples:
+```
+lore list                         # List all lore
+lore list faction                 # List faction lore only
+lore show faith:sun-god           # Show specific entry
+lore add faith "Moon Goddess"     # Add new entry (opens IDE)
+lore edit region:valdoria         # Edit existing entry
+lore generate event "The Great Fire" "destruction, city, tragedy"
+lore search dragon                # Search for dragon-related lore
+lore tags                         # Show all unique tags
+```
+
+The `add` and `edit` subcommands open the IDE with a JSON template for editing. The `generate` subcommand uses AI to create new lore entries.
+
+Lore entries are stored in `/data/lore/entries.json` and are automatically loaded on server start.
+
+See [Daemons > Lore Daemon](daemons.md#lore-daemon) and [AI Integration Guide](ai-integration.md) for details.
+
 ## Admin Commands
 
 Available only to administrators.

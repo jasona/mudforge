@@ -3,6 +3,14 @@
 ## Overview
 Integrate Claude API into the MUD game for AI-powered content generation and NPC dialogue.
 
+## Status: ✅ COMPLETE
+
+All phases have been implemented:
+- ✅ Phase 1: Core Infrastructure (AI efuns, Claude client)
+- ✅ Phase 2: Builder Commands (aidescribe, airoom, ainpc)
+- ✅ Phase 3: NPC AI Dialogue (AI context, conversation history)
+- ✅ Phase 4: Lore System (lore daemon, lore command, world lore integration)
+
 ## Configuration
 - API key via environment variable (`CLAUDE_API_KEY` in `.env`)
 - Both efuns and builder commands
@@ -12,7 +20,7 @@ Integrate Claude API into the MUD game for AI-powered content generation and NPC
 
 ## Implementation Phases
 
-### Phase 1: Core Infrastructure
+### Phase 1: Core Infrastructure ✅
 
 **1.1 Add config entries** - `src/driver/config.ts`
 - `claudeApiKey`, `claudeModel`, `claudeMaxTokens`, `claudeRateLimitPerMinute`
@@ -41,7 +49,7 @@ aiNpcResponse(npcContext: NPCAIContext, playerMessage: string, history?: [...]):
 
 ---
 
-### Phase 2: Builder Commands
+### Phase 2: Builder Commands ✅
 
 **2.1 `_aidescribe.ts`** - `mudlib/cmds/builder/_aidescribe.ts`
 ```
@@ -67,7 +75,7 @@ Generates NPC with descriptions, personality, chat messages, AI context config.
 
 ---
 
-### Phase 3: NPC AI Dialogue
+### Phase 3: NPC AI Dialogue ✅
 
 **3.1 Create AI types** - `mudlib/lib/ai-types.ts` (new file)
 ```typescript
@@ -119,17 +127,60 @@ export class Blacksmith extends NPC {
 
 ---
 
-### Phase 4: Lore System (Optional Enhancement)
+### Phase 4: Lore System ✅
 
 **4.1 Create lore daemon** - `mudlib/daemons/lore.ts` (new file)
-- Central registry for world lore entries
-- Categories: world, region, faction, history, character
-- Tags for filtering
-- `buildContext()` method to generate AI-ready lore strings
+```typescript
+export type LoreCategory =
+  | 'world'      // General world facts, cosmology
+  | 'region'     // Geographic areas, kingdoms
+  | 'faction'    // Organizations, guilds, groups
+  | 'history'    // Past eras, timelines
+  | 'character'  // Notable NPCs, heroes, villains
+  | 'event'      // Major historical events, wars, disasters
+  | 'item'       // Artifacts, magical items, item types
+  | 'creature'   // Monster types, beasts, supernatural beings
+  | 'location'   // Specific notable places (buildings, dungeons)
+  | 'economics'  // Trade, currency, commerce
+  | 'mechanics'  // World mechanics (magic systems, etc.)
+  | 'faith';     // Religions, gods, worship
 
-**4.2 Integration**
+export interface LoreEntry {
+  id: string;                 // "category:slug" format
+  category: LoreCategory;
+  title: string;
+  content: string;            // AI-ready lore text
+  tags?: string[];
+  relatedLore?: string[];
+  priority?: number;          // Higher = included first when truncating
+}
+
+export class LoreDaemon extends MudObject {
+  registerLore(entry: LoreEntry): void;
+  getLore(id: string): LoreEntry | undefined;
+  getLoreByCategory(category: LoreCategory): LoreEntry[];
+  getLoreByTags(tags: string[]): LoreEntry[];
+  buildContext(loreIds: string[], maxLength?: number): string;
+  load(): Promise<void>;
+  save(): Promise<void>;
+}
+```
+- Persists to `/data/lore/entries.json`
+- Follows singleton pattern like other daemons
+
+**4.2 Builder command** - `mudlib/cmds/builder/_lore.ts`
+```
+Usage: lore list [category]           - List all lore entries
+       lore show <id>                 - Show a specific entry
+       lore add <category> <title>    - Add new lore (prompts for content)
+       lore remove <id>               - Remove a lore entry
+       lore generate <category> <title> [theme]  - AI-generate lore entry
+```
+
+**4.3 Integration** - Modify `src/driver/efun-bridge.ts`
+- In `aiNpcResponse()`, fetch worldLore entries from LoreDaemon
+- Inject lore content into system prompt under "WORLD LORE" section
 - NPCs reference lore IDs in their `knowledgeScope.worldLore`
-- Lore daemon injects relevant content into AI prompts
 
 ---
 
@@ -138,7 +189,7 @@ export class Blacksmith extends NPC {
 | File | Changes |
 |------|---------|
 | `src/driver/config.ts` | Add Claude config fields |
-| `src/driver/efun-bridge.ts` | Add 4 AI efuns (~150 lines) |
+| `src/driver/efun-bridge.ts` | Add 4 AI efuns (~150 lines); Phase 4: add worldLore injection (~20 lines) |
 | `mudlib/efuns.d.ts` | Add AI efun type definitions |
 | `mudlib/std/npc.ts` | Add AI context, conversation tracking (~100 lines) |
 | `.env` | Add CLAUDE_API_KEY and related vars |
@@ -152,7 +203,9 @@ export class Blacksmith extends NPC {
 | `mudlib/cmds/builder/_aidescribe.ts` | Builder command for descriptions |
 | `mudlib/cmds/builder/_airoom.ts` | Builder command for room generation |
 | `mudlib/cmds/builder/_ainpc.ts` | Builder command for NPC generation |
-| `mudlib/daemons/lore.ts` | (Phase 4) World lore management |
+| `mudlib/daemons/lore.ts` | (Phase 4) World lore management daemon |
+| `mudlib/cmds/builder/_lore.ts` | (Phase 4) Builder command for lore entries |
+| `mudlib/data/lore/entries.json` | (Phase 4) Lore data persistence |
 
 ---
 
@@ -175,3 +228,4 @@ CLAUDE_RATE_LIMIT=20
 4. **NPC dialogue**: Create test NPC with AI context, verify conversation works
 5. **Fallback**: Disable API key, verify NPCs fall back to static responses
 6. **Rate limiting**: Spam requests, verify rate limit kicks in
+7. **Lore system**: Test `lore list`, `lore add faith "Test God"`, verify lore appears in NPC prompts

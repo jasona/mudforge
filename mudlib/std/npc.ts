@@ -13,6 +13,10 @@ import { getCombatDaemon } from '../daemons/combat.js';
 import type { NPCCombatConfig, LootEntry, GoldDrop } from './combat/types.js';
 import type { QuestId, QuestDefinition, PlayerQuestState, QuestPlayer } from './quest/types.js';
 import { getQuestDaemon } from '../daemons/quest.js';
+import type { NPCAIContext, ConversationMessage } from '../lib/ai-types.js';
+
+// Re-export AI types for convenience
+export type { NPCAIContext, ConversationMessage } from '../lib/ai-types.js';
 
 // Quest daemon accessor functions
 function getQuestDaemonLazy() {
@@ -61,6 +65,12 @@ export class NPC extends Living {
   // Quest giver configuration
   private _questsOffered: QuestId[] = [];
   private _questsTurnedIn: QuestId[] = [];
+
+  // AI dialogue configuration
+  private _aiContext: NPCAIContext | null = null;
+  private _aiEnabled: boolean = false;
+  private _conversationHistory: Map<string, ConversationMessage[]> = new Map();
+  private _maxHistoryLength: number = 10;
 
   constructor() {
     super();
@@ -144,8 +154,148 @@ export class NPC extends Living {
     this._responses = [];
   }
 
+  // ========== AI Dialogue System ==========
+
+  /**
+   * Enable AI-powered dialogue for this NPC.
+   * @param context The NPC's AI context/personality configuration
+   */
+  setAIContext(context: NPCAIContext): void {
+    this._aiContext = context;
+    this._aiEnabled = true;
+  }
+
+  /**
+   * Get the AI context for this NPC.
+   */
+  getAIContext(): NPCAIContext | null {
+    return this._aiContext;
+  }
+
+  /**
+   * Check if this NPC has AI dialogue enabled.
+   */
+  isAIEnabled(): boolean {
+    return this._aiEnabled && this._aiContext !== null;
+  }
+
+  /**
+   * Enable or disable AI dialogue.
+   */
+  setAIEnabled(enabled: boolean): void {
+    this._aiEnabled = enabled;
+  }
+
+  /**
+   * Get conversation history with a specific player.
+   */
+  getConversationHistory(playerName: string): ConversationMessage[] {
+    return this._conversationHistory.get(playerName.toLowerCase()) || [];
+  }
+
+  /**
+   * Clear conversation history with a specific player (or all players).
+   */
+  clearConversationHistory(playerName?: string): void {
+    if (playerName) {
+      this._conversationHistory.delete(playerName.toLowerCase());
+    } else {
+      this._conversationHistory.clear();
+    }
+  }
+
+  /**
+   * Set the maximum conversation history length per player.
+   */
+  setMaxHistoryLength(length: number): void {
+    this._maxHistoryLength = Math.max(1, length);
+  }
+
+  /**
+   * Handle AI-powered response to a player message.
+   * @returns true if AI responded, false if fallback needed
+   */
+  private async handleAIResponse(speaker: MudObject, message: string): Promise<boolean> {
+    if (!this._aiContext || typeof efuns === 'undefined' || !efuns.aiAvailable?.()) {
+      return false;
+    }
+
+    const playerName = speaker.name?.toLowerCase() || 'unknown';
+    const history = this.getConversationHistory(playerName);
+
+    try {
+      const result = await efuns.aiNpcResponse(
+        this._aiContext,
+        message,
+        history
+      );
+
+      if (result.fallback || !result.success) {
+        // AI unavailable or failed - fall back to static responses
+        return false;
+      }
+
+      if (result.response) {
+        // Update conversation history
+        history.push({ role: 'player', content: message });
+        history.push({ role: 'npc', content: result.response });
+
+        // Trim history if too long
+        while (history.length > this._maxHistoryLength * 2) {
+          history.shift();
+        }
+        this._conversationHistory.set(playerName, history);
+
+        // Deliver the response
+        this.say(result.response);
+        return true;
+      }
+
+      return false;
+    } catch {
+      // Error occurred - fall back to static responses
+      return false;
+    }
+  }
+
+  /**
+   * Try static response patterns.
+   * @returns true if a response was triggered
+   */
+  private tryStaticResponse(speaker: MudObject, message: string): boolean {
+    for (const trigger of this._responses) {
+      const match =
+        typeof trigger.pattern === 'string'
+          ? message.toLowerCase().includes(trigger.pattern.toLowerCase())
+          : trigger.pattern.test(message);
+
+      if (match) {
+        let responseText: string | void;
+
+        if (typeof trigger.response === 'function') {
+          responseText = trigger.response(speaker, message);
+        } else {
+          responseText = trigger.response;
+        }
+
+        if (responseText) {
+          if (trigger.type === 'say') {
+            this.say(responseText);
+          } else {
+            this.emote(responseText);
+          }
+        }
+
+        return true; // Only respond once
+      }
+    }
+
+    return false;
+  }
+
   /**
    * Process a message and potentially respond.
+   * Uses AI if enabled and available, otherwise falls back to static responses.
    * @param speaker Who said the message
    * @param message What was said
    */
@@ -170,32 +320,22 @@ export class NPC extends Living {
         });
     }
 
-    for (const trigger of this._responses) {
-      const match =
-        typeof trigger.pattern === 'string'
-          ? message.toLowerCase().includes(trigger.pattern.toLowerCase())
-          : trigger.pattern.test(message);
-
-      if (match) {
-        let responseText: string | void;
-
-        if (typeof trigger.response === 'function') {
-          responseText = trigger.response(speaker, message);
-        } else {
-          responseText = trigger.response;
+    // Try AI response first if enabled
+    if (this._aiEnabled && this._aiContext) {
+      this.handleAIResponse(speaker, message).then((handled) => {
+        if (!handled) {
+          // AI failed or unavailable, try static responses
+          this.tryStaticResponse(speaker, message);
         }
-
-        if (responseText) {
-          if (trigger.type === 'say') {
-            this.say(responseText);
-          } else {
-            this.emote(responseText);
-          }
-        }
-
-        break; // Only respond once
-      }
+      }).catch(() => {
+        // Error in AI handling, fall back to static
+        this.tryStaticResponse(speaker, message);
+      });
+      return;
     }
+
+    // No AI - use static responses
+    this.tryStaticResponse(speaker, message);
   }
 
   // ========== Aggression ==========

@@ -10,7 +10,10 @@ mudlib/daemons/
 ├── channels.ts   # Communication channels
 ├── help.ts       # Help system
 ├── admin.ts      # Administration functions
-└── config.ts     # Mud-wide configuration settings
+├── config.ts     # Mud-wide configuration settings
+├── combat.ts     # Combat system management
+├── quest.ts      # Quest system management
+└── lore.ts       # World lore registry for AI integration
 ```
 
 ## Login Daemon
@@ -357,6 +360,145 @@ config disconnect.timeoutMinutes    # View a setting
 config disconnect.timeoutMinutes 30 # Change a setting
 config reset disconnect.timeoutMinutes # Reset to default
 ```
+
+## Lore Daemon
+
+The lore daemon manages world lore entries that can be injected into AI prompts for consistent NPC dialogue and content generation.
+
+### Location
+
+`/mudlib/daemons/lore.ts`
+
+### Purpose
+
+- Central registry for world lore, history, factions, and other background information
+- Provides consistent context for AI-powered NPCs and content generation
+- Supports categorization, tagging, and priority-based retrieval
+- Persists lore entries to `/data/lore/entries.json`
+
+### Lore Categories
+
+| Category | Description |
+|----------|-------------|
+| `world` | General world facts, cosmology, creation myths |
+| `region` | Geographic areas, kingdoms, territories |
+| `faction` | Organizations, guilds, groups |
+| `history` | Past eras, timelines |
+| `character` | Notable NPCs, heroes, villains |
+| `event` | Major historical events, wars, disasters |
+| `item` | Artifacts, magical items, item types |
+| `creature` | Monster types, beasts, supernatural beings |
+| `location` | Specific notable places (buildings, dungeons) |
+| `economics` | Trade, currency, commerce |
+| `mechanics` | World mechanics (magic systems, etc.) |
+| `faith` | Religions, gods, worship |
+
+### Lore Entry Structure
+
+```typescript
+interface LoreEntry {
+  id: string;           // Format: "category:slug" (e.g., "faith:sun-god")
+  category: LoreCategory;
+  title: string;        // Display title
+  content: string;      // AI-ready lore text
+  tags?: string[];      // For filtering (e.g., ["magic", "elves"])
+  relatedLore?: string[]; // IDs of related entries
+  priority?: number;    // Higher = included first when truncating (default: 5)
+}
+```
+
+### API
+
+```typescript
+import { getLoreDaemon } from '../daemons/lore.js';
+
+const loreDaemon = getLoreDaemon();
+
+// Register a new lore entry
+loreDaemon.registerLore({
+  id: 'faction:thieves-guild',
+  category: 'faction',
+  title: 'The Shadow Hand',
+  content: 'The Shadow Hand is the largest thieves guild...',
+  tags: ['criminal', 'underground'],
+  priority: 5,
+});
+
+// Get a specific entry
+const entry = loreDaemon.getLore('faction:thieves-guild');
+
+// Get all entries in a category
+const factions = loreDaemon.getLoreByCategory('faction');
+
+// Get entries matching tags
+const magicLore = loreDaemon.getLoreByTags(['magic']);
+
+// Search entries by keyword
+const results = loreDaemon.search('dragon');
+
+// Get all lore entries
+const allLore = loreDaemon.getAllLore();
+
+// Build AI context from multiple entries (with max length)
+const context = loreDaemon.buildContext(
+  ['world:creation-myth', 'faction:thieves-guild'],
+  2000  // max characters
+);
+
+// Remove an entry
+loreDaemon.removeLore('faction:thieves-guild');
+
+// Get all unique tags
+const tags = loreDaemon.getAllTags();
+
+// Persist changes
+await loreDaemon.save();
+```
+
+### Usage with AI NPCs
+
+NPCs reference lore via their `knowledgeScope.worldLore` array:
+
+```typescript
+export class Bartender extends NPC {
+  constructor() {
+    super();
+    this.setAIContext({
+      name: 'Mira the Bartender',
+      personality: 'Friendly tavern owner who knows all the local gossip.',
+      knowledgeScope: {
+        topics: ['local news', 'drinks', 'rumors'],
+        worldLore: [
+          'region:valdoria',
+          'faction:thieves-guild',
+          'economics:trade-routes',
+        ],
+      },
+    });
+  }
+}
+```
+
+When the NPC responds to players, the lore daemon automatically fetches these entries and includes them in the AI prompt.
+
+### Builder Commands
+
+Lore can be managed in-game using the `lore` command:
+
+```
+lore list [category]              # List all lore entries
+lore show <id>                    # Show a specific entry
+lore add <category> <title>       # Add new lore (opens IDE)
+lore edit <id>                    # Edit existing lore (opens IDE)
+lore remove <id>                  # Remove a lore entry
+lore generate <category> <title> [theme]  # AI-generate lore
+lore search <keyword>             # Search lore content
+lore tags                         # List all tags
+```
+
+See [Commands Reference](commands.md#lore) for details.
+
+---
 
 ## Creating a Custom Daemon
 

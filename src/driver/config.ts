@@ -30,6 +30,13 @@ export interface DriverConfig {
   // Development
   devMode: boolean;
   hotReload: boolean;
+
+  // Claude AI
+  claudeApiKey: string;
+  claudeModel: string;
+  claudeMaxTokens: number;
+  claudeRateLimitPerMinute: number;
+  claudeCacheTtlMs: number;
 }
 
 const LOG_LEVELS = ['trace', 'debug', 'info', 'warn', 'error', 'fatal'] as const;
@@ -89,6 +96,13 @@ export function loadConfig(): DriverConfig {
     // Development
     devMode: parseBoolean(process.env['DEV_MODE'], true),
     hotReload: parseBoolean(process.env['HOT_RELOAD'], true),
+
+    // Claude AI
+    claudeApiKey: process.env['CLAUDE_API_KEY'] ?? '',
+    claudeModel: process.env['CLAUDE_MODEL'] ?? 'claude-sonnet-4-20250514',
+    claudeMaxTokens: parseNumber(process.env['CLAUDE_MAX_TOKENS'], 1024),
+    claudeRateLimitPerMinute: parseNumber(process.env['CLAUDE_RATE_LIMIT'], 20),
+    claudeCacheTtlMs: parseNumber(process.env['CLAUDE_CACHE_TTL_MS'], 300000),
   };
 }
 

@@ -12,6 +12,7 @@ import { getPermissions, resetPermissions, type Permissions } from './permission
 import { getFileStore } from './persistence/file-store.js';
 import { getMudlibLoader, type MudlibLoader } from './mudlib-loader.js';
 import { getCommandManager } from './command-manager.js';
+import { getClaudeClient, type ClaudeMessage } from './claude-client.js';
 import type { PlayerSaveData } from './persistence/serializer.js';
 import type { MudObject } from './types.js';
 import { readFile, writeFile, access, readdir, stat, mkdir, rm, rename, copyFile } from 'fs/promises';
@@ -53,6 +54,81 @@ export interface IdeMessage {
 export interface GUIMessage {
   action: string;
   [key: string]: unknown;
+}
+
+/**
+ * NPC AI context for configuring AI-powered dialogue.
+ */
+export interface NPCAIContext {
+  name: string;
+  personality: string;
+  background: string;
+  currentMood?: string;
+  knowledgeScope?: {
+    worldLore?: string[];
+    localKnowledge?: string[];
+    topics?: string[];
+    forbidden?: string[];
+  };
+  speakingStyle?: {
+    formality?: 'casual' | 'formal' | 'archaic';
+    verbosity?: 'terse' | 'normal' | 'verbose';
+    accent?: string;
+  };
+  maxResponseLength?: number;
+}
+
+/**
+ * AI generation options.
+ */
+export interface AIGenerateOptions {
+  maxTokens?: number;
+  temperature?: number;
+  cacheKey?: string;
+  /** If true, will continue generating if response is truncated (for long-form content) */
+  useContinuation?: boolean;
+  /** Maximum continuation requests (default: 2) */
+  maxContinuations?: number;
+}
+
+/**
+ * AI description details.
+ */
+export interface AIDescribeDetails {
+  name: string;
+  keywords?: string[];
+  theme?: string;
+  existing?: string;
+}
+
+/**
+ * AI generation result.
+ */
+export interface AIGenerateResult {
+  success: boolean;
+  text?: string;
+  error?: string;
+  cached?: boolean;
+}
+
+/**
+ * AI description result.
+ */
+export interface AIDescribeResult {
+  success: boolean;
+  shortDesc?: string;
+  longDesc?: string;
+  error?: string;
+}
+
+/**
+ * AI NPC response result.
+ */
+export interface AINpcResponseResult {
+  success: boolean;
+  response?: string;
+  error?: string;
+  fallback?: boolean;
 }
 
 export interface EfunBridgeConfig {
@@ -1889,6 +1965,299 @@ export class EfunBridge {
     }
   }
 
+  // ========== AI Efuns ==========
+
+  /**
+   * Get the player name for rate limiting purposes.
+   */
+  private getPlayerNameForRateLimit(): string {
+    const player = this.context.thisPlayer;
+    if (!player) return 'system';
+    // Try to get name from player object (Living objects have name)
+    const playerWithName = player as MudObject & { name?: string };
+    return playerWithName.name || player.objectId || 'unknown';
+  }
+
+  /**
+   * Check if Claude AI is configured and available.
+   */
+  aiAvailable(): boolean {
+    const client = getClaudeClient();
+    return client !== null && client.isConfigured();
+  }
+
+  /**
+   * Generate text using Claude AI.
+   * @param prompt The prompt/instruction
+   * @param context Optional context (world lore, NPC background, etc.)
+   * @param options Optional configuration
+   */
+  async aiGenerate(
+    prompt: string,
+    context?: string,
+    options?: AIGenerateOptions
+  ): Promise<AIGenerateResult> {
+    const client = getClaudeClient();
+    if (!client || !client.isConfigured()) {
+      return { success: false, error: 'AI not configured' };
+    }
+
+    const playerName = this.getPlayerNameForRateLimit();
+
+    const systemPrompt = context
+      ? `${context}\n\nFollow the user's instructions carefully.`
+      : 'You are a helpful assistant for a fantasy MUD game. Generate creative, atmospheric content.';
+
+    const request: { systemPrompt: string; messages: ClaudeMessage[]; maxTokens?: number; temperature?: number } = {
+      systemPrompt,
+      messages: [{ role: 'user', content: prompt }],
+    };
+    if (options?.maxTokens !== undefined) {
+      request.maxTokens = options.maxTokens;
+    }
+    if (options?.temperature !== undefined) {
+      request.temperature = options.temperature;
+    }
+
+    // Check rate limit first
+    const rateCheckResult = client.checkRateLimit(`gen:${playerName}`);
+    if (!rateCheckResult.allowed) {
+      return {
+        success: false,
+        error: `Rate limited. Try again in ${rateCheckResult.retryAfter ?? 60} seconds.`,
+      };
+    }
+
+    // Use continuation for long-form content if requested
+    let result;
+    if (options?.useContinuation) {
+      result = await client.completeWithContinuation(request, options.maxContinuations ?? 2);
+    } else {
+      result = await client.completeWithRateLimit(`gen:${playerName}`, request);
+    }
+
+    const response: AIGenerateResult = { success: result.success };
+    if (result.content !== undefined) {
+      response.text = result.content;
+    }
+    if (result.error !== undefined) {
+      response.error = result.error;
+    }
+    if (result.cached !== undefined) {
+      response.cached = result.cached;
+    }
+    return response;
+  }
+
+  /**
+   * Generate a description for a room, item, or NPC.
+   * @param type The object type
+   * @param details Details about what to describe
+   * @param style Optional style hints
+   */
+  async aiDescribe(
+    type: 'room' | 'item' | 'npc' | 'weapon' | 'armor',
+    details: AIDescribeDetails,
+    style?: 'verbose' | 'concise' | 'atmospheric'
+  ): Promise<AIDescribeResult> {
+    const client = getClaudeClient();
+    if (!client || !client.isConfigured()) {
+      return { success: false, error: 'AI not configured' };
+    }
+
+    const playerName = this.getPlayerNameForRateLimit();
+    const rateCheck = client.checkRateLimit(`desc:${playerName}`);
+    if (!rateCheck.allowed) {
+      return {
+        success: false,
+        error: `Rate limited. Try again in ${rateCheck.retryAfter ?? 60} seconds.`,
+      };
+    }
+
+    const styleGuide = style === 'verbose'
+      ? 'Use rich, detailed prose with sensory details.'
+      : style === 'concise'
+        ? 'Be brief and direct. No flowery language.'
+        : 'Create an atmospheric, immersive description.';
+
+    const systemPrompt = `You are a creative writer for a fantasy MUD (text-based RPG) game.
+Generate descriptions for game content. ${styleGuide}
+
+IMPORTANT RULES:
+- Short description: 3-8 words, lowercase, no period (e.g., "a dusty old tavern")
+- Long description: 2-4 sentences, present tense, second person where appropriate
+- Use color codes like {cyan}, {yellow}, {red}, {green}, {bold}, {/} for emphasis sparingly
+- Never break character or mention being an AI`;
+
+    const keywords = details.keywords?.join(', ') || '';
+    const prompt = `Generate a ${type} description.
+Name: ${details.name}
+${keywords ? `Keywords/Theme: ${keywords}` : ''}
+${details.theme ? `Theme: ${details.theme}` : ''}
+${details.existing ? `Existing description to enhance: ${details.existing}` : ''}
+
+Respond in this exact JSON format:
+{"shortDesc": "...", "longDesc": "..."}`;
+
+    const result = await client.completeWithRateLimit(`desc:${playerName}`, {
+      systemPrompt,
+      messages: [{ role: 'user', content: prompt }],
+      temperature: 0.8,
+    });
+
+    if (!result.success || !result.content) {
+      return { success: false, error: result.error || 'No response' };
+    }
+
+    try {
+      // Parse JSON response
+      const jsonMatch = result.content.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        return { success: false, error: 'Invalid response format' };
+      }
+      const parsed = JSON.parse(jsonMatch[0]) as { shortDesc: string; longDesc: string };
+      return {
+        success: true,
+        shortDesc: parsed.shortDesc,
+        longDesc: parsed.longDesc,
+      };
+    } catch {
+      return { success: false, error: 'Failed to parse AI response' };
+    }
+  }
+
+  /**
+   * Get an NPC response using AI with conversation history.
+   * @param npcContext The NPC's context/personality
+   * @param playerMessage What the player said
+   * @param conversationHistory Previous messages in this conversation
+   */
+  async aiNpcResponse(
+    npcContext: NPCAIContext,
+    playerMessage: string,
+    conversationHistory?: Array<{ role: 'player' | 'npc'; content: string }>
+  ): Promise<AINpcResponseResult> {
+    const client = getClaudeClient();
+    if (!client || !client.isConfigured()) {
+      return { success: false, error: 'AI not configured', fallback: true };
+    }
+
+    const playerName = this.getPlayerNameForRateLimit();
+    const rateCheck = client.checkRateLimit(`npc:${playerName}`);
+    if (!rateCheck.allowed) {
+      return {
+        success: false,
+        error: `Rate limited. Try again in ${rateCheck.retryAfter ?? 60} seconds.`,
+        fallback: true,
+      };
+    }
+
+    // Build NPC system prompt
+    const formalityDesc = npcContext.speakingStyle?.formality === 'formal'
+      ? 'Speak formally and politely.'
+      : npcContext.speakingStyle?.formality === 'archaic'
+        ? 'Speak in an archaic, old-fashioned manner.'
+        : 'Speak casually and naturally.';
+
+    // Define word limits based on verbosity
+    const verbosityLimits = {
+      terse: { words: 25, desc: 'Keep responses very short (1-2 sentences, under 25 words).' },
+      normal: { words: 50, desc: 'Keep responses concise (2-3 sentences, under 50 words).' },
+      verbose: { words: 80, desc: 'Give moderately detailed responses (3-4 sentences, under 80 words).' },
+    };
+    const verbosity = npcContext.speakingStyle?.verbosity ?? 'normal';
+    const verbosityConfig = verbosityLimits[verbosity] ?? verbosityLimits.normal;
+    const verbosityDesc = verbosityConfig.desc;
+    const maxWords = npcContext.maxResponseLength ?? verbosityConfig.words;
+
+    const topics = npcContext.knowledgeScope?.topics?.join(', ') || 'general topics';
+    const forbidden = npcContext.knowledgeScope?.forbidden?.join(', ');
+
+    // Fetch world lore if specified
+    let worldLoreContext = '';
+    if (npcContext.knowledgeScope?.worldLore?.length) {
+      try {
+        const loader = getMudlibLoader();
+        const loreModule = await loader.loadModule('/daemons/lore');
+        const getLoreDaemon = loreModule.getLoreDaemon as () => {
+          buildContext(ids: string[], maxLength?: number): string;
+        };
+        if (getLoreDaemon) {
+          const loreDaemon = getLoreDaemon();
+          worldLoreContext = loreDaemon.buildContext(npcContext.knowledgeScope.worldLore, 2000);
+        }
+      } catch (error) {
+        console.warn('[aiNpcResponse] Failed to load world lore:', error);
+      }
+    }
+
+    const systemPrompt = `You are ${npcContext.name}, an NPC in a fantasy MUD game.
+
+PERSONALITY: ${npcContext.personality}
+BACKGROUND: ${npcContext.background}
+${npcContext.currentMood ? `CURRENT MOOD: ${npcContext.currentMood}` : ''}
+
+SPEAKING STYLE:
+- ${formalityDesc}
+- ${verbosityDesc}
+${npcContext.speakingStyle?.accent ? `- Speech pattern: ${npcContext.speakingStyle.accent}` : ''}
+
+KNOWLEDGE:
+- You can discuss: ${topics}
+${forbidden ? `- NEVER discuss or reveal information about: ${forbidden}` : ''}
+${npcContext.knowledgeScope?.localKnowledge ? `- Local knowledge: ${npcContext.knowledgeScope.localKnowledge.join(', ')}` : ''}
+${worldLoreContext ? `\nWORLD LORE (use this knowledge naturally in conversation):\n${worldLoreContext}` : ''}
+
+RULES:
+- Stay completely in character as ${npcContext.name}
+- Never break the fourth wall or mention being an AI
+- Respond as if you are actually this character in the game world
+- IMPORTANT: Keep responses under ${maxWords} words - this is a strict limit for game dialogue
+- Do not use quotation marks around your speech
+- End your response at a natural stopping point`;
+
+    // Convert conversation history to Claude format
+    const messages: ClaudeMessage[] = [];
+    if (conversationHistory) {
+      for (const msg of conversationHistory) {
+        messages.push({
+          role: msg.role === 'player' ? 'user' : 'assistant',
+          content: msg.content,
+        });
+      }
+    }
+    messages.push({ role: 'user', content: playerMessage });
+
+    try {
+      // Tokens are roughly 1.3x words, add buffer for safety
+      const maxTokens = Math.ceil(maxWords * 1.5);
+
+      const result = await client.completeWithRateLimit(`npc:${playerName}`, {
+        systemPrompt,
+        messages,
+        temperature: 0.9,
+        maxTokens,
+      });
+
+      if (!result.success) {
+        const response: AINpcResponseResult = { success: false, fallback: true };
+        if (result.error !== undefined) {
+          response.error = result.error;
+        }
+        return response;
+      }
+
+      const response: AINpcResponseResult = { success: true };
+      if (result.content !== undefined) {
+        response.response = result.content;
+      }
+      return response;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      return { success: false, error: message, fallback: true };
+    }
+  }
+
   /**
    * Get all efuns as an object for exposing to sandbox.
    */
@@ -1992,6 +2361,12 @@ export class EfunBridge {
       getDriverStats: this.getDriverStats.bind(this),
       getObjectStats: this.getObjectStats.bind(this),
       getMemoryStats: this.getMemoryStats.bind(this),
+
+      // AI
+      aiAvailable: this.aiAvailable.bind(this),
+      aiGenerate: this.aiGenerate.bind(this),
+      aiDescribe: this.aiDescribe.bind(this),
+      aiNpcResponse: this.aiNpcResponse.bind(this),
     };
   }
 
