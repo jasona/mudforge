@@ -303,6 +303,45 @@ declare global {
     /** Get current player's domains */
     getDomains(): string[];
 
+    /**
+     * Set a player's permission level.
+     * Requires admin permission.
+     * @param playerName The player's name
+     * @param level The permission level (0=player, 1=builder, 2=senior, 3=admin)
+     */
+    setPermissionLevel(
+      playerName: string,
+      level: number
+    ): { success: boolean; error?: string };
+
+    /**
+     * Get the human-readable name for a permission level.
+     * @param level The permission level
+     */
+    getPermissionLevelName(level: number): string;
+
+    /**
+     * Save permissions to disk.
+     * Requires admin permission.
+     */
+    savePermissions(): Promise<{ success: boolean; error?: string }>;
+
+    /**
+     * Add a domain to a builder.
+     * Requires admin permission.
+     * @param playerName The player's name
+     * @param path The domain path
+     */
+    addDomain(playerName: string, path: string): { success: boolean; error?: string };
+
+    /**
+     * Remove a domain from a builder.
+     * Requires admin permission.
+     * @param playerName The player's name
+     * @param path The domain path
+     */
+    removeDomain(playerName: string, path: string): { success: boolean; error?: string };
+
     // ========== Scheduler Efuns ==========
 
     /** Set heartbeat for an object */

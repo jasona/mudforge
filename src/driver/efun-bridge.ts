@@ -1041,6 +1041,94 @@ export class EfunBridge {
     return this.permissions.getDomains(p.name);
   }
 
+  /**
+   * Set a player's permission level.
+   * Requires admin permission.
+   * @param playerName The player's name
+   * @param level The permission level (0=player, 1=builder, 2=senior, 3=admin)
+   */
+  setPermissionLevel(
+    playerName: string,
+    level: number
+  ): { success: boolean; error?: string } {
+    // Check admin permission
+    const player = this.context.thisPlayer;
+    if (!player || !this.permissions.isAdmin(player)) {
+      return { success: false, error: 'Admin permission required' };
+    }
+
+    // Validate level
+    if (level < 0 || level > 3) {
+      return { success: false, error: 'Invalid level (must be 0-3)' };
+    }
+
+    // Set the level
+    this.permissions.setLevel(playerName, level);
+    return { success: true };
+  }
+
+  /**
+   * Get the human-readable name for a permission level.
+   * @param level The permission level
+   */
+  getPermissionLevelName(level: number): string {
+    return this.permissions.getLevelName(level);
+  }
+
+  /**
+   * Save permissions to disk.
+   * Requires admin permission.
+   */
+  async savePermissions(): Promise<{ success: boolean; error?: string }> {
+    // Check admin permission
+    const player = this.context.thisPlayer;
+    if (!player || !this.permissions.isAdmin(player)) {
+      return { success: false, error: 'Admin permission required' };
+    }
+
+    try {
+      const data = this.permissions.export();
+      const fileStore = getFileStore({ dataPath: this.config.mudlibPath + '/data' });
+      await fileStore.savePermissions(data);
+      return { success: true };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      return { success: false, error: message };
+    }
+  }
+
+  /**
+   * Add a domain to a builder.
+   * Requires admin permission.
+   * @param playerName The player's name
+   * @param path The domain path
+   */
+  addDomain(playerName: string, path: string): { success: boolean; error?: string } {
+    const player = this.context.thisPlayer;
+    if (!player || !this.permissions.isAdmin(player)) {
+      return { success: false, error: 'Admin permission required' };
+    }
+
+    this.permissions.addDomain(playerName, path);
+    return { success: true };
+  }
+
+  /**
+   * Remove a domain from a builder.
+   * Requires admin permission.
+   * @param playerName The player's name
+   * @param path The domain path
+   */
+  removeDomain(playerName: string, path: string): { success: boolean; error?: string } {
+    const player = this.context.thisPlayer;
+    if (!player || !this.permissions.isAdmin(player)) {
+      return { success: false, error: 'Admin permission required' };
+    }
+
+    this.permissions.removeDomain(playerName, path);
+    return { success: true };
+  }
+
   // ========== Scheduler Efuns ==========
 
   /**
