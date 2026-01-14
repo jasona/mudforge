@@ -2,9 +2,12 @@
 # Builds and runs the MUD server
 
 # Build stage
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 
 WORKDIR /app
+
+# Install build dependencies for native modules (isolated-vm)
+RUN apk add --no-cache python3 make g++
 
 # Copy package files
 COPY package*.json ./
@@ -21,18 +24,24 @@ COPY mudlib/ ./mudlib/
 RUN npm run build
 
 # Production stage
-FROM node:20-alpine
+FROM node:22-alpine
 
 WORKDIR /app
 
 # Create non-root user for security
 RUN addgroup -S mudforge && adduser -S mudforge -G mudforge
 
+# Install build dependencies for native modules (isolated-vm)
+RUN apk add --no-cache python3 make g++
+
 # Copy package files
 COPY package*.json ./
 
 # Install production dependencies only
 RUN npm ci --omit=dev && npm cache clean --force
+
+# Remove build dependencies to reduce image size
+RUN apk del python3 make g++
 
 # Copy built files from builder
 COPY --from=builder /app/dist ./dist
