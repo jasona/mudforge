@@ -833,13 +833,21 @@ export class Player extends Living {
 
   /**
    * Get the permission level (0=player, 1=builder, 2=senior, 3=admin).
+   * Uses the central permissions system as the source of truth.
    */
   get permissionLevel(): number {
+    // Use central permissions system if we have a name
+    if (this._name) {
+      return efuns.getPlayerPermissionLevel(this._name);
+    }
+    // Fall back to local property during initialization
     return this._permissionLevel;
   }
 
   /**
    * Set the permission level.
+   * Note: This updates the local cache. Use promote/demote commands
+   * to update the central permissions system.
    */
   set permissionLevel(value: number) {
     this._permissionLevel = value;
@@ -847,8 +855,12 @@ export class Player extends Living {
 
   /**
    * Get the permission level as a method (for driver compatibility).
+   * Uses the central permissions system as the source of truth.
    */
   getPermissionLevel(): number {
+    if (this._name) {
+      return efuns.getPlayerPermissionLevel(this._name);
+    }
     return this._permissionLevel;
   }
 

@@ -118,10 +118,11 @@ export async function execute(ctx: CommandContext): Promise<void> {
     }
 
     // Create a temporary player info object from saved data
+    // Use central permissions system for permission level
     const playerInfo: PlayerInfo = {
       name: savedData.name,
       level: savedData.level ?? 1,
-      permissionLevel: (savedData.properties?.permissionLevel as number) ?? 0,
+      permissionLevel: efuns.getPlayerPermissionLevel(savedData.name),
       createdAt: savedData.createdAt,
       lastLogin: savedData.lastLogin,
       playTime: savedData.playTime,
