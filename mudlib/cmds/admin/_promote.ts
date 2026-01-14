@@ -52,23 +52,17 @@ export async function execute(ctx: CommandContext): Promise<void> {
   const targetName = parts[0].toLowerCase();
   const specifiedLevel = parts[1] ? parseInt(parts[1], 10) : undefined;
 
-  // Find the target player (online or offline)
+  // Check if player exists (online or has save file)
   const targetPlayer = efuns.findConnectedPlayer(targetName);
+  const exists = await efuns.playerExists(targetName);
 
-  // Get current level
-  let currentLevel: number;
-  if (targetPlayer) {
-    currentLevel = efuns.getPermissionLevel.call({ thisPlayer: () => targetPlayer });
-  } else {
-    // For offline players, we need to check if they exist
-    const exists = await efuns.playerExists(targetName);
-    if (!exists) {
-      ctx.sendLine(`{red}Player "${targetName}" not found.{/}`);
-      return;
-    }
-    // Offline player - get level from permissions system (defaults to 0)
-    currentLevel = 0; // We'll rely on the permissions system
+  if (!targetPlayer && !exists) {
+    ctx.sendLine(`{red}Player "${targetName}" not found.{/}`);
+    return;
   }
+
+  // Get current level using the player name
+  const currentLevel = efuns.getPlayerPermissionLevel(targetName);
 
   // Determine new level
   let newLevel: number;

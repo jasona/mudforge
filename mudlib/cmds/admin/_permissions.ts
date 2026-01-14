@@ -69,7 +69,7 @@ async function listElevatedUsers(ctx: CommandContext): Promise<void> {
     const p = player as MudObject & { name?: string };
     if (!p.name) continue;
 
-    const level = efuns.getPermissionLevel.call({ thisPlayer: () => player });
+    const level = efuns.getPlayerPermissionLevel(p.name);
     if (level > 0) {
       elevated.push({ name: p.name, level, online: true });
     }
@@ -115,11 +115,8 @@ async function showPlayerPermissions(ctx: CommandContext, playerName: string): P
     return;
   }
 
-  // Get level
-  let level = 0;
-  if (online) {
-    level = efuns.getPermissionLevel.call({ thisPlayer: () => online });
-  }
+  // Get level using player name
+  const level = efuns.getPlayerPermissionLevel(name);
 
   const levelName = LEVEL_NAMES[level] ?? 'Unknown';
   const color = LEVEL_COLORS[level] ?? 'white';

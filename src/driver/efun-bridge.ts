@@ -1031,6 +1031,14 @@ export class EfunBridge {
   }
 
   /**
+   * Get a player's permission level by name.
+   * @param playerName The player's name
+   */
+  getPlayerPermissionLevel(playerName: string): number {
+    return this.permissions.getLevel(playerName);
+  }
+
+  /**
    * Get the current player's domains.
    */
   getDomains(): string[] {

@@ -300,6 +300,9 @@ declare global {
     /** Get current player's permission level */
     getPermissionLevel(): number;
 
+    /** Get a player's permission level by name */
+    getPlayerPermissionLevel(playerName: string): number;
+
     /** Get current player's domains */
     getDomains(): string[];
 
