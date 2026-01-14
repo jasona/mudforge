@@ -15,6 +15,8 @@ import { EfunBridge, getEfunBridge, resetEfunBridge } from './efun-bridge.js';
 import { MudlibLoader, getMudlibLoader, resetMudlibLoader } from './mudlib-loader.js';
 import { initializeClaudeClient } from './claude-client.js';
 import { CommandManager, getCommandManager, resetCommandManager, PermissionLevel } from './command-manager.js';
+import { getPermissions } from './permissions.js';
+import { getFileStore } from './persistence/file-store.js';
 import { Compiler } from './compiler.js';
 import { HotReload } from './hot-reload.js';
 import { getIsolatePool, resetIsolatePool } from '../isolation/isolate-pool.js';
@@ -242,6 +244,9 @@ export class Driver {
       // Initialize command manager
       await this.commandManager.initialize();
 
+      // Load permissions from disk
+      await this.loadPermissions();
+
       // Start scheduler
       this.scheduler.start();
 
@@ -327,6 +332,31 @@ export class Driver {
       throw new Error(
         `Failed to load login daemon: ${error instanceof Error ? error.message : String(error)}`
       );
+    }
+  }
+
+  /**
+   * Load permissions from disk.
+   */
+  private async loadPermissions(): Promise<void> {
+    this.logger.info('Loading permissions');
+
+    try {
+      const fileStore = getFileStore({ dataPath: this.config.mudlibPath + '/data' });
+      const data = await fileStore.loadPermissions();
+
+      if (data) {
+        const permissions = getPermissions();
+        permissions.import(data);
+        this.logger.info(
+          { levels: Object.keys(data.levels || {}).length, domains: Object.keys(data.domains || {}).length },
+          'Permissions loaded'
+        );
+      } else {
+        this.logger.info('No permissions file found, starting with defaults');
+      }
+    } catch (error) {
+      this.logger.warn({ error }, 'Failed to load permissions, starting with defaults');
     }
   }
 
