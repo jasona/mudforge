@@ -1,0 +1,52 @@
+{
+  "areas": [
+    {
+      "id": "valdoria:dark_caves",
+      "name": "The Dark Caves",
+      "region": "valdoria",
+      "subregion": "dark_caves",
+      "description": "Local folk talk about these dark caves just outside of town on the other side of the woods.",
+      "theme": "dark, mysterious, ancient",
+      "owner": "acer",
+      "collaborators": [],
+      "status": "draft",
+      "version": 1,
+      "gridSize": {
+        "width": 10,
+        "height": 10,
+        "depth": 1
+      },
+      "rooms": [],
+      "npcs": [],
+      "items": [],
+      "tags": [],
+      "loreReferences": [],
+      "createdAt": 1768429142219,
+      "updatedAt": 1768429142219
+    },
+    {
+      "id": "valdoria:west_road",
+      "name": "The Western Road",
+      "region": "valdoria",
+      "subregion": "west_road",
+      "description": "This rocky old road has seen some wear over the years. Well traveled and well trusted.",
+      "theme": "west, road, dirt",
+      "owner": "acer",
+      "collaborators": [],
+      "status": "draft",
+      "version": 1,
+      "gridSize": {
+        "width": 20,
+        "height": 7,
+        "depth": 1
+      },
+      "rooms": [],
+      "npcs": [],
+      "items": [],
+      "tags": [],
+      "loreReferences": [],
+      "createdAt": 1768429494496,
+      "updatedAt": 1768429494496
+    }
+  ]
+}

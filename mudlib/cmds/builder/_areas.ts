@@ -3,6 +3,7 @@
  *
  * Usage:
  *   areas                         - List your areas
+ *   areas gui                     - Open area builder GUI
  *   areas new <region> <subregion> <name> - Create a new draft area
  *   areas info <id>               - Show area details
  *   areas validate <id>           - Validate an area
@@ -14,6 +15,7 @@
 
 import type { MudObject } from '../../lib/std.js';
 import { getAreaDaemon } from '../../daemons/area.js';
+import { openAreaSelector, type GUIPlayer } from '../../lib/area-builder-gui.js';
 import type { AreaDefinition, AreaStatus } from '../../lib/area-types.js';
 
 interface Player extends MudObject {
@@ -135,6 +137,8 @@ function listAreas(ctx: CommandContext): void {
 
   ctx.sendLine('');
   ctx.sendLine(`{dim}Total: ${areas.length} area(s){/}`);
+  ctx.sendLine('');
+  ctx.sendLine('{dim}Tip: Use {/}{cyan}areas gui{/}{dim} to open the visual area builder.{/}');
 }
 
 /**
@@ -478,6 +482,16 @@ async function removeCollaborator(ctx: CommandContext, areaId: string, collabora
 }
 
 /**
+ * Open the GUI area selector.
+ */
+function openGUI(ctx: CommandContext): void {
+  const daemon = getAreaDaemon();
+  const player = ctx.player as unknown as GUIPlayer;
+
+  openAreaSelector(player, daemon);
+}
+
+/**
  * Show help.
  */
 function showHelp(ctx: CommandContext): void {
@@ -485,6 +499,7 @@ function showHelp(ctx: CommandContext): void {
   ctx.sendLine('');
   ctx.sendLine('Commands:');
   ctx.sendLine('  {white}areas{/}                              - List your areas');
+  ctx.sendLine('  {white}areas gui{/}                          - Open visual area builder');
   ctx.sendLine('  {white}areas new{/} <region> <subregion> <name> - Create a new area');
   ctx.sendLine('  {white}areas info{/} <id>                    - Show area details');
   ctx.sendLine('  {white}areas validate{/} <id>                - Validate an area');
@@ -495,8 +510,6 @@ function showHelp(ctx: CommandContext): void {
   ctx.sendLine('');
   ctx.sendLine('Area ID format: {dim}<region>:<subregion>{/}');
   ctx.sendLine('Example: {dim}valdoria:dark_caves{/}');
-  ctx.sendLine('');
-  ctx.sendLine('{dim}Phase 1 CLI-only. GUI editor coming in a future update.{/}');
 }
 
 export async function execute(ctx: CommandContext): Promise<void> {
@@ -521,6 +534,12 @@ export async function execute(ctx: CommandContext): Promise<void> {
     case 'list':
     case 'ls':
       listAreas(ctx);
+      break;
+
+    case 'gui':
+    case 'visual':
+    case 'editor':
+      openGUI(ctx);
       break;
 
     case 'new':

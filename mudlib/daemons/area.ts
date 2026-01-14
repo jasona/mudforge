@@ -938,6 +938,15 @@ export default ${className};
   }
 
   /**
+   * Ensure areas are loaded before proceeding.
+   * Returns immediately if already loaded, otherwise waits for load to complete.
+   */
+  async ensureLoaded(): Promise<void> {
+    if (this._loaded) return;
+    await this.load();
+  }
+
+  /**
    * Get the count of areas.
    */
   get count(): number {

@@ -11,11 +11,14 @@ import { isLayoutContainer, isInputElement, isDisplayElement } from './gui-types
 import { renderLayout } from './gui-layout.js';
 import { renderInputElement, renderDisplayElement, applyStyle } from './gui-elements.js';
 
+export type ButtonClickHandler = (buttonId: string, action: string, customAction?: string) => void;
+
 export class GUIRenderer {
   private elementMap: Map<string, HTMLElement> = new Map();
   private inputMap: Map<string, HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement> = new Map();
   private formData: Record<string, unknown> = {};
   private onChange?: (name: string, value: unknown) => void;
+  private onButtonClick?: ButtonClickHandler;
 
   /**
    * Render a layout to a parent element.
@@ -24,12 +27,14 @@ export class GUIRenderer {
     layout: LayoutContainer,
     parent: HTMLElement,
     data: Record<string, unknown>,
-    onChange?: (name: string, value: unknown) => void
+    onChange?: (name: string, value: unknown) => void,
+    onButtonClick?: ButtonClickHandler
   ): void {
     this.elementMap.clear();
     this.inputMap.clear();
     this.formData = { ...data };
     this.onChange = onChange;
+    this.onButtonClick = onButtonClick;
 
     const element = this.renderNode(layout);
     parent.appendChild(element);
@@ -60,6 +65,20 @@ export class GUIRenderer {
       const input = element.querySelector('input, select, textarea');
       if (input && node.name) {
         this.inputMap.set(node.name, input as HTMLInputElement);
+      }
+
+      // Attach click handler for buttons
+      if (node.type === 'button' && this.onButtonClick) {
+        const button = element.querySelector('button');
+        if (button) {
+          button.addEventListener('click', () => {
+            this.onButtonClick?.(
+              node.id,
+              node.action ?? 'custom',
+              node.customAction
+            );
+          });
+        }
       }
 
       return element;

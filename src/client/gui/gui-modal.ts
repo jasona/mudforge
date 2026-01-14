@@ -95,6 +95,9 @@ export class GUIModal {
         this.formData,
         (name, value) => {
           this.formData[name] = value;
+        },
+        (buttonId, action, customAction) => {
+          this.handleLayoutButtonClick(buttonId, action, customAction);
         }
       );
     }
@@ -226,7 +229,7 @@ export class GUIModal {
   }
 
   /**
-   * Handle button click.
+   * Handle button click (footer buttons).
    */
   private handleButtonClick(button: ModalButton): void {
     switch (button.action) {
@@ -242,6 +245,26 @@ export class GUIModal {
       case 'navigate':
         // Navigation would be handled by the server
         this.sendButtonMessage(button.id);
+        break;
+    }
+  }
+
+  /**
+   * Handle button click (layout/inline buttons).
+   */
+  private handleLayoutButtonClick(buttonId: string, action: string, customAction?: string): void {
+    switch (action) {
+      case 'submit':
+        this.handleSubmit(buttonId);
+        break;
+      case 'cancel':
+        this.handleClose('cancel');
+        break;
+      case 'custom':
+        this.sendButtonMessage(buttonId, customAction);
+        break;
+      case 'navigate':
+        this.sendButtonMessage(buttonId);
         break;
     }
   }
