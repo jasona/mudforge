@@ -66,10 +66,22 @@ export class Permissions {
   private auditLog: AuditEntry[] = [];
   private maxAuditEntries: number = 10000;
 
+  // Role-based path permissions (mutable at runtime)
+  private protectedPaths: string[] = ['/std/', '/daemons/'];
+  private forbiddenFiles: string[] = [
+    '/tsconfig.json',
+    '/package.json',
+    '/package-lock.json',
+    '/.env',
+    '/.gitignore',
+  ];
+  private builderPaths: string[] = ['/areas/'];
+  private seniorPaths: string[] = ['/lib/', '/cmds/'];
+
   constructor(config: Partial<PermissionsConfig> = {}) {
     this.config = {
       dataPath: config.dataPath ?? './mudlib/data/permissions.json',
-      protectedPaths: config.protectedPaths ?? ['/std/', '/core/', '/daemon/'],
+      protectedPaths: config.protectedPaths ?? ['/std/', '/daemons/'],
       forbiddenFiles: config.forbiddenFiles ?? [
         '/tsconfig.json',
         '/package.json',
@@ -78,6 +90,9 @@ export class Permissions {
         '/.gitignore',
       ],
     };
+    // Initialize from config
+    this.protectedPaths = [...this.config.protectedPaths];
+    this.forbiddenFiles = [...this.config.forbiddenFiles];
   }
 
   // ========== Permission Level ==========
@@ -183,7 +198,7 @@ export class Permissions {
       return false;
     }
 
-    // Check protected paths
+    // Check protected paths - only admins can write
     if (this.isProtectedPath(path)) {
       if (level < PermissionLevel.Administrator) {
         this.logAction(player, 'write', path, false, 'Path is protected');
@@ -191,13 +206,29 @@ export class Permissions {
       }
     }
 
-    // Administrators can write anywhere
+    // Administrators can write anywhere (except forbidden)
     if (level >= PermissionLevel.Administrator) {
       this.logAction(player, 'write', path, true);
       return true;
     }
 
-    // Builders can only write to their domains
+    // Senior builders can write to senior paths + builder paths
+    if (level >= PermissionLevel.SeniorBuilder) {
+      if (this.isSeniorPath(path) || this.isBuilderPath(path)) {
+        this.logAction(player, 'write', path, true);
+        return true;
+      }
+    }
+
+    // Builders can write to builder paths
+    if (level >= PermissionLevel.Builder) {
+      if (this.isBuilderPath(path)) {
+        this.logAction(player, 'write', path, true);
+        return true;
+      }
+    }
+
+    // Check individual domains (for specific player assignments)
     const domains = this.getDomains(name);
     for (const domain of domains) {
       if (path.startsWith(domain)) {
@@ -206,13 +237,7 @@ export class Permissions {
       }
     }
 
-    // Senior builders can write to /lib/
-    if (level >= PermissionLevel.SeniorBuilder && path.startsWith('/lib/')) {
-      this.logAction(player, 'write', path, true);
-      return true;
-    }
-
-    this.logAction(player, 'write', path, false, 'Outside assigned domains');
+    this.logAction(player, 'write', path, false, 'Outside allowed paths');
     return false;
   }
 
@@ -236,7 +261,7 @@ export class Permissions {
    * @param path The file path
    */
   isProtectedPath(path: string): boolean {
-    for (const protectedPath of this.config.protectedPaths) {
+    for (const protectedPath of this.protectedPaths) {
       if (path.startsWith(protectedPath)) {
         return true;
       }
@@ -250,7 +275,7 @@ export class Permissions {
    */
   isForbiddenFile(path: string): boolean {
     const normalizedPath = path.toLowerCase();
-    for (const forbidden of this.config.forbiddenFiles) {
+    for (const forbidden of this.forbiddenFiles) {
       if (normalizedPath === forbidden.toLowerCase()) {
         return true;
       }
@@ -266,7 +291,138 @@ export class Permissions {
    * Get the list of forbidden files.
    */
   getForbiddenFiles(): string[] {
-    return [...this.config.forbiddenFiles];
+    return [...this.forbiddenFiles];
+  }
+
+  /**
+   * Get the list of protected paths.
+   */
+  getProtectedPaths(): string[] {
+    return [...this.protectedPaths];
+  }
+
+  /**
+   * Get the list of builder paths.
+   */
+  getBuilderPaths(): string[] {
+    return [...this.builderPaths];
+  }
+
+  /**
+   * Get the list of senior builder paths.
+   */
+  getSeniorPaths(): string[] {
+    return [...this.seniorPaths];
+  }
+
+  // ========== Role Path Management ==========
+
+  /**
+   * Add a protected path (admin only).
+   */
+  addProtectedPath(path: string): void {
+    if (!this.protectedPaths.includes(path)) {
+      this.protectedPaths.push(path);
+    }
+  }
+
+  /**
+   * Remove a protected path.
+   */
+  removeProtectedPath(path: string): boolean {
+    const index = this.protectedPaths.indexOf(path);
+    if (index >= 0) {
+      this.protectedPaths.splice(index, 1);
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Add a forbidden file.
+   */
+  addForbiddenFile(path: string): void {
+    if (!this.forbiddenFiles.includes(path)) {
+      this.forbiddenFiles.push(path);
+    }
+  }
+
+  /**
+   * Remove a forbidden file.
+   */
+  removeForbiddenFile(path: string): boolean {
+    const index = this.forbiddenFiles.indexOf(path);
+    if (index >= 0) {
+      this.forbiddenFiles.splice(index, 1);
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Add a builder path.
+   */
+  addBuilderPath(path: string): void {
+    if (!this.builderPaths.includes(path)) {
+      this.builderPaths.push(path);
+    }
+  }
+
+  /**
+   * Remove a builder path.
+   */
+  removeBuilderPath(path: string): boolean {
+    const index = this.builderPaths.indexOf(path);
+    if (index >= 0) {
+      this.builderPaths.splice(index, 1);
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Add a senior builder path.
+   */
+  addSeniorPath(path: string): void {
+    if (!this.seniorPaths.includes(path)) {
+      this.seniorPaths.push(path);
+    }
+  }
+
+  /**
+   * Remove a senior builder path.
+   */
+  removeSeniorPath(path: string): boolean {
+    const index = this.seniorPaths.indexOf(path);
+    if (index >= 0) {
+      this.seniorPaths.splice(index, 1);
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Check if path is in builder paths.
+   */
+  isBuilderPath(path: string): boolean {
+    for (const builderPath of this.builderPaths) {
+      if (path.startsWith(builderPath)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Check if path is in senior builder paths.
+   */
+  isSeniorPath(path: string): boolean {
+    for (const seniorPath of this.seniorPaths) {
+      if (path.startsWith(seniorPath)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   // ========== Domain Management ==========
@@ -399,6 +555,10 @@ export class Permissions {
   export(): {
     levels: Record<string, PermissionLevel>;
     domains: Record<string, string[]>;
+    protectedPaths: string[];
+    forbiddenFiles: string[];
+    builderPaths: string[];
+    seniorPaths: string[];
   } {
     const levels: Record<string, PermissionLevel> = {};
     for (const [name, level] of this.levels) {
@@ -410,7 +570,14 @@ export class Permissions {
       domains[name] = paths;
     }
 
-    return { levels, domains };
+    return {
+      levels,
+      domains,
+      protectedPaths: [...this.protectedPaths],
+      forbiddenFiles: [...this.forbiddenFiles],
+      builderPaths: [...this.builderPaths],
+      seniorPaths: [...this.seniorPaths],
+    };
   }
 
   /**
@@ -419,6 +586,10 @@ export class Permissions {
   import(data: {
     levels?: Record<string, PermissionLevel>;
     domains?: Record<string, string[]>;
+    protectedPaths?: string[];
+    forbiddenFiles?: string[];
+    builderPaths?: string[];
+    seniorPaths?: string[];
   }): void {
     if (data.levels) {
       for (const [name, level] of Object.entries(data.levels)) {
@@ -430,6 +601,22 @@ export class Permissions {
       for (const [name, paths] of Object.entries(data.domains)) {
         this.domains.set(name.toLowerCase(), paths);
       }
+    }
+
+    if (data.protectedPaths) {
+      this.protectedPaths = [...data.protectedPaths];
+    }
+
+    if (data.forbiddenFiles) {
+      this.forbiddenFiles = [...data.forbiddenFiles];
+    }
+
+    if (data.builderPaths) {
+      this.builderPaths = [...data.builderPaths];
+    }
+
+    if (data.seniorPaths) {
+      this.seniorPaths = [...data.seniorPaths];
     }
   }
 

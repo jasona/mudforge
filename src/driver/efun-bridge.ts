@@ -1151,6 +1151,168 @@ export class EfunBridge {
     return { success: true };
   }
 
+  // ========== Role-Based Path Efuns ==========
+
+  /**
+   * Get all builder paths.
+   */
+  getBuilderPaths(): string[] {
+    return this.permissions.getBuilderPaths();
+  }
+
+  /**
+   * Get all senior builder paths.
+   */
+  getSeniorPaths(): string[] {
+    return this.permissions.getSeniorPaths();
+  }
+
+  /**
+   * Get all protected paths (admin-only).
+   */
+  getProtectedPaths(): string[] {
+    return this.permissions.getProtectedPaths();
+  }
+
+  /**
+   * Get all forbidden files.
+   */
+  getForbiddenFiles(): string[] {
+    return this.permissions.getForbiddenFiles();
+  }
+
+  /**
+   * Add a builder path.
+   * Requires admin permission.
+   * @param path The path to add
+   */
+  addBuilderPath(path: string): { success: boolean; error?: string } {
+    const player = this.context.thisPlayer;
+    if (!player || !this.permissions.isAdmin(player)) {
+      return { success: false, error: 'Admin permission required' };
+    }
+
+    this.permissions.addBuilderPath(path);
+    return { success: true };
+  }
+
+  /**
+   * Remove a builder path.
+   * Requires admin permission.
+   * @param path The path to remove
+   */
+  removeBuilderPath(path: string): { success: boolean; error?: string } {
+    const player = this.context.thisPlayer;
+    if (!player || !this.permissions.isAdmin(player)) {
+      return { success: false, error: 'Admin permission required' };
+    }
+
+    const removed = this.permissions.removeBuilderPath(path);
+    if (!removed) {
+      return { success: false, error: 'Path not found' };
+    }
+    return { success: true };
+  }
+
+  /**
+   * Add a senior builder path.
+   * Requires admin permission.
+   * @param path The path to add
+   */
+  addSeniorPath(path: string): { success: boolean; error?: string } {
+    const player = this.context.thisPlayer;
+    if (!player || !this.permissions.isAdmin(player)) {
+      return { success: false, error: 'Admin permission required' };
+    }
+
+    this.permissions.addSeniorPath(path);
+    return { success: true };
+  }
+
+  /**
+   * Remove a senior builder path.
+   * Requires admin permission.
+   * @param path The path to remove
+   */
+  removeSeniorPath(path: string): { success: boolean; error?: string } {
+    const player = this.context.thisPlayer;
+    if (!player || !this.permissions.isAdmin(player)) {
+      return { success: false, error: 'Admin permission required' };
+    }
+
+    const removed = this.permissions.removeSeniorPath(path);
+    if (!removed) {
+      return { success: false, error: 'Path not found' };
+    }
+    return { success: true };
+  }
+
+  /**
+   * Add a protected path (admin-only).
+   * Requires admin permission.
+   * @param path The path to add
+   */
+  addProtectedPath(path: string): { success: boolean; error?: string } {
+    const player = this.context.thisPlayer;
+    if (!player || !this.permissions.isAdmin(player)) {
+      return { success: false, error: 'Admin permission required' };
+    }
+
+    this.permissions.addProtectedPath(path);
+    return { success: true };
+  }
+
+  /**
+   * Remove a protected path.
+   * Requires admin permission.
+   * @param path The path to remove
+   */
+  removeProtectedPath(path: string): { success: boolean; error?: string } {
+    const player = this.context.thisPlayer;
+    if (!player || !this.permissions.isAdmin(player)) {
+      return { success: false, error: 'Admin permission required' };
+    }
+
+    const removed = this.permissions.removeProtectedPath(path);
+    if (!removed) {
+      return { success: false, error: 'Path not found' };
+    }
+    return { success: true };
+  }
+
+  /**
+   * Add a forbidden file.
+   * Requires admin permission.
+   * @param path The file path to add
+   */
+  addForbiddenFile(path: string): { success: boolean; error?: string } {
+    const player = this.context.thisPlayer;
+    if (!player || !this.permissions.isAdmin(player)) {
+      return { success: false, error: 'Admin permission required' };
+    }
+
+    this.permissions.addForbiddenFile(path);
+    return { success: true };
+  }
+
+  /**
+   * Remove a forbidden file.
+   * Requires admin permission.
+   * @param path The file path to remove
+   */
+  removeForbiddenFile(path: string): { success: boolean; error?: string } {
+    const player = this.context.thisPlayer;
+    if (!player || !this.permissions.isAdmin(player)) {
+      return { success: false, error: 'Admin permission required' };
+    }
+
+    const removed = this.permissions.removeForbiddenFile(path);
+    if (!removed) {
+      return { success: false, error: 'File not found' };
+    }
+    return { success: true };
+  }
+
   // ========== Scheduler Efuns ==========
 
   /**
@@ -2432,6 +2594,20 @@ RULES:
       savePermissions: this.savePermissions.bind(this),
       addDomain: this.addDomain.bind(this),
       removeDomain: this.removeDomain.bind(this),
+
+      // Role-Based Path Permissions
+      getBuilderPaths: this.getBuilderPaths.bind(this),
+      getSeniorPaths: this.getSeniorPaths.bind(this),
+      getProtectedPaths: this.getProtectedPaths.bind(this),
+      getForbiddenFiles: this.getForbiddenFiles.bind(this),
+      addBuilderPath: this.addBuilderPath.bind(this),
+      removeBuilderPath: this.removeBuilderPath.bind(this),
+      addSeniorPath: this.addSeniorPath.bind(this),
+      removeSeniorPath: this.removeSeniorPath.bind(this),
+      addProtectedPath: this.addProtectedPath.bind(this),
+      removeProtectedPath: this.removeProtectedPath.bind(this),
+      addForbiddenFile: this.addForbiddenFile.bind(this),
+      removeForbiddenFile: this.removeForbiddenFile.bind(this),
 
       // Scheduler
       setHeartbeat: this.setHeartbeat.bind(this),

@@ -345,6 +345,76 @@ declare global {
      */
     removeDomain(playerName: string, path: string): { success: boolean; error?: string };
 
+    // ========== Role-Based Path Permissions ==========
+
+    /** Get all builder paths */
+    getBuilderPaths(): string[];
+
+    /** Get all senior builder paths */
+    getSeniorPaths(): string[];
+
+    /** Get all protected paths (admin-only) */
+    getProtectedPaths(): string[];
+
+    /** Get all forbidden files */
+    getForbiddenFiles(): string[];
+
+    /**
+     * Add a builder path.
+     * Requires admin permission.
+     * @param path The path to add
+     */
+    addBuilderPath(path: string): { success: boolean; error?: string };
+
+    /**
+     * Remove a builder path.
+     * Requires admin permission.
+     * @param path The path to remove
+     */
+    removeBuilderPath(path: string): { success: boolean; error?: string };
+
+    /**
+     * Add a senior builder path.
+     * Requires admin permission.
+     * @param path The path to add
+     */
+    addSeniorPath(path: string): { success: boolean; error?: string };
+
+    /**
+     * Remove a senior builder path.
+     * Requires admin permission.
+     * @param path The path to remove
+     */
+    removeSeniorPath(path: string): { success: boolean; error?: string };
+
+    /**
+     * Add a protected path (admin-only).
+     * Requires admin permission.
+     * @param path The path to add
+     */
+    addProtectedPath(path: string): { success: boolean; error?: string };
+
+    /**
+     * Remove a protected path.
+     * Requires admin permission.
+     * @param path The path to remove
+     */
+    removeProtectedPath(path: string): { success: boolean; error?: string };
+
+    /**
+     * Add a forbidden file.
+     * Requires admin permission.
+     * @param path The file path to add
+     */
+    addForbiddenFile(path: string): { success: boolean; error?: string };
+
+    /**
+     * Remove a forbidden file.
+     * Requires admin permission.
+     * @param path The file path to remove
+     */
+    removeForbiddenFile(path: string): { success: boolean; error?: string };
+
     // ========== Scheduler Efuns ==========
 
     /** Set heartbeat for an object */
