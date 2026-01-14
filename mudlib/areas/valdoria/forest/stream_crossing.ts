@@ -21,7 +21,7 @@ The path continues to the {green}east{/} along the stream bank.
 {dim}Fish dart beneath the surface, catching the light.{/}`;
 
     this.setMapCoordinates({ x: -2, y: 0, z: 0, area: '/areas/valdoria/forest' });
-    this.setTerrain('water');
+    this.setTerrain('water_shallow');
     this.setMapIcon('~');
 
     this.setupRoom();
