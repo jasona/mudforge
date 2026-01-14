@@ -27,6 +27,9 @@ MudForge brings the architectural elegance of classic LPMud drivers into the mod
 - **Equipment System** - Weapons, armor, and shields with slot management and dual-wielding
 - **Container System** - Chests, bags, and lockable containers
 - **NPC System** - NPCs with combat AI, loot drops, autonomous behavior, quest giving, and training
+- **AI-Powered NPCs** - NPCs with dynamic, contextual dialogue powered by Claude AI
+- **AI Content Generation** - Generate room descriptions, NPC definitions, and items with AI builder commands
+- **World Lore System** - Central lore registry that NPCs reference for consistent, immersive dialogue
 - **Communication Channels** - OOC, shout, tell, guild channels, and extensible channel system
 - **Command Aliases** - Player-defined command shortcuts and macro sequences
 - **Session Reconnection** - Seamlessly reconnect to existing game sessions after disconnection
@@ -109,6 +112,7 @@ MudObject                          # Root of all objects
     +-- SoulDaemon                 # Emote management
     +-- ResetDaemon                # Periodic room resets
     +-- ConfigDaemon               # Game-wide configuration
+    +-- LoreDaemon                 # World lore registry for AI
 ```
 
 ## Technology Stack
@@ -452,9 +456,21 @@ export class TownCrier extends NPC {
     this.addChat('Hear ye, hear ye! The castle seeks adventurers!', 'say');
     this.addChat('rings his brass bell loudly.', 'emote');
 
-    // Response triggers
+    // Fallback response triggers (when AI unavailable)
     this.addResponse(/hello|hi/i, 'Good day to you, traveler!', 'say');
     this.addResponse(/news/i, 'The castle has posted new bounties!', 'say');
+
+    // Enable AI-powered dialogue
+    this.setAIContext({
+      name: 'Bartleby the Town Crier',
+      personality: 'Jovial and theatrical, loves sharing news and gossip.',
+      background: 'Has served as town crier for 20 years.',
+      knowledgeScope: {
+        topics: ['local news', 'town layout', 'merchants'],
+        worldLore: ['region:valdoria', 'economics:trade-routes'],
+      },
+      speakingStyle: { formality: 'casual', verbosity: 'verbose' },
+    });
   }
 }
 ```
@@ -487,6 +503,8 @@ Detailed documentation is available in the `/docs` directory:
 - [Buffs & Debuffs](docs/buffs-debuffs.md) - Temporary stat modifiers
 - [Colors](docs/colors.md) - Color codes and 256-color support
 - [Daemons](docs/daemons.md) - Background services
+- [AI Integration](docs/ai-integration.md) - AI-powered NPC dialogue and content generation
+- [Lore System](docs/lore-system.md) - World lore registry for consistent AI context
 - [Permissions](docs/permissions.md) - Permission system
 - [Web Client](docs/client.md) - Browser client documentation
 - [GUI Modals](docs/gui-modals.md) - Rich client-side dialogs
@@ -507,6 +525,13 @@ docker run -p 3000:3000 mudforge
 ```bash
 pm2 start ecosystem.config.js
 ```
+
+## Community
+
+Join the MudForge community:
+
+- **Discord**: [https://discord.gg/GEBatdTCYZ](https://discord.gg/GEBatdTCYZ) - Chat with developers and other MUD builders
+- **GitHub Issues**: [Report bugs or request features](https://github.com/jasona/mudforge/issues)
 
 ## Status
 
