@@ -241,9 +241,11 @@ export class ClaudeClient {
       const result: ClaudeResponse = {
         success: true,
         content,
-        stopReason,
         truncated,
       };
+      if (stopReason) {
+        result.stopReason = stopReason;
+      }
       if (data.usage?.output_tokens !== undefined) {
         result.tokensUsed = data.usage.output_tokens;
       }
@@ -325,12 +327,15 @@ export class ClaudeClient {
     } while (lastResult.truncated && continuations < maxContinuations);
 
     // Ran out of continuations, return what we have
-    return {
+    const result: ClaudeResponse = {
       success: true,
       content: this.truncateGracefully(fullContent),
       truncated: true,
-      tokensUsed: lastResult.tokensUsed,
     };
+    if (lastResult.tokensUsed !== undefined) {
+      result.tokensUsed = lastResult.tokensUsed;
+    }
+    return result;
   }
 
   /**
