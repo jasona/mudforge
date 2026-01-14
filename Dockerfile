@@ -67,5 +67,5 @@ ENV NODE_ENV=production
 ENV PORT=3000
 ENV LOG_LEVEL=info
 
-# Start the server
-CMD ["node", "dist/driver/index.js"]
+# Start the server (tsx needed for runtime TypeScript transpilation of mudlib)
+CMD ["npm", "start"]
