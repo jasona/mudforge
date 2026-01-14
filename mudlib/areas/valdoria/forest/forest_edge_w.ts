@@ -1,0 +1,41 @@
+/**
+ * Forest Edge (West) - Western edge of the forest.
+ */
+
+import { Room, MudObject } from '../../../lib/std.js';
+
+export class ForestEdgeWest extends Room {
+  constructor() {
+    super();
+    this.shortDesc = '{green}Forest Edge{/}';
+    this.longDesc = `The forest thins here along its western edge. Through gaps in the
+trees, you can glimpse {yellow}farmland{/} and distant {cyan}buildings{/} of the town.
+
+{green}Berry bushes{/} grow thick along the treeline, their thorny branches
+heavy with dark fruit. Animal tracks crisscross the soft ground,
+suggesting this is a popular spot for foraging creatures.
+
+The main forest path lies to the {green}east{/}. A narrow game trail
+leads {green}south{/} deeper into the woods.`;
+
+    this.setMapCoordinates({ x: -1, y: -1, z: 0, area: '/areas/valdoria/forest' });
+    this.setTerrain('forest');
+    this.setMapIcon('.');
+
+    this.setupRoom();
+  }
+
+  private setupRoom(): void {
+    this.addExit('east', '/areas/valdoria/forest/forest_path');
+    this.addExit('south', '/areas/valdoria/forest/brambles');
+  }
+
+  override async onCreate(): Promise<void> {
+    if (Math.random() < 0.6 && typeof efuns !== 'undefined' && efuns.cloneObject) {
+      const rabbit = await efuns.cloneObject('/areas/valdoria/forest/rabbit');
+      if (rabbit) await rabbit.moveTo(this);
+    }
+  }
+}
+
+export default ForestEdgeWest;

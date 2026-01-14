@@ -121,6 +121,13 @@ export class MapDaemon extends MudObject {
       defaultZ: -1,
       defaultZoom: 3,
     });
+
+    this.registerArea({
+      id: '/areas/valdoria/forest',
+      name: 'Eastern Forest',
+      defaultZ: 0,
+      defaultZoom: 3,
+    });
   }
 
   // ========== Area Management ==========

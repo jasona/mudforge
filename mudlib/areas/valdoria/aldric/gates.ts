@@ -37,7 +37,7 @@ those arriving on horseback. The bustle of the town center lies to the {green}no
 
   private setupRoom(): void {
     this.addExit('north', '/areas/valdoria/aldric/center');
-    // Could add 'south' to wilderness/roads later
+    this.addExit('south', '/areas/valdoria/forest/road_fork');
 
     this.addAction('look', this.cmdLook.bind(this));
     this.addAction('read', this.cmdRead.bind(this));

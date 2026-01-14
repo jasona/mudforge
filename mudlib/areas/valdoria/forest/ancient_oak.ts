@@ -1,0 +1,57 @@
+/**
+ * Ancient Oak - A massive landmark tree.
+ */
+
+import { Room, MudObject } from '../../../lib/std.js';
+
+export class AncientOak extends Room {
+  constructor() {
+    super();
+    this.shortDesc = '{bold}{green}Ancient Oak{/}';
+    this.longDesc = `A truly {bold}massive oak tree{/} dominates this area, its trunk so wide
+that several people holding hands couldn't encircle it. Gnarled
+branches spread outward like the arms of some ancient giant, and
+its roots rise from the earth like serpents.
+
+{dim}Carvings{/} mark the bark - old symbols and initials left by
+generations of visitors. A natural hollow in the trunk could
+provide shelter. The tree seems to emanate an aura of timeless
+strength.
+
+{red}Fresh wolf tracks{/} circle the tree, and the smell of predators
+hangs in the air. The wolf den lies to the {green}south{/}. Other
+paths lead {green}north{/}, {green}east{/}, and {green}west{/}.`;
+
+    this.setMapCoordinates({ x: 0, y: 2, z: 0, area: '/areas/valdoria/forest' });
+    this.setTerrain('forest');
+    this.setMapIcon('T');
+
+    this.setupRoom();
+  }
+
+  private setupRoom(): void {
+    this.addExit('north', '/areas/valdoria/forest/dark_woods');
+    this.addExit('south', '/areas/valdoria/forest/wolf_den');
+    this.addExit('west', '/areas/valdoria/forest/deep_thicket');
+    this.addExit('east', '/areas/valdoria/forest/mossy_hollow');
+  }
+
+  override async onCreate(): Promise<void> {
+    // Wolves often here
+    if (typeof efuns !== 'undefined' && efuns.cloneObject) {
+      if (Math.random() < 0.5) {
+        const wolf = await efuns.cloneObject('/areas/valdoria/forest/wolf');
+        if (wolf) await wolf.moveTo(this);
+      }
+    }
+  }
+
+  override async onEnter(obj: MudObject, from?: MudObject): Promise<void> {
+    const receiver = obj as MudObject & { receive?: (msg: string) => void };
+    if (typeof receiver.receive === 'function') {
+      receiver.receive('\n{dim}The ancient oak seems to watch you with silent wisdom.{/}\n');
+    }
+  }
+}
+
+export default AncientOak;

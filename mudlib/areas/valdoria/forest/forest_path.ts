@@ -1,0 +1,44 @@
+/**
+ * Forest Path - The main trail into the forest.
+ */
+
+import { Room, MudObject } from '../../../lib/std.js';
+
+export class ForestPath extends Room {
+  constructor() {
+    super();
+    this.shortDesc = '{green}Forest Path{/}';
+    this.longDesc = `A well-worn dirt path winds through the forest, dappled sunlight
+filtering through the canopy above. {green}Ancient oaks{/} and tall {green}pines{/}
+line the trail, their branches interweaving to form a natural ceiling.
+
+The path continues {green}south{/} deeper into the woods, while heading
+{green}north{/} would take you back toward the road. Smaller trails branch
+off to the {green}east{/} and {green}west{/}.
+
+{dim}Fallen leaves carpet the ground, muffling your footsteps. The air
+smells of earth and pine needles.{/}`;
+
+    this.setMapCoordinates({ x: 0, y: -1, z: 0, area: '/areas/valdoria/forest' });
+    this.setTerrain('forest');
+    this.setMapIcon('|');
+
+    this.setupRoom();
+  }
+
+  private setupRoom(): void {
+    this.addExit('north', '/areas/valdoria/forest/road_fork');
+    this.addExit('south', '/areas/valdoria/forest/clearing');
+    this.addExit('west', '/areas/valdoria/forest/forest_edge_w');
+    this.addExit('east', '/areas/valdoria/forest/forest_edge_e');
+  }
+
+  override async onCreate(): Promise<void> {
+    if (Math.random() < 0.4 && typeof efuns !== 'undefined' && efuns.cloneObject) {
+      const deer = await efuns.cloneObject('/areas/valdoria/forest/deer');
+      if (deer) await deer.moveTo(this);
+    }
+  }
+}
+
+export default ForestPath;
