@@ -58,11 +58,14 @@ export class Master extends MudObject {
 
   /**
    * Called to get the list of objects to preload.
+   * Auto-discovers daemons and areas instead of static list.
    * @returns Array of object paths to preload
    */
-  onPreload(): string[] {
-    return [
-      // Standard library objects
+  async onPreload(): Promise<string[]> {
+    const preloadList: string[] = [];
+
+    // 1. Standard library objects (explicit - small stable set)
+    const stdObjects = [
       '/std/object',
       '/std/room',
       '/std/item',
@@ -72,48 +75,52 @@ export class Master extends MudObject {
       '/std/npc',
       '/std/weapon',
       '/std/armor',
-      // Starting areas
-      '/areas/void/void',
-      '/areas/valdoria/aldric/center',
-      '/areas/valdoria/aldric/castle',
-      '/areas/valdoria/aldric/tavern',
-      '/areas/valdoria/aldric/market',
-      '/areas/valdoria/aldric/gates',
-      '/areas/valdoria/aldric/bakery',
-      '/areas/valdoria/aldric/training_hall',
-      '/areas/valdoria/aldric/bank',
-      // Castle Dungeon
-      '/areas/valdoria/aldric_depths/entrance',
-      '/areas/valdoria/aldric_depths/corridor',
-      '/areas/valdoria/aldric_depths/cellblock',
-      '/areas/valdoria/aldric_depths/guard_room',
-      '/areas/valdoria/aldric_depths/storage',
-      '/areas/valdoria/aldric_depths/depths',
-      // Eastern Forest
-      '/areas/valdoria/forest/road_fork',
-      '/areas/valdoria/forest/forest_path',
-      '/areas/valdoria/forest/forest_edge_w',
-      '/areas/valdoria/forest/forest_edge_e',
-      '/areas/valdoria/forest/clearing',
-      '/areas/valdoria/forest/brambles',
-      '/areas/valdoria/forest/old_trail',
-      '/areas/valdoria/forest/dark_woods',
-      '/areas/valdoria/forest/overgrown_path',
-      '/areas/valdoria/forest/fern_glade',
-      '/areas/valdoria/forest/ancient_oak',
-      '/areas/valdoria/forest/deep_thicket',
-      '/areas/valdoria/forest/mossy_hollow',
-      '/areas/valdoria/forest/wolf_den',
-      '/areas/valdoria/forest/stream_crossing',
-      '/areas/valdoria/forest/hunters_camp',
-      // Daemons
-      '/daemons/login',
-      '/daemons/channels',
-      '/daemons/config',
-      '/daemons/soul',
-      '/daemons/reset',
-      '/daemons/guild',
     ];
+    preloadList.push(...stdObjects);
+
+    // 2. Auto-discover daemons
+    const daemons = await this.discoverFiles('/daemons');
+    preloadList.push(...daemons);
+
+    // 3. Auto-discover areas (rooms, NPCs, items)
+    const areas = await this.discoverFiles('/areas');
+    preloadList.push(...areas);
+
+    console.log(
+      `[Master] Preloading ${preloadList.length} objects (${stdObjects.length} std, ${daemons.length} daemons, ${areas.length} area objects)`
+    );
+    return preloadList;
+  }
+
+  /**
+   * Recursively discover all .ts files in a directory.
+   * @param basePath The base path to scan (e.g., '/daemons')
+   * @returns Array of object paths without extensions
+   */
+  private async discoverFiles(basePath: string): Promise<string[]> {
+    const results: string[] = [];
+
+    try {
+      const entries = await efuns.readDir(basePath);
+
+      for (const entry of entries) {
+        const fullPath = `${basePath}/${entry}`;
+        const stat = await efuns.fileStat(fullPath);
+
+        if (stat.isDirectory) {
+          // Recurse into subdirectories
+          const subFiles = await this.discoverFiles(fullPath);
+          results.push(...subFiles);
+        } else if (entry.endsWith('.ts') && !entry.startsWith('_index')) {
+          // Add .ts files (strip extension for object path)
+          results.push(fullPath.replace(/\.ts$/, ''));
+        }
+      }
+    } catch (error) {
+      console.warn(`[Master] Failed to scan ${basePath}:`, error);
+    }
+
+    return results;
   }
 
   /**
