@@ -423,7 +423,7 @@ async function handleTurnInQuest(
   }
 
   // Turn in the quest
-  const result = questDaemon.turnInQuest(player, foundQuest.questId);
+  const result = await questDaemon.turnInQuest(player, foundQuest.questId);
   if (!result.success) {
     ctx.sendLine(`{red}${result.message}{/}`);
   }

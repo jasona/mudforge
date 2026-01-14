@@ -103,6 +103,13 @@ export class MapDaemon extends MudObject {
     });
 
     this.registerArea({
+      id: '/areas/valdoria/aldric',
+      name: 'Town of Aldric',
+      defaultZ: 0,
+      defaultZoom: 3,
+    });
+
+    this.registerArea({
       id: 'void',
       name: 'The Void',
       defaultZ: 0,

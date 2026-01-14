@@ -74,10 +74,51 @@ function unequipIfNeeded(item: MudObject): void {
 
 /**
  * Check if an item can be given (similar to drop check).
+ * Quest delivery items can be given to the correct NPC target.
  */
-function canGive(item: MudObject, giver: MudObject): { canGive: boolean; reason?: string } {
+async function canGive(
+  item: MudObject,
+  giver: MudObject,
+  target: MudObject
+): Promise<{ canGive: boolean; reason?: string; isQuestDelivery?: boolean }> {
   if (item instanceof Item) {
     if (!item.dropable) {
+      // Check if this is a quest delivery to the correct NPC
+      const giverWithQuests = giver as MudObject & { getProperty?: (key: string) => unknown };
+      if (giverWithQuests.getProperty) {
+        try {
+          const { getQuestDaemon } = await import('../../daemons/quest.js');
+          const questDaemon = getQuestDaemon();
+          const questData = giverWithQuests.getProperty('questData') as {
+            active?: Array<{ questId: string; status: string }>;
+          } | undefined;
+
+          if (questData?.active) {
+            for (const activeQuest of questData.active) {
+              if (activeQuest.status !== 'active') continue;
+
+              const quest = questDaemon.getQuest(activeQuest.questId);
+              if (!quest) continue;
+
+              for (const obj of quest.objectives) {
+                if (obj.type === 'deliver') {
+                  // Check if item matches and target NPC matches
+                  const itemPath = item.objectPath || '';
+                  const targetPath = target.objectPath || '';
+                  const itemMatches = itemPath.includes(obj.itemPath) || itemPath === obj.itemPath;
+                  const npcMatches = targetPath.includes(obj.targetNpc) || targetPath === obj.targetNpc;
+
+                  if (itemMatches && npcMatches) {
+                    return { canGive: true, isQuestDelivery: true };
+                  }
+                }
+              }
+            }
+          }
+        } catch {
+          // Quest system not available
+        }
+      }
       return { canGive: false, reason: "You can't give that away." };
     }
   }
@@ -193,7 +234,7 @@ export async function execute(ctx: CommandContext): Promise<void> {
   }
 
   // Check if item can be given
-  const giveCheck = canGive(item, player);
+  const giveCheck = await canGive(item, player, target);
   if (!giveCheck.canGive) {
     ctx.sendLine(giveCheck.reason || "You can't give that away.");
     return;
@@ -204,6 +245,20 @@ export async function execute(ctx: CommandContext): Promise<void> {
 
   // Move item to target
   await item.moveTo(target);
+
+  // If this was a quest delivery, update the objective
+  if (giveCheck.isQuestDelivery) {
+    try {
+      const { getQuestDaemon } = await import('../../daemons/quest.js');
+      const questDaemon = getQuestDaemon();
+      const itemPath = item.objectPath || '';
+      const targetPath = target.objectPath || '';
+      type QuestPlayer = Parameters<typeof questDaemon.updateDeliverObjective>[0];
+      questDaemon.updateDeliverObjective(player as unknown as QuestPlayer, itemPath, targetPath);
+    } catch {
+      // Quest system error
+    }
+  }
 
   ctx.sendLine(`You give ${item.shortDesc} to ${targetNameStr}.`);
 
