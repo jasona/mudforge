@@ -23,7 +23,8 @@ interface PlayerInfo extends MudObject {
 }
 
 // Box width (content between the borders)
-const BOX_WIDTH = 88;
+// Must be <= 78 to fit within default 80-char screenWidth with borders
+const BOX_WIDTH = 78;
 
 /**
  * Get the title/rank display for a player.
@@ -106,14 +107,14 @@ export async function execute(ctx: CommandContext): Promise<void> {
   lines.push('');
   lines.push(`{cyan}╔${topBot}╗{/}`);
 
-    // ASCII Art Header - MUDFORGE (72 chars wide, centered in 76 char box)
+  // ASCII Art Header - MUDFORGE (70 chars wide, centered in 80 char width)
   lines.push('');
-  lines.push('            {bold}{yellow}███╗   ███╗{/}{bold}{green}██╗   ██╗{/}{bold}{cyan}██████╗ {/}{bold}{magenta}███████╗{/}{bold}{red} ██████╗ {/}{bold}{yellow}██████╗ {/}{bold}{green} ██████╗ {/}{bold}{cyan}███████╗{/}  ');
-  lines.push('            {bold}{yellow}████╗ ████║{/}{bold}{green}██║   ██║{/}{bold}{cyan}██╔══██╗{/}{bold}{magenta}██╔════╝{/}{bold}{red}██╔═══██╗{/}{bold}{yellow}██╔══██╗{/}{bold}{green}██╔════╝ {/}{bold}{cyan}██╔════╝{/}  ');
-  lines.push('            {bold}{yellow}██╔████╔██║{/}{bold}{green}██║   ██║{/}{bold}{cyan}██║  ██║{/}{bold}{magenta}█████╗  {/}{bold}{red}██║   ██║{/}{bold}{yellow}██████╔╝{/}{bold}{green}██║  ███╗{/}{bold}{cyan}█████╗  {/}  ');
-  lines.push('            {bold}{yellow}██║╚██╔╝██║{/}{bold}{green}██║   ██║{/}{bold}{cyan}██║  ██║{/}{bold}{magenta}██╔══╝  {/}{bold}{red}██║   ██║{/}{bold}{yellow}██╔══██╗{/}{bold}{green}██║   ██║{/}{bold}{cyan}██╔══╝  {/}  ');
-  lines.push('            {bold}{yellow}██║ ╚═╝ ██║{/}{bold}{green}╚██████╔╝{/}{bold}{cyan}██████╔╝{/}{bold}{magenta}██║     {/}{bold}{red}╚██████╔╝{/}{bold}{yellow}██║  ██║{/}{bold}{green}╚██████╔╝{/}{bold}{cyan}███████╗{/}  ');
-  lines.push('            {bold}{yellow}╚═╝     ╚═╝{/}{bold}{green} ╚═════╝ {/}{bold}{cyan}╚═════╝ {/}{bold}{magenta}╚═╝     {/}{bold}{red} ╚═════╝ {/}{bold}{yellow}╚═╝  ╚═╝{/}{bold}{green} ╚═════╝ {/}{bold}{cyan}╚══════╝{/}  ');
+  lines.push('     {bold}{yellow}███╗   ███╗{/}{bold}{green}██╗   ██╗{/}{bold}{cyan}██████╗ {/}{bold}{magenta}███████╗{/}{bold}{red} ██████╗ {/}{bold}{yellow}██████╗ {/}{bold}{green} ██████╗ {/}{bold}{cyan}███████╗{/}');
+  lines.push('     {bold}{yellow}████╗ ████║{/}{bold}{green}██║   ██║{/}{bold}{cyan}██╔══██╗{/}{bold}{magenta}██╔════╝{/}{bold}{red}██╔═══██╗{/}{bold}{yellow}██╔══██╗{/}{bold}{green}██╔════╝ {/}{bold}{cyan}██╔════╝{/}');
+  lines.push('     {bold}{yellow}██╔████╔██║{/}{bold}{green}██║   ██║{/}{bold}{cyan}██║  ██║{/}{bold}{magenta}█████╗  {/}{bold}{red}██║   ██║{/}{bold}{yellow}██████╔╝{/}{bold}{green}██║  ███╗{/}{bold}{cyan}█████╗  {/}');
+  lines.push('     {bold}{yellow}██║╚██╔╝██║{/}{bold}{green}██║   ██║{/}{bold}{cyan}██║  ██║{/}{bold}{magenta}██╔══╝  {/}{bold}{red}██║   ██║{/}{bold}{yellow}██╔══██╗{/}{bold}{green}██║   ██║{/}{bold}{cyan}██╔══╝  {/}');
+  lines.push('     {bold}{yellow}██║ ╚═╝ ██║{/}{bold}{green}╚██████╔╝{/}{bold}{cyan}██████╔╝{/}{bold}{magenta}██║     {/}{bold}{red}╚██████╔╝{/}{bold}{yellow}██║  ██║{/}{bold}{green}╚██████╔╝{/}{bold}{cyan}███████╗{/}');
+  lines.push('     {bold}{yellow}╚═╝     ╚═╝{/}{bold}{green} ╚═════╝ {/}{bold}{cyan}╚═════╝ {/}{bold}{magenta}╚═╝     {/}{bold}{red} ╚═════╝ {/}{bold}{yellow}╚═╝  ╚═╝{/}{bold}{green} ╚═════╝ {/}{bold}{cyan}╚══════╝{/}');
   lines.push('');
   lines.push(centerText('{dim}A Modern MUD Experience - Est. 2026{/}', BOX_WIDTH));
 
