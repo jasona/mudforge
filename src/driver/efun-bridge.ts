@@ -2411,7 +2411,13 @@ RULES:
       isAdmin: this.isAdmin.bind(this),
       isBuilder: this.isBuilder.bind(this),
       getPermissionLevel: this.getPermissionLevel.bind(this),
+      getPlayerPermissionLevel: this.getPlayerPermissionLevel.bind(this),
       getDomains: this.getDomains.bind(this),
+      setPermissionLevel: this.setPermissionLevel.bind(this),
+      getPermissionLevelName: this.getPermissionLevelName.bind(this),
+      savePermissions: this.savePermissions.bind(this),
+      addDomain: this.addDomain.bind(this),
+      removeDomain: this.removeDomain.bind(this),
 
       // Scheduler
       setHeartbeat: this.setHeartbeat.bind(this),
