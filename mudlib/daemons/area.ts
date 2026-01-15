@@ -700,8 +700,10 @@ export class AreaDaemon extends MudObject {
 
   /**
    * Publish an area to generate TypeScript files.
+   * @param areaId The area ID to publish
+   * @param force If true, republish all files regardless of changes
    */
-  async publishArea(areaId: string): Promise<PublishResult> {
+  async publishArea(areaId: string, force: boolean = false): Promise<PublishResult> {
     const area = this._areas.get(areaId);
     if (!area) {
       return { success: false, error: 'Area not found' };
@@ -724,10 +726,10 @@ export class AreaDaemon extends MudObject {
     let filesSkipped = 0;
 
     // For incremental publishing, determine which entities need updating
-    // If area was never published, publish everything
+    // If area was never published or force is true, publish everything
     // Otherwise, only publish entities modified after the last publish
     const lastPublishTime = area.publishedAt ?? 0;
-    const isIncremental = area.status === 'published' && lastPublishTime > 0;
+    const isIncremental = !force && area.status === 'published' && lastPublishTime > 0;
 
     try {
       // Create directory

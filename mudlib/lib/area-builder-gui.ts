@@ -2590,6 +2590,15 @@ function buildSettingsTab(area: AreaDefinition): LayoutContainer {
             customAction: 'publish',
             variant: 'success',
           } as InputElement,
+          {
+            type: 'button',
+            id: 'btn-force-republish',
+            name: 'btn-force-republish',
+            label: 'Force Republish All',
+            action: 'custom',
+            customAction: 'force-republish',
+            variant: 'danger',
+          } as InputElement,
         ],
       },
       // Validation result display
@@ -4065,6 +4074,31 @@ async function handleEditorResponse(
         player.receive('{dim}Restart the server to load the new rooms.{/}\n');
       } else {
         player.receive(`{red}✗ Failed to publish: ${result.error}{/}\n`);
+      }
+      return;
+    }
+
+    // Force Republish Area (republish all files regardless of changes)
+    if (customAction === 'force-republish') {
+      closeModal(player, 'area-editor');
+      player.receive('{cyan}Force republishing all files...{/}\n');
+      const result = await areaDaemon.publishArea(state.areaId, true);
+      if (result.success) {
+        player.receive('{green}✓ Area force republished successfully!{/}\n');
+        player.receive(`  Path: ${result.path}\n`);
+
+        // Show file statistics
+        const created = result.filesCreated?.length ?? 0;
+        const updated = result.filesUpdated?.length ?? 0;
+        const deleted = result.filesDeleted?.length ?? 0;
+
+        if (created > 0) player.receive(`  Files created: ${created}\n`);
+        if (updated > 0) player.receive(`  Files updated: ${updated}\n`);
+        if (deleted > 0) player.receive(`  Files deleted: ${deleted}\n`);
+
+        player.receive('{dim}Restart the server to load the new rooms.{/}\n');
+      } else {
+        player.receive(`{red}✗ Failed to force republish: ${result.error}{/}\n`);
       }
       return;
     }
