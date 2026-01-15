@@ -203,6 +203,9 @@ export interface DraftNPC {
 
   /** Respawn time in seconds (0 = no respawn) */
   respawnTime?: number;
+
+  /** Item IDs that spawn on this NPC */
+  items?: string[];
 }
 
 /**

@@ -38,6 +38,41 @@ export interface GUIPlayer {
   name: string;
   receive(message: string): void;
   onGUIResponse?: (msg: GUIClientMessage) => void;
+  connection?: { send: (msg: string) => void };
+  _connection?: { send: (msg: string) => void };
+}
+
+/**
+ * Send a GUI message directly to a player.
+ * This bypasses efuns.guiSend which requires a player context.
+ */
+function sendGUIToPlayer(player: GUIPlayer, message: GUIUpdateMessage | GUICloseMessage): void {
+  const connection = player.connection || player._connection;
+  if (connection?.send) {
+    const jsonStr = JSON.stringify(message);
+    connection.send(`\x00[GUI]${jsonStr}\n`);
+  }
+}
+
+/**
+ * Show save status indicator for an editor.
+ * @param player - The player to send the update to
+ * @param statusId - The ID of the status element (e.g., 'room-save-status')
+ * @param saved - Whether to show saved (true) or clear (false)
+ */
+function showSaveStatus(player: GUIPlayer, statusId: string, saved: boolean): void {
+  const message: GUIUpdateMessage = {
+    action: 'update',
+    modalId: 'area-editor',
+    updates: {
+      elements: {
+        [statusId]: {
+          content: saved ? '✓ Saved' : '',
+        },
+      },
+    },
+  };
+  sendGUIToPlayer(player, message);
 }
 
 /** Callback function type for area selection */
@@ -1402,11 +1437,55 @@ function buildRoomEditor(room: DraftRoom | undefined, area: AreaDefinition): Lay
           } as InputElement,
         ],
       },
+      // NPCs in this room
+      ...(area.npcs.length > 0 ? [
+        {
+          type: 'heading',
+          id: 'npcs-header',
+          content: 'NPCs',
+          level: 5,
+          style: { color: '#f5f5f5', margin: '8px 0 0 0' },
+        } as DisplayElement,
+        {
+          type: 'vertical',
+          gap: '4px',
+          style: { maxHeight: '120px', overflow: 'auto' },
+          children: area.npcs.map(npc => ({
+            type: 'checkbox',
+            id: `room-npc-${npc.id}`,
+            name: `roomNpc_${npc.id}`,
+            label: `${npc.name} (Lvl ${npc.level})`,
+            value: room.npcs.includes(npc.id),
+          } as InputElement)),
+        } as LayoutContainer,
+      ] : []),
+      // Items in this room
+      ...(area.items.length > 0 ? [
+        {
+          type: 'heading',
+          id: 'items-header',
+          content: 'Items',
+          level: 5,
+          style: { color: '#f5f5f5', margin: '8px 0 0 0' },
+        } as DisplayElement,
+        {
+          type: 'vertical',
+          gap: '4px',
+          style: { maxHeight: '120px', overflow: 'auto' },
+          children: area.items.map(item => ({
+            type: 'checkbox',
+            id: `room-item-${item.id}`,
+            name: `roomItem_${item.id}`,
+            label: `${item.name} (${item.type})`,
+            value: room.items.includes(item.id),
+          } as InputElement)),
+        } as LayoutContainer,
+      ] : []),
       // Save room button and AI button
       {
         type: 'horizontal',
         gap: '8px',
-        style: { marginTop: '8px' },
+        style: { marginTop: '8px', alignItems: 'center' },
         children: [
           {
             type: 'button',
@@ -1426,6 +1505,19 @@ function buildRoomEditor(room: DraftRoom | undefined, area: AreaDefinition): Lay
             customAction: 'save-room',
             variant: 'primary',
           } as InputElement,
+          {
+            type: 'html',
+            id: 'room-save-status',
+            content: '',
+            style: {
+              color: '#22c55e',
+              fontSize: '14px',
+              fontWeight: 'bold',
+              margin: '0',
+              padding: '4px 8px',
+              minWidth: '60px',
+            },
+          } as DisplayElement,
         ],
       },
     ],
@@ -1463,6 +1555,7 @@ function buildNPCsTab(area: AreaDefinition, state: EditorState): LayoutContainer
 function buildNPCList(npcs: DraftNPC[], selectedId?: string): LayoutContainer {
   const npcItems: LayoutContainer[] = npcs.map(npc => ({
     type: 'horizontal',
+    id: `npc-item-${npc.id}`,
     gap: '8px',
     style: {
       padding: '8px 12px',
@@ -1572,37 +1665,14 @@ function buildNPCList(npcs: DraftNPC[], selectedId?: string): LayoutContainer {
  * Build the NPC editor panel.
  */
 function buildNPCEditor(npc: DraftNPC | undefined, area: AreaDefinition): LayoutContainer {
-  if (!npc) {
-    return {
-      type: 'vertical',
-      style: {
-        flex: '1',
-        backgroundColor: '#12121a',
-        borderRadius: '8px',
-        padding: '24px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-      },
-      children: [
-        {
-          type: 'paragraph',
-          id: 'no-npc-selected',
-          content: 'Select an NPC to edit its properties',
-          style: { color: '#666', fontSize: '16px' },
-        } as DisplayElement,
-      ],
-    };
-  }
+  // Find which rooms have this NPC
+  const npcRooms = npc ? area.rooms.filter(r => r.npcs.includes(npc.id)) : [];
+  // Get items that spawn on this NPC
+  const npcItems = npc?.items ?? [];
 
-  // Build room options for NPC placement
-  const roomOptions = [
-    { value: '', label: '(not assigned)' },
-    ...area.rooms.map(r => ({ value: r.id, label: `${r.id} - ${r.shortDesc}` })),
-  ];
-
-  // Find which room has this NPC
-  const npcRoom = area.rooms.find(r => r.npcs.includes(npc.id));
+  // Always render the form structure so we can update via form data
+  // When no NPC selected, show placeholder message
+  const hasSelection = !!npc;
 
   return {
     type: 'vertical',
@@ -1615,179 +1685,258 @@ function buildNPCEditor(npc: DraftNPC | undefined, area: AreaDefinition): Layout
       overflow: 'auto',
     },
     children: [
-      // Header with delete button
+      // Placeholder shown when no NPC selected
       {
-        type: 'horizontal',
-        gap: '12px',
-        style: { alignItems: 'center' },
+        type: 'vertical',
+        id: 'npc-placeholder',
+        style: {
+          display: hasSelection ? 'none' : 'flex',
+          flex: '1',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '24px',
+        },
         children: [
           {
-            type: 'heading',
-            id: 'npc-editor-header',
-            content: `Edit NPC: ${npc.id}`,
-            level: 4,
-            style: { color: '#f5f5f5', margin: '0', flex: '1' },
+            type: 'paragraph',
+            id: 'no-npc-selected',
+            content: 'Select an NPC to edit its properties',
+            style: { color: '#666', fontSize: '16px' },
           } as DisplayElement,
-          {
-            type: 'button',
-            id: 'btn-delete-npc',
-            name: 'btn-delete-npc',
-            label: 'Delete NPC',
-            action: 'custom',
-            customAction: `delete-npc:${npc.id}`,
-            variant: 'danger',
-          } as InputElement,
         ],
       },
-      // Hidden field for NPC ID
+      // Form container shown when NPC is selected
       {
-        type: 'hidden',
-        id: 'edit-npc-id',
-        name: 'npcId',
-        value: npc.id,
-      } as InputElement,
-      // Name and gender
-      {
-        type: 'horizontal',
+        type: 'vertical',
+        id: 'npc-form-container',
         gap: '12px',
+        style: {
+          display: hasSelection ? 'flex' : 'none',
+        },
         children: [
+          // Header with delete button
+          {
+            type: 'horizontal',
+            gap: '12px',
+            style: { alignItems: 'center' },
+            children: [
+              {
+                type: 'heading',
+                id: 'npc-editor-header',
+                content: npc ? `Edit NPC: ${npc.id}` : 'No NPC Selected',
+                level: 4,
+                style: { color: '#f5f5f5', margin: '0', flex: '1' },
+              } as DisplayElement,
+              {
+                type: 'button',
+                id: 'btn-delete-npc',
+                name: 'btn-delete-npc',
+                label: 'Delete NPC',
+                action: 'custom',
+                customAction: npc ? `delete-npc:${npc.id}` : 'delete-npc:',
+                variant: 'danger',
+              } as InputElement,
+            ],
+          },
+          // Hidden field for NPC ID
+          {
+            type: 'hidden',
+            id: 'edit-npc-id',
+            name: 'npcId',
+            value: npc?.id ?? '',
+          } as InputElement,
+          // Name and gender
+          {
+            type: 'horizontal',
+            gap: '12px',
+            children: [
+              {
+                type: 'text',
+                id: 'npc-name',
+                name: 'npcName',
+                label: 'Name',
+                value: npc?.name ?? '',
+                placeholder: 'Grizzled Warrior',
+                style: { flex: '1' },
+              } as InputElement,
+              {
+                type: 'select',
+                id: 'npc-gender',
+                name: 'npcGender',
+                label: 'Gender',
+                value: npc?.gender ?? 'neutral',
+                options: [
+                  { value: 'male', label: 'Male' },
+                  { value: 'female', label: 'Female' },
+                  { value: 'neutral', label: 'Neutral' },
+                ],
+                style: { width: '120px' },
+              } as InputElement,
+            ],
+          },
+          // Short description
           {
             type: 'text',
-            id: 'npc-name',
-            name: 'npcName',
-            label: 'Name',
-            value: npc.name,
-            placeholder: 'Grizzled Warrior',
-            style: { flex: '1' },
+            id: 'npc-short-desc',
+            name: 'npcShortDesc',
+            label: 'Short Description',
+            value: npc?.shortDesc ?? '',
+            placeholder: 'A grizzled warrior stands here',
+            style: { width: '100%' },
           } as InputElement,
+          // Long description
           {
-            type: 'select',
-            id: 'npc-gender',
-            name: 'npcGender',
-            label: 'Gender',
-            value: npc.gender ?? 'neutral',
-            options: [
-              { value: 'male', label: 'Male' },
-              { value: 'female', label: 'Female' },
-              { value: 'neutral', label: 'Neutral' },
+            type: 'textarea',
+            id: 'npc-long-desc',
+            name: 'npcLongDesc',
+            label: 'Long Description',
+            value: npc?.longDesc ?? '',
+            placeholder: 'Describe the NPC in detail...',
+            rows: 3,
+            style: { width: '100%' },
+          } as InputElement,
+          // Stats row
+          {
+            type: 'horizontal',
+            gap: '12px',
+            children: [
+              {
+                type: 'number',
+                id: 'npc-level',
+                name: 'npcLevel',
+                label: 'Level',
+                value: npc?.level ?? 1,
+                min: 1,
+                max: 100,
+                style: { width: '100px' },
+              } as InputElement,
+              {
+                type: 'number',
+                id: 'npc-health',
+                name: 'npcMaxHealth',
+                label: 'Max Health',
+                value: npc?.maxHealth ?? 100,
+                min: 1,
+                style: { width: '100px' },
+              } as InputElement,
             ],
-            style: { width: '120px' },
-          } as InputElement,
-        ],
-      },
-      // Short description
-      {
-        type: 'text',
-        id: 'npc-short-desc',
-        name: 'npcShortDesc',
-        label: 'Short Description',
-        value: npc.shortDesc,
-        placeholder: 'A grizzled warrior stands here',
-        style: { width: '100%' },
-      } as InputElement,
-      // Long description
-      {
-        type: 'textarea',
-        id: 'npc-long-desc',
-        name: 'npcLongDesc',
-        label: 'Long Description',
-        value: npc.longDesc,
-        placeholder: 'Describe the NPC in detail...',
-        rows: 3,
-        style: { width: '100%' },
-      } as InputElement,
-      // Stats row
-      {
-        type: 'horizontal',
-        gap: '12px',
-        children: [
+          },
+          // Spawn Rooms section
+          ...(area.rooms.length > 0 ? [
+            {
+              type: 'heading',
+              id: 'npc-rooms-header',
+              content: 'Spawn Rooms',
+              level: 5,
+              style: { color: '#f5f5f5', margin: '8px 0 0 0' },
+            } as DisplayElement,
+            {
+              type: 'vertical',
+              gap: '4px',
+              style: { maxHeight: '120px', overflow: 'auto' },
+              children: area.rooms.map(room => ({
+                type: 'checkbox',
+                id: `npc-room-${room.id}`,
+                name: `npcRoom_${room.id}`,
+                label: `${room.shortDesc} (${room.id})`,
+                value: npcRooms.some(r => r.id === room.id),
+              } as InputElement)),
+            } as LayoutContainer,
+          ] : []),
+          // Items section (items that spawn on this NPC)
+          ...(area.items.length > 0 ? [
+            {
+              type: 'heading',
+              id: 'npc-items-header',
+              content: 'Items',
+              level: 5,
+              style: { color: '#f5f5f5', margin: '8px 0 0 0' },
+            } as DisplayElement,
+            {
+              type: 'vertical',
+              gap: '4px',
+              style: { maxHeight: '120px', overflow: 'auto' },
+              children: area.items.map(item => ({
+                type: 'checkbox',
+                id: `npc-item-${item.id}`,
+                name: `npcItem_${item.id}`,
+                label: `${item.name} (${item.type})`,
+                value: npcItems.includes(item.id),
+              } as InputElement)),
+            } as LayoutContainer,
+          ] : []),
+          // Keywords
           {
-            type: 'number',
-            id: 'npc-level',
-            name: 'npcLevel',
-            label: 'Level',
-            value: npc.level,
-            min: 1,
-            max: 100,
-            style: { width: '100px' },
+            type: 'text',
+            id: 'npc-keywords',
+            name: 'npcKeywords',
+            label: 'Keywords (comma-separated)',
+            value: npc ? (npc.keywords ?? []).join(', ') : '',
+            placeholder: 'warrior, guard, soldier',
+            style: { width: '100%' },
           } as InputElement,
+          // Behavior
           {
-            type: 'number',
-            id: 'npc-health',
-            name: 'npcMaxHealth',
-            label: 'Max Health',
-            value: npc.maxHealth,
-            min: 1,
-            style: { width: '100px' },
-          } as InputElement,
+            type: 'horizontal',
+            gap: '12px',
+            children: [
+              {
+                type: 'checkbox',
+                id: 'npc-wandering',
+                name: 'npcWandering',
+                label: 'Wanders',
+                value: npc?.wandering ?? false,
+              } as InputElement,
+              {
+                type: 'number',
+                id: 'npc-respawn',
+                name: 'npcRespawnTime',
+                label: 'Respawn (sec)',
+                value: npc?.respawnTime ?? 0,
+                min: 0,
+                style: { width: '120px' },
+              } as InputElement,
+            ],
+          },
+          // Save NPC button and AI button
           {
-            type: 'select',
-            id: 'npc-room',
-            name: 'npcRoom',
-            label: 'Spawn Room',
-            value: npcRoom?.id ?? '',
-            options: roomOptions,
-            style: { flex: '1' },
-          } as InputElement,
-        ],
-      },
-      // Keywords
-      {
-        type: 'text',
-        id: 'npc-keywords',
-        name: 'npcKeywords',
-        label: 'Keywords (comma-separated)',
-        value: (npc.keywords ?? []).join(', '),
-        placeholder: 'warrior, guard, soldier',
-        style: { width: '100%' },
-      } as InputElement,
-      // Behavior
-      {
-        type: 'horizontal',
-        gap: '12px',
-        children: [
-          {
-            type: 'checkbox',
-            id: 'npc-wandering',
-            name: 'npcWandering',
-            label: 'Wanders',
-            value: npc.wandering ?? false,
-          } as InputElement,
-          {
-            type: 'number',
-            id: 'npc-respawn',
-            name: 'npcRespawnTime',
-            label: 'Respawn (sec)',
-            value: npc.respawnTime ?? 0,
-            min: 0,
-            style: { width: '120px' },
-          } as InputElement,
-        ],
-      },
-      // Save NPC button and AI button
-      {
-        type: 'horizontal',
-        gap: '8px',
-        style: { marginTop: '8px' },
-        children: [
-          {
-            type: 'button',
-            id: 'btn-ai-describe-npc',
-            name: 'btn-ai-describe-npc',
-            label: '🤖 AI Describe',
-            action: 'custom',
-            customAction: `ai-describe-npc:${npc.id}`,
-            variant: 'secondary',
-          } as InputElement,
-          {
-            type: 'button',
-            id: 'btn-save-npc',
-            name: 'btn-save-npc',
-            label: 'Save NPC',
-            action: 'custom',
-            customAction: 'save-npc',
-            variant: 'primary',
-          } as InputElement,
+            type: 'horizontal',
+            gap: '8px',
+            style: { marginTop: '8px', alignItems: 'center' },
+            children: [
+              {
+                type: 'button',
+                id: 'btn-ai-describe-npc',
+                name: 'btn-ai-describe-npc',
+                label: '🤖 AI Describe',
+                action: 'custom',
+                customAction: npc ? `ai-describe-npc:${npc.id}` : 'ai-describe-npc:',
+                variant: 'secondary',
+              } as InputElement,
+              {
+                type: 'button',
+                id: 'btn-save-npc',
+                name: 'btn-save-npc',
+                label: 'Save NPC',
+                action: 'custom',
+                customAction: 'save-npc',
+                variant: 'primary',
+              } as InputElement,
+              {
+                type: 'html',
+                id: 'npc-save-status',
+                content: '',
+                style: {
+                  color: '#22c55e',
+                  fontSize: '14px',
+                  fontWeight: 'bold',
+                  margin: '0',
+                  padding: '4px 8px',
+                  minWidth: '60px',
+                },
+              } as DisplayElement,
+            ],
+          },
         ],
       },
     ],
@@ -1825,6 +1974,7 @@ function buildItemsTab(area: AreaDefinition, state: EditorState): LayoutContaine
 function buildItemList(items: DraftItem[], selectedId?: string): LayoutContainer {
   const itemEntries: LayoutContainer[] = items.map(item => ({
     type: 'horizontal',
+    id: `item-entry-${item.id}`,
     gap: '8px',
     style: {
       padding: '8px 12px',
@@ -1934,37 +2084,13 @@ function buildItemList(items: DraftItem[], selectedId?: string): LayoutContainer
  * Build the item editor panel.
  */
 function buildItemEditor(item: DraftItem | undefined, area: AreaDefinition): LayoutContainer {
-  if (!item) {
-    return {
-      type: 'vertical',
-      style: {
-        flex: '1',
-        backgroundColor: '#12121a',
-        borderRadius: '8px',
-        padding: '24px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-      },
-      children: [
-        {
-          type: 'paragraph',
-          id: 'no-item-selected',
-          content: 'Select an item to edit its properties',
-          style: { color: '#666', fontSize: '16px' },
-        } as DisplayElement,
-      ],
-    };
-  }
+  // Find which rooms have this item (items can spawn in multiple rooms)
+  const itemRooms = item ? area.rooms.filter(r => r.items.includes(item.id)) : [];
+  // Find which NPCs have this item
+  const itemNpcs = item ? area.npcs.filter(n => (n.items ?? []).includes(item.id)) : [];
 
-  // Build room options for item placement
-  const roomOptions = [
-    { value: '', label: '(not assigned)' },
-    ...area.rooms.map(r => ({ value: r.id, label: `${r.id} - ${r.shortDesc}` })),
-  ];
-
-  // Find which room has this item
-  const itemRoom = area.rooms.find(r => r.items.includes(item.id));
+  // Always render the form structure so we can update via form data
+  const hasSelection = !!item;
 
   return {
     type: 'vertical',
@@ -1977,159 +2103,238 @@ function buildItemEditor(item: DraftItem | undefined, area: AreaDefinition): Lay
       overflow: 'auto',
     },
     children: [
-      // Header with delete button
+      // Placeholder shown when no item selected
       {
-        type: 'horizontal',
-        gap: '12px',
-        style: { alignItems: 'center' },
+        type: 'vertical',
+        id: 'item-placeholder',
+        style: {
+          display: hasSelection ? 'none' : 'flex',
+          flex: '1',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '24px',
+        },
         children: [
           {
-            type: 'heading',
-            id: 'item-editor-header',
-            content: `Edit Item: ${item.id}`,
-            level: 4,
-            style: { color: '#f5f5f5', margin: '0', flex: '1' },
+            type: 'paragraph',
+            id: 'no-item-selected',
+            content: 'Select an item to edit its properties',
+            style: { color: '#666', fontSize: '16px' },
           } as DisplayElement,
-          {
-            type: 'button',
-            id: 'btn-delete-item',
-            name: 'btn-delete-item',
-            label: 'Delete Item',
-            action: 'custom',
-            customAction: `delete-item:${item.id}`,
-            variant: 'danger',
-          } as InputElement,
         ],
       },
-      // Hidden field for item ID
+      // Form container shown when item is selected
       {
-        type: 'hidden',
-        id: 'edit-item-id',
-        name: 'itemId',
-        value: item.id,
-      } as InputElement,
-      // Name and type
-      {
-        type: 'horizontal',
+        type: 'vertical',
+        id: 'item-form-container',
         gap: '12px',
+        style: {
+          display: hasSelection ? 'flex' : 'none',
+        },
         children: [
+          // Header with delete button
+          {
+            type: 'horizontal',
+            gap: '12px',
+            style: { alignItems: 'center' },
+            children: [
+              {
+                type: 'heading',
+                id: 'item-editor-header',
+                content: item ? `Edit Item: ${item.id}` : 'No Item Selected',
+                level: 4,
+                style: { color: '#f5f5f5', margin: '0', flex: '1' },
+              } as DisplayElement,
+              {
+                type: 'button',
+                id: 'btn-delete-item',
+                name: 'btn-delete-item',
+                label: 'Delete Item',
+                action: 'custom',
+                customAction: item ? `delete-item:${item.id}` : 'delete-item:',
+                variant: 'danger',
+              } as InputElement,
+            ],
+          },
+          // Hidden field for item ID
+          {
+            type: 'hidden',
+            id: 'edit-item-id',
+            name: 'itemId',
+            value: item?.id ?? '',
+          } as InputElement,
+          // Name and type
+          {
+            type: 'horizontal',
+            gap: '12px',
+            children: [
+              {
+                type: 'text',
+                id: 'item-name',
+                name: 'itemName',
+                label: 'Name',
+                value: item?.name ?? '',
+                placeholder: 'Iron Sword',
+                style: { flex: '1' },
+              } as InputElement,
+              {
+                type: 'select',
+                id: 'item-type',
+                name: 'itemType',
+                label: 'Type',
+                value: item?.type ?? 'misc',
+                options: [
+                  { value: 'weapon', label: 'Weapon' },
+                  { value: 'armor', label: 'Armor' },
+                  { value: 'consumable', label: 'Consumable' },
+                  { value: 'container', label: 'Container' },
+                  { value: 'key', label: 'Key' },
+                  { value: 'quest', label: 'Quest Item' },
+                  { value: 'misc', label: 'Misc' },
+                ],
+                style: { width: '140px' },
+              } as InputElement,
+            ],
+          },
+          // Short description
           {
             type: 'text',
-            id: 'item-name',
-            name: 'itemName',
-            label: 'Name',
-            value: item.name,
-            placeholder: 'Iron Sword',
-            style: { flex: '1' },
+            id: 'item-short-desc',
+            name: 'itemShortDesc',
+            label: 'Short Description',
+            value: item?.shortDesc ?? '',
+            placeholder: 'A sturdy iron sword',
+            style: { width: '100%' },
           } as InputElement,
+          // Long description
           {
-            type: 'select',
-            id: 'item-type',
-            name: 'itemType',
-            label: 'Type',
-            value: item.type,
-            options: [
-              { value: 'weapon', label: 'Weapon' },
-              { value: 'armor', label: 'Armor' },
-              { value: 'consumable', label: 'Consumable' },
-              { value: 'container', label: 'Container' },
-              { value: 'key', label: 'Key' },
-              { value: 'quest', label: 'Quest Item' },
-              { value: 'misc', label: 'Misc' },
+            type: 'textarea',
+            id: 'item-long-desc',
+            name: 'itemLongDesc',
+            label: 'Long Description',
+            value: item?.longDesc ?? '',
+            placeholder: 'Describe the item in detail...',
+            rows: 3,
+            style: { width: '100%' },
+          } as InputElement,
+          // Value and weight
+          {
+            type: 'horizontal',
+            gap: '12px',
+            children: [
+              {
+                type: 'number',
+                id: 'item-value',
+                name: 'itemValue',
+                label: 'Value (gold)',
+                value: item?.value ?? 0,
+                min: 0,
+                style: { width: '120px' },
+              } as InputElement,
+              {
+                type: 'number',
+                id: 'item-weight',
+                name: 'itemWeight',
+                label: 'Weight',
+                value: item?.weight ?? 1,
+                min: 0,
+                style: { width: '120px' },
+              } as InputElement,
             ],
-            style: { width: '140px' },
-          } as InputElement,
-        ],
-      },
-      // Short description
-      {
-        type: 'text',
-        id: 'item-short-desc',
-        name: 'itemShortDesc',
-        label: 'Short Description',
-        value: item.shortDesc,
-        placeholder: 'A sturdy iron sword',
-        style: { width: '100%' },
-      } as InputElement,
-      // Long description
-      {
-        type: 'textarea',
-        id: 'item-long-desc',
-        name: 'itemLongDesc',
-        label: 'Long Description',
-        value: item.longDesc,
-        placeholder: 'Describe the item in detail...',
-        rows: 3,
-        style: { width: '100%' },
-      } as InputElement,
-      // Value, weight, room
-      {
-        type: 'horizontal',
-        gap: '12px',
-        children: [
+          },
+          // Keywords
           {
-            type: 'number',
-            id: 'item-value',
-            name: 'itemValue',
-            label: 'Value (gold)',
-            value: item.value ?? 0,
-            min: 0,
-            style: { width: '100px' },
+            type: 'text',
+            id: 'item-keywords',
+            name: 'itemKeywords',
+            label: 'Keywords (comma-separated)',
+            value: item ? (item.keywords ?? []).join(', ') : '',
+            placeholder: 'sword, iron, weapon',
+            style: { width: '100%' },
           } as InputElement,
+          // Spawn Rooms section
+          ...(area.rooms.length > 0 ? [
+            {
+              type: 'heading',
+              id: 'item-rooms-header',
+              content: 'Spawn Rooms',
+              level: 5,
+              style: { color: '#f5f5f5', margin: '8px 0 0 0' },
+            } as DisplayElement,
+            {
+              type: 'vertical',
+              gap: '4px',
+              style: { maxHeight: '120px', overflow: 'auto' },
+              children: area.rooms.map(room => ({
+                type: 'checkbox',
+                id: `item-room-${room.id}`,
+                name: `itemRoom_${room.id}`,
+                label: `${room.shortDesc} (${room.id})`,
+                value: itemRooms.some(r => r.id === room.id),
+              } as InputElement)),
+            } as LayoutContainer,
+          ] : []),
+          // Spawn NPCs section (items can also spawn on NPCs)
+          ...(area.npcs.length > 0 ? [
+            {
+              type: 'heading',
+              id: 'item-npcs-header',
+              content: 'Spawn on NPCs',
+              level: 5,
+              style: { color: '#f5f5f5', margin: '8px 0 0 0' },
+            } as DisplayElement,
+            {
+              type: 'vertical',
+              gap: '4px',
+              style: { maxHeight: '120px', overflow: 'auto' },
+              children: area.npcs.map(npc => ({
+                type: 'checkbox',
+                id: `item-npc-${npc.id}`,
+                name: `itemNpc_${npc.id}`,
+                label: `${npc.name} (Lvl ${npc.level})`,
+                value: itemNpcs.some(n => n.id === npc.id),
+              } as InputElement)),
+            } as LayoutContainer,
+          ] : []),
+          // Save item button and AI button
           {
-            type: 'number',
-            id: 'item-weight',
-            name: 'itemWeight',
-            label: 'Weight',
-            value: item.weight ?? 1,
-            min: 0,
-            style: { width: '100px' },
-          } as InputElement,
-          {
-            type: 'select',
-            id: 'item-room',
-            name: 'itemRoom',
-            label: 'Spawn Room',
-            value: itemRoom?.id ?? '',
-            options: roomOptions,
-            style: { flex: '1' },
-          } as InputElement,
-        ],
-      },
-      // Keywords
-      {
-        type: 'text',
-        id: 'item-keywords',
-        name: 'itemKeywords',
-        label: 'Keywords (comma-separated)',
-        value: (item.keywords ?? []).join(', '),
-        placeholder: 'sword, iron, weapon',
-        style: { width: '100%' },
-      } as InputElement,
-      // Save item button and AI button
-      {
-        type: 'horizontal',
-        gap: '8px',
-        style: { marginTop: '8px' },
-        children: [
-          {
-            type: 'button',
-            id: 'btn-ai-describe-item',
-            name: 'btn-ai-describe-item',
-            label: '🤖 AI Describe',
-            action: 'custom',
-            customAction: `ai-describe-item:${item.id}`,
-            variant: 'secondary',
-          } as InputElement,
-          {
-            type: 'button',
-            id: 'btn-save-item',
-            name: 'btn-save-item',
-            label: 'Save Item',
-            action: 'custom',
-            customAction: 'save-item',
-            variant: 'primary',
-          } as InputElement,
+            type: 'horizontal',
+            gap: '8px',
+            style: { marginTop: '8px', alignItems: 'center' },
+            children: [
+              {
+                type: 'button',
+                id: 'btn-ai-describe-item',
+                name: 'btn-ai-describe-item',
+                label: '🤖 AI Describe',
+                action: 'custom',
+                customAction: item ? `ai-describe-item:${item.id}` : 'ai-describe-item:',
+                variant: 'secondary',
+              } as InputElement,
+              {
+                type: 'button',
+                id: 'btn-save-item',
+                name: 'btn-save-item',
+                label: 'Save Item',
+                action: 'custom',
+                customAction: 'save-item',
+                variant: 'primary',
+              } as InputElement,
+              {
+                type: 'html',
+                id: 'item-save-status',
+                content: '',
+                style: {
+                  color: '#22c55e',
+                  fontSize: '14px',
+                  fontWeight: 'bold',
+                  margin: '0',
+                  padding: '4px 8px',
+                  minWidth: '60px',
+                },
+              } as DisplayElement,
+            ],
+          },
         ],
       },
     ],
@@ -2472,14 +2677,14 @@ export function buildAddItemModal(): GUIOpenMessage {
 /**
  * Open the area selector modal for a player.
  */
-export function openAreaSelector(
+export async function openAreaSelector(
   player: GUIPlayer,
   areaDaemon: AreaDaemon
-): void {
-  // Check if areas are loaded - if not, show message (load happens in background on first access)
+): Promise<void> {
+  // Ensure areas are loaded before proceeding
   if (!areaDaemon.isLoaded) {
-    player.receive('{yellow}Area data is still loading. Please try again in a moment.{/}\n');
-    return;
+    player.receive('{dim}Loading area data...{/}\n');
+    await areaDaemon.ensureLoaded();
   }
 
   const playerName = player.name.toLowerCase();
@@ -2809,6 +3014,7 @@ function refreshEditor(
  * This prevents flickering when clicking cells or connecting exits.
  */
 function updateGridOnly(
+  player: GUIPlayer,
   areaDaemon: AreaDaemon,
   state: EditorState
 ): void {
@@ -2820,19 +3026,17 @@ function updateGridOnly(
     ? `Selected: ${state.selectedRoomId}`
     : 'Click a cell to add/select a room';
 
-  if (typeof efuns !== 'undefined' && efuns.guiSend) {
-    const updateMessage: GUIUpdateMessage = {
-      action: 'update',
-      modalId: 'area-editor',
-      updates: {
-        elements: {
-          'area-grid': { content: gridHtml },
-          'selected-room-display': { content: selectedText },
-        },
+  const updateMessage: GUIUpdateMessage = {
+    action: 'update',
+    modalId: 'area-editor',
+    updates: {
+      elements: {
+        'area-grid': { content: gridHtml },
+        'selected-room-display': { content: selectedText },
       },
-    };
-    efuns.guiSend(updateMessage);
-  }
+    },
+  };
+  sendGUIToPlayer(player, updateMessage);
 }
 
 /**
@@ -2844,11 +3048,34 @@ function saveRoomFromFormData(
   roomId: string,
   data: Record<string, unknown>
 ): void {
+  const area = areaDaemon.getArea(areaId);
+  if (!area) return;
+
   const exits: Record<string, string> = {};
   for (const dir of ['north', 'south', 'east', 'west', 'northeast', 'northwest', 'southeast', 'southwest', 'up', 'down']) {
     const targetRoom = data[`roomExit_${dir}`] as string;
     if (targetRoom) {
       exits[dir] = targetRoom;
+    }
+  }
+
+  // Process NPC assignments from checkboxes
+  // NPCs can spawn in multiple rooms, so we don't remove from other rooms
+  const npcs: string[] = [];
+  for (const npc of area.npcs) {
+    const isChecked = data[`roomNpc_${npc.id}`] as boolean;
+    if (isChecked) {
+      npcs.push(npc.id);
+    }
+  }
+
+  // Process Item assignments from checkboxes
+  // Items can spawn in multiple rooms, so we don't remove from other rooms
+  const items: string[] = [];
+  for (const item of area.items) {
+    const isChecked = data[`roomItem_${item.id}`] as boolean;
+    if (isChecked) {
+      items.push(item.id);
     }
   }
 
@@ -2861,6 +3088,8 @@ function saveRoomFromFormData(
     z: data.roomZ as number,
     isEntrance: data.roomIsEntrance as boolean,
     exits,
+    npcs,
+    items,
   });
 }
 
@@ -2868,6 +3097,7 @@ function saveRoomFromFormData(
  * Update just the room editor form without refreshing the entire modal.
  */
 function updateRoomEditorOnly(
+  player: GUIPlayer,
   areaDaemon: AreaDaemon,
   state: EditorState
 ): void {
@@ -2877,9 +3107,8 @@ function updateRoomEditorOnly(
   const room = area.rooms.find(r => r.id === state.selectedRoomId);
   if (!room) return;
 
-  if (typeof efuns !== 'undefined' && efuns.guiSend) {
-    // Build form data for the room
-    const formData: Record<string, unknown> = {
+  // Build form data for the room
+  const formData: Record<string, unknown> = {
       roomId: room.id,
       roomShortDesc: room.shortDesc,
       roomLongDesc: room.longDesc,
@@ -2896,6 +3125,16 @@ function updateRoomEditorOnly(
       formData[`roomExit_${dir}`] = room.exits[dir] ?? '';
     }
 
+    // Add NPC checkbox values
+    for (const npc of area.npcs) {
+      formData[`roomNpc_${npc.id}`] = room.npcs.includes(npc.id);
+    }
+
+    // Add Item checkbox values
+    for (const item of area.items) {
+      formData[`roomItem_${item.id}`] = room.items.includes(item.id);
+    }
+
     // Build element updates for room list selection styling
     const elementUpdates: Record<string, { style: Record<string, string> }> = {};
     for (const r of area.rooms) {
@@ -2908,16 +3147,177 @@ function updateRoomEditorOnly(
       };
     }
 
-    const updateMessage: GUIUpdateMessage = {
-      action: 'update',
-      modalId: 'area-editor',
-      updates: {
-        data: formData,
-        elements: elementUpdates,
+  const updateMessage: GUIUpdateMessage = {
+    action: 'update',
+    modalId: 'area-editor',
+    updates: {
+      data: formData,
+      elements: elementUpdates,
+    },
+  };
+  sendGUIToPlayer(player, updateMessage);
+}
+
+/**
+ * Update only the NPC editor form values and list selection without refreshing the whole modal.
+ */
+function updateNPCEditorOnly(
+  player: GUIPlayer,
+  areaDaemon: AreaDaemon,
+  state: EditorState
+): void {
+  const area = areaDaemon.getArea(state.areaId);
+  if (!area || !state.selectedNpcId) return;
+
+  const npc = area.npcs.find(n => n.id === state.selectedNpcId);
+  if (!npc) return;
+
+  // Build form data for the NPC
+  const formData: Record<string, unknown> = {
+    npcId: npc.id,
+    npcName: npc.name,
+    npcGender: npc.gender ?? 'neutral',
+    npcShortDesc: npc.shortDesc,
+    npcLongDesc: npc.longDesc,
+    npcLevel: npc.level,
+    npcMaxHealth: npc.maxHealth,
+    npcKeywords: (npc.keywords ?? []).join(', '),
+    npcWandering: npc.wandering ?? false,
+    npcRespawnTime: npc.respawnTime ?? 0,
+  };
+
+  // Add room checkbox values
+  for (const room of area.rooms) {
+    formData[`npcRoom_${room.id}`] = room.npcs.includes(npc.id);
+  }
+
+  // Add item checkbox values
+  for (const item of area.items) {
+    formData[`npcItem_${item.id}`] = (npc.items ?? []).includes(item.id);
+  }
+
+  // Build element updates for NPC list selection styling and visibility
+  const elementUpdates: Record<string, Record<string, unknown>> = {};
+
+  // Update list item selection styling
+  for (const n of area.npcs) {
+    const isSelected = n.id === state.selectedNpcId;
+    elementUpdates[`npc-item-${n.id}`] = {
+      style: {
+        backgroundColor: isSelected ? '#2563eb40' : '#1a1a1f',
+        border: isSelected ? '1px solid #2563eb' : '1px solid transparent',
       },
     };
-    efuns.guiSend(updateMessage);
   }
+
+  // Hide placeholder, show form
+  elementUpdates['npc-placeholder'] = {
+    style: { display: 'none' },
+  };
+  elementUpdates['npc-form-container'] = {
+    style: { display: 'flex' },
+  };
+
+  // Update header and button actions
+  elementUpdates['npc-editor-header'] = {
+    content: `Edit NPC: ${npc.id}`,
+  };
+  elementUpdates['btn-delete-npc'] = {
+    customAction: `delete-npc:${npc.id}`,
+  };
+  elementUpdates['btn-ai-describe-npc'] = {
+    customAction: `ai-describe-npc:${npc.id}`,
+  };
+
+  const updateMessage: GUIUpdateMessage = {
+    action: 'update',
+    modalId: 'area-editor',
+    updates: {
+      data: formData,
+      elements: elementUpdates,
+    },
+  };
+  sendGUIToPlayer(player, updateMessage);
+}
+
+/**
+ * Update only the Item editor form values and list selection without refreshing the whole modal.
+ */
+function updateItemEditorOnly(
+  player: GUIPlayer,
+  areaDaemon: AreaDaemon,
+  state: EditorState
+): void {
+  const area = areaDaemon.getArea(state.areaId);
+  if (!area || !state.selectedItemId) return;
+
+  const item = area.items.find(i => i.id === state.selectedItemId);
+  if (!item) return;
+
+  // Build form data for the item
+  const formData: Record<string, unknown> = {
+    itemId: item.id,
+    itemName: item.name,
+    itemType: item.type,
+    itemShortDesc: item.shortDesc,
+    itemLongDesc: item.longDesc,
+    itemValue: item.value ?? 0,
+    itemWeight: item.weight ?? 1,
+    itemKeywords: (item.keywords ?? []).join(', '),
+  };
+
+  // Add room checkbox values
+  for (const room of area.rooms) {
+    formData[`itemRoom_${room.id}`] = room.items.includes(item.id);
+  }
+
+  // Add NPC checkbox values
+  for (const npc of area.npcs) {
+    formData[`itemNpc_${npc.id}`] = (npc.items ?? []).includes(item.id);
+  }
+
+  // Build element updates for item list selection styling and visibility
+  const elementUpdates: Record<string, Record<string, unknown>> = {};
+
+  // Update list item selection styling
+  for (const i of area.items) {
+    const isSelected = i.id === state.selectedItemId;
+    elementUpdates[`item-entry-${i.id}`] = {
+      style: {
+        backgroundColor: isSelected ? '#2563eb40' : '#1a1a1f',
+        border: isSelected ? '1px solid #2563eb' : '1px solid transparent',
+      },
+    };
+  }
+
+  // Hide placeholder, show form
+  elementUpdates['item-placeholder'] = {
+    style: { display: 'none' },
+  };
+  elementUpdates['item-form-container'] = {
+    style: { display: 'flex' },
+  };
+
+  // Update header and button actions
+  elementUpdates['item-editor-header'] = {
+    content: `Edit Item: ${item.id}`,
+  };
+  elementUpdates['btn-delete-item'] = {
+    customAction: `delete-item:${item.id}`,
+  };
+  elementUpdates['btn-ai-describe-item'] = {
+    customAction: `ai-describe-item:${item.id}`,
+  };
+
+  const updateMessage: GUIUpdateMessage = {
+    action: 'update',
+    modalId: 'area-editor',
+    updates: {
+      data: formData,
+      elements: elementUpdates,
+    },
+  };
+  sendGUIToPlayer(player, updateMessage);
 }
 
 /**
@@ -2972,7 +3372,7 @@ async function handleEditorResponse(
           state.selectedRoomId = undefined;
         }
 
-        updateGridOnly(areaDaemon, state);
+        updateGridOnly(player, areaDaemon, state);
       }
       return;
     }
@@ -3004,7 +3404,7 @@ async function handleEditorResponse(
       if (existingRoom) {
         // Select the existing room
         state.selectedRoomId = existingRoom.id;
-        updateGridOnly(areaDaemon, state);
+        updateGridOnly(player, areaDaemon, state);
       } else {
         // Create a new room at this position
         const roomId = `room_${x}_${y}_${z}`;
@@ -3024,7 +3424,7 @@ async function handleEditorResponse(
           });
           state.selectedRoomId = roomId;
           state.currentFloor = z;
-          updateGridOnly(areaDaemon, state);
+          updateGridOnly(player, areaDaemon, state);
         } catch (error) {
           const message = error instanceof Error ? error.message : 'Unknown error';
           player.receive(`{red}Failed to add room: ${message}{/}\n`);
@@ -3044,7 +3444,7 @@ async function handleEditorResponse(
         // Create bidirectional connection
         areaDaemon.connectRooms(state.areaId, fromRoom, fromDir, toRoom);
         areaDaemon.connectRooms(state.areaId, toRoom, toDir, fromRoom);
-        updateGridOnly(areaDaemon, state);
+        updateGridOnly(player, areaDaemon, state);
       } catch (error) {
         const message = error instanceof Error ? error.message : 'Unknown error';
         player.receive(`{red}Failed to connect rooms: ${message}{/}\n`);
@@ -3069,7 +3469,7 @@ async function handleEditorResponse(
           delete targetRoom.exits[oppositeDir];
         }
 
-        updateGridOnly(areaDaemon, state);
+        updateGridOnly(player, areaDaemon, state);
       }
       return;
     }
@@ -3094,10 +3494,13 @@ async function handleEditorResponse(
       state.selectedRoomId = newRoomId;
       state.activeTab = 'rooms';
 
+      // Clear save status when selecting new room
+      showSaveStatus(player, 'room-save-status', false);
+
       // If no room was previously selected, we need to refresh to show the editor form
       // Otherwise just update the form values
       if (hadPreviousSelection) {
-        updateRoomEditorOnly(areaDaemon, state);
+        updateRoomEditorOnly(player, areaDaemon, state);
       } else {
         refreshEditor(player, areaDaemon, state);
       }
@@ -3111,7 +3514,9 @@ async function handleEditorResponse(
         saveRoomFromFormData(areaDaemon, state.areaId, roomId, data);
         await areaDaemon.save();
         // Update the grid to reflect any terrain/position changes
-        updateGridOnly(areaDaemon, state);
+        updateGridOnly(player, areaDaemon, state);
+        // Show saved status
+        showSaveStatus(player, 'room-save-status', true);
         player.receive(`{green}Room "${roomId}" saved.{/}\n`);
       }
       return;
@@ -3139,7 +3544,11 @@ async function handleEditorResponse(
     if (customAction?.startsWith('select-npc:')) {
       const npcId = customAction.replace('select-npc:', '');
       state.selectedNpcId = npcId;
-      refreshEditor(player, areaDaemon, state);
+      state.activeTab = 'npcs';
+      // Clear save status when selecting new NPC
+      showSaveStatus(player, 'npc-save-status', false);
+      // Always use update since form fields always exist
+      updateNPCEditorOnly(player, areaDaemon, state);
       return;
     }
 
@@ -3152,16 +3561,26 @@ async function handleEditorResponse(
           .map(k => k.trim())
           .filter(k => k.length > 0);
 
-        // Update NPC room assignment
-        const newRoomId = data.npcRoom as string;
-        const oldRoom = area.rooms.find(r => r.npcs.includes(npcId));
-        if (oldRoom && oldRoom.id !== newRoomId) {
-          oldRoom.npcs = oldRoom.npcs.filter(n => n !== npcId);
+        // Update NPC room assignments from checkboxes
+        for (const room of area.rooms) {
+          const isChecked = data[`npcRoom_${room.id}`] as boolean;
+          const hasNpc = room.npcs.includes(npcId);
+
+          if (isChecked && !hasNpc) {
+            // Add NPC to this room
+            room.npcs.push(npcId);
+          } else if (!isChecked && hasNpc) {
+            // Remove NPC from this room
+            room.npcs = room.npcs.filter(n => n !== npcId);
+          }
         }
-        if (newRoomId) {
-          const newRoom = area.rooms.find(r => r.id === newRoomId);
-          if (newRoom && !newRoom.npcs.includes(npcId)) {
-            newRoom.npcs.push(npcId);
+
+        // Build items array from checkboxes
+        const items: string[] = [];
+        for (const item of area.items) {
+          const isChecked = data[`npcItem_${item.id}`] as boolean;
+          if (isChecked) {
+            items.push(item.id);
           }
         }
 
@@ -3175,9 +3594,12 @@ async function handleEditorResponse(
           keywords,
           wandering: data.npcWandering as boolean,
           respawnTime: data.npcRespawnTime as number,
+          items,
         });
 
         await areaDaemon.save();
+        // Show saved status
+        showSaveStatus(player, 'npc-save-status', true);
         player.receive(`{green}NPC "${npcId}" saved.{/}\n`);
       }
       return;
@@ -3205,7 +3627,11 @@ async function handleEditorResponse(
     if (customAction?.startsWith('select-item:')) {
       const itemId = customAction.replace('select-item:', '');
       state.selectedItemId = itemId;
-      refreshEditor(player, areaDaemon, state);
+      state.activeTab = 'items';
+      // Clear save status when selecting new Item
+      showSaveStatus(player, 'item-save-status', false);
+      // Always use update since form fields always exist
+      updateItemEditorOnly(player, areaDaemon, state);
       return;
     }
 
@@ -3218,16 +3644,36 @@ async function handleEditorResponse(
           .map(k => k.trim())
           .filter(k => k.length > 0);
 
-        // Update Item room assignment
-        const newRoomId = data.itemRoom as string;
-        const oldRoom = area.rooms.find(r => r.items.includes(itemId));
-        if (oldRoom && oldRoom.id !== newRoomId) {
-          oldRoom.items = oldRoom.items.filter(i => i !== itemId);
+        // Update Item room assignments from checkboxes
+        for (const room of area.rooms) {
+          const isChecked = data[`itemRoom_${room.id}`] as boolean;
+          const hasItem = room.items.includes(itemId);
+
+          if (isChecked && !hasItem) {
+            // Add item to this room
+            room.items.push(itemId);
+          } else if (!isChecked && hasItem) {
+            // Remove item from this room
+            room.items = room.items.filter(i => i !== itemId);
+          }
         }
-        if (newRoomId) {
-          const newRoom = area.rooms.find(r => r.id === newRoomId);
-          if (newRoom && !newRoom.items.includes(itemId)) {
-            newRoom.items.push(itemId);
+
+        // Update Item NPC assignments from checkboxes
+        for (const npc of area.npcs) {
+          const isChecked = data[`itemNpc_${npc.id}`] as boolean;
+          const npcItems = npc.items ?? [];
+          const hasItem = npcItems.includes(itemId);
+
+          if (isChecked && !hasItem) {
+            // Add item to this NPC
+            areaDaemon.updateNPC(state.areaId, npc.id, {
+              items: [...npcItems, itemId],
+            });
+          } else if (!isChecked && hasItem) {
+            // Remove item from this NPC
+            areaDaemon.updateNPC(state.areaId, npc.id, {
+              items: npcItems.filter(i => i !== itemId),
+            });
           }
         }
 
@@ -3242,6 +3688,8 @@ async function handleEditorResponse(
         });
 
         await areaDaemon.save();
+        // Show saved status
+        showSaveStatus(player, 'item-save-status', true);
         player.receive(`{green}Item "${itemId}" saved.{/}\n`);
       }
       return;
