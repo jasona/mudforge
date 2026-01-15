@@ -24,6 +24,13 @@ import type {
 
 export type GUIMessageHandler = (message: GUIClientMessage) => void;
 
+// Extend Window interface for global GUI action handler
+declare global {
+  interface Window {
+    guiAction?: (customAction: string, data?: Record<string, unknown>) => void;
+  }
+}
+
 export class GUIModal {
   private overlay: HTMLElement | null = null;
   private modal: HTMLElement | null = null;
@@ -37,6 +44,32 @@ export class GUIModal {
   constructor(onMessage: GUIMessageHandler) {
     this.onMessage = onMessage;
     this.renderer = new GUIRenderer();
+  }
+
+  /**
+   * Set up global GUI action handler for interactive HTML elements.
+   */
+  private setupGlobalActionHandler(): void {
+    window.guiAction = (customAction: string, data?: Record<string, unknown>) => {
+      if (!this.modalConfig) return;
+
+      const message: GUIButtonMessage = {
+        action: 'button',
+        modalId: this.modalConfig.id,
+        buttonId: 'interactive-html',
+        customAction,
+        data: { ...this.formData, ...data },
+      };
+
+      this.onMessage(message);
+    };
+  }
+
+  /**
+   * Clean up global GUI action handler.
+   */
+  private cleanupGlobalActionHandler(): void {
+    delete window.guiAction;
   }
 
   /**
@@ -122,6 +155,9 @@ export class GUIModal {
       };
       document.addEventListener('keydown', this.escapeHandler, true);
     }
+
+    // Set up global action handler for interactive HTML
+    this.setupGlobalActionHandler();
 
     // Focus first input
     this.focusFirstInput();
@@ -414,6 +450,9 @@ export class GUIModal {
       document.removeEventListener('keydown', this.escapeHandler, true);
       this.escapeHandler = null;
     }
+
+    // Clean up global action handler
+    this.cleanupGlobalActionHandler();
 
     this.overlay?.remove();
     this.overlay = null;

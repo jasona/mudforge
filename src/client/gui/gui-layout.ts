@@ -111,9 +111,24 @@ function createTabsLayout(
   const tabPanels = document.createElement('div');
   tabPanels.className = 'gui-tab-panels';
 
+  // Determine default tab index
+  let defaultTabIndex = 0;
+  if (layout.defaultTab !== undefined) {
+    if (typeof layout.defaultTab === 'number') {
+      defaultTabIndex = layout.defaultTab;
+    } else {
+      // Find tab by tabId
+      const tabIndex = layout.children.findIndex(
+        (child) => (child as LayoutContainer).tabId === layout.defaultTab
+      );
+      if (tabIndex !== -1) defaultTabIndex = tabIndex;
+    }
+  }
+
   // Process tab children
   layout.children.forEach((child, index) => {
     const tabChild = child as LayoutContainer;
+    const isActive = index === defaultTabIndex;
 
     // Create tab header
     const header = document.createElement('button');
@@ -121,13 +136,13 @@ function createTabsLayout(
     header.className = 'gui-tab-header';
     header.textContent = tabChild.tabLabel ?? `Tab ${index + 1}`;
     header.dataset.tabIndex = String(index);
-    if (index === 0) header.classList.add('active');
+    if (isActive) header.classList.add('active');
 
     // Create tab panel
     const panel = document.createElement('div');
     panel.className = 'gui-tab-panel';
     panel.dataset.tabIndex = String(index);
-    if (index !== 0) panel.style.display = 'none';
+    if (!isActive) panel.style.display = 'none';
     panel.appendChild(renderChild(child));
 
     // Tab switching

@@ -491,5 +491,20 @@ function createHtmlContent(element: DisplayElement): HTMLElement {
   div.className = 'gui-html';
   // Note: This allows HTML content - use with caution
   div.innerHTML = element.content ?? '';
+
+  // Execute any script tags (innerHTML doesn't execute them automatically)
+  const scripts = div.querySelectorAll('script');
+  scripts.forEach((oldScript) => {
+    const newScript = document.createElement('script');
+    // Copy attributes
+    Array.from(oldScript.attributes).forEach((attr) => {
+      newScript.setAttribute(attr.name, attr.value);
+    });
+    // Copy content
+    newScript.textContent = oldScript.textContent;
+    // Replace old script with new one to execute it
+    oldScript.parentNode?.replaceChild(newScript, oldScript);
+  });
+
   return div;
 }

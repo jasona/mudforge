@@ -47,9 +47,16 @@ export class GUIRenderer {
     node: LayoutContainer | InputElement | DisplayElement
   ): HTMLElement {
     if (isLayoutContainer(node)) {
-      return renderLayout(node, (child) =>
+      const element = renderLayout(node, (child) =>
         this.renderNode(child as LayoutContainer | InputElement | DisplayElement)
       );
+
+      // Track layout containers with IDs
+      if (node.id) {
+        this.elementMap.set(node.id, element);
+      }
+
+      return element;
     } else if (isInputElement(node)) {
       const element = renderInputElement(node, this.formData, (name, value) => {
         this.formData[name] = value;
@@ -175,10 +182,26 @@ export class GUIRenderer {
 
     // Handle content updates for display elements
     if ('content' in props) {
-      const textEl = element.querySelector('.gui-text, .gui-paragraph, .gui-icon') ||
-        element.tagName.match(/^H[1-6]$/) ? element : null;
-      if (textEl) {
-        textEl.textContent = props.content ?? '';
+      // Check if this is an HTML element (needs innerHTML and script execution)
+      const htmlEl = element.classList.contains('gui-html') ? element : element.querySelector('.gui-html');
+      if (htmlEl) {
+        htmlEl.innerHTML = props.content ?? '';
+        // Execute any script tags in the new content
+        const scripts = htmlEl.querySelectorAll('script');
+        scripts.forEach((oldScript) => {
+          const newScript = document.createElement('script');
+          Array.from(oldScript.attributes).forEach((attr) => {
+            newScript.setAttribute(attr.name, attr.value);
+          });
+          newScript.textContent = oldScript.textContent;
+          oldScript.parentNode?.replaceChild(newScript, oldScript);
+        });
+      } else {
+        const textEl = element.querySelector('.gui-text, .gui-paragraph, .gui-icon') ||
+          element.tagName.match(/^H[1-6]$/) ? element : null;
+        if (textEl) {
+          textEl.textContent = props.content ?? '';
+        }
       }
     }
 

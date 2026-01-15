@@ -131,6 +131,8 @@ export interface LayoutContainer {
   tabId?: string;
   /** For tabs layout: tab icon */
   tabIcon?: string;
+  /** For tabs layout: default active tab (index or tabId) */
+  defaultTab?: number | string;
 }
 
 // =============================================================================
