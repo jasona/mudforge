@@ -1,0 +1,24 @@
+{
+  "levels": {
+    "acer": 3
+  },
+  "domains": {},
+  "protectedPaths": [
+    "/std/",
+    "/daemons/"
+  ],
+  "forbiddenFiles": [
+    "/tsconfig.json",
+    "/package.json",
+    "/package-lock.json",
+    "/.env",
+    "/.gitignore"
+  ],
+  "builderPaths": [
+    "/areas/"
+  ],
+  "seniorPaths": [
+    "/lib/",
+    "/cmds/"
+  ]
+}
