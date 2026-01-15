@@ -103,6 +103,11 @@ export class HotReload {
    * Handle a file change event.
    */
   private handleFileChange(filename: string): void {
+    // Skip generated area files - they're only loaded on server restart
+    if (filename.includes('areas/') || filename.includes('areas\\')) {
+      return;
+    }
+
     // Debounce rapid changes
     const existing = this.debounceTimers.get(filename);
     if (existing) {
@@ -111,8 +116,13 @@ export class HotReload {
 
     const timer = setTimeout(async () => {
       this.debounceTimers.delete(filename);
-      const objectPath = this.fileToObjectPath(filename);
-      await this.update(objectPath);
+      try {
+        const objectPath = this.fileToObjectPath(filename);
+        await this.update(objectPath);
+      } catch (error) {
+        // Log but don't crash on hot-reload errors
+        console.error(`[HotReload] Error processing ${filename}:`, error);
+      }
     }, this.config.debounceMs);
 
     this.debounceTimers.set(filename, timer);

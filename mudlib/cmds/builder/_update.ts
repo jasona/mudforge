@@ -10,6 +10,7 @@
  *   update <path>     - Reload an object (e.g., update /std/room)
  *   update _look      - Reload a command (searches cmds/ directories)
  *   update here       - Reload the room you're currently in
+ *   update cmds       - Rehash all commands
  */
 
 import type { MudObject } from '../../lib/std.js';
@@ -28,10 +29,26 @@ interface CommandContext {
 
 export const name = ['update'];
 export const description = 'Reload an object or command from disk (hot-reload)';
-export const usage = 'update [path] | update _command | update here';
+export const usage = 'update [path] | update _command | update here | update cmds';
 
 export async function execute(ctx: CommandContext): Promise<void> {
   let objectPath = ctx.args.trim();
+
+  // Handle "cmds" - rehash all commands
+  if (objectPath === 'cmds' || objectPath === 'commands') {
+    ctx.sendLine('{cyan}Rehashing all commands...{/}');
+    try {
+      const result = await efuns.rehashCommands();
+      if (result.success) {
+        ctx.sendLine(`{green}✓ Rehashed ${result.commandCount} commands.{/}`);
+      } else {
+        ctx.sendLine(`{red}✗ Failed: ${result.error}{/}`);
+      }
+    } catch (error) {
+      ctx.sendLine(`{red}Error: ${error instanceof Error ? error.message : String(error)}{/}`);
+    }
+    return;
+  }
 
   // If no path given, use current working directory
   if (!objectPath) {

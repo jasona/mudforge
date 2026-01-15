@@ -250,11 +250,8 @@ export class Driver {
       // Start scheduler
       this.scheduler.start();
 
-      // Start file watcher if enabled
-      if (this.config.hotReload) {
-        this.hotReload.startWatching();
-        this.logger.info('Hot-reload enabled');
-      }
+      // Note: Mudlib hot-reload is disabled - mudlib changes require server restart.
+      // Command hot-reload (in command-manager) is still active for builder commands.
 
       this.state = 'running';
       this.logger.info('MudForge Driver started successfully');

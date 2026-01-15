@@ -79,6 +79,9 @@ export interface DraftRoom {
 
   /** Spawn chance for random NPCs (0-100) */
   npcSpawnChance?: number;
+
+  /** Unix timestamp of last modification (for incremental publishing) */
+  updatedAt?: number;
 }
 
 /**
@@ -206,6 +209,9 @@ export interface DraftNPC {
 
   /** Item IDs that spawn on this NPC */
   items?: string[];
+
+  /** Unix timestamp of last modification (for incremental publishing) */
+  updatedAt?: number;
 }
 
 /**
@@ -250,6 +256,9 @@ export interface DraftItem {
 
   /** Type-specific properties */
   properties?: Record<string, unknown>;
+
+  /** Unix timestamp of last modification (for incremental publishing) */
+  updatedAt?: number;
 }
 
 /**
@@ -431,14 +440,26 @@ export interface PublishResult {
   /** Path where files were created */
   path?: string;
 
-  /** List of files created */
+  /** List of files created (new entities) */
   filesCreated?: string[];
+
+  /** List of files updated (changed entities) */
+  filesUpdated?: string[];
+
+  /** Number of files skipped (unchanged entities) */
+  filesSkipped?: number;
+
+  /** List of files deleted (when republishing) */
+  filesDeleted?: string[];
 
   /** Number of rooms published */
   roomCount?: number;
 
   /** Number of NPCs published */
   npcCount?: number;
+
+  /** Number of items published */
+  itemCount?: number;
 }
 
 /**

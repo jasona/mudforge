@@ -72,10 +72,61 @@ export class NPC extends Living {
   private _conversationHistory: Map<string, ConversationMessage[]> = new Map();
   private _maxHistoryLength: number = 10;
 
+  // Items to spawn on this NPC
+  private _spawnItems: string[] = [];
+
   constructor() {
     super();
     this.shortDesc = 'an NPC';
     this.longDesc = 'You see a non-player character.';
+  }
+
+  // ========== Lifecycle ==========
+
+  /**
+   * Called when the NPC is created.
+   * Spawns initial items.
+   */
+  override async onCreate(): Promise<void> {
+    await super.onCreate();
+    await this.spawnItems();
+  }
+
+  // ========== Item Spawning ==========
+
+  /**
+   * Set items to spawn on this NPC when created.
+   * @param itemPaths Array of item paths to clone
+   */
+  setSpawnItems(itemPaths: string[]): void {
+    this._spawnItems = [...itemPaths];
+  }
+
+  /**
+   * Get the list of item paths to spawn on this NPC.
+   */
+  getSpawnItems(): string[] {
+    return [...this._spawnItems];
+  }
+
+  /**
+   * Spawn all configured items into this NPC's inventory.
+   */
+  async spawnItems(): Promise<void> {
+    if (typeof efuns === 'undefined' || !efuns.cloneObject || this._spawnItems.length === 0) {
+      return;
+    }
+
+    for (const itemPath of this._spawnItems) {
+      try {
+        const item = await efuns.cloneObject(itemPath);
+        if (item) {
+          await item.moveTo(this);
+        }
+      } catch (error) {
+        console.error(`[NPC] Failed to clone item ${itemPath}:`, error);
+      }
+    }
   }
 
   // ========== Chat System ==========

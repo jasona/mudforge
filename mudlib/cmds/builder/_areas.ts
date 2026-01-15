@@ -409,9 +409,29 @@ async function publishArea(ctx: CommandContext, areaId: string): Promise<void> {
     ctx.sendLine('{green}Area published successfully!{/}');
     ctx.sendLine('');
     ctx.sendLine(`  Path: ${result.path}`);
-    ctx.sendLine(`  Files created: ${result.filesCreated?.length ?? 0}`);
+
+    // Show file statistics
+    const created = result.filesCreated?.length ?? 0;
+    const updated = result.filesUpdated?.length ?? 0;
+    const skipped = result.filesSkipped ?? 0;
+    const deleted = result.filesDeleted?.length ?? 0;
+
+    if (created > 0) {
+      ctx.sendLine(`  Files created: ${created}`);
+    }
+    if (updated > 0) {
+      ctx.sendLine(`  Files updated: ${updated}`);
+    }
+    if (skipped > 0) {
+      ctx.sendLine(`  Files skipped: ${skipped} (unchanged)`);
+    }
+    if (deleted > 0) {
+      ctx.sendLine(`  Files deleted: ${deleted} (removed entities)`);
+    }
+
     ctx.sendLine(`  Rooms: ${result.roomCount}`);
     ctx.sendLine(`  NPCs: ${result.npcCount}`);
+    ctx.sendLine(`  Items: ${result.itemCount}`);
     ctx.sendLine('');
     ctx.sendLine('{dim}The area will be available after the next driver restart.{/}');
     ctx.sendLine('{dim}Or use "reload" to load it immediately.{/}');
@@ -484,11 +504,11 @@ async function removeCollaborator(ctx: CommandContext, areaId: string, collabora
 /**
  * Open the GUI area selector.
  */
-function openGUI(ctx: CommandContext): void {
+async function openGUI(ctx: CommandContext): Promise<void> {
   const daemon = getAreaDaemon();
   const player = ctx.player as unknown as GUIPlayer;
 
-  openAreaSelector(player, daemon);
+  await openAreaSelector(player, daemon);
 }
 
 /**
@@ -539,7 +559,7 @@ export async function execute(ctx: CommandContext): Promise<void> {
     case 'gui':
     case 'visual':
     case 'editor':
-      openGUI(ctx);
+      await openGUI(ctx);
       break;
 
     case 'new':

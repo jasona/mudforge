@@ -75,6 +75,18 @@ function showSaveStatus(player: GUIPlayer, statusId: string, saved: boolean): vo
   sendGUIToPlayer(player, message);
 }
 
+/**
+ * Escape HTML special characters to prevent XSS.
+ */
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 /** Callback function type for area selection */
 export type AreaSelectedCallback = (areaId: string) => void;
 
@@ -2252,6 +2264,154 @@ function buildItemEditor(item: DraftItem | undefined, area: AreaDefinition): Lay
             placeholder: 'sword, iron, weapon',
             style: { width: '100%' },
           } as InputElement,
+          // Weapon properties (shown only for weapon type)
+          {
+            type: 'vertical',
+            id: 'weapon-properties',
+            gap: '12px',
+            style: {
+              display: item?.type === 'weapon' ? 'flex' : 'none',
+              backgroundColor: '#1a1a24',
+              borderRadius: '6px',
+              padding: '12px',
+              marginTop: '8px',
+            },
+            children: [
+              {
+                type: 'heading',
+                id: 'weapon-props-header',
+                content: 'Weapon Properties',
+                level: 5,
+                style: { color: '#f5f5f5', margin: '0 0 8px 0' },
+              } as DisplayElement,
+              {
+                type: 'horizontal',
+                gap: '12px',
+                children: [
+                  {
+                    type: 'number',
+                    id: 'weapon-min-damage',
+                    name: 'weaponMinDamage',
+                    label: 'Min Damage',
+                    value: (item?.properties?.minDamage as number) ?? 1,
+                    min: 0,
+                    style: { width: '100px' },
+                  } as InputElement,
+                  {
+                    type: 'number',
+                    id: 'weapon-max-damage',
+                    name: 'weaponMaxDamage',
+                    label: 'Max Damage',
+                    value: (item?.properties?.maxDamage as number) ?? 3,
+                    min: 0,
+                    style: { width: '100px' },
+                  } as InputElement,
+                  {
+                    type: 'number',
+                    id: 'weapon-attack-speed',
+                    name: 'weaponAttackSpeed',
+                    label: 'Attack Speed',
+                    value: (item?.properties?.attackSpeed as number) ?? 0,
+                    min: -0.5,
+                    max: 0.5,
+                    step: 0.1,
+                    style: { width: '110px' },
+                  } as InputElement,
+                ],
+              },
+              {
+                type: 'horizontal',
+                gap: '12px',
+                children: [
+                  {
+                    type: 'select',
+                    id: 'weapon-damage-type',
+                    name: 'weaponDamageType',
+                    label: 'Damage Type',
+                    value: (item?.properties?.damageType as string) ?? 'slashing',
+                    options: [
+                      { value: 'slashing', label: 'Slashing' },
+                      { value: 'piercing', label: 'Piercing' },
+                      { value: 'bludgeoning', label: 'Bludgeoning' },
+                      { value: 'fire', label: 'Fire' },
+                      { value: 'ice', label: 'Ice' },
+                      { value: 'lightning', label: 'Lightning' },
+                      { value: 'poison', label: 'Poison' },
+                      { value: 'holy', label: 'Holy' },
+                      { value: 'dark', label: 'Dark' },
+                    ],
+                    style: { width: '140px' },
+                  } as InputElement,
+                  {
+                    type: 'select',
+                    id: 'weapon-handedness',
+                    name: 'weaponHandedness',
+                    label: 'Handedness',
+                    value: (item?.properties?.handedness as string) ?? 'one_handed',
+                    options: [
+                      { value: 'one_handed', label: 'One-Handed' },
+                      { value: 'two_handed', label: 'Two-Handed' },
+                    ],
+                    style: { width: '140px' },
+                  } as InputElement,
+                ],
+              },
+            ],
+          } as LayoutContainer,
+          // Armor properties (shown only for armor type)
+          {
+            type: 'vertical',
+            id: 'armor-properties',
+            gap: '12px',
+            style: {
+              display: item?.type === 'armor' ? 'flex' : 'none',
+              backgroundColor: '#1a1a24',
+              borderRadius: '6px',
+              padding: '12px',
+              marginTop: '8px',
+            },
+            children: [
+              {
+                type: 'heading',
+                id: 'armor-props-header',
+                content: 'Armor Properties',
+                level: 5,
+                style: { color: '#f5f5f5', margin: '0 0 8px 0' },
+              } as DisplayElement,
+              {
+                type: 'horizontal',
+                gap: '12px',
+                children: [
+                  {
+                    type: 'number',
+                    id: 'armor-value',
+                    name: 'armorValue',
+                    label: 'Armor Value',
+                    value: (item?.properties?.armor as number) ?? 1,
+                    min: 0,
+                    style: { width: '120px' },
+                  } as InputElement,
+                  {
+                    type: 'select',
+                    id: 'armor-slot',
+                    name: 'armorSlot',
+                    label: 'Slot',
+                    value: (item?.properties?.slot as string) ?? 'chest',
+                    options: [
+                      { value: 'head', label: 'Head' },
+                      { value: 'chest', label: 'Chest' },
+                      { value: 'hands', label: 'Hands' },
+                      { value: 'legs', label: 'Legs' },
+                      { value: 'feet', label: 'Feet' },
+                      { value: 'cloak', label: 'Cloak' },
+                      { value: 'shield', label: 'Shield' },
+                    ],
+                    style: { width: '140px' },
+                  } as InputElement,
+                ],
+              },
+            ],
+          } as LayoutContainer,
           // Spawn Rooms section
           ...(area.rooms.length > 0 ? [
             {
@@ -2425,14 +2585,20 @@ function buildSettingsTab(area: AreaDefinition): LayoutContainer {
             type: 'button',
             id: 'btn-publish',
             name: 'btn-publish',
-            label: 'Publish Area',
+            label: area.status === 'published' ? 'Republish Area' : 'Publish Area',
             action: 'custom',
             customAction: 'publish',
             variant: 'success',
-            disabled: area.status === 'published',
           } as InputElement,
         ],
       },
+      // Validation result display
+      {
+        type: 'html',
+        id: 'validation-result',
+        content: '',
+        style: { marginTop: '12px' },
+      } as DisplayElement,
     ],
   };
 }
@@ -3255,6 +3421,7 @@ function updateItemEditorOnly(
   if (!item) return;
 
   // Build form data for the item
+  const props = item.properties ?? {};
   const formData: Record<string, unknown> = {
     itemId: item.id,
     itemName: item.name,
@@ -3264,6 +3431,15 @@ function updateItemEditorOnly(
     itemValue: item.value ?? 0,
     itemWeight: item.weight ?? 1,
     itemKeywords: (item.keywords ?? []).join(', '),
+    // Weapon properties
+    weaponMinDamage: (props.minDamage as number) ?? 1,
+    weaponMaxDamage: (props.maxDamage as number) ?? 3,
+    weaponDamageType: (props.damageType as string) ?? 'slashing',
+    weaponHandedness: (props.handedness as string) ?? 'one_handed',
+    weaponAttackSpeed: (props.attackSpeed as number) ?? 0,
+    // Armor properties
+    armorValue: (props.armor as number) ?? 1,
+    armorSlot: (props.slot as string) ?? 'chest',
   };
 
   // Add room checkbox values
@@ -3307,6 +3483,14 @@ function updateItemEditorOnly(
   };
   elementUpdates['btn-ai-describe-item'] = {
     customAction: `ai-describe-item:${item.id}`,
+  };
+
+  // Show/hide weapon and armor property sections based on item type
+  elementUpdates['weapon-properties'] = {
+    style: { display: item.type === 'weapon' ? 'flex' : 'none' },
+  };
+  elementUpdates['armor-properties'] = {
+    style: { display: item.type === 'armor' ? 'flex' : 'none' },
   };
 
   const updateMessage: GUIUpdateMessage = {
@@ -3677,20 +3861,56 @@ async function handleEditorResponse(
           }
         }
 
+        // Build type-specific properties
+        const itemType = data.itemType as string;
+        let properties: Record<string, unknown> = {};
+
+        if (itemType === 'weapon') {
+          properties = {
+            minDamage: data.weaponMinDamage as number,
+            maxDamage: data.weaponMaxDamage as number,
+            damageType: data.weaponDamageType as string,
+            handedness: data.weaponHandedness as string,
+            attackSpeed: data.weaponAttackSpeed as number,
+          };
+        } else if (itemType === 'armor') {
+          properties = {
+            armor: data.armorValue as number,
+            slot: data.armorSlot as string,
+          };
+        }
+
         areaDaemon.updateItem(state.areaId, itemId, {
           name: data.itemName as string,
           shortDesc: data.itemShortDesc as string,
           longDesc: data.itemLongDesc as string,
-          type: data.itemType as string,
+          type: itemType,
           value: data.itemValue as number,
           weight: data.itemWeight as number,
           keywords,
+          properties,
         });
 
         await areaDaemon.save();
-        // Show saved status
-        showSaveStatus(player, 'item-save-status', true);
-        player.receive(`{green}Item "${itemId}" saved.{/}\n`);
+        // Show saved status and update property section visibility
+        const updateMessage: GUIUpdateMessage = {
+          action: 'update',
+          modalId: 'area-editor',
+          updates: {
+            elements: {
+              'item-save-status': {
+                content: '✓ Saved',
+              },
+              'weapon-properties': {
+                style: { display: itemType === 'weapon' ? 'flex' : 'none' },
+              },
+              'armor-properties': {
+                style: { display: itemType === 'armor' ? 'flex' : 'none' },
+              },
+            },
+          },
+        };
+        sendGUIToPlayer(player, updateMessage);
       }
       return;
     }
@@ -3788,20 +4008,37 @@ async function handleEditorResponse(
     // Validate Area
     if (customAction === 'validate') {
       const result = areaDaemon.validateArea(state.areaId);
+
+      // Build HTML for validation result
+      let html = '';
       if (result.valid) {
-        player.receive('{green}✓ Area is valid for publishing!{/}\n');
+        html = '<div style="color: #4ade80; font-weight: bold;">&#x2713; Area is valid for publishing!</div>';
       } else {
-        player.receive('{red}✗ Area has validation errors:{/}\n');
+        html = '<div style="color: #f87171; font-weight: bold;">&#x2717; Validation errors:</div><ul style="margin: 4px 0; padding-left: 20px; color: #f87171;">';
         for (const error of result.errors) {
-          player.receive(`  {red}• ${error}{/}\n`);
+          html += `<li>${escapeHtml(error)}</li>`;
         }
+        html += '</ul>';
       }
       if (result.warnings.length > 0) {
-        player.receive('{yellow}Warnings:{/}\n');
+        html += '<div style="color: #fbbf24; font-weight: bold; margin-top: 8px;">Warnings:</div><ul style="margin: 4px 0; padding-left: 20px; color: #fbbf24;">';
         for (const warning of result.warnings) {
-          player.receive(`  {yellow}• ${warning}{/}\n`);
+          html += `<li>${escapeHtml(warning)}</li>`;
         }
+        html += '</ul>';
       }
+
+      // Update the validation result element in the modal
+      const updateMessage: GUIUpdateMessage = {
+        action: 'update',
+        modalId: 'area-editor',
+        updates: {
+          elements: {
+            'validation-result': { content: html },
+          },
+        },
+      };
+      sendGUIToPlayer(player, updateMessage);
       return;
     }
 
@@ -3813,7 +4050,18 @@ async function handleEditorResponse(
       if (result.success) {
         player.receive('{green}✓ Area published successfully!{/}\n');
         player.receive(`  Path: ${result.path}\n`);
-        player.receive(`  Files: ${result.filesCreated?.length ?? 0} created\n`);
+
+        // Show file statistics
+        const created = result.filesCreated?.length ?? 0;
+        const updated = result.filesUpdated?.length ?? 0;
+        const skipped = result.filesSkipped ?? 0;
+        const deleted = result.filesDeleted?.length ?? 0;
+
+        if (created > 0) player.receive(`  Files created: ${created}\n`);
+        if (updated > 0) player.receive(`  Files updated: ${updated}\n`);
+        if (skipped > 0) player.receive(`  Files skipped: ${skipped} (unchanged)\n`);
+        if (deleted > 0) player.receive(`  Files deleted: ${deleted}\n`);
+
         player.receive('{dim}Restart the server to load the new rooms.{/}\n');
       } else {
         player.receive(`{red}✗ Failed to publish: ${result.error}{/}\n`);

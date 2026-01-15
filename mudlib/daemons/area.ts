@@ -260,6 +260,8 @@ export class AreaDaemon extends MudObject {
       throw new Error(`A room already exists at coordinates (${room.x},${room.y},${room.z})`);
     }
 
+    // Set entity creation timestamp
+    room.updatedAt = Date.now();
     area.rooms.push(room);
     area.updatedAt = Date.now();
     this._dirty = true;
@@ -296,6 +298,7 @@ export class AreaDaemon extends MudObject {
     }
 
     Object.assign(room, updates);
+    room.updatedAt = Date.now();
     area.updatedAt = Date.now();
     this._dirty = true;
     return true;
@@ -354,12 +357,14 @@ export class AreaDaemon extends MudObject {
 
     // Add exit from room1 to room2
     room1.exits[lowerDir] = room2Id;
+    room1.updatedAt = Date.now();
 
     // Add reverse exit if bidirectional
     if (bidirectional) {
       const opposite = OPPOSITE_DIRECTION[lowerDir];
       if (opposite) {
         room2.exits[opposite] = room1Id;
+        room2.updatedAt = Date.now();
       }
     }
 
@@ -383,6 +388,7 @@ export class AreaDaemon extends MudObject {
     if (!targetId) return false;
 
     delete room.exits[lowerDir];
+    room.updatedAt = Date.now();
 
     // Remove reverse exit if bidirectional
     if (bidirectional) {
@@ -391,6 +397,7 @@ export class AreaDaemon extends MudObject {
         const targetRoom = area.rooms.find(r => r.id === targetId);
         if (targetRoom && targetRoom.exits[opposite] === roomId) {
           delete targetRoom.exits[opposite];
+          targetRoom.updatedAt = Date.now();
         }
       }
     }
@@ -413,6 +420,8 @@ export class AreaDaemon extends MudObject {
       throw new Error(`NPC ${npc.id} already exists in area ${areaId}`);
     }
 
+    // Set entity creation timestamp
+    npc.updatedAt = Date.now();
     area.npcs.push(npc);
     area.updatedAt = Date.now();
     this._dirty = true;
@@ -430,6 +439,7 @@ export class AreaDaemon extends MudObject {
     if (!npc) return false;
 
     Object.assign(npc, updates);
+    npc.updatedAt = Date.now();
     area.updatedAt = Date.now();
     this._dirty = true;
     return true;
@@ -481,6 +491,8 @@ export class AreaDaemon extends MudObject {
       throw new Error(`Item ${item.id} already exists in area ${areaId}`);
     }
 
+    // Set entity creation timestamp
+    item.updatedAt = Date.now();
     area.items.push(item);
     area.updatedAt = Date.now();
     this._dirty = true;
@@ -498,6 +510,7 @@ export class AreaDaemon extends MudObject {
     if (!item) return false;
 
     Object.assign(item, updates);
+    item.updatedAt = Date.now();
     area.updatedAt = Date.now();
     this._dirty = true;
     return true;
@@ -598,6 +611,49 @@ export class AreaDaemon extends MudObject {
       if (!item.type) {
         errors.push(`Item ${item.id} is missing type`);
       }
+
+      // Validate weapon-specific properties
+      if (item.type === 'weapon') {
+        const props = item.properties ?? {};
+        const minDamage = props.minDamage as number | undefined;
+        const maxDamage = props.maxDamage as number | undefined;
+        const damageType = props.damageType as string | undefined;
+        const handedness = props.handedness as string | undefined;
+        const attackSpeed = props.attackSpeed as number | undefined;
+
+        if (minDamage === undefined || minDamage < 0) {
+          warnings.push(`Weapon ${item.id} has invalid minDamage (${minDamage ?? 'undefined'})`);
+        }
+        if (maxDamage === undefined || maxDamage < 0) {
+          warnings.push(`Weapon ${item.id} has invalid maxDamage (${maxDamage ?? 'undefined'})`);
+        }
+        if (minDamage !== undefined && maxDamage !== undefined && minDamage > maxDamage) {
+          errors.push(`Weapon ${item.id} has minDamage (${minDamage}) greater than maxDamage (${maxDamage})`);
+        }
+        if (damageType && !['slashing', 'piercing', 'bludgeoning', 'fire', 'ice', 'lightning', 'poison', 'holy', 'dark'].includes(damageType)) {
+          warnings.push(`Weapon ${item.id} has invalid damageType "${damageType}"`);
+        }
+        if (handedness && !['one_handed', 'two_handed'].includes(handedness)) {
+          warnings.push(`Weapon ${item.id} has invalid handedness "${handedness}"`);
+        }
+        if (attackSpeed !== undefined && (attackSpeed < -0.5 || attackSpeed > 0.5)) {
+          warnings.push(`Weapon ${item.id} has attackSpeed (${attackSpeed}) outside valid range (-0.5 to 0.5)`);
+        }
+      }
+
+      // Validate armor-specific properties
+      if (item.type === 'armor') {
+        const props = item.properties ?? {};
+        const armorValue = props.armor as number | undefined;
+        const slot = props.slot as string | undefined;
+
+        if (armorValue === undefined || armorValue < 0) {
+          warnings.push(`Armor ${item.id} has invalid armor value (${armorValue ?? 'undefined'})`);
+        }
+        if (slot && !['head', 'chest', 'hands', 'legs', 'feet', 'cloak', 'shield'].includes(slot)) {
+          warnings.push(`Armor ${item.id} has invalid slot "${slot}"`);
+        }
+      }
     }
 
     // Check room references are valid
@@ -663,25 +719,104 @@ export class AreaDaemon extends MudObject {
 
     const basePath = `/areas/${area.region}/${area.subregion}`;
     const filesCreated: string[] = [];
+    const filesUpdated: string[] = [];
+    const filesDeleted: string[] = [];
+    let filesSkipped = 0;
+
+    // For incremental publishing, determine which entities need updating
+    // If area was never published, publish everything
+    // Otherwise, only publish entities modified after the last publish
+    const lastPublishTime = area.publishedAt ?? 0;
+    const isIncremental = area.status === 'published' && lastPublishTime > 0;
 
     try {
       // Create directory
       await efuns.makeDir(basePath, true);
 
-      // Generate room files
+      // Build set of expected file names (without path)
+      const expectedFiles = new Set<string>();
       for (const room of area.rooms) {
-        const roomContent = this.generateRoomFile(area, room);
-        const roomPath = `${basePath}/${room.id}.ts`;
-        await efuns.writeFile(roomPath, roomContent);
-        filesCreated.push(roomPath);
+        expectedFiles.add(`${room.id}.ts`);
+      }
+      for (const npc of area.npcs) {
+        expectedFiles.add(`${npc.id}.ts`);
+      }
+      for (const item of area.items) {
+        expectedFiles.add(`${item.id}.ts`);
       }
 
-      // Generate NPC files
+      // Clean up old files that no longer exist in the area (for republishing)
+      if (isIncremental && efuns.readDir && efuns.deleteFile) {
+        try {
+          const existingFiles = await efuns.readDir(basePath);
+          for (const file of existingFiles) {
+            // Only consider .ts files, skip directories and other files
+            if (file.endsWith('.ts') && !expectedFiles.has(file)) {
+              const filePath = `${basePath}/${file}`;
+              await efuns.deleteFile(filePath);
+              filesDeleted.push(filePath);
+              console.log(`[AreaDaemon] Deleted old file: ${filePath}`);
+            }
+          }
+        } catch {
+          // Directory may not exist yet or readDir failed - that's ok
+        }
+      }
+
+      // Helper to check if entity needs publishing
+      const needsPublish = (entityUpdatedAt: number | undefined): boolean => {
+        if (!isIncremental) return true; // First publish: publish everything
+        // Entity needs publishing if it was modified after the last publish
+        // or if it has no updatedAt (legacy entity)
+        return !entityUpdatedAt || entityUpdatedAt > lastPublishTime;
+      };
+
+      // Generate room files (only changed ones for incremental publish)
+      for (const room of area.rooms) {
+        const roomPath = `${basePath}/${room.id}.ts`;
+        if (needsPublish(room.updatedAt)) {
+          const roomContent = this.generateRoomFile(area, room);
+          await efuns.writeFile(roomPath, roomContent);
+          if (isIncremental && room.updatedAt) {
+            filesUpdated.push(roomPath);
+          } else {
+            filesCreated.push(roomPath);
+          }
+        } else {
+          filesSkipped++;
+        }
+      }
+
+      // Generate NPC files (only changed ones for incremental publish)
       for (const npc of area.npcs) {
-        const npcContent = this.generateNPCFile(area, npc);
         const npcPath = `${basePath}/${npc.id}.ts`;
-        await efuns.writeFile(npcPath, npcContent);
-        filesCreated.push(npcPath);
+        if (needsPublish(npc.updatedAt)) {
+          const npcContent = this.generateNPCFile(area, npc);
+          await efuns.writeFile(npcPath, npcContent);
+          if (isIncremental && npc.updatedAt) {
+            filesUpdated.push(npcPath);
+          } else {
+            filesCreated.push(npcPath);
+          }
+        } else {
+          filesSkipped++;
+        }
+      }
+
+      // Generate Item files (only changed ones for incremental publish)
+      for (const item of area.items) {
+        const itemPath = `${basePath}/${item.id}.ts`;
+        if (needsPublish(item.updatedAt)) {
+          const itemContent = this.generateItemFile(area, item);
+          await efuns.writeFile(itemPath, itemContent);
+          if (isIncremental && item.updatedAt) {
+            filesUpdated.push(itemPath);
+          } else {
+            filesCreated.push(itemPath);
+          }
+        } else {
+          filesSkipped++;
+        }
       }
 
       // Update status
@@ -693,14 +828,19 @@ export class AreaDaemon extends MudObject {
       this._dirty = true;
       await this.save();
 
-      console.log(`[AreaDaemon] Published area ${areaId} to ${basePath}`);
+      const totalWritten = filesCreated.length + filesUpdated.length;
+      console.log(`[AreaDaemon] Published area ${areaId} to ${basePath} (${totalWritten} files written, ${filesSkipped} skipped)`);
 
       return {
         success: true,
         path: basePath,
-        filesCreated,
+        filesCreated: filesCreated.length > 0 ? filesCreated : undefined,
+        filesUpdated: filesUpdated.length > 0 ? filesUpdated : undefined,
+        filesSkipped: filesSkipped > 0 ? filesSkipped : undefined,
+        filesDeleted: filesDeleted.length > 0 ? filesDeleted : undefined,
         roomCount: area.rooms.length,
         npcCount: area.npcs.length,
+        itemCount: area.items.length,
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
@@ -724,20 +864,20 @@ export class AreaDaemon extends MudObject {
       return `    this.addExit('${dir}', '${areaPath}/${target}');`;
     });
 
-    // Build NPC spawns
-    const npcLines = room.npcs.map(npcId => {
+    // Build NPC paths array
+    const npcPaths = room.npcs.map(npcId => {
       if (npcId.startsWith('/')) {
-        return `    this.addNPC('${npcId}');`;
+        return npcId;
       }
-      return `    this.addNPC('${areaPath}/${npcId}');`;
+      return `${areaPath}/${npcId}`;
     });
 
-    // Build item spawns
-    const itemLines = room.items.map(itemId => {
+    // Build item paths array
+    const itemPaths = room.items.map(itemId => {
       if (itemId.startsWith('/')) {
-        return `    this.addItem('${itemId}');`;
+        return itemId;
       }
-      return `    this.addItem('${areaPath}/${itemId}');`;
+      return `${areaPath}/${itemId}`;
     });
 
     // Build custom actions
@@ -768,7 +908,7 @@ ${room.mapIcon ? `    this.mapIcon = '${room.mapIcon}';\n` : ''}    this.setupRo
     // Exits
 ${exitLines.length > 0 ? exitLines.join('\n') : '    // No exits'}
 
-${npcLines.length > 0 ? `    // NPCs\n${npcLines.join('\n')}\n` : ''}${itemLines.length > 0 ? `    // Items\n${itemLines.join('\n')}\n` : ''}${actionLines.length > 0 ? `    // Custom actions\n${actionLines.join('\n')}\n` : ''}  }
+${npcPaths.length > 0 ? `    // NPCs\n    this.setNpcs([${npcPaths.map(p => `'${p}'`).join(', ')}]);\n` : ''}${itemPaths.length > 0 ? `    // Items\n    this.setItems([${itemPaths.map(p => `'${p}'`).join(', ')}]);\n` : ''}${actionLines.length > 0 ? `    // Custom actions\n${actionLines.join('\n')}\n` : ''}  }
 }
 
 export default ${className};
@@ -780,6 +920,7 @@ export default ${className};
    */
   private generateNPCFile(area: AreaDefinition, npc: DraftNPC): string {
     const className = this.toPascalCase(npc.id);
+    const areaPath = `/areas/${area.region}/${area.subregion}`;
 
     // Build chats
     const chatLines = (npc.chats ?? []).map(chat =>
@@ -825,7 +966,98 @@ export class ${className} extends NPC {
     this.level = ${npc.level};
     this.maxHealth = ${npc.maxHealth};
     this.health = ${npc.health ?? npc.maxHealth};
-${npc.gender ? `    this.gender = '${npc.gender}';\n` : ''}${npc.keywords && npc.keywords.length > 0 ? `    this.keywords = [${npc.keywords.map(k => `'${k}'`).join(', ')}];\n` : ''}${npc.chatChance !== undefined ? `    this.chatChance = ${npc.chatChance};\n` : ''}${chatLines.length > 0 ? `    this.chats = [\n${chatLines.join('\n')}\n    ];\n` : ''}${responseLines.length > 0 ? `    this.responses = [\n${responseLines.join('\n')}\n    ];\n` : ''}${combatConfigStr ? `${combatConfigStr}\n` : ''}${npc.wandering !== undefined ? `    this.wandering = ${npc.wandering};\n` : ''}${npc.respawnTime !== undefined ? `    this.respawnTime = ${npc.respawnTime};\n` : ''}${npc.questsOffered && npc.questsOffered.length > 0 ? `    this.questsOffered = [${npc.questsOffered.map(q => `'${q}'`).join(', ')}];\n` : ''}${npc.questsTurnedIn && npc.questsTurnedIn.length > 0 ? `    this.questsTurnedIn = [${npc.questsTurnedIn.map(q => `'${q}'`).join(', ')}];\n` : ''}  }
+${npc.gender ? `    this.gender = '${npc.gender}';\n` : ''}${npc.keywords && npc.keywords.length > 0 ? `    this.keywords = [${npc.keywords.map(k => `'${k}'`).join(', ')}];\n` : ''}${npc.chatChance !== undefined ? `    this.chatChance = ${npc.chatChance};\n` : ''}${chatLines.length > 0 ? `    this.chats = [\n${chatLines.join('\n')}\n    ];\n` : ''}${responseLines.length > 0 ? `    this.responses = [\n${responseLines.join('\n')}\n    ];\n` : ''}${combatConfigStr ? `${combatConfigStr}\n` : ''}${npc.wandering !== undefined ? `    this.wandering = ${npc.wandering};\n` : ''}${npc.respawnTime !== undefined ? `    this.respawnTime = ${npc.respawnTime};\n` : ''}${npc.questsOffered && npc.questsOffered.length > 0 ? `    this.questsOffered = [${npc.questsOffered.map(q => `'${q}'`).join(', ')}];\n` : ''}${npc.questsTurnedIn && npc.questsTurnedIn.length > 0 ? `    this.questsTurnedIn = [${npc.questsTurnedIn.map(q => `'${q}'`).join(', ')}];\n` : ''}${npc.items && npc.items.length > 0 ? `    this.setSpawnItems([${npc.items.map(i => i.startsWith('/') ? `'${i}'` : `'${areaPath}/${i}'`).join(', ')}]);\n` : ''}  }
+}
+
+export default ${className};
+`;
+  }
+
+  /**
+   * Generate an Item TypeScript file.
+   */
+  private generateItemFile(area: AreaDefinition, item: DraftItem): string {
+    const className = this.toPascalCase(item.id);
+    const props = item.properties ?? {};
+
+    // Determine which base class to use and build type-specific code
+    let baseClass = 'Item';
+    let imports = "import { Item } from '../../../lib/std.js';";
+    let typeSpecificCode = '';
+
+    switch (item.type) {
+      case 'weapon':
+        baseClass = 'Weapon';
+        imports = "import { Weapon } from '../../../lib/std.js';";
+        // Always set weapon properties with defaults
+        typeSpecificCode += `    this.minDamage = ${props.minDamage ?? 1};\n`;
+        typeSpecificCode += `    this.maxDamage = ${props.maxDamage ?? 3};\n`;
+        typeSpecificCode += `    this.damageType = '${props.damageType ?? 'slashing'}';\n`;
+        typeSpecificCode += `    this.handedness = '${props.handedness ?? 'one_handed'}';\n`;
+        if (props.attackSpeed !== undefined && props.attackSpeed !== 0) {
+          typeSpecificCode += `    this.attackSpeed = ${props.attackSpeed};\n`;
+        }
+        break;
+
+      case 'armor':
+        baseClass = 'Armor';
+        imports = "import { Armor } from '../../../lib/std.js';";
+        // Always set armor properties with defaults
+        typeSpecificCode += `    this.armor = ${props.armor ?? 1};\n`;
+        typeSpecificCode += `    this.slot = '${props.slot ?? 'chest'}';\n`;
+        break;
+
+      case 'container':
+        baseClass = 'Container';
+        imports = "import { Container } from '../../../lib/std.js';";
+        if (props.capacity !== undefined) {
+          typeSpecificCode += `    this.capacity = ${props.capacity};\n`;
+        }
+        break;
+
+      case 'consumable':
+        // Consumables use base Item class
+        if (props.healAmount !== undefined) {
+          typeSpecificCode += `    // Heal amount: ${props.healAmount}\n`;
+        }
+        if (props.manaAmount !== undefined) {
+          typeSpecificCode += `    // Mana restore: ${props.manaAmount}\n`;
+        }
+        break;
+
+      case 'key':
+        // Keys use base Item class with a keyId property
+        if (props.keyId) {
+          typeSpecificCode += `    this.setProperty('keyId', '${props.keyId}');\n`;
+        }
+        break;
+
+      case 'quest':
+        // Quest items may have special properties
+        if (props.questId) {
+          typeSpecificCode += `    this.setProperty('questId', '${props.questId}');\n`;
+        }
+        break;
+    }
+
+    // Build keywords
+    const keywordLines = (item.keywords ?? []).map(k => `    this.addId('${this.escapeString(k)}');`);
+
+    return `/**
+ * ${item.name}
+ *
+ * Generated by Area Builder on ${new Date().toISOString()}
+ * Area: ${area.name} (${area.id})
+ */
+
+${imports}
+
+export class ${className} extends ${baseClass} {
+  constructor() {
+    super();
+    this.shortDesc = '${this.escapeString(item.shortDesc)}';
+    this.longDesc = \`${item.longDesc.replace(/`/g, '\\`')}\`;
+${keywordLines.length > 0 ? keywordLines.join('\n') + '\n' : ''}${item.weight !== undefined ? `    this.weight = ${item.weight};\n` : ''}${item.value !== undefined ? `    this.value = ${item.value};\n` : ''}${typeSpecificCode}  }
 }
 
 export default ${className};

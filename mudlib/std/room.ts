@@ -62,6 +62,52 @@ export class Room extends MudObject {
     this.longDesc = 'You are in a nondescript room.';
   }
 
+  // ========== Lifecycle ==========
+
+  /**
+   * Called when the room is first loaded.
+   * Spawns initial NPCs and items.
+   */
+  override async onCreate(): Promise<void> {
+    await super.onCreate();
+
+    // Spawn NPCs configured for this room
+    await this.spawnMissingNpcs();
+
+    // Spawn items configured for this room
+    await this.spawnMissingItems();
+  }
+
+  /**
+   * Spawn all items that should be in this room but are missing.
+   * Called during onCreate and onReset.
+   */
+  async spawnMissingItems(): Promise<void> {
+    if (typeof efuns === 'undefined' || !efuns.cloneObject || this._items.length === 0) {
+      return;
+    }
+
+    for (const itemPath of this._items) {
+      // Check if an item from this blueprint already exists in the room
+      const hasItem = this.inventory.some((obj) => {
+        const blueprint = (obj as MudObject & { blueprint?: { objectPath?: string } }).blueprint;
+        return blueprint?.objectPath === itemPath;
+      });
+
+      // Clone if missing
+      if (!hasItem) {
+        try {
+          const item = await efuns.cloneObject(itemPath);
+          if (item) {
+            await item.moveTo(this);
+          }
+        } catch (error) {
+          console.error(`[Room] Failed to clone item ${itemPath}:`, error);
+        }
+      }
+    }
+  }
+
   // ========== Terrain ==========
 
   /**
@@ -479,27 +525,7 @@ export class Room extends MudObject {
     }
 
     // Re-clone items that are missing from the room
-    if (typeof efuns !== 'undefined' && efuns.cloneObject && this._items.length > 0) {
-      for (const itemPath of this._items) {
-        // Check if an item from this blueprint already exists in the room
-        const hasItem = this.inventory.some((obj) => {
-          const blueprint = (obj as MudObject & { blueprint?: { objectPath?: string } }).blueprint;
-          return blueprint?.objectPath === itemPath;
-        });
-
-        // Clone if missing
-        if (!hasItem) {
-          try {
-            const item = await efuns.cloneObject(itemPath);
-            if (item) {
-              await item.moveTo(this);
-            }
-          } catch (error) {
-            console.error(`[Room] Failed to clone item ${itemPath} during reset:`, error);
-          }
-        }
-      }
-    }
+    await this.spawnMissingItems();
 
     // Re-clone NPCs that are missing from the room
     await this.spawnMissingNpcs();
