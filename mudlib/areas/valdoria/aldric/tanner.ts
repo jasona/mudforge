@@ -4,7 +4,7 @@
  * A skilled leatherworker who needs wolf pelts for his craft.
  */
 
-import { NPC, MudObject } from '../../../lib/std.js';
+import { NPC, Living, Room } from '../../../lib/std.js';
 
 export class Tanner extends NPC {
   constructor() {
@@ -103,7 +103,7 @@ his face - clearly, he's running low on quality materials.`,
     }
   }
 
-  override async onEnter(who: MudObject, from?: MudObject): Promise<void> {
+  override async onEnter(who: Living, from?: Room): Promise<void> {
     const random = Math.random() * 100;
     if (random < 35) {
       setTimeout(() => {

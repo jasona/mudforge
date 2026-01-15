@@ -5,7 +5,7 @@
  * Required for the Wolf Pelts quest from the tanner.
  */
 
-import { NPC, MudObject } from '../../../lib/std.js';
+import { NPC, Living, Room } from '../../../lib/std.js';
 
 export class ForestWolf extends NPC {
   constructor() {
@@ -60,9 +60,9 @@ alert for both prey and danger. This is clearly a dangerous predator.`,
     this.mana = 0;
 
     // Wolves are aggressive to players
-    this.setAggressive((target: MudObject) => {
+    this.setAggressive((target: Living) => {
       // Check if target is a player (has isConnected method)
-      const player = target as MudObject & { isConnected?: () => boolean };
+      const player = target as Living & { isConnected?: () => boolean };
       return typeof player.isConnected === 'function';
     });
   }
@@ -81,9 +81,9 @@ alert for both prey and danger. This is clearly a dangerous predator.`,
   /**
    * React when players enter the room.
    */
-  override async onEnter(who: MudObject, from?: MudObject): Promise<void> {
+  override async onEnter(who: Living, from?: Room): Promise<void> {
     // Check if it's a player
-    const player = who as MudObject & { isConnected?: () => boolean };
+    const player = who as Living & { isConnected?: () => boolean };
     if (typeof player.isConnected === 'function') {
       // 40% chance to growl at newcomers
       if (Math.random() < 0.4) {

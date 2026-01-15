@@ -4,7 +4,7 @@
  * Aggressive if provoked. Tougher than rabbits and deer.
  */
 
-import { NPC, MudObject } from '../../../lib/std.js';
+import { NPC, Living, Room } from '../../../lib/std.js';
 
 export class WildBoar extends NPC {
   constructor() {
@@ -52,8 +52,8 @@ are known for their bad temper and surprising ferocity when cornered.`,
     this.mana = 0;
 
     // Boars are aggressive
-    this.setAggressive((target: MudObject) => {
-      const player = target as MudObject & { isConnected?: () => boolean };
+    this.setAggressive((target: Living) => {
+      const player = target as Living & { isConnected?: () => boolean };
       return typeof player.isConnected === 'function';
     });
   }
@@ -65,8 +65,8 @@ are known for their bad temper and surprising ferocity when cornered.`,
     }
   }
 
-  override async onEnter(who: MudObject, from?: MudObject): Promise<void> {
-    const player = who as MudObject & { isConnected?: () => boolean };
+  override async onEnter(who: Living, from?: Room): Promise<void> {
+    const player = who as Living & { isConnected?: () => boolean };
     if (typeof player.isConnected === 'function') {
       if (Math.random() < 0.5) {
         setTimeout(() => {

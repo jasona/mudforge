@@ -4,7 +4,7 @@
  * Provides atmosphere. Non-aggressive but will flee if attacked.
  */
 
-import { NPC, MudObject } from '../../../lib/std.js';
+import { NPC, Living, Room } from '../../../lib/std.js';
 
 export class ForestDeer extends NPC {
   constructor() {
@@ -59,8 +59,8 @@ alert to every sound.`,
     }
   }
 
-  override async onEnter(who: MudObject, from?: MudObject): Promise<void> {
-    const player = who as MudObject & { isConnected?: () => boolean };
+  override async onEnter(who: Living, from?: Room): Promise<void> {
+    const player = who as Living & { isConnected?: () => boolean };
     if (typeof player.isConnected === 'function') {
       if (Math.random() < 0.4) {
         setTimeout(() => {

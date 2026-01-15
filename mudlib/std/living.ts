@@ -682,6 +682,17 @@ export class Living extends MudObject {
         await newEnv.onEnter(this, env);
       }
 
+      // Notify NPCs in the room that someone entered
+      for (const obj of newEnv.contents) {
+        if (obj !== this && obj instanceof Living) {
+          // Check if the living has an onEnter method (NPCs do)
+          const npc = obj as Living & { onEnter?: (who: Living, from?: Room) => void | Promise<void> };
+          if (typeof npc.onEnter === 'function') {
+            await npc.onEnter(this, env);
+          }
+        }
+      }
+
       // Quest integration: track room exploration for explore objectives
       if ('getProperty' in this) {
         // Use dynamic import to avoid circular dependency

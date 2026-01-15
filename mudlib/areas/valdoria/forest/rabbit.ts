@@ -4,7 +4,7 @@
  * Provides atmosphere and is non-aggressive.
  */
 
-import { NPC, MudObject } from '../../../lib/std.js';
+import { NPC, Living, Room } from '../../../lib/std.js';
 
 export class ForestRabbit extends NPC {
   constructor() {
@@ -58,8 +58,8 @@ a wary eye out for predators.`,
     }
   }
 
-  override async onEnter(who: MudObject, from?: MudObject): Promise<void> {
-    const player = who as MudObject & { isConnected?: () => boolean };
+  override async onEnter(who: Living, from?: Room): Promise<void> {
+    const player = who as Living & { isConnected?: () => boolean };
     if (typeof player.isConnected === 'function') {
       if (Math.random() < 0.3) {
         setTimeout(() => {

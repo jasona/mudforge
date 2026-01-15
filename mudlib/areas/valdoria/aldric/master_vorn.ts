@@ -4,7 +4,7 @@
  * A grizzled veteran who trains adventurers in combat skills.
  */
 
-import { MudObject } from '../../../lib/std.js';
+import { Living, Room } from '../../../lib/std.js';
 import { Trainer } from '../../../std/trainer.js';
 
 export class MasterVorn extends Trainer {
@@ -118,7 +118,7 @@ beside him, well-worn from years of instruction.`,
     }
   }
 
-  override async onEnter(who: MudObject, from?: MudObject): Promise<void> {
+  override async onEnter(who: Living, from?: Room): Promise<void> {
     const random = Math.random() * 100;
     if (random < 40) {
       setTimeout(() => {

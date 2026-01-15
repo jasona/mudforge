@@ -4,7 +4,7 @@
  * A friendly baker troubled by rats in her cellar.
  */
 
-import { NPC, MudObject } from '../../../lib/std.js';
+import { NPC, Living, Room } from '../../../lib/std.js';
 
 export class Baker extends NPC {
   constructor() {
@@ -89,7 +89,7 @@ can tell something weighs on her mind.`,
     }
   }
 
-  override async onEnter(who: MudObject, from?: MudObject): Promise<void> {
+  override async onEnter(who: Living, from?: Room): Promise<void> {
     const random = Math.random() * 100;
     if (random < 40) {
       setTimeout(() => {

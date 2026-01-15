@@ -40,7 +40,7 @@ export interface ChatMessage {
  */
 export interface ResponseTrigger {
   pattern: string | RegExp;
-  response: string | ((speaker: MudObject, message: string) => string | void);
+  response: string | ((speaker: Living, message: string) => string | void);
   type: 'say' | 'emote';
 }
 
@@ -51,7 +51,7 @@ export class NPC extends Living {
   private _chats: ChatMessage[] = [];
   private _chatChance: number = 20; // % chance per heartbeat
   private _responses: ResponseTrigger[] = [];
-  private _aggressiveTo: ((target: MudObject) => boolean) | null = null;
+  private _aggressiveTo: ((target: Living) => boolean) | null = null;
   private _wandering: boolean = false;
   private _wanderChance: number = 10; // % chance per heartbeat
   private _wanderDirections: string[] = [];
@@ -141,7 +141,7 @@ export class NPC extends Living {
    */
   addResponse(
     pattern: string | RegExp,
-    response: string | ((speaker: MudObject, message: string) => string | void),
+    response: string | ((speaker: Living, message: string) => string | void),
     type: 'say' | 'emote' = 'say'
   ): void {
     this._responses.push({ pattern, response, type });
@@ -215,7 +215,7 @@ export class NPC extends Living {
    * Handle AI-powered response to a player message.
    * @returns true if AI responded, false if fallback needed
    */
-  private async handleAIResponse(speaker: MudObject, message: string): Promise<boolean> {
+  private async handleAIResponse(speaker: Living, message: string): Promise<boolean> {
     if (!this._aiContext || typeof efuns === 'undefined' || !efuns.aiAvailable?.()) {
       return false;
     }
@@ -262,7 +262,7 @@ export class NPC extends Living {
    * Try static response patterns.
    * @returns true if a response was triggered
    */
-  private tryStaticResponse(speaker: MudObject, message: string): boolean {
+  private tryStaticResponse(speaker: Living, message: string): boolean {
     for (const trigger of this._responses) {
       const match =
         typeof trigger.pattern === 'string'
@@ -299,7 +299,7 @@ export class NPC extends Living {
    * @param speaker Who said the message
    * @param message What was said
    */
-  hearSay(speaker: MudObject, message: string): void {
+  hearSay(speaker: Living, message: string): void {
     if (speaker === this) return;
 
     // Quest integration: track talk objectives when a player talks to this NPC
@@ -344,7 +344,7 @@ export class NPC extends Living {
    * Set a function to determine if this NPC is aggressive to a target.
    * @param fn Function returning true if aggressive
    */
-  setAggressive(fn: ((target: MudObject) => boolean) | null): void {
+  setAggressive(fn: ((target: Living) => boolean) | null): void {
     this._aggressiveTo = fn;
   }
 
@@ -352,7 +352,7 @@ export class NPC extends Living {
    * Check if this NPC is aggressive to a target.
    * @param target The potential target
    */
-  isAggressiveTo(target: MudObject): boolean {
+  isAggressiveTo(target: Living): boolean {
     if (!this._aggressiveTo) return false;
     return this._aggressiveTo(target);
   }
@@ -623,6 +623,16 @@ export class NPC extends Living {
   }
 
   // ========== Lifecycle ==========
+
+  /**
+   * Called when a living being enters the room this NPC is in.
+   * Override in subclasses to react to newcomers.
+   * @param who The living being that entered
+   * @param from The room they came from (if any)
+   */
+  onEnter(who: Living, from?: Room): void | Promise<void> {
+    // Default: do nothing
+  }
 
   /**
    * Called when the NPC dies.

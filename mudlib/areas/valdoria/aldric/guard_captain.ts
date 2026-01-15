@@ -4,7 +4,7 @@
  * A veteran soldier responsible for castle security.
  */
 
-import { NPC, MudObject } from '../../../lib/std.js';
+import { NPC, Living, Room } from '../../../lib/std.js';
 
 export class GuardCaptain extends NPC {
   constructor() {
@@ -115,7 +115,7 @@ from his belt pouch.`,
     }
   }
 
-  override async onEnter(who: MudObject, from?: MudObject): Promise<void> {
+  override async onEnter(who: Living, from?: Room): Promise<void> {
     const random = Math.random() * 100;
     if (random < 25) {
       setTimeout(() => {

@@ -6,6 +6,7 @@
  */
 
 import { MudObject } from './object.js';
+import { Living } from './living.js';
 import { reflowText } from '../lib/colors.js';
 import { Container } from './container.js';
 import { NPC } from './npc.js';
@@ -372,7 +373,7 @@ export class Room extends MudObject {
    * @param obj The entering object
    * @param from The room they came from (if any)
    */
-  onEnter(obj: MudObject, from?: MudObject): void | Promise<void> {
+  onEnter(obj: Living, from?: Room): void | Promise<void> {
     // Default: do nothing
   }
 
@@ -382,7 +383,7 @@ export class Room extends MudObject {
    * @param obj The leaving object
    * @param to The destination (if known)
    */
-  onLeave(obj: MudObject, to?: MudObject): void | Promise<void> {
+  onLeave(obj: Living, to?: Room): void | Promise<void> {
     // Default: do nothing
   }
 

@@ -7,7 +7,7 @@
  * rumors, and happenings in the kingdom.
  */
 
-import { NPC, MudObject } from '../../../lib/std.js';
+import { NPC, Living, Room } from '../../../lib/std.js';
 
 /**
  * The Town Crier NPC.
@@ -126,7 +126,7 @@ citizen who genuinely cares about the wellbeing of Valdoria and its people.`,
   /**
    * Called when someone enters the room.
    */
-  override async onEnter(who: MudObject, from?: MudObject): Promise<void> {
+  override async onEnter(who: Living, from?: Room): Promise<void> {
     // Occasionally greet newcomers
     const random = Math.random() * 100;
     if (random < 30) {
