@@ -39,6 +39,10 @@ export interface ElementStyle {
   maxHeight?: string;
   padding?: string;
   margin?: string;
+  marginTop?: string;
+  marginBottom?: string;
+  marginLeft?: string;
+  marginRight?: string;
   backgroundColor?: string;
   backgroundImage?: string;
   color?: string;
@@ -52,6 +56,9 @@ export interface ElementStyle {
   flex?: string;
   flexGrow?: number;
   flexShrink?: number;
+  alignItems?: string;
+  justifyContent?: string;
+  flexDirection?: string;
   gridColumn?: string;
   gridRow?: string;
   overflow?: 'visible' | 'hidden' | 'scroll' | 'auto';

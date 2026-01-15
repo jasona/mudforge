@@ -27,6 +27,7 @@ import type {
 } from './area-types.js';
 import type { AreaDaemon } from '../daemons/area.js';
 import { TERRAINS, type TerrainType } from './terrain.js';
+import { getLoreDaemon } from '../daemons/lore.js';
 
 // =============================================================================
 // Types
@@ -610,6 +611,16 @@ function buildLayoutTab(area: AreaDefinition, state: EditorState): LayoutContain
             variant: 'primary',
           } as InputElement,
           {
+            type: 'button',
+            id: 'btn-ai-layout',
+            name: 'btn-ai-layout',
+            label: '🤖 AI Generate Layout',
+            action: 'custom',
+            customAction: 'ai-generate-layout',
+            variant: 'secondary',
+            disabled: area.rooms.length > 0,
+          } as InputElement,
+          {
             type: 'text',
             id: 'selected-room-display',
             content: state.selectedRoomId
@@ -1156,15 +1167,32 @@ function buildRoomList(rooms: DraftRoom[], selectedId?: string): LayoutContainer
         style: { color: '#f5f5f5', margin: '0 0 8px 0' },
       } as DisplayElement,
       {
-        type: 'button',
-        id: 'btn-add-room-list',
-        name: 'btn-add-room-list',
-        label: '+ Add Room',
-        action: 'custom',
-        customAction: 'add-room',
-        variant: 'primary',
+        type: 'horizontal',
+        gap: '8px',
         style: { width: '100%' },
-      } as InputElement,
+        children: [
+          {
+            type: 'button',
+            id: 'btn-add-room-list',
+            name: 'btn-add-room-list',
+            label: '+ Add',
+            action: 'custom',
+            customAction: 'add-room',
+            variant: 'primary',
+            style: { flex: '1' },
+          } as InputElement,
+          {
+            type: 'button',
+            id: 'btn-ai-describe-all-rooms',
+            name: 'btn-ai-describe-all-rooms',
+            label: '🤖 AI All',
+            action: 'custom',
+            customAction: 'ai-describe-all-rooms',
+            variant: 'secondary',
+            style: { flex: '1' },
+          } as InputElement,
+        ],
+      } as LayoutContainer,
       ...roomItems,
     ],
   };
@@ -1374,17 +1402,32 @@ function buildRoomEditor(room: DraftRoom | undefined, area: AreaDefinition): Lay
           } as InputElement,
         ],
       },
-      // Save room button
+      // Save room button and AI button
       {
-        type: 'button',
-        id: 'btn-save-room',
-        name: 'btn-save-room',
-        label: 'Save Room',
-        action: 'custom',
-        customAction: 'save-room',
-        variant: 'primary',
+        type: 'horizontal',
+        gap: '8px',
         style: { marginTop: '8px' },
-      } as InputElement,
+        children: [
+          {
+            type: 'button',
+            id: 'btn-ai-describe-room',
+            name: 'btn-ai-describe-room',
+            label: '🤖 AI Describe',
+            action: 'custom',
+            customAction: `ai-describe-room:${room.id}`,
+            variant: 'secondary',
+          } as InputElement,
+          {
+            type: 'button',
+            id: 'btn-save-room',
+            name: 'btn-save-room',
+            label: 'Save Room',
+            action: 'custom',
+            customAction: 'save-room',
+            variant: 'primary',
+          } as InputElement,
+        ],
+      },
     ],
   };
 }
@@ -1494,15 +1537,32 @@ function buildNPCList(npcs: DraftNPC[], selectedId?: string): LayoutContainer {
         style: { color: '#f5f5f5', margin: '0 0 8px 0' },
       } as DisplayElement,
       {
-        type: 'button',
-        id: 'btn-add-npc',
-        name: 'btn-add-npc',
-        label: '+ Add NPC',
-        action: 'custom',
-        customAction: 'add-npc',
-        variant: 'primary',
+        type: 'horizontal',
+        gap: '8px',
         style: { width: '100%' },
-      } as InputElement,
+        children: [
+          {
+            type: 'button',
+            id: 'btn-add-npc',
+            name: 'btn-add-npc',
+            label: '+ Add',
+            action: 'custom',
+            customAction: 'add-npc',
+            variant: 'primary',
+            style: { flex: '1' },
+          } as InputElement,
+          {
+            type: 'button',
+            id: 'btn-ai-describe-all-npcs',
+            name: 'btn-ai-describe-all-npcs',
+            label: '🤖 AI All',
+            action: 'custom',
+            customAction: 'ai-describe-all-npcs',
+            variant: 'secondary',
+            style: { flex: '1' },
+          } as InputElement,
+        ],
+      } as LayoutContainer,
       ...npcItems,
     ],
   };
@@ -1704,17 +1764,32 @@ function buildNPCEditor(npc: DraftNPC | undefined, area: AreaDefinition): Layout
           } as InputElement,
         ],
       },
-      // Save NPC button
+      // Save NPC button and AI button
       {
-        type: 'button',
-        id: 'btn-save-npc',
-        name: 'btn-save-npc',
-        label: 'Save NPC',
-        action: 'custom',
-        customAction: 'save-npc',
-        variant: 'primary',
+        type: 'horizontal',
+        gap: '8px',
         style: { marginTop: '8px' },
-      } as InputElement,
+        children: [
+          {
+            type: 'button',
+            id: 'btn-ai-describe-npc',
+            name: 'btn-ai-describe-npc',
+            label: '🤖 AI Describe',
+            action: 'custom',
+            customAction: `ai-describe-npc:${npc.id}`,
+            variant: 'secondary',
+          } as InputElement,
+          {
+            type: 'button',
+            id: 'btn-save-npc',
+            name: 'btn-save-npc',
+            label: 'Save NPC',
+            action: 'custom',
+            customAction: 'save-npc',
+            variant: 'primary',
+          } as InputElement,
+        ],
+      },
     ],
   };
 }
@@ -1824,15 +1899,32 @@ function buildItemList(items: DraftItem[], selectedId?: string): LayoutContainer
         style: { color: '#f5f5f5', margin: '0 0 8px 0' },
       } as DisplayElement,
       {
-        type: 'button',
-        id: 'btn-add-item',
-        name: 'btn-add-item',
-        label: '+ Add Item',
-        action: 'custom',
-        customAction: 'add-item',
-        variant: 'primary',
+        type: 'horizontal',
+        gap: '8px',
         style: { width: '100%' },
-      } as InputElement,
+        children: [
+          {
+            type: 'button',
+            id: 'btn-add-item',
+            name: 'btn-add-item',
+            label: '+ Add',
+            action: 'custom',
+            customAction: 'add-item',
+            variant: 'primary',
+            style: { flex: '1' },
+          } as InputElement,
+          {
+            type: 'button',
+            id: 'btn-ai-describe-all-items',
+            name: 'btn-ai-describe-all-items',
+            label: '🤖 AI All',
+            action: 'custom',
+            customAction: 'ai-describe-all-items',
+            variant: 'secondary',
+            style: { flex: '1' },
+          } as InputElement,
+        ],
+      } as LayoutContainer,
       ...itemEntries,
     ],
   };
@@ -2014,17 +2106,32 @@ function buildItemEditor(item: DraftItem | undefined, area: AreaDefinition): Lay
         placeholder: 'sword, iron, weapon',
         style: { width: '100%' },
       } as InputElement,
-      // Save item button
+      // Save item button and AI button
       {
-        type: 'button',
-        id: 'btn-save-item',
-        name: 'btn-save-item',
-        label: 'Save Item',
-        action: 'custom',
-        customAction: 'save-item',
-        variant: 'primary',
+        type: 'horizontal',
+        gap: '8px',
         style: { marginTop: '8px' },
-      } as InputElement,
+        children: [
+          {
+            type: 'button',
+            id: 'btn-ai-describe-item',
+            name: 'btn-ai-describe-item',
+            label: '🤖 AI Describe',
+            action: 'custom',
+            customAction: `ai-describe-item:${item.id}`,
+            variant: 'secondary',
+          } as InputElement,
+          {
+            type: 'button',
+            id: 'btn-save-item',
+            name: 'btn-save-item',
+            label: 'Save Item',
+            action: 'custom',
+            customAction: 'save-item',
+            variant: 'primary',
+          } as InputElement,
+        ],
+      },
     ],
   };
 }
@@ -3070,10 +3177,8 @@ async function handleEditorResponse(
           respawnTime: data.npcRespawnTime as number,
         });
 
-        closeModal(player, 'area-editor');
         await areaDaemon.save();
         player.receive(`{green}NPC "${npcId}" saved.{/}\n`);
-        player.receive('{dim}Use "areas gui" and click Edit to continue editing.{/}\n');
       }
       return;
     }
@@ -3136,10 +3241,8 @@ async function handleEditorResponse(
           keywords,
         });
 
-        closeModal(player, 'area-editor');
         await areaDaemon.save();
         player.receive(`{green}Item "${itemId}" saved.{/}\n`);
-        player.receive('{dim}Use "areas gui" and click Edit to continue editing.{/}\n');
       }
       return;
     }
@@ -3155,6 +3258,84 @@ async function handleEditorResponse(
       player.receive('{dim}Use "areas gui" and click Edit to continue editing.{/}\n');
       return;
     }
+
+    // =======================================================================
+    // AI Generation Handlers
+    // =======================================================================
+
+    // AI Generate Layout
+    if (customAction === 'ai-generate-layout') {
+      if (area.rooms.length > 0) {
+        player.receive('{yellow}Cannot generate layout - area already has rooms.{/}\n');
+        return;
+      }
+      await handleAIGenerateLayout(player, areaDaemon, state, area);
+      return;
+    }
+
+    // AI Describe All Rooms
+    if (customAction === 'ai-describe-all-rooms') {
+      if (area.rooms.length === 0) {
+        player.receive('{yellow}No rooms to describe.{/}\n');
+        return;
+      }
+      await handleAIDescribeAllRooms(player, areaDaemon, state, area);
+      return;
+    }
+
+    // AI Describe Single Room
+    if (customAction?.startsWith('ai-describe-room:')) {
+      const roomId = customAction.replace('ai-describe-room:', '');
+      const room = area.rooms.find(r => r.id === roomId);
+      if (room) {
+        await handleAIDescribeRoom(player, areaDaemon, state, area, room);
+      }
+      return;
+    }
+
+    // AI Describe All NPCs
+    if (customAction === 'ai-describe-all-npcs') {
+      if (area.npcs.length === 0) {
+        player.receive('{yellow}No NPCs to describe.{/}\n');
+        return;
+      }
+      await handleAIDescribeAllNPCs(player, areaDaemon, state, area);
+      return;
+    }
+
+    // AI Describe Single NPC
+    if (customAction?.startsWith('ai-describe-npc:')) {
+      const npcId = customAction.replace('ai-describe-npc:', '');
+      const npc = area.npcs.find(n => n.id === npcId);
+      if (npc) {
+        await handleAIDescribeNPC(player, areaDaemon, state, area, npc);
+      }
+      return;
+    }
+
+    // AI Describe All Items
+    if (customAction === 'ai-describe-all-items') {
+      if (area.items.length === 0) {
+        player.receive('{yellow}No items to describe.{/}\n');
+        return;
+      }
+      await handleAIDescribeAllItems(player, areaDaemon, state, area);
+      return;
+    }
+
+    // AI Describe Single Item
+    if (customAction?.startsWith('ai-describe-item:')) {
+      const itemId = customAction.replace('ai-describe-item:', '');
+      const item = area.items.find(i => i.id === itemId);
+      if (item) {
+        await handleAIDescribeItem(player, areaDaemon, state, area, item);
+      }
+      return;
+    }
+
+    // =======================================================================
+    // End AI Generation Handlers
+    // =======================================================================
 
     // Validate Area
     if (customAction === 'validate') {
@@ -3263,11 +3444,17 @@ async function handleAddRoomResponse(
         isEntrance: data.newRoomIsEntrance as boolean,
       });
 
+      // Set the newly added room as selected and switch to Rooms tab
       state.selectedRoomId = roomId;
+      state.activeTab = 'rooms';
+
+      // Close add-room modal and reopen editor BEFORE async save
       closeModal(player, 'add-room');
-      await areaDaemon.save();
+      openAreaEditor(player, areaDaemon, state.areaId);
       player.receive(`{green}Room "${roomId}" added.{/}\n`);
-      player.receive('{dim}Use "areas gui" and click Edit to continue editing.{/}\n');
+
+      // Save in background (efuns context will be gone after this)
+      await areaDaemon.save();
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       player.receive(`{red}Failed to add room: ${message}{/}\n`);
@@ -3328,11 +3515,17 @@ async function handleAddNPCResponse(
         maxHealth: (data.newNpcHealth as number) ?? 50,
       });
 
+      // Set the newly added NPC as selected and switch to NPCs tab
       state.selectedNpcId = npcId;
+      state.activeTab = 'npcs';
+
+      // Close add-npc modal and reopen editor BEFORE async save
       closeModal(player, 'add-npc');
-      await areaDaemon.save();
+      openAreaEditor(player, areaDaemon, state.areaId);
       player.receive(`{green}NPC "${npcId}" added.{/}\n`);
-      player.receive('{dim}Use "areas gui" and click Edit to continue editing.{/}\n');
+
+      // Save in background (efuns context will be gone after this)
+      await areaDaemon.save();
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       player.receive(`{red}Failed to add NPC: ${message}{/}\n`);
@@ -3392,15 +3585,534 @@ async function handleAddItemResponse(
         type: (data.newItemType as string) || 'misc',
       });
 
+      // Set the newly added item as selected and switch to Items tab
       state.selectedItemId = itemId;
+      state.activeTab = 'items';
+
+      // Close add-item modal and reopen editor BEFORE async save
       closeModal(player, 'add-item');
-      await areaDaemon.save();
+      openAreaEditor(player, areaDaemon, state.areaId);
       player.receive(`{green}Item "${itemId}" added.{/}\n`);
-      player.receive('{dim}Use "areas gui" and click Edit to continue editing.{/}\n');
+
+      // Save in background (efuns context will be gone after this)
+      await areaDaemon.save();
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       player.receive(`{red}Failed to add item: ${message}{/}\n`);
     }
     return;
+  }
+}
+
+// =============================================================================
+// AI Generation Functions
+// =============================================================================
+
+/**
+ * Get lore context for AI generation.
+ */
+function getLoreContext(keywords: string[], maxLength: number = 1500): string {
+  const loreDaemon = getLoreDaemon();
+  const allLore = loreDaemon.getAllLore();
+
+  if (allLore.length === 0) {
+    return '';
+  }
+
+  // Find lore entries that match any keywords
+  const lowerKeywords = keywords.map(k => k.toLowerCase());
+  const relevantLore = allLore.filter(entry => {
+    const searchText = `${entry.title} ${entry.content} ${entry.tags?.join(' ') || ''}`.toLowerCase();
+    return lowerKeywords.some(kw => searchText.includes(kw));
+  });
+
+  // If no keyword matches, include high-priority world lore
+  const loreToUse = relevantLore.length > 0
+    ? relevantLore.slice(0, 5)
+    : allLore.filter(e => e.category === 'world' || (e.priority && e.priority >= 7)).slice(0, 3);
+
+  if (loreToUse.length === 0) {
+    return '';
+  }
+
+  return loreDaemon.buildContext(loreToUse.map(e => e.id), maxLength);
+}
+
+/**
+ * Check if AI is available.
+ */
+function isAIAvailable(): boolean {
+  return typeof efuns !== 'undefined' && efuns.aiAvailable?.();
+}
+
+/**
+ * Handle AI Generate Layout.
+ */
+async function handleAIGenerateLayout(
+  player: GUIPlayer,
+  areaDaemon: AreaDaemon,
+  state: EditorState,
+  area: AreaDefinition
+): Promise<void> {
+  if (!isAIAvailable()) {
+    player.receive('{red}AI is not configured or unavailable.{/}\n');
+    player.receive('{dim}Set CLAUDE_API_KEY in your .env file to enable AI features.{/}\n');
+    return;
+  }
+
+  player.receive('{cyan}Generating area layout with AI...{/}\n');
+  player.receive('{dim}This may take a moment.{/}\n');
+
+  const keywords = (area.theme || area.name).split(/[,\s]+/).filter(k => k.length > 2);
+  keywords.push(area.name, area.region, area.subregion);
+  const loreContext = getLoreContext(keywords);
+
+  const { width, height, depth } = area.gridSize;
+
+  const prompt = `Generate a room layout for a MUD game area as JSON.
+
+AREA DETAILS:
+- Name: "${area.name}"
+- Region: ${area.region}/${area.subregion}
+- Description: ${area.description || 'No description provided'}
+- Theme: ${area.theme || 'fantasy'}
+- Grid Size: ${width}x${height} (${depth} floor(s))
+
+${loreContext ? `WORLD LORE (for consistency):
+${loreContext}
+
+` : ''}REQUIREMENTS:
+1. Generate 5-15 rooms that form a connected layout
+2. Rooms should be placed on valid grid coordinates (x: 0-${width - 1}, y: 0-${height - 1}, z: 0-${depth - 1})
+3. Rooms should be connected via exits (north/south/east/west/up/down)
+4. One room should be marked as the entrance
+5. Choose appropriate terrain types for each room
+6. Room IDs should be lowercase with underscores
+
+Valid terrain types: town, indoor, road, grassland, forest, dense_forest, mountain, hills, water_shallow, water_deep, river, swamp, desert, snow, ice, cave, dungeon, void
+
+Respond with ONLY a JSON array of rooms:
+[
+  {
+    "id": "entrance",
+    "shortDesc": "Dark Cave Entrance",
+    "terrain": "cave",
+    "x": 5, "y": 9, "z": 0,
+    "isEntrance": true,
+    "exits": { "north": "tunnel_01" }
+  },
+  ...
+]`;
+
+  try {
+    const result = await efuns.aiGenerate(prompt, undefined, { maxTokens: 2000, useContinuation: true });
+
+    if (!result.success || !result.text) {
+      player.receive(`{red}AI generation failed: ${result.error || 'Unknown error'}{/}\n`);
+      return;
+    }
+
+    // Parse JSON response
+    let rooms: Array<{
+      id: string;
+      shortDesc: string;
+      terrain: string;
+      x: number;
+      y: number;
+      z: number;
+      isEntrance?: boolean;
+      exits?: Record<string, string>;
+    }>;
+
+    try {
+      const jsonMatch = result.text.match(/\[[\s\S]*\]/);
+      if (!jsonMatch) {
+        throw new Error('No JSON array found in response');
+      }
+      rooms = JSON.parse(jsonMatch[0]);
+    } catch {
+      player.receive('{red}Failed to parse AI response.{/}\n');
+      player.receive('{dim}Please try again.{/}\n');
+      return;
+    }
+
+    // Add rooms to the area
+    let addedCount = 0;
+    for (const roomData of rooms) {
+      // Validate coordinates
+      if (roomData.x < 0 || roomData.x >= width ||
+          roomData.y < 0 || roomData.y >= height ||
+          roomData.z < 0 || roomData.z >= depth) {
+        continue;
+      }
+
+      // Check for duplicate position
+      if (area.rooms.some(r => r.x === roomData.x && r.y === roomData.y && r.z === roomData.z)) {
+        continue;
+      }
+
+      try {
+        areaDaemon.addRoom(state.areaId, {
+          id: roomData.id,
+          shortDesc: roomData.shortDesc || roomData.id,
+          longDesc: '',
+          terrain: roomData.terrain || 'indoor',
+          x: roomData.x,
+          y: roomData.y,
+          z: roomData.z,
+          isEntrance: roomData.isEntrance ?? false,
+          exits: roomData.exits || {},
+          npcs: [],
+          items: [],
+        });
+        addedCount++;
+      } catch (error) {
+        // Skip duplicates or invalid rooms
+      }
+    }
+
+    await areaDaemon.save();
+    player.receive(`{green}Generated ${addedCount} rooms!{/}\n`);
+    player.receive('{dim}Use "areas gui" and click Edit to see the changes.{/}\n');
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    player.receive(`{red}AI generation error: ${message}{/}\n`);
+  }
+}
+
+/**
+ * Handle AI Describe All Rooms.
+ */
+async function handleAIDescribeAllRooms(
+  player: GUIPlayer,
+  areaDaemon: AreaDaemon,
+  state: EditorState,
+  area: AreaDefinition
+): Promise<void> {
+  if (!isAIAvailable()) {
+    player.receive('{red}AI is not configured or unavailable.{/}\n');
+    return;
+  }
+
+  player.receive(`{cyan}Generating descriptions for ${area.rooms.length} rooms...{/}\n`);
+
+  let updatedCount = 0;
+  for (const room of area.rooms) {
+    // Skip rooms that already have descriptions
+    if (room.longDesc && room.longDesc.length > 20) {
+      continue;
+    }
+
+    player.receive(`{dim}  Generating for ${room.id}...{/}\n`);
+    await generateRoomDescription(areaDaemon, area, room);
+    updatedCount++;
+  }
+
+  await areaDaemon.save();
+  player.receive(`{green}Generated descriptions for ${updatedCount} rooms.{/}\n`);
+  player.receive('{dim}Use "areas gui" and click Edit to see the changes.{/}\n');
+}
+
+/**
+ * Handle AI Describe Single Room.
+ */
+async function handleAIDescribeRoom(
+  player: GUIPlayer,
+  areaDaemon: AreaDaemon,
+  state: EditorState,
+  area: AreaDefinition,
+  room: DraftRoom
+): Promise<void> {
+  if (!isAIAvailable()) {
+    player.receive('{red}AI is not configured or unavailable.{/}\n');
+    return;
+  }
+
+  player.receive(`{cyan}Generating description for ${room.id}...{/}\n`);
+  await generateRoomDescription(areaDaemon, area, room);
+  await areaDaemon.save();
+  player.receive('{green}Description generated!{/}\n');
+  player.receive('{dim}Use "areas gui" and click Edit to see the changes.{/}\n');
+}
+
+/**
+ * Generate a room description using AI.
+ */
+async function generateRoomDescription(
+  areaDaemon: AreaDaemon,
+  area: AreaDefinition,
+  room: DraftRoom
+): Promise<void> {
+  const keywords = [area.name, area.theme, room.terrain, room.shortDesc].filter(Boolean) as string[];
+  const loreContext = getLoreContext(keywords);
+
+  // Get neighboring rooms for context
+  const neighbors = Object.entries(room.exits)
+    .map(([dir, targetId]) => {
+      const target = area.rooms.find(r => r.id === targetId);
+      return target ? `${dir}: ${target.shortDesc}` : null;
+    })
+    .filter(Boolean);
+
+  const prompt = `Generate a room description for a fantasy MUD game.
+
+ROOM: "${room.shortDesc || room.id}"
+TERRAIN: ${room.terrain}
+AREA: ${area.name} (${area.theme || 'fantasy'})
+${neighbors.length > 0 ? `EXITS: ${neighbors.join(', ')}` : ''}
+${room.isEntrance ? 'This is the area entrance.' : ''}
+
+${loreContext ? `WORLD LORE:
+${loreContext}
+
+` : ''}Generate a JSON object with:
+{
+  "shortDesc": "Brief 3-8 word description",
+  "longDesc": "2-4 atmospheric sentences describing what players see"
+}
+
+Requirements:
+- Match the terrain type and area theme
+- Be immersive and evocative
+- longDesc should be second person ("You see...", "The air smells...")
+
+Respond with ONLY the JSON object.`;
+
+  try {
+    const result = await efuns.aiGenerate(prompt, undefined, { maxTokens: 400 });
+
+    if (!result.success || !result.text) {
+      return;
+    }
+
+    const jsonMatch = result.text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return;
+
+    const desc = JSON.parse(jsonMatch[0]) as { shortDesc?: string; longDesc?: string };
+
+    areaDaemon.updateRoom(area.id, room.id, {
+      shortDesc: desc.shortDesc || room.shortDesc,
+      longDesc: desc.longDesc || room.longDesc,
+    });
+  } catch {
+    // Silently fail for individual rooms
+  }
+}
+
+/**
+ * Handle AI Describe All NPCs.
+ */
+async function handleAIDescribeAllNPCs(
+  player: GUIPlayer,
+  areaDaemon: AreaDaemon,
+  state: EditorState,
+  area: AreaDefinition
+): Promise<void> {
+  if (!isAIAvailable()) {
+    player.receive('{red}AI is not configured or unavailable.{/}\n');
+    return;
+  }
+
+  player.receive(`{cyan}Generating descriptions for ${area.npcs.length} NPCs...{/}\n`);
+
+  let updatedCount = 0;
+  for (const npc of area.npcs) {
+    if (npc.longDesc && npc.longDesc.length > 20) {
+      continue;
+    }
+
+    player.receive(`{dim}  Generating for ${npc.name}...{/}\n`);
+    await generateNPCDescription(areaDaemon, area, npc);
+    updatedCount++;
+  }
+
+  await areaDaemon.save();
+  player.receive(`{green}Generated descriptions for ${updatedCount} NPCs.{/}\n`);
+  player.receive('{dim}Use "areas gui" and click Edit to see the changes.{/}\n');
+}
+
+/**
+ * Handle AI Describe Single NPC.
+ */
+async function handleAIDescribeNPC(
+  player: GUIPlayer,
+  areaDaemon: AreaDaemon,
+  state: EditorState,
+  area: AreaDefinition,
+  npc: DraftNPC
+): Promise<void> {
+  if (!isAIAvailable()) {
+    player.receive('{red}AI is not configured or unavailable.{/}\n');
+    return;
+  }
+
+  player.receive(`{cyan}Generating description for ${npc.name}...{/}\n`);
+  await generateNPCDescription(areaDaemon, area, npc);
+  await areaDaemon.save();
+  player.receive('{green}Description generated!{/}\n');
+  player.receive('{dim}Use "areas gui" and click Edit to see the changes.{/}\n');
+}
+
+/**
+ * Generate an NPC description using AI.
+ */
+async function generateNPCDescription(
+  areaDaemon: AreaDaemon,
+  area: AreaDefinition,
+  npc: DraftNPC
+): Promise<void> {
+  const keywords = [area.name, area.theme, npc.name, ...(npc.keywords || [])].filter(Boolean);
+  const loreContext = getLoreContext(keywords);
+
+  const prompt = `Generate an NPC description for a fantasy MUD game.
+
+NPC: "${npc.name}"
+LEVEL: ${npc.level}
+GENDER: ${npc.gender || 'neutral'}
+AREA: ${area.name} (${area.theme || 'fantasy'})
+
+${loreContext ? `WORLD LORE:
+${loreContext}
+
+` : ''}Generate a JSON object with:
+{
+  "shortDesc": "A brief phrase starting lowercase (e.g., 'a grizzled old warrior')",
+  "longDesc": "2-3 sentences describing the NPC's appearance and demeanor"
+}
+
+Requirements:
+- shortDesc starts lowercase, suitable for "You see [shortDesc] standing here"
+- longDesc is detailed and atmospheric
+- Match the NPC's level and area theme
+
+Respond with ONLY the JSON object.`;
+
+  try {
+    const result = await efuns.aiGenerate(prompt, undefined, { maxTokens: 400 });
+
+    if (!result.success || !result.text) {
+      return;
+    }
+
+    const jsonMatch = result.text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return;
+
+    const desc = JSON.parse(jsonMatch[0]) as { shortDesc?: string; longDesc?: string };
+
+    areaDaemon.updateNPC(area.id, npc.id, {
+      shortDesc: desc.shortDesc || npc.shortDesc,
+      longDesc: desc.longDesc || npc.longDesc,
+    });
+  } catch {
+    // Silently fail
+  }
+}
+
+/**
+ * Handle AI Describe All Items.
+ */
+async function handleAIDescribeAllItems(
+  player: GUIPlayer,
+  areaDaemon: AreaDaemon,
+  state: EditorState,
+  area: AreaDefinition
+): Promise<void> {
+  if (!isAIAvailable()) {
+    player.receive('{red}AI is not configured or unavailable.{/}\n');
+    return;
+  }
+
+  player.receive(`{cyan}Generating descriptions for ${area.items.length} items...{/}\n`);
+
+  let updatedCount = 0;
+  for (const item of area.items) {
+    if (item.longDesc && item.longDesc.length > 20) {
+      continue;
+    }
+
+    player.receive(`{dim}  Generating for ${item.name}...{/}\n`);
+    await generateItemDescription(areaDaemon, area, item);
+    updatedCount++;
+  }
+
+  await areaDaemon.save();
+  player.receive(`{green}Generated descriptions for ${updatedCount} items.{/}\n`);
+  player.receive('{dim}Use "areas gui" and click Edit to see the changes.{/}\n');
+}
+
+/**
+ * Handle AI Describe Single Item.
+ */
+async function handleAIDescribeItem(
+  player: GUIPlayer,
+  areaDaemon: AreaDaemon,
+  state: EditorState,
+  area: AreaDefinition,
+  item: DraftItem
+): Promise<void> {
+  if (!isAIAvailable()) {
+    player.receive('{red}AI is not configured or unavailable.{/}\n');
+    return;
+  }
+
+  player.receive(`{cyan}Generating description for ${item.name}...{/}\n`);
+  await generateItemDescription(areaDaemon, area, item);
+  await areaDaemon.save();
+  player.receive('{green}Description generated!{/}\n');
+  player.receive('{dim}Use "areas gui" and click Edit to see the changes.{/}\n');
+}
+
+/**
+ * Generate an item description using AI.
+ */
+async function generateItemDescription(
+  areaDaemon: AreaDaemon,
+  area: AreaDefinition,
+  item: DraftItem
+): Promise<void> {
+  const keywords = [area.name, area.theme, item.name, item.type, ...(item.keywords || [])].filter(Boolean);
+  const loreContext = getLoreContext(keywords);
+
+  const prompt = `Generate an item description for a fantasy MUD game.
+
+ITEM: "${item.name}"
+TYPE: ${item.type}
+VALUE: ${item.value || 0} gold
+AREA: ${area.name} (${area.theme || 'fantasy'})
+
+${loreContext ? `WORLD LORE:
+${loreContext}
+
+` : ''}Generate a JSON object with:
+{
+  "shortDesc": "A brief description (e.g., 'a rusty iron sword')",
+  "longDesc": "2-3 sentences describing the item when examined"
+}
+
+Requirements:
+- shortDesc starts lowercase
+- longDesc is detailed and atmospheric
+- Match the item type and area theme
+
+Respond with ONLY the JSON object.`;
+
+  try {
+    const result = await efuns.aiGenerate(prompt, undefined, { maxTokens: 400 });
+
+    if (!result.success || !result.text) {
+      return;
+    }
+
+    const jsonMatch = result.text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return;
+
+    const desc = JSON.parse(jsonMatch[0]) as { shortDesc?: string; longDesc?: string };
+
+    areaDaemon.updateItem(area.id, item.id, {
+      shortDesc: desc.shortDesc || item.shortDesc,
+      longDesc: desc.longDesc || item.longDesc,
+    });
+  } catch {
+    // Silently fail
   }
 }
