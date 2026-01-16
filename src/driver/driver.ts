@@ -21,6 +21,8 @@ import { Compiler } from './compiler.js';
 import { HotReload } from './hot-reload.js';
 import { getIsolatePool, resetIsolatePool } from '../isolation/isolate-pool.js';
 import { resetScriptRunner } from '../isolation/script-runner.js';
+import { createI3Client, destroyI3Client } from '../network/i3-client.js';
+import { createI2Client, destroyI2Client } from '../network/i2-client.js';
 import pino, { type Logger } from 'pino';
 import type { MudObject } from './types.js';
 import type { Connection } from '../network/connection.js';
@@ -250,6 +252,16 @@ export class Driver {
       // Start scheduler
       this.scheduler.start();
 
+      // Initialize I3 if enabled
+      if (this.config.i3Enabled) {
+        await this.initializeI3();
+      }
+
+      // Initialize I2 if enabled
+      if (this.config.i2Enabled) {
+        await this.initializeI2();
+      }
+
       // Note: Mudlib hot-reload is disabled - mudlib changes require server restart.
       // Command hot-reload (in command-manager) is still active for builder commands.
 
@@ -277,6 +289,18 @@ export class Driver {
       // Call onShutdown hook
       if (this.master?.onShutdown) {
         await this.master.onShutdown();
+      }
+
+      // Disconnect I3 if enabled
+      if (this.config.i3Enabled) {
+        destroyI3Client();
+        this.logger.info('I3 client disconnected');
+      }
+
+      // Disconnect I2 if enabled
+      if (this.config.i2Enabled) {
+        destroyI2Client();
+        this.logger.info('I2 client disconnected');
       }
 
       // Stop file watcher
@@ -354,6 +378,145 @@ export class Driver {
       }
     } catch (error) {
       this.logger.warn({ error }, 'Failed to load permissions, starting with defaults');
+    }
+  }
+
+  /**
+   * Initialize Intermud 3 connection.
+   */
+  private async initializeI3(): Promise<void> {
+    this.logger.info('Initializing Intermud 3...');
+
+    try {
+      // Load the intermud daemon first
+      const intermudObj = await this.mudlibLoader.loadObject('/daemons/intermud');
+
+      if (!intermudObj) {
+        this.logger.error('Failed to load intermud daemon');
+        return;
+      }
+
+      // Cast to the daemon interface for type safety
+      const intermudDaemon = intermudObj as MudObject & {
+        initialize(config: {
+          mudName: string;
+          adminEmail: string;
+          playerPort: number;
+          routerName: string;
+        }): Promise<void>;
+        sendStartupRequest(): boolean;
+      };
+
+      // Initialize the daemon with config
+      await intermudDaemon.initialize({
+        mudName: this.config.i3MudName,
+        adminEmail: this.config.i3AdminEmail,
+        playerPort: this.config.port,
+        routerName: '*dalet',
+      });
+
+      // Create the I3 client
+      const client = createI3Client({
+        mudName: this.config.i3MudName,
+        routers: [
+          { name: '*dalet', host: this.config.i3RouterHost, port: this.config.i3RouterPort },
+          { name: '*i4', host: '204.209.44.3', port: 8080 },
+        ],
+        reconnectDelay: 30000,
+        maxReconnectAttempts: 0, // Infinite retries
+        logger: this.logger,
+      });
+
+      // Wire up packet events to efun bridge
+      client.on('packet', (packet) => {
+        this.efunBridge.handleI3Packet(packet);
+      });
+
+      client.on('connect', () => {
+        this.logger.info('Connected to I3 router, sending startup request...');
+        // Send the startup-req-3 packet
+        intermudDaemon.sendStartupRequest();
+      });
+
+      client.on('disconnect', (reason) => {
+        this.logger.info({ reason }, 'Disconnected from I3 router');
+      });
+
+      client.on('error', (error) => {
+        this.logger.error({ error: error.message }, 'I3 client error');
+      });
+
+      // Connect to I3 network
+      await client.connect();
+
+      this.logger.info('I3 client initialized');
+    } catch (error) {
+      this.logger.error({ error }, 'Failed to initialize I3');
+      // Don't throw - I3 failure shouldn't prevent driver from starting
+    }
+  }
+
+  /**
+   * Initialize Intermud 2 connection.
+   */
+  private async initializeI2(): Promise<void> {
+    this.logger.info('Initializing Intermud 2...');
+
+    try {
+      // Load the intermud2 daemon first
+      const intermud2Obj = await this.mudlibLoader.loadObject('/daemons/intermud2');
+
+      if (!intermud2Obj) {
+        this.logger.error('Failed to load intermud2 daemon');
+        return;
+      }
+
+      // Cast to the daemon interface for type safety
+      const intermud2Daemon = intermud2Obj as MudObject & {
+        initialize(config: {
+          mudName: string;
+          host: string;
+          gamePort: number;
+          udpPort: number;
+        }): Promise<void>;
+      };
+
+      // Calculate UDP port (default to game port + 4)
+      const udpPort = this.config.i2UdpPort || this.config.port + 4;
+
+      // Initialize the daemon with config
+      await intermud2Daemon.initialize({
+        mudName: this.config.i2MudName,
+        host: this.config.i2Host,
+        gamePort: this.config.port,
+        udpPort: udpPort,
+      });
+
+      // Create the I2 client
+      const client = createI2Client({
+        mudName: this.config.i2MudName,
+        host: this.config.i2Host,
+        udpPort: udpPort,
+        gamePort: this.config.port,
+        logger: this.logger,
+      });
+
+      // Wire up message events to efun bridge
+      client.on('message', (message, rinfo) => {
+        this.efunBridge.handleI2Message(message, rinfo);
+      });
+
+      client.on('error', (error) => {
+        this.logger.error({ error: error.message }, 'I2 client error');
+      });
+
+      // Start the I2 client (binds UDP socket)
+      await client.start();
+
+      this.logger.info({ udpPort }, 'I2 client initialized');
+    } catch (error) {
+      this.logger.error({ error }, 'Failed to initialize I2');
+      // Don't throw - I2 failure shouldn't prevent driver from starting
     }
   }
 

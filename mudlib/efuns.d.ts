@@ -618,7 +618,100 @@ declare global {
       playerMessage: string,
       conversationHistory?: Array<{ role: 'player' | 'npc'; content: string }>
     ): Promise<AINpcResponseResult>;
+
+    // ========== Intermud 3 Efuns ==========
+
+    /** Check if I3 is connected */
+    i3IsConnected(): boolean;
+
+    /** Get I3 connection state */
+    i3GetState(): string;
+
+    /** Get current I3 router name */
+    i3GetRouter(): string | null;
+
+    /** Get all configured I3 routers */
+    i3GetRouters(): Array<{ name: string; host: string; port: number }>;
+
+    /** Get the current router index */
+    i3GetCurrentRouterIndex(): number;
+
+    /**
+     * Switch to a different router by index.
+     * @param index The router index to switch to
+     * @returns true if switch was initiated
+     */
+    i3SwitchRouter(index: number): Promise<boolean>;
+
+    /**
+     * Switch to a different router by name.
+     * @param name The router name to switch to (e.g., "*dalet", "*i4")
+     * @returns true if switch was initiated
+     */
+    i3SwitchRouterByName(name: string): Promise<boolean>;
+
+    /**
+     * Send a packet to the I3 network.
+     * @param packet The LPC packet array to send
+     * @returns true if sent successfully, false otherwise
+     */
+    i3Send(packet: unknown[]): boolean;
+
+    /**
+     * Register a callback to receive I3 packets.
+     * @param callback Function to call when a packet is received
+     */
+    i3OnPacket(callback: (packet: unknown[]) => void): void;
+
+    // ========== Intermud 2 Efuns ==========
+
+    /** Check if I2 is ready */
+    i2IsReady(): boolean;
+
+    /** Get all known I2 MUDs */
+    i2GetMudList(): Array<{ name: string; host: string; port: number; udpPort: number; lastSeen: number }>;
+
+    /** Get I2 MUDs seen recently */
+    i2GetOnlineMuds(): Array<{ name: string; host: string; port: number; udpPort: number; lastSeen: number }>;
+
+    /** Get info for a specific I2 MUD */
+    i2GetMudInfo(name: string): { name: string; host: string; port: number; udpPort: number; lastSeen: number } | null;
+
+    /**
+     * Send an I2 message to a specific host/port.
+     */
+    i2Send(message: I2Message, host: string, port: number): boolean;
+
+    /**
+     * Send an I2 message to a MUD by name.
+     */
+    i2SendToMud(message: I2Message, mudName: string): boolean;
+
+    /**
+     * Broadcast an I2 message to all known MUDs.
+     */
+    i2Broadcast(message: I2Message): void;
+
+    /**
+     * Register a callback to receive I2 messages.
+     */
+    i2OnMessage(callback: (message: I2Message, rinfo: { address: string; port: number }) => void): void;
+
+    /**
+     * Seed I2 mudlist from I3 data.
+     * Copies MUDs with UDP ports from the I3 network to the I2 mudlist.
+     * @returns Number of MUDs added
+     */
+    i2SeedFromI3(): number;
   };
+}
+
+/**
+ * I2 message structure for Intermud 2 protocol.
+ */
+interface I2Message {
+  command: string;
+  params: Record<string, string | string[]>;
 }
 
 export {};

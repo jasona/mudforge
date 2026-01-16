@@ -13,7 +13,7 @@ import { composeMessage } from '../lib/message-composer.js';
 /**
  * Channel access types.
  */
-export type ChannelAccessType = 'public' | 'permission' | 'membership';
+export type ChannelAccessType = 'public' | 'permission' | 'membership' | 'intermud' | 'intermud2';
 
 /**
  * Channel configuration.
@@ -35,6 +35,14 @@ export interface ChannelConfig {
   color?: string;
   /** Description of the channel */
   description: string;
+  /** Channel source ('local', 'intermud', or 'intermud2') */
+  source?: 'local' | 'intermud' | 'intermud2';
+  /** I3 channel name (for intermud channels) */
+  i3ChannelName?: string;
+  /** Host MUD for I3 channel */
+  i3Host?: string;
+  /** I2 channel name (for intermud2 channels) */
+  i2ChannelName?: string;
 }
 
 /**
@@ -86,6 +94,9 @@ export class ChannelDaemon extends MudObject {
     super();
     this.shortDesc = 'Channel Daemon';
     this.longDesc = 'The channel daemon manages communication channels.';
+
+    // Register this instance as the singleton
+    setChannelDaemonInstance(this);
 
     // Initialize default channels
     this.initializeDefaultChannels();
@@ -153,6 +164,54 @@ export class ChannelDaemon extends MudObject {
       defaultOn: true,
       color: 'YELLOW',
       description: 'System notifications (logins, logouts, disconnects).',
+    });
+
+    // Intermud 3 channels (pre-registered, will be used when I3 connects)
+    this.registerChannel({
+      name: 'intermud',
+      displayName: 'Intermud',
+      accessType: 'intermud',
+      defaultOn: true,
+      color: 'cyan',
+      description: 'Intermud 3 cross-MUD chat channel.',
+      source: 'intermud',
+      i3ChannelName: 'intermud',
+      i3Host: '*dalet',
+    });
+
+    this.registerChannel({
+      name: 'imud_code',
+      displayName: 'IMud_Code',
+      accessType: 'intermud',
+      defaultOn: false,
+      color: 'cyan',
+      description: 'Intermud 3 coding discussion channel.',
+      source: 'intermud',
+      i3ChannelName: 'imud_code',
+      i3Host: '*dalet',
+    });
+
+    // Intermud 2 channels (pre-registered, will be used when I2 connects)
+    this.registerChannel({
+      name: 'gwiz',
+      displayName: 'GWiz',
+      accessType: 'intermud2',
+      defaultOn: true,
+      color: 'magenta',
+      description: 'Intermud 2 global wizard channel.',
+      source: 'intermud2',
+      i2ChannelName: 'gwiz',
+    });
+
+    this.registerChannel({
+      name: 'i2chat',
+      displayName: 'I2Chat',
+      accessType: 'intermud2',
+      defaultOn: true,
+      color: 'magenta',
+      description: 'Intermud 2 general chat channel.',
+      source: 'intermud2',
+      i2ChannelName: 'i2chat',
     });
   }
 
@@ -226,6 +285,14 @@ export class ChannelDaemon extends MudObject {
 
       case 'membership':
         return this.checkMembership(player, channel.membershipGroup ?? '');
+
+      case 'intermud':
+        // I3 channels are public access
+        return true;
+
+      case 'intermud2':
+        // I2 channels are public access
+        return true;
 
       default:
         return false;
@@ -342,6 +409,16 @@ export class ChannelDaemon extends MudObject {
     // Check for emote syntax (message starts with :)
     if (message.startsWith(':')) {
       return this.sendEmote(player, channelName, message.slice(1).trim());
+    }
+
+    // If this is an I3 channel, also send to I3 network
+    if (channel.source === 'intermud' && channel.i3ChannelName) {
+      this.sendToI3(channel.i3ChannelName, player.name, message);
+    }
+
+    // If this is an I2 channel, also send to I2 network
+    if (channel.source === 'intermud2' && channel.i2ChannelName) {
+      this.sendToI2(channel.i2ChannelName, player.name, message);
     }
 
     // Format the message
@@ -689,10 +766,251 @@ export class ChannelDaemon extends MudObject {
 
     return lines.join('\n') + '\n';
   }
+
+  // ========== Intermud 3 Methods ==========
+
+  /**
+   * Register an I3 channel.
+   * Called by IntermudDaemon when channel list is received.
+   * The channel is registered using its I3 name directly (e.g., "intermud")
+   * so users can type "intermud hello" to send messages.
+   */
+  registerI3Channel(i3Name: string, hostMud: string): boolean {
+    const channelName = i3Name.toLowerCase();
+
+    // Don't register if already exists
+    if (this._channels.has(channelName)) {
+      return false;
+    }
+
+    return this.registerChannel({
+      name: channelName,
+      displayName: i3Name.charAt(0).toUpperCase() + i3Name.slice(1),
+      accessType: 'intermud',
+      defaultOn: true, // I3 channels on by default
+      color: 'cyan',
+      description: `Intermud 3 channel (hosted by ${hostMud})`,
+      source: 'intermud',
+      i3ChannelName: i3Name,
+      i3Host: hostMud,
+    });
+  }
+
+  /**
+   * Unregister an I3 channel.
+   */
+  unregisterI3Channel(i3Name: string): boolean {
+    const channelName = i3Name.toLowerCase();
+    return this.unregisterChannel(channelName);
+  }
+
+  /**
+   * Send a message to I3 network.
+   * Used when a local player sends on an I3 channel.
+   */
+  private sendToI3(i3ChannelName: string, senderName: string, message: string): void {
+    // Import and use the intermud daemon
+    try {
+      // Dynamic import to avoid circular dependency
+      const intermudModule = require('./intermud.js') as { getIntermudDaemon: () => { sendChannelMessage: (c: string, s: string, m: string) => boolean } };
+      const intermudDaemon = intermudModule.getIntermudDaemon();
+      intermudDaemon.sendChannelMessage(i3ChannelName, senderName, message);
+    } catch {
+      // Intermud not available
+    }
+  }
+
+  /**
+   * Receive a message from I3 network.
+   * Called by IntermudDaemon when a remote message arrives.
+   */
+  receiveI3Message(i3ChannelName: string, mud: string, sender: string, message: string): void {
+    const channelName = i3ChannelName.toLowerCase();
+    const channel = this.getChannel(channelName);
+
+    if (!channel) {
+      // Channel not registered locally, ignore
+      return;
+    }
+
+    // Format with MUD name
+    const displaySender = `${sender}@${mud}`;
+    const formattedMessage = this.formatMessage(channel, displaySender, message);
+
+    // Store in history
+    this.addToHistory(channelName, {
+      channel: channelName,
+      sender: displaySender,
+      message: message,
+      timestamp: Date.now(),
+    });
+
+    // Broadcast to local players
+    this.broadcast(channelName, formattedMessage);
+  }
+
+  /**
+   * Receive an emote from I3 network.
+   */
+  receiveI3Emote(i3ChannelName: string, mud: string, sender: string, emote: string): void {
+    const channelName = i3ChannelName.toLowerCase();
+    const channel = this.getChannel(channelName);
+
+    if (!channel) {
+      return;
+    }
+
+    // Format emote with MUD name
+    const displaySender = `${sender}@${mud}`;
+    const color = channel.color ?? 'cyan';
+
+    // Replace $N with sender name
+    const emoteText = emote.replace(/\$N/g, displaySender);
+    const formattedMessage = `{${color}}[${channel.displayName}]{/} * ${emoteText}\n`;
+
+    // Store in history
+    this.addToHistory(channelName, {
+      channel: channelName,
+      sender: displaySender,
+      message: `:${emote}`,
+      timestamp: Date.now(),
+    });
+
+    // Broadcast to local players
+    this.broadcast(channelName, formattedMessage);
+  }
+
+  /**
+   * Get all I3 channels.
+   */
+  getI3Channels(): ChannelConfig[] {
+    return this.getAllChannels().filter((ch) => ch.source === 'intermud');
+  }
+
+  // ========== Intermud 2 Methods ==========
+
+  /**
+   * Register an I2 channel.
+   * Called when an I2 channel is discovered or configured.
+   */
+  registerI2Channel(i2Name: string): boolean {
+    const channelName = i2Name.toLowerCase();
+
+    // Don't register if already exists
+    if (this._channels.has(channelName)) {
+      return false;
+    }
+
+    return this.registerChannel({
+      name: channelName,
+      displayName: i2Name.charAt(0).toUpperCase() + i2Name.slice(1),
+      accessType: 'intermud2',
+      defaultOn: true,
+      color: 'magenta',
+      description: `Intermud 2 channel`,
+      source: 'intermud2',
+      i2ChannelName: i2Name,
+    });
+  }
+
+  /**
+   * Unregister an I2 channel.
+   */
+  unregisterI2Channel(i2Name: string): boolean {
+    const channelName = i2Name.toLowerCase();
+    return this.unregisterChannel(channelName);
+  }
+
+  /**
+   * Send a message to I2 network.
+   * Used when a local player sends on an I2 channel.
+   */
+  private sendToI2(i2ChannelName: string, senderName: string, message: string): void {
+    try {
+      const intermud2Module = require('./intermud2.js') as { getIntermud2Daemon: () => { sendChannelMessage: (c: string, s: string, m: string, e?: boolean) => boolean } };
+      const intermud2Daemon = intermud2Module.getIntermud2Daemon();
+      intermud2Daemon.sendChannelMessage(i2ChannelName, senderName, message);
+    } catch {
+      // Intermud2 not available
+    }
+  }
+
+  /**
+   * Receive a message from I2 network.
+   * Called by Intermud2Daemon when a remote message arrives.
+   */
+  receiveI2Message(i2ChannelName: string, mud: string, sender: string, message: string): void {
+    const channelName = i2ChannelName.toLowerCase();
+    const channel = this.getChannel(channelName);
+
+    if (!channel) {
+      // Channel not registered locally, ignore
+      return;
+    }
+
+    // Format with MUD name
+    const displaySender = `${sender}@${mud}`;
+    const formattedMessage = this.formatMessage(channel, displaySender, message);
+
+    // Store in history
+    this.addToHistory(channelName, {
+      channel: channelName,
+      sender: displaySender,
+      message: message,
+      timestamp: Date.now(),
+    });
+
+    // Broadcast to local players
+    this.broadcast(channelName, formattedMessage);
+  }
+
+  /**
+   * Receive an emote from I2 network.
+   */
+  receiveI2Emote(i2ChannelName: string, mud: string, sender: string, emote: string): void {
+    const channelName = i2ChannelName.toLowerCase();
+    const channel = this.getChannel(channelName);
+
+    if (!channel) {
+      return;
+    }
+
+    // Format emote with MUD name
+    const displaySender = `${sender}@${mud}`;
+    const color = channel.color ?? 'magenta';
+
+    // Format as emote
+    const formattedMessage = `{${color}}[${channel.displayName}]{/} * ${displaySender} ${emote}\n`;
+
+    // Store in history
+    this.addToHistory(channelName, {
+      channel: channelName,
+      sender: displaySender,
+      message: `:${emote}`,
+      timestamp: Date.now(),
+    });
+
+    // Broadcast to local players
+    this.broadcast(channelName, formattedMessage);
+  }
+
+  /**
+   * Get all I2 channels.
+   */
+  getI2Channels(): ChannelConfig[] {
+    return this.getAllChannels().filter((ch) => ch.source === 'intermud2');
+  }
 }
 
 // Singleton instance
 let channelDaemon: ChannelDaemon | null = null;
+
+/**
+ * Set the singleton instance. Called from constructor.
+ */
+export function setChannelDaemonInstance(instance: ChannelDaemon): void {
+  channelDaemon = instance;
+}
 
 /**
  * Get the global ChannelDaemon instance.

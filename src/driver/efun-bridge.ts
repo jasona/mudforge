@@ -18,6 +18,10 @@ import type { MudObject } from './types.js';
 import { readFile, writeFile, access, readdir, stat, mkdir, rm, rename, copyFile } from 'fs/promises';
 import { dirname, normalize, resolve } from 'path';
 import { constants } from 'fs';
+import { getI3Client } from '../network/i3-client.js';
+import { getI2Client } from '../network/i2-client.js';
+import type { LPCValue } from '../network/lpc-codec.js';
+import type { I2Message } from '../network/i2-codec.js';
 
 /**
  * Pager options for the page efun.
@@ -184,6 +188,16 @@ type FindActivePlayerCallback = (name: string) => MudObject | undefined;
  */
 type RegisterActivePlayerCallback = (player: MudObject) => void;
 
+/**
+ * Callback for I3 packet handling.
+ */
+type I3PacketCallback = (packet: LPCValue[]) => void;
+
+/**
+ * Callback for I2 message handling.
+ */
+type I2MessageCallback = (message: I2Message, rinfo: { address: string; port: number }) => void;
+
 export class EfunBridge {
   private config: EfunBridgeConfig;
   private registry: ObjectRegistry;
@@ -198,6 +212,8 @@ export class EfunBridge {
   private findActivePlayerCallback: FindActivePlayerCallback | null = null;
   private registerActivePlayerCallback: RegisterActivePlayerCallback | null = null;
   private unregisterActivePlayerCallback: RegisterActivePlayerCallback | null = null;
+  private i3PacketCallback: I3PacketCallback | null = null;
+  private i2MessageCallback: I2MessageCallback | null = null;
 
   constructor(config: Partial<EfunBridgeConfig> = {}) {
     this.config = {
@@ -2659,6 +2675,28 @@ RULES:
       aiGenerate: this.aiGenerate.bind(this),
       aiDescribe: this.aiDescribe.bind(this),
       aiNpcResponse: this.aiNpcResponse.bind(this),
+
+      // Intermud 3
+      i3IsConnected: this.i3IsConnected.bind(this),
+      i3GetState: this.i3GetState.bind(this),
+      i3GetRouter: this.i3GetRouter.bind(this),
+      i3GetRouters: this.i3GetRouters.bind(this),
+      i3GetCurrentRouterIndex: this.i3GetCurrentRouterIndex.bind(this),
+      i3SwitchRouter: this.i3SwitchRouter.bind(this),
+      i3SwitchRouterByName: this.i3SwitchRouterByName.bind(this),
+      i3Send: this.i3Send.bind(this),
+      i3OnPacket: this.i3OnPacket.bind(this),
+
+      // Intermud 2
+      i2IsReady: this.i2IsReady.bind(this),
+      i2GetMudList: this.i2GetMudList.bind(this),
+      i2GetOnlineMuds: this.i2GetOnlineMuds.bind(this),
+      i2GetMudInfo: this.i2GetMudInfo.bind(this),
+      i2Send: this.i2Send.bind(this),
+      i2SendToMud: this.i2SendToMud.bind(this),
+      i2Broadcast: this.i2Broadcast.bind(this),
+      i2OnMessage: this.i2OnMessage.bind(this),
+      i2SeedFromI3: this.i2SeedFromI3.bind(this),
     };
   }
 
@@ -2745,6 +2783,246 @@ RULES:
         error: error instanceof Error ? error.message : String(error),
       };
     }
+  }
+
+  // ========== Intermud 3 Efuns ==========
+
+  /**
+   * Set the callback for I3 packet handling.
+   * Called by the Intermud daemon to receive packets.
+   */
+  setI3PacketCallback(callback: I3PacketCallback): void {
+    this.i3PacketCallback = callback;
+  }
+
+  /**
+   * Check if I3 is connected.
+   */
+  i3IsConnected(): boolean {
+    const client = getI3Client();
+    return client?.isConnected ?? false;
+  }
+
+  /**
+   * Get I3 connection state.
+   */
+  i3GetState(): string {
+    const client = getI3Client();
+    return client?.state ?? 'disconnected';
+  }
+
+  /**
+   * Get the current I3 router name.
+   */
+  i3GetRouter(): string | null {
+    const client = getI3Client();
+    return client?.currentRouter?.name ?? null;
+  }
+
+  /**
+   * Get all configured I3 routers.
+   */
+  i3GetRouters(): Array<{ name: string; host: string; port: number }> {
+    const client = getI3Client();
+    if (!client) {
+      return [];
+    }
+    return client.getRouters();
+  }
+
+  /**
+   * Get the current router index.
+   */
+  i3GetCurrentRouterIndex(): number {
+    const client = getI3Client();
+    return client?.currentRouterIdx ?? 0;
+  }
+
+  /**
+   * Switch to a different router by index.
+   */
+  async i3SwitchRouter(index: number): Promise<boolean> {
+    const client = getI3Client();
+    if (!client) {
+      return false;
+    }
+    return client.switchRouter(index);
+  }
+
+  /**
+   * Switch to a different router by name.
+   */
+  async i3SwitchRouterByName(name: string): Promise<boolean> {
+    const client = getI3Client();
+    if (!client) {
+      return false;
+    }
+    return client.switchRouterByName(name);
+  }
+
+  /**
+   * Send a packet to the I3 network.
+   * @param packet The LPC packet array to send
+   * @returns true if sent successfully, false otherwise
+   */
+  i3Send(packet: LPCValue[]): boolean {
+    const client = getI3Client();
+    if (!client) {
+      return false;
+    }
+    return client.send(packet);
+  }
+
+  /**
+   * Register a callback to receive I3 packets.
+   * This is called by the mudlib intermud daemon.
+   * @param callback Function to call when a packet is received
+   */
+  i3OnPacket(callback: (packet: LPCValue[]) => void): void {
+    this.i3PacketCallback = callback;
+  }
+
+  /**
+   * Internal method called by the driver when I3 packet is received.
+   * Routes the packet to the registered callback.
+   */
+  handleI3Packet(packet: LPCValue[]): void {
+    if (this.i3PacketCallback) {
+      this.i3PacketCallback(packet);
+    }
+  }
+
+  // ========== Intermud 2 Efuns ==========
+
+  /**
+   * Check if I2 is ready.
+   */
+  i2IsReady(): boolean {
+    const client = getI2Client();
+    return client?.isReady ?? false;
+  }
+
+  /**
+   * Get all known I2 MUDs.
+   */
+  i2GetMudList(): Array<{ name: string; host: string; port: number; udpPort: number; lastSeen: number }> {
+    const client = getI2Client();
+    if (!client) {
+      return [];
+    }
+    return client.getMudList();
+  }
+
+  /**
+   * Get I2 MUDs seen recently.
+   */
+  i2GetOnlineMuds(): Array<{ name: string; host: string; port: number; udpPort: number; lastSeen: number }> {
+    const client = getI2Client();
+    if (!client) {
+      return [];
+    }
+    return client.getOnlineMuds();
+  }
+
+  /**
+   * Get info for a specific I2 MUD.
+   */
+  i2GetMudInfo(name: string): { name: string; host: string; port: number; udpPort: number; lastSeen: number } | null {
+    const client = getI2Client();
+    if (!client) {
+      return null;
+    }
+    return client.getMudInfo(name) ?? null;
+  }
+
+  /**
+   * Send an I2 message to a specific host/port.
+   */
+  i2Send(message: I2Message, host: string, port: number): boolean {
+    const client = getI2Client();
+    if (!client) {
+      return false;
+    }
+    return client.send(message, host, port);
+  }
+
+  /**
+   * Send an I2 message to a MUD by name.
+   */
+  i2SendToMud(message: I2Message, mudName: string): boolean {
+    const client = getI2Client();
+    if (!client) {
+      return false;
+    }
+    return client.sendToMud(message, mudName);
+  }
+
+  /**
+   * Broadcast an I2 message to all known MUDs.
+   */
+  i2Broadcast(message: I2Message): void {
+    const client = getI2Client();
+    if (client) {
+      client.broadcast(message);
+    }
+  }
+
+  /**
+   * Register a callback to receive I2 messages.
+   */
+  i2OnMessage(callback: (message: I2Message, rinfo: { address: string; port: number }) => void): void {
+    this.i2MessageCallback = callback;
+  }
+
+  /**
+   * Internal method called by the driver when I2 message is received.
+   */
+  handleI2Message(message: I2Message, rinfo: { address: string; port: number }): void {
+    if (this.i2MessageCallback) {
+      this.i2MessageCallback(message, rinfo);
+    }
+  }
+
+  /**
+   * Seed I2 mudlist from I3 data.
+   * Copies MUDs with UDP ports from the I3 network to the I2 mudlist.
+   */
+  i2SeedFromI3(): number {
+    const i2Client = getI2Client();
+    const i3Client = getI3Client();
+
+    if (!i2Client || !i3Client) {
+      return 0;
+    }
+
+    // Get mudlist from intermud daemon via registry
+    const intermudDaemon = this.registry.find('/daemons/intermud') as {
+      getMudList?: () => Array<{
+        name: string;
+        ip: string;
+        playerPort: number;
+        udpPort: number;
+        state: number;
+      }>;
+    } | undefined;
+
+    if (!intermudDaemon?.getMudList) {
+      return 0;
+    }
+
+    const i3Muds = intermudDaemon.getMudList();
+
+    // Convert I3 mudlist to I2 format and seed
+    const mudsToSeed = i3Muds
+      .filter((m) => m.state >= 0 && m.udpPort > 0)
+      .map((m) => ({
+        name: m.name,
+        host: m.ip,
+        port: m.playerPort,
+        udpPort: m.udpPort,
+      }));
+
+    return i2Client.seedMudList(mudsToSeed);
   }
 }
 

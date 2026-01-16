@@ -37,6 +37,19 @@ export interface DriverConfig {
   claudeMaxTokens: number;
   claudeRateLimitPerMinute: number;
   claudeCacheTtlMs: number;
+
+  // Intermud 3
+  i3Enabled: boolean;
+  i3MudName: string;
+  i3AdminEmail: string;
+  i3RouterHost: string;
+  i3RouterPort: number;
+
+  // Intermud 2
+  i2Enabled: boolean;
+  i2MudName: string;
+  i2UdpPort: number;
+  i2Host: string;
 }
 
 const LOG_LEVELS = ['trace', 'debug', 'info', 'warn', 'error', 'fatal'] as const;
@@ -103,6 +116,19 @@ export function loadConfig(): DriverConfig {
     claudeMaxTokens: parseNumber(process.env['CLAUDE_MAX_TOKENS'], 1024),
     claudeRateLimitPerMinute: parseNumber(process.env['CLAUDE_RATE_LIMIT'], 20),
     claudeCacheTtlMs: parseNumber(process.env['CLAUDE_CACHE_TTL_MS'], 300000),
+
+    // Intermud 3
+    i3Enabled: parseBoolean(process.env['I3_ENABLED'], false),
+    i3MudName: process.env['I3_MUD_NAME'] ?? 'MudForge',
+    i3AdminEmail: process.env['I3_ADMIN_EMAIL'] ?? '',
+    i3RouterHost: process.env['I3_ROUTER_HOST'] ?? '97.107.133.86',
+    i3RouterPort: parseNumber(process.env['I3_ROUTER_PORT'], 8787),
+
+    // Intermud 2
+    i2Enabled: parseBoolean(process.env['I2_ENABLED'], false),
+    i2MudName: process.env['I2_MUD_NAME'] ?? process.env['I3_MUD_NAME'] ?? 'MudForge',
+    i2UdpPort: parseNumber(process.env['I2_UDP_PORT'], 0), // 0 = game port + 4
+    i2Host: process.env['I2_HOST'] ?? '0.0.0.0',
   };
 }
 
@@ -126,6 +152,19 @@ export function validateConfig(config: DriverConfig): string[] {
 
   if (config.heartbeatIntervalMs < 100) {
     errors.push(`Heartbeat interval too low: ${config.heartbeatIntervalMs}ms. Minimum is 100ms.`);
+  }
+
+  // Intermud 3 validation
+  if (config.i3Enabled) {
+    if (!config.i3AdminEmail) {
+      errors.push('I3_ADMIN_EMAIL is required when I3 is enabled.');
+    }
+    if (!config.i3MudName) {
+      errors.push('I3_MUD_NAME is required when I3 is enabled.');
+    }
+    if (config.i3RouterPort < 1 || config.i3RouterPort > 65535) {
+      errors.push(`Invalid I3 router port: ${config.i3RouterPort}. Must be between 1 and 65535.`);
+    }
   }
 
   return errors;
