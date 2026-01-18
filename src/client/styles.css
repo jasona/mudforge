@@ -1893,6 +1893,7 @@ h6.gui-heading { font-size: 12px; }
 }
 
 .comm-panel {
+  position: relative;
   display: flex;
   flex-direction: column;
   width: 320px;
