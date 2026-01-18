@@ -144,6 +144,20 @@ export class IntermudDaemon extends MudObject {
   }
 
   /**
+   * Get the current mudlist ID (for diagnostics).
+   */
+  get mudListId(): number {
+    return this._mudListId;
+  }
+
+  /**
+   * Get the current chanlist ID (for diagnostics).
+   */
+  get chanListId(): number {
+    return this._chanListId;
+  }
+
+  /**
    * Get a specific MUD's info.
    */
   getMudInfo(mudName: string): I3MudInfo | undefined {
@@ -419,6 +433,29 @@ export class IntermudDaemon extends MudObject {
     ];
 
     return efuns.i3Send(packet);
+  }
+
+  /**
+   * Refresh the mudlist by requesting a full list from the router.
+   * This clears the current mudlist and resets mudListId to 0,
+   * then sends a new startup request to get the complete list.
+   */
+  refreshMudlist(): boolean {
+    if (!this.isConnected || !this._config) {
+      return false;
+    }
+
+    // Clear existing mudlist
+    this._mudList.clear();
+
+    // Reset mudListId to request full list
+    this._mudListId = 0;
+
+    // Save state (persists the reset mudListId)
+    this.saveState();
+
+    // Send new startup request to get fresh mudlist
+    return this.sendStartupRequest();
   }
 
   /**
@@ -1059,6 +1096,9 @@ export class IntermudDaemon extends MudObject {
 
   /**
    * Load daemon state from disk.
+   * Note: mudListId and chanListId are intentionally NOT loaded.
+   * We always request fresh lists on startup to ensure we have the
+   * complete mudlist, not just delta updates from a stale ID.
    */
   private async loadState(): Promise<void> {
     try {
@@ -1068,12 +1108,8 @@ export class IntermudDaemon extends MudObject {
       if (typeof state.password === 'number') {
         this._password = state.password;
       }
-      if (typeof state.mudListId === 'number') {
-        this._mudListId = state.mudListId;
-      }
-      if (typeof state.chanListId === 'number') {
-        this._chanListId = state.chanListId;
-      }
+      // Intentionally NOT loading mudListId - we want a fresh mudlist on startup
+      // Intentionally NOT loading chanListId - we want a fresh chanlist on startup
       if (Array.isArray(state.subscribedChannels)) {
         this._subscribedChannels = new Set(state.subscribedChannels);
       }

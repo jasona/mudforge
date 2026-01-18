@@ -6,10 +6,12 @@
  *   i3admin channels     - List subscribed I3 channels
  *   i3admin subscribe <channel>   - Subscribe to a channel
  *   i3admin unsubscribe <channel> - Unsubscribe from a channel
+ *   i3admin refresh      - Request fresh mudlist from router
  *
  * Examples:
  *   i3admin status
  *   i3admin subscribe intermud
+ *   i3admin refresh
  */
 
 import type { MudObject } from '../../lib/std.js';
@@ -27,7 +29,7 @@ interface CommandContext {
 
 export const name = ['i3admin'];
 export const description = 'Administer Intermud 3 connection';
-export const usage = 'i3admin <status|channels|subscribe|unsubscribe> [args]';
+export const usage = 'i3admin <status|channels|subscribe|unsubscribe|refresh> [args]';
 
 export async function execute(ctx: CommandContext): Promise<void> {
   const parts = ctx.args.trim().split(/\s+/);
@@ -56,6 +58,9 @@ export async function execute(ctx: CommandContext): Promise<void> {
     case 'unsub':
       unsubscribeChannel(ctx, intermud, args);
       break;
+    case 'refresh':
+      refreshMudlist(ctx, intermud);
+      break;
     default:
       ctx.sendLine(`{red}Unknown subcommand: ${subcommand}{/}`);
       showHelp(ctx);
@@ -68,6 +73,7 @@ function showHelp(ctx: CommandContext): void {
   ctx.sendLine('  i3admin channels              - List subscribed channels');
   ctx.sendLine('  i3admin subscribe <channel>   - Subscribe to a channel');
   ctx.sendLine('  i3admin unsubscribe <channel> - Unsubscribe from a channel');
+  ctx.sendLine('  i3admin refresh               - Request fresh mudlist from router');
 }
 
 function showStatus(
@@ -79,15 +85,18 @@ function showStatus(
 
   const state = intermud.connectionState;
   const stateColor = state === 'connected' ? 'green' : state === 'disconnected' ? 'red' : 'yellow';
-  ctx.sendLine(`State:    {${stateColor}}${state}{/}`);
-  ctx.sendLine(`Router:   ${intermud.routerName || 'None'}`);
+  ctx.sendLine(`State:      {${stateColor}}${state}{/}`);
+  ctx.sendLine(`Router:     ${intermud.routerName || 'None'}`);
 
   const mudList = intermud.getMudList();
   const onlineMuds = intermud.getOnlineMuds();
-  ctx.sendLine(`MUDs:     ${onlineMuds.length} online / ${mudList.length} total`);
+  ctx.sendLine(`MUDs:       ${onlineMuds.length} online / ${mudList.length} total`);
 
   const channels = intermud.getSubscribedChannels();
-  ctx.sendLine(`Channels: ${channels.length} subscribed`);
+  ctx.sendLine(`Channels:   ${channels.length} subscribed`);
+
+  ctx.sendLine(`MudListId:  ${intermud.mudListId}`);
+  ctx.sendLine(`ChanListId: ${intermud.chanListId}`);
 
   ctx.sendLine('{dim}' + '-'.repeat(40) + '{/}');
 }
@@ -199,5 +208,26 @@ function unsubscribeChannel(
     channelDaemon.unregisterI3Channel(lowerName);
   } else {
     ctx.sendLine(`{red}Failed to unsubscribe from ${lowerName}{/}`);
+  }
+}
+
+function refreshMudlist(
+  ctx: CommandContext,
+  intermud: ReturnType<typeof getIntermudDaemon>
+): void {
+  if (!intermud.isConnected) {
+    ctx.sendLine('{red}I3 is not connected.{/}');
+    return;
+  }
+
+  const oldCount = intermud.getOnlineMuds().length;
+  ctx.sendLine(`{yellow}Requesting fresh mudlist from router...{/}`);
+  ctx.sendLine(`{dim}(Previous count: ${oldCount} online MUDs){/}`);
+
+  if (intermud.refreshMudlist()) {
+    ctx.sendLine('{green}Request sent. The mudlist will be updated shortly.{/}');
+    ctx.sendLine('{dim}Use "i3admin status" to check the new count.{/}');
+  } else {
+    ctx.sendLine('{red}Failed to send refresh request.{/}');
   }
 }

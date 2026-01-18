@@ -792,6 +792,13 @@ export class Player extends Living {
       }
     }
 
+    // Try channel names as commands (e.g., "intermud hello" or "shout hello")
+    const channelHandled = await this.tryChannelCommand(input);
+    if (channelHandled) {
+      this.sendPrompt();
+      return;
+    }
+
     // Fall back to object-based actions (addAction system)
     const handled = await this.command(input);
     if (!handled) {
@@ -800,6 +807,46 @@ export class Player extends Living {
 
     // Send prompt after command
     this.sendPrompt();
+  }
+
+  /**
+   * Try to handle input as a channel command.
+   * Channel names can be used directly as commands, e.g., "intermud hello world"
+   * @param input The full input string
+   * @returns true if handled as a channel command, false otherwise
+   */
+  private async tryChannelCommand(input: string): Promise<boolean> {
+    const trimmed = input.trim();
+    if (!trimmed) return false;
+
+    // Parse verb and message
+    const spaceIndex = trimmed.indexOf(' ');
+    const channelName = spaceIndex === -1 ? trimmed : trimmed.slice(0, spaceIndex);
+    const message = spaceIndex === -1 ? '' : trimmed.slice(spaceIndex + 1).trim();
+
+    // Get the channel daemon (already imported at top of file)
+    const daemon = getChannelDaemon();
+
+    // Check if this is a valid channel name
+    const channel = daemon.getChannel(channelName);
+    if (!channel) {
+      return false;
+    }
+
+    // Check access
+    if (!daemon.canAccess(this, channelName)) {
+      return false;
+    }
+
+    // If no message, show usage
+    if (!message) {
+      this.receive(`Usage: ${channelName} <message>\n`);
+      return true;
+    }
+
+    // Send the message
+    daemon.send(this, channelName, message);
+    return true;
   }
 
   // ========== Settings ==========
