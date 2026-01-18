@@ -21,7 +21,8 @@ type WebSocketClientEvent =
   | 'gui-message'
   | 'quest-message'
   | 'completion-message'
-  | 'comm-message';
+  | 'comm-message'
+  | 'auth-response';
 
 /**
  * Stats message structure for HP/MP/XP display.
@@ -76,6 +77,28 @@ export interface GUIMessage {
   buttons?: unknown[];
   data?: Record<string, unknown>;
   [key: string]: unknown;
+}
+
+/**
+ * Auth request message for launcher login/registration.
+ */
+export interface AuthRequest {
+  type: 'login' | 'register';
+  name?: string;
+  password?: string;
+  confirmPassword?: string;
+  email?: string;
+  gender?: string;
+}
+
+/**
+ * Auth response message from server.
+ */
+export interface AuthResponseMessage {
+  success: boolean;
+  error?: string;
+  errorCode?: 'invalid_credentials' | 'user_not_found' | 'name_taken' | 'validation_error';
+  requiresRegistration?: boolean;
 }
 
 /**
@@ -299,6 +322,14 @@ export class WebSocketClient {
           } catch (error) {
             console.error('Failed to parse COMM message:', error);
           }
+        } else if (line.startsWith('\x00[AUTH]')) {
+          const jsonStr = line.slice(7); // Remove \x00[AUTH] prefix
+          try {
+            const authMessage = JSON.parse(jsonStr) as AuthResponseMessage;
+            this.emit('auth-response', authMessage);
+          } catch (error) {
+            console.error('Failed to parse AUTH message:', error);
+          }
         } else {
           this.emit('message', line);
         }
@@ -402,6 +433,23 @@ export class WebSocketClient {
       this.socket!.send(`\x00[COMPLETE]${jsonStr}\n`);
     } catch (error) {
       console.error('Failed to send completion request:', error);
+    }
+  }
+
+  /**
+   * Send an authentication request to the server (for launcher login/registration).
+   */
+  sendAuthRequest(request: AuthRequest): void {
+    if (!this.isConnected) {
+      this.emit('error', 'Not connected');
+      return;
+    }
+
+    try {
+      const jsonStr = JSON.stringify(request);
+      this.socket!.send(`\x00[AUTH_REQ]${jsonStr}\n`);
+    } catch (error) {
+      this.emit('error', `Failed to send auth request: ${error}`);
     }
   }
 

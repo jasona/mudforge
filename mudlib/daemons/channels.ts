@@ -13,7 +13,7 @@ import { composeMessage } from '../lib/message-composer.js';
 /**
  * Channel access types.
  */
-export type ChannelAccessType = 'public' | 'permission' | 'membership' | 'intermud' | 'intermud2';
+export type ChannelAccessType = 'public' | 'permission' | 'membership' | 'intermud' | 'intermud2' | 'grapevine';
 
 /**
  * Channel configuration.
@@ -35,14 +35,16 @@ export interface ChannelConfig {
   color?: string;
   /** Description of the channel */
   description: string;
-  /** Channel source ('local', 'intermud', or 'intermud2') */
-  source?: 'local' | 'intermud' | 'intermud2';
+  /** Channel source ('local', 'intermud', 'intermud2', or 'grapevine') */
+  source?: 'local' | 'intermud' | 'intermud2' | 'grapevine';
   /** I3 channel name (for intermud channels) */
   i3ChannelName?: string;
   /** Host MUD for I3 channel */
   i3Host?: string;
   /** I2 channel name (for intermud2 channels) */
   i2ChannelName?: string;
+  /** Grapevine channel name (for grapevine channels) */
+  grapevineChannelName?: string;
 }
 
 /**
@@ -294,6 +296,10 @@ export class ChannelDaemon extends MudObject {
         // I2 channels are public access
         return true;
 
+      case 'grapevine':
+        // Grapevine channels are public access
+        return true;
+
       default:
         return false;
     }
@@ -419,6 +425,11 @@ export class ChannelDaemon extends MudObject {
     // If this is an I2 channel, also send to I2 network
     if (channel.source === 'intermud2' && channel.i2ChannelName) {
       this.sendToI2(channel.i2ChannelName, player.name, message);
+    }
+
+    // If this is a Grapevine channel, also send to Grapevine network
+    if (channel.source === 'grapevine' && channel.grapevineChannelName) {
+      this.sendToGrapevine(channel.grapevineChannelName, player.name, message);
     }
 
     // Format the message
@@ -1034,6 +1045,92 @@ export class ChannelDaemon extends MudObject {
    */
   getI2Channels(): ChannelConfig[] {
     return this.getAllChannels().filter((ch) => ch.source === 'intermud2');
+  }
+
+  // ========== Grapevine Methods ==========
+
+  /**
+   * Register a Grapevine channel.
+   * Called by GrapevineDaemon when channel is subscribed.
+   */
+  registerGrapevineChannel(gvName: string): boolean {
+    const channelName = gvName.toLowerCase();
+
+    // Don't register if already exists
+    if (this._channels.has(channelName)) {
+      return false;
+    }
+
+    return this.registerChannel({
+      name: channelName,
+      displayName: gvName.charAt(0).toUpperCase() + gvName.slice(1),
+      accessType: 'grapevine',
+      defaultOn: true,
+      color: 'green',
+      description: `Grapevine cross-MUD channel`,
+      source: 'grapevine',
+      grapevineChannelName: gvName,
+    });
+  }
+
+  /**
+   * Unregister a Grapevine channel.
+   */
+  unregisterGrapevineChannel(gvName: string): boolean {
+    const channelName = gvName.toLowerCase();
+    return this.unregisterChannel(channelName);
+  }
+
+  /**
+   * Send a message to Grapevine network.
+   * Used when a local player sends on a Grapevine channel.
+   */
+  private sendToGrapevine(gvChannelName: string, senderName: string, message: string): void {
+    try {
+      const grapevineModule = require('./grapevine.js') as {
+        getGrapevineDaemon: () => { sendChannelMessage: (c: string, s: string, m: string) => boolean };
+      };
+      const grapevineDaemon = grapevineModule.getGrapevineDaemon();
+      grapevineDaemon.sendChannelMessage(gvChannelName, senderName, message);
+    } catch {
+      // Grapevine not available
+    }
+  }
+
+  /**
+   * Receive a message from Grapevine network.
+   * Called by GrapevineDaemon when a remote message arrives.
+   */
+  receiveGrapevineMessage(gvChannelName: string, game: string, sender: string, message: string): void {
+    const channelName = gvChannelName.toLowerCase();
+    const channel = this.getChannel(channelName);
+
+    if (!channel) {
+      // Channel not registered locally, ignore
+      return;
+    }
+
+    // Format with game name
+    const displaySender = `${sender}@${game}`;
+    const formattedMessage = this.formatMessage(channel, displaySender, message);
+
+    // Store in history
+    this.addToHistory(channelName, {
+      channel: channelName,
+      sender: displaySender,
+      message: message,
+      timestamp: Date.now(),
+    });
+
+    // Broadcast to local players
+    this.broadcast(channelName, formattedMessage, { sender: displaySender, rawMessage: message });
+  }
+
+  /**
+   * Get all Grapevine channels.
+   */
+  getGrapevineChannels(): ChannelConfig[] {
+    return this.getAllChannels().filter((ch) => ch.source === 'grapevine');
   }
 }
 

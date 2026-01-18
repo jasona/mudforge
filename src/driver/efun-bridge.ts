@@ -20,6 +20,7 @@ import { dirname, normalize, resolve } from 'path';
 import { constants } from 'fs';
 import { getI3Client } from '../network/i3-client.js';
 import { getI2Client } from '../network/i2-client.js';
+import { getGrapevineClient, type GrapevineEvent } from '../network/grapevine-client.js';
 import type { LPCValue } from '../network/lpc-codec.js';
 import type { I2Message } from '../network/i2-codec.js';
 
@@ -216,6 +217,7 @@ type I3PacketCallback = (packet: LPCValue[]) => void;
  * Callback for I2 message handling.
  */
 type I2MessageCallback = (message: I2Message, rinfo: { address: string; port: number }) => void;
+type GrapevineMessageCallback = (event: GrapevineEvent) => void;
 
 export class EfunBridge {
   private config: EfunBridgeConfig;
@@ -233,6 +235,7 @@ export class EfunBridge {
   private unregisterActivePlayerCallback: RegisterActivePlayerCallback | null = null;
   private i3PacketCallback: I3PacketCallback | null = null;
   private i2MessageCallback: I2MessageCallback | null = null;
+  private grapevineMessageCallback: GrapevineMessageCallback | null = null;
 
   constructor(config: Partial<EfunBridgeConfig> = {}) {
     this.config = {
@@ -2745,6 +2748,14 @@ RULES:
       i2Broadcast: this.i2Broadcast.bind(this),
       i2OnMessage: this.i2OnMessage.bind(this),
       i2SeedFromI3: this.i2SeedFromI3.bind(this),
+
+      // Grapevine
+      grapevineIsConnected: this.grapevineIsConnected.bind(this),
+      grapevineGetState: this.grapevineGetState.bind(this),
+      grapevineSubscribe: this.grapevineSubscribe.bind(this),
+      grapevineUnsubscribe: this.grapevineUnsubscribe.bind(this),
+      grapevineSend: this.grapevineSend.bind(this),
+      grapevineOnMessage: this.grapevineOnMessage.bind(this),
     };
   }
 
@@ -3071,6 +3082,75 @@ RULES:
       }));
 
     return i2Client.seedMudList(mudsToSeed);
+  }
+
+  // ========== Grapevine Efuns ==========
+
+  /**
+   * Check if Grapevine is connected.
+   */
+  grapevineIsConnected(): boolean {
+    const client = getGrapevineClient();
+    return client?.isConnected ?? false;
+  }
+
+  /**
+   * Get Grapevine connection state.
+   */
+  grapevineGetState(): string {
+    const client = getGrapevineClient();
+    return client?.state ?? 'disconnected';
+  }
+
+  /**
+   * Subscribe to a Grapevine channel.
+   */
+  async grapevineSubscribe(channel: string): Promise<boolean> {
+    const client = getGrapevineClient();
+    if (!client) {
+      return false;
+    }
+    return client.subscribeChannel(channel);
+  }
+
+  /**
+   * Unsubscribe from a Grapevine channel.
+   */
+  async grapevineUnsubscribe(channel: string): Promise<boolean> {
+    const client = getGrapevineClient();
+    if (!client) {
+      return false;
+    }
+    return client.unsubscribeChannel(channel);
+  }
+
+  /**
+   * Send a message to a Grapevine channel.
+   */
+  grapevineSend(channel: string, playerName: string, message: string): boolean {
+    const client = getGrapevineClient();
+    if (!client) {
+      return false;
+    }
+    return client.sendChannelMessage(channel, playerName, message);
+  }
+
+  /**
+   * Register a callback to receive Grapevine messages.
+   */
+  grapevineOnMessage(callback: (event: GrapevineEvent) => void): void {
+    console.log('[EfunBridge] grapevineOnMessage callback registered');
+    this.grapevineMessageCallback = callback;
+  }
+
+  /**
+   * Internal method called by the driver when Grapevine message is received.
+   */
+  handleGrapevineMessage(event: GrapevineEvent): void {
+    console.log(`[EfunBridge] handleGrapevineMessage: ${event.event}, hasCallback: ${!!this.grapevineMessageCallback}`);
+    if (this.grapevineMessageCallback) {
+      this.grapevineMessageCallback(event);
+    }
   }
 }
 

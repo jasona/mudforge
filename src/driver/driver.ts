@@ -23,6 +23,7 @@ import { getIsolatePool, resetIsolatePool } from '../isolation/isolate-pool.js';
 import { resetScriptRunner } from '../isolation/script-runner.js';
 import { createI3Client, destroyI3Client } from '../network/i3-client.js';
 import { createI2Client, destroyI2Client } from '../network/i2-client.js';
+import { createGrapevineClient, destroyGrapevineClient } from '../network/grapevine-client.js';
 import pino, { type Logger } from 'pino';
 import type { MudObject } from './types.js';
 import type { Connection } from '../network/connection.js';
@@ -59,12 +60,25 @@ export interface MasterObject extends MudObject {
 }
 
 /**
+ * Auth request from GUI launcher.
+ */
+export interface AuthRequest {
+  type: 'login' | 'register';
+  name?: string;
+  password?: string;
+  confirmPassword?: string;
+  email?: string;
+  gender?: string;
+}
+
+/**
  * Login daemon interface.
  */
 export interface LoginDaemon extends MudObject {
   startSession(connection: Connection): void;
   processInput(connection: Connection, input: string): void | Promise<void>;
   handleDisconnect(connection: Connection): void;
+  handleAuthRequest?(connection: Connection, request: AuthRequest): void | Promise<void>;
 }
 
 export type DriverState = 'stopped' | 'starting' | 'running' | 'stopping';
@@ -262,6 +276,11 @@ export class Driver {
         await this.initializeI2();
       }
 
+      // Initialize Grapevine if enabled
+      if (this.config.grapevineEnabled) {
+        await this.initializeGrapevine();
+      }
+
       // Note: Mudlib hot-reload is disabled - mudlib changes require server restart.
       // Command hot-reload (in command-manager) is still active for builder commands.
 
@@ -301,6 +320,12 @@ export class Driver {
       if (this.config.i2Enabled) {
         destroyI2Client();
         this.logger.info('I2 client disconnected');
+      }
+
+      // Disconnect Grapevine if enabled
+      if (this.config.grapevineEnabled) {
+        destroyGrapevineClient();
+        this.logger.info('Grapevine client disconnected');
       }
 
       // Stop file watcher
@@ -521,6 +546,101 @@ export class Driver {
   }
 
   /**
+   * Initialize Grapevine chat connection.
+   */
+  private async initializeGrapevine(): Promise<void> {
+    this.logger.info('Initializing Grapevine...');
+
+    try {
+      // Load the grapevine daemon first
+      const grapevineObj = await this.mudlibLoader.loadObject('/daemons/grapevine');
+
+      if (!grapevineObj) {
+        this.logger.error('Failed to load grapevine daemon');
+        return;
+      }
+
+      // Cast to the daemon interface for type safety
+      const grapevineDaemon = grapevineObj as MudObject & {
+        initialize(config: {
+          clientId: string;
+          clientSecret: string;
+          gameName: string;
+          defaultChannels: string[];
+        }): Promise<void>;
+      };
+
+      // Initialize the daemon with config
+      await grapevineDaemon.initialize({
+        clientId: this.config.grapevineClientId,
+        clientSecret: this.config.grapevineClientSecret,
+        gameName: this.config.grapevineGameName,
+        defaultChannels: this.config.grapevineDefaultChannels,
+      });
+
+      // Create the Grapevine client
+      const client = createGrapevineClient({
+        clientId: this.config.grapevineClientId,
+        clientSecret: this.config.grapevineClientSecret,
+        channels: this.config.grapevineDefaultChannels,
+        gameName: this.config.grapevineGameName,
+        logger: this.logger,
+        getOnlinePlayers: () => {
+          // Get list of online player names for heartbeat
+          const players = this.efunBridge.allPlayers();
+          return players.map((p) => {
+            const player = p as MudObject & { name?: string };
+            return player.name ?? 'Unknown';
+          });
+        },
+      });
+
+      // Wire up message events to efun bridge
+      client.on('message', (event) => {
+        this.efunBridge.handleGrapevineMessage(event);
+      });
+
+      client.on('connect', () => {
+        this.logger.info('Connected to Grapevine');
+      });
+
+      client.on('authenticated', () => {
+        this.logger.info('Authenticated with Grapevine');
+        // Notify daemon to register channels
+        const daemon = grapevineDaemon as MudObject & { onAuthenticated?: () => void };
+        this.logger.info({ hasMethod: typeof daemon.onAuthenticated }, 'Checking onAuthenticated');
+        if (typeof daemon.onAuthenticated === 'function') {
+          this.logger.info('Calling daemon.onAuthenticated()');
+          try {
+            daemon.onAuthenticated();
+            this.logger.info('daemon.onAuthenticated() completed');
+          } catch (err) {
+            this.logger.error({ err }, 'Error calling onAuthenticated');
+          }
+        } else {
+          this.logger.warn('daemon.onAuthenticated is not a function');
+        }
+      });
+
+      client.on('disconnect', (reason) => {
+        this.logger.info({ reason }, 'Disconnected from Grapevine');
+      });
+
+      client.on('error', (error) => {
+        this.logger.error({ error: error.message }, 'Grapevine client error');
+      });
+
+      // Connect to Grapevine
+      await client.connect();
+
+      this.logger.info('Grapevine client initialized');
+    } catch (error) {
+      this.logger.error({ error }, 'Failed to initialize Grapevine');
+      // Don't throw - Grapevine failure shouldn't prevent driver from starting
+    }
+  }
+
+  /**
    * Preload objects from the preload list.
    */
   private async preloadObjects(paths: string[]): Promise<void> {
@@ -573,6 +693,12 @@ export class Driver {
     }
 
     try {
+      // Check for GUI auth request prefix (launcher login/registration)
+      if (input.startsWith('\x00[AUTH_REQ]')) {
+        await this.handleAuthRequest(connection, input.slice(11));
+        return;
+      }
+
       // Check for GUI message prefix
       if (input.startsWith('\x00[GUI]')) {
         await this.handleGUIMessage(handler, input.slice(6));
@@ -606,6 +732,44 @@ export class Driver {
     } catch (error) {
       this.logger.error({ error, id: connection.id }, 'Error processing input');
       await this.handleError(error as Error, handler);
+    }
+  }
+
+  /**
+   * Handle an authentication request from the GUI launcher.
+   * Routes the request to the login daemon's handleAuthRequest method.
+   */
+  private async handleAuthRequest(connection: Connection, jsonStr: string): Promise<void> {
+    if (!this.loginDaemon) {
+      this.logger.error('No login daemon available for auth request');
+      connection.sendAuthResponse({
+        success: false,
+        error: 'Login system not available',
+        errorCode: 'validation_error',
+      });
+      return;
+    }
+
+    if (!this.loginDaemon.handleAuthRequest) {
+      this.logger.error('Login daemon does not support handleAuthRequest');
+      connection.sendAuthResponse({
+        success: false,
+        error: 'Login system does not support GUI authentication',
+        errorCode: 'validation_error',
+      });
+      return;
+    }
+
+    try {
+      const request = JSON.parse(jsonStr) as AuthRequest;
+      await this.loginDaemon.handleAuthRequest(connection, request);
+    } catch (error) {
+      this.logger.error({ error }, 'Failed to parse auth request');
+      connection.sendAuthResponse({
+        success: false,
+        error: 'Invalid authentication request',
+        errorCode: 'validation_error',
+      });
     }
   }
 

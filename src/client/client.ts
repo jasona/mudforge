@@ -21,6 +21,7 @@ import { StatsPanel } from './stats-panel.js';
 import { QuestPanel } from './quest-panel.js';
 import { CommPanel } from './comm-panel.js';
 import { GUIModal } from './gui/gui-modal.js';
+import { Launcher } from './launcher.js';
 import type { MapMessage } from './map-renderer.js';
 import type { GUIServerMessage, GUIClientMessage } from './gui/gui-types.js';
 
@@ -37,9 +38,11 @@ class MudClient {
   private questPanel: QuestPanel;
   private commPanel: CommPanel;
   private guiModal: GUIModal;
+  private launcher: Launcher;
   private statusElement: HTMLElement;
   private permissionLevel: number = 0;
   private cwd: string = '/';
+  private isLoggedIn: boolean = false;
 
   constructor() {
     // Get DOM elements
@@ -80,7 +83,20 @@ class MudClient {
       this.wsClient.sendGUIMessage(message);
     });
 
+    // Initialize launcher - handles login before showing terminal
+    this.launcher = new Launcher(this.wsClient, () => {
+      this.onLoginSuccess();
+    });
+
     this.setupEventHandlers();
+  }
+
+  /**
+   * Called when login is successful and game terminal should be shown.
+   */
+  private onLoginSuccess(): void {
+    this.isLoggedIn = true;
+    this.inputHandler.focus();
   }
 
   /**

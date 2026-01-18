@@ -86,6 +86,29 @@ export interface Connection {
   close(): void;
   isConnected(): boolean;
   getRemoteAddress(): string;
+  sendAuthResponse?(message: AuthResponse): void;
+}
+
+/**
+ * Auth request from launcher.
+ */
+export interface AuthRequest {
+  type: 'login' | 'register';
+  name?: string;
+  password?: string;
+  confirmPassword?: string;
+  email?: string;
+  gender?: string;
+}
+
+/**
+ * Auth response to launcher.
+ */
+export interface AuthResponse {
+  success: boolean;
+  error?: string;
+  errorCode?: 'invalid_credentials' | 'user_not_found' | 'name_taken' | 'validation_error';
+  requiresRegistration?: boolean;
 }
 
 /**
@@ -645,6 +668,292 @@ export class LoginDaemon extends MudObject {
    */
   handleDisconnect(connection: Connection): void {
     this._sessions.delete(connection);
+  }
+
+  /**
+   * Handle a GUI-based authentication request from the launcher.
+   * This is an alternative to the text-based login flow.
+   * @param connection The connection making the request
+   * @param request The authentication request
+   */
+  async handleAuthRequest(connection: Connection, request: AuthRequest): Promise<void> {
+    if (!connection.sendAuthResponse) {
+      console.error('[LoginDaemon] Connection does not support sendAuthResponse');
+      return;
+    }
+
+    switch (request.type) {
+      case 'login':
+        await this.handleAuthLogin(connection, request);
+        break;
+      case 'register':
+        await this.handleAuthRegister(connection, request);
+        break;
+      default:
+        connection.sendAuthResponse({
+          success: false,
+          error: 'Unknown auth request type',
+          errorCode: 'validation_error',
+        });
+    }
+  }
+
+  /**
+   * Handle GUI-based login request.
+   */
+  private async handleAuthLogin(connection: Connection, request: AuthRequest): Promise<void> {
+    const name = request.name?.trim();
+    const password = request.password;
+
+    // Validate inputs
+    if (!name || !password) {
+      connection.sendAuthResponse!({
+        success: false,
+        error: 'Name and password are required',
+        errorCode: 'validation_error',
+      });
+      return;
+    }
+
+    // Normalize name
+    const normalizedName = name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+
+    // Check if player exists
+    let playerExists = false;
+    let savedData: PlayerSaveData | undefined;
+
+    if (typeof efuns !== 'undefined' && efuns.playerExists) {
+      playerExists = await efuns.playerExists(normalizedName);
+      if (playerExists && efuns.loadPlayerData) {
+        savedData = (await efuns.loadPlayerData(normalizedName)) ?? undefined;
+      }
+    } else {
+      playerExists = this._passwords.has(normalizedName.toLowerCase());
+    }
+
+    if (!playerExists) {
+      // Player doesn't exist - prompt for registration
+      connection.sendAuthResponse!({
+        success: false,
+        requiresRegistration: true,
+      });
+      return;
+    }
+
+    // Get stored password hash
+    let storedHash: string | undefined;
+    if (savedData?.state?.properties?.passwordHash) {
+      storedHash = savedData.state.properties.passwordHash as string;
+    } else if (savedData?.state?.properties?.password) {
+      // Legacy plain-text password
+      const legacyPassword = savedData.state.properties.password as string;
+      if (password !== legacyPassword) {
+        connection.sendAuthResponse!({
+          success: false,
+          error: 'Invalid password',
+          errorCode: 'invalid_credentials',
+        });
+        return;
+      }
+      // Password matches - create session and complete login
+      await this.completeAuthLogin(connection, normalizedName, savedData, password);
+      return;
+    } else {
+      storedHash = this._passwords.get(normalizedName.toLowerCase());
+    }
+
+    if (!storedHash) {
+      connection.sendAuthResponse!({
+        success: false,
+        error: 'Invalid password',
+        errorCode: 'invalid_credentials',
+      });
+      return;
+    }
+
+    // Verify password
+    const isValid = await verifyPassword(password, storedHash);
+    if (!isValid) {
+      connection.sendAuthResponse!({
+        success: false,
+        error: 'Invalid password',
+        errorCode: 'invalid_credentials',
+      });
+      return;
+    }
+
+    // Login successful
+    await this.completeAuthLogin(connection, normalizedName, savedData);
+  }
+
+  /**
+   * Handle GUI-based registration request.
+   */
+  private async handleAuthRegister(connection: Connection, request: AuthRequest): Promise<void> {
+    const name = request.name?.trim();
+    const password = request.password;
+    const confirmPassword = request.confirmPassword;
+    const email = request.email?.trim() || '';
+    const gender = request.gender;
+
+    // Validate name
+    if (!name || !this.isValidName(name)) {
+      connection.sendAuthResponse!({
+        success: false,
+        error: 'Invalid name. Names must be 3-16 characters, letters only.',
+        errorCode: 'validation_error',
+      });
+      return;
+    }
+
+    const normalizedName = name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+
+    // Check if name is taken
+    let playerExists = false;
+    if (typeof efuns !== 'undefined' && efuns.playerExists) {
+      playerExists = await efuns.playerExists(normalizedName);
+    } else {
+      playerExists = this._passwords.has(normalizedName.toLowerCase());
+    }
+
+    if (playerExists) {
+      connection.sendAuthResponse!({
+        success: false,
+        error: 'That name is already taken',
+        errorCode: 'name_taken',
+      });
+      return;
+    }
+
+    // Validate password
+    if (!password || password.length < 6) {
+      connection.sendAuthResponse!({
+        success: false,
+        error: 'Password must be at least 6 characters',
+        errorCode: 'validation_error',
+      });
+      return;
+    }
+
+    // Validate password confirmation
+    if (password !== confirmPassword) {
+      connection.sendAuthResponse!({
+        success: false,
+        error: 'Passwords do not match',
+        errorCode: 'validation_error',
+      });
+      return;
+    }
+
+    // Validate email (basic check)
+    if (email && !email.includes('@')) {
+      connection.sendAuthResponse!({
+        success: false,
+        error: 'Invalid email address',
+        errorCode: 'validation_error',
+      });
+      return;
+    }
+
+    // Validate gender
+    if (!gender || !['male', 'female', 'neutral'].includes(gender)) {
+      connection.sendAuthResponse!({
+        success: false,
+        error: 'Please select a gender',
+        errorCode: 'validation_error',
+      });
+      return;
+    }
+
+    // Create the player
+    await this.createAuthPlayer(connection, normalizedName, password, email, gender as 'male' | 'female' | 'neutral');
+  }
+
+  /**
+   * Create a player via GUI auth and complete login.
+   */
+  private async createAuthPlayer(
+    connection: Connection,
+    name: string,
+    password: string,
+    email: string,
+    gender: 'male' | 'female' | 'neutral'
+  ): Promise<void> {
+    // Hash the password
+    const passwordHash = await hashPassword(password);
+
+    // Store in in-memory fallback
+    this._passwords.set(name.toLowerCase(), passwordHash);
+
+    // Check if this is the first player
+    let isFirstPlayer = false;
+    if (typeof efuns !== 'undefined' && efuns.listPlayers) {
+      const existingPlayers = await efuns.listPlayers();
+      isFirstPlayer = existingPlayers.length === 0;
+    }
+
+    // Create player object
+    const player = new Player();
+    player.createAccount(name, passwordHash, email);
+    player.gender = gender;
+    player.shortDesc = name;
+
+    // Grant admin to first player
+    if (isFirstPlayer) {
+      player.permissionLevel = 3;
+      const result = efuns.setPermissionLevel(name, 3);
+      if (result.success) {
+        await efuns.savePermissions();
+      }
+    }
+
+    // Store properties for serialization
+    player.setProperty('passwordHash', passwordHash);
+    player.setProperty('email', email);
+    player.setProperty('permissionLevel', player.permissionLevel);
+
+    // Create a session for completing login
+    const session: LoginSession = {
+      connection,
+      state: 'playing',
+      name,
+      password,
+      email,
+      isNewPlayer: true,
+    };
+
+    // Send success response before completing login
+    connection.sendAuthResponse!({ success: true });
+
+    // Complete login with player
+    await this.completeLogin(session, player);
+  }
+
+  /**
+   * Complete login for GUI auth.
+   */
+  private async completeAuthLogin(
+    connection: Connection,
+    name: string,
+    savedData?: PlayerSaveData,
+    passwordToUpgrade?: string
+  ): Promise<void> {
+    // Create a session for the login process
+    const session: LoginSession = {
+      connection,
+      state: 'playing',
+      name,
+      password: passwordToUpgrade || '',
+      email: '',
+      isNewPlayer: false,
+      savedData,
+    };
+
+    // Send success response before completing login
+    connection.sendAuthResponse!({ success: true });
+
+    // Complete login (this handles player creation, binding, etc.)
+    await this.completeLogin(session);
   }
 }
 

@@ -26,6 +26,8 @@ export interface ServerConfig {
   clientPath: string;
   /** Logger instance */
   logger?: Logger;
+  /** Enable HTTP request logging (default: false) */
+  logHttpRequests?: boolean;
 }
 
 /**
@@ -62,6 +64,7 @@ export class Server extends EventEmitter {
     // Create Fastify instance
     this.fastify = Fastify({
       logger: this.config.logger ? true : false,
+      disableRequestLogging: !this.config.logHttpRequests,
     });
   }
 

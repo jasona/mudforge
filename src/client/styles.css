@@ -2125,3 +2125,407 @@ h6.gui-heading { font-size: 12px; }
     overflow: visible;
   }
 }
+
+/* ============================================
+   LAUNCHER STYLES
+   Centered card login screen with fantasy art
+   ============================================ */
+
+/* Launcher Container - centered card */
+.launcher {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  background: var(--bg-primary);
+}
+
+.launcher.hidden {
+  display: none;
+}
+
+/* Background - subtle, not distracting */
+.launcher-background {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, var(--bg-secondary) 0%, var(--bg-primary) 70%);
+  z-index: -1;
+}
+
+/* Card container with two columns */
+.launcher-card {
+  display: flex;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: var(--shadow-lg);
+  max-height: 90vh;
+}
+
+/* Fantasy Art Panel - left side */
+.launcher-art {
+  width: 180px;
+  min-height: 400px;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.fantasy-scene {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Main Content - right side */
+.launcher-content {
+  display: flex;
+  flex-direction: column;
+  padding: var(--spacing-xl);
+  width: 280px;
+}
+
+/* Hero Section */
+.launcher-hero {
+  text-align: center;
+  margin-bottom: var(--spacing-lg);
+}
+
+.launcher-title {
+  font-size: 28px;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: -0.5px;
+  margin-bottom: var(--spacing-xs);
+}
+
+.launcher-tagline {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+}
+
+/* Login Section */
+.launcher-login {
+  margin-bottom: var(--spacing-md);
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.login-form input {
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--border-radius-sm);
+  color: var(--text-primary);
+  font-size: var(--font-size-base);
+  font-family: var(--font-sans);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.login-form input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.login-form input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-subtle);
+}
+
+.login-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-sm);
+  padding: 10px 16px;
+  margin-top: var(--spacing-xs);
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: var(--border-radius-sm);
+  font-size: var(--font-size-base);
+  font-weight: 500;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.login-button:hover {
+  background: var(--accent-hover);
+}
+
+.login-button:active {
+  transform: scale(0.98);
+}
+
+.button-icon {
+  display: none;
+}
+
+.login-error {
+  padding: 10px 12px;
+  background: var(--error-subtle);
+  border: 1px solid var(--error);
+  border-radius: var(--border-radius-sm);
+  color: var(--error);
+  font-size: var(--font-size-sm);
+  display: none;
+}
+
+.login-error.visible {
+  display: block;
+}
+
+/* News CTA Link */
+.news-cta {
+  display: block;
+  text-align: center;
+  padding: var(--spacing-sm) var(--spacing-md);
+  color: var(--text-tertiary);
+  font-size: var(--font-size-sm);
+  text-decoration: none;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--border-radius-sm);
+  transition: color 0.2s, border-color 0.2s, background 0.2s;
+}
+
+.news-cta:hover {
+  color: var(--text-secondary);
+  border-color: var(--border-primary);
+  background: var(--bg-tertiary);
+}
+
+/* Powered by MudForge link */
+.powered-by {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: auto;
+  padding-top: var(--spacing-md);
+  color: var(--text-tertiary);
+  font-size: 11px;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.powered-by:hover {
+  color: var(--text-secondary);
+}
+
+.mudforge-logo {
+  width: 18px;
+  height: 18px;
+}
+
+/* Registration Modal */
+.register-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.register-modal.hidden {
+  display: none;
+}
+
+.register-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.register-content {
+  position: relative;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: 12px;
+  padding: var(--spacing-xl);
+  width: 100%;
+  max-width: 360px;
+  box-shadow: var(--shadow-lg);
+}
+
+.register-content h2 {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-xs);
+}
+
+.register-subtitle {
+  color: var(--text-secondary);
+  margin-bottom: var(--spacing-lg);
+  font-size: var(--font-size-sm);
+}
+
+.register-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.register-form input,
+.register-form select {
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--border-radius-sm);
+  color: var(--text-primary);
+  font-size: var(--font-size-base);
+  font-family: var(--font-sans);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.register-form input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.register-form input[readonly] {
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  cursor: not-allowed;
+}
+
+.register-form select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%235c5c60' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 36px;
+  cursor: pointer;
+}
+
+.register-form select option {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.register-form input:focus,
+.register-form select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-subtle);
+}
+
+.register-buttons {
+  display: flex;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-sm);
+}
+
+.register-button {
+  flex: 1;
+  padding: 10px 16px;
+  border: none;
+  border-radius: var(--border-radius-sm);
+  font-size: var(--font-size-base);
+  font-weight: 500;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.register-button.primary {
+  background: var(--accent);
+  color: white;
+}
+
+.register-button.primary:hover {
+  background: var(--accent-hover);
+}
+
+.register-button.secondary {
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-primary);
+}
+
+.register-button.secondary:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.register-button:active {
+  transform: scale(0.98);
+}
+
+/* Launcher Responsive */
+@media (max-width: 550px) {
+  .launcher-art {
+    display: none;
+  }
+
+  .launcher-card {
+    margin: var(--spacing-md);
+    max-width: calc(100% - 32px);
+  }
+
+  .launcher-content {
+    width: 100%;
+    min-width: 260px;
+  }
+}
+
+@media (max-width: 480px) {
+  .launcher-content,
+  .register-content {
+    padding: var(--spacing-lg);
+  }
+
+  .register-content {
+    margin: var(--spacing-md);
+    max-width: calc(100% - 32px);
+  }
+
+  .register-buttons {
+    flex-direction: column;
+  }
+}
+
+/* Launcher Transitions */
+.launcher.fade-out {
+  opacity: 0;
+  transition: opacity 0.3s ease-out;
+  pointer-events: none;
+}
+
+/* Button Loading State */
+.login-button.loading,
+.register-button.loading {
+  opacity: 0.7;
+  pointer-events: none;
+  cursor: wait;
+}
+
+.login-button.loading::after,
+.register-button.loading::after {
+  content: '';
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  margin-left: 8px;
+  border: 2px solid transparent;
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

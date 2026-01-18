@@ -286,7 +286,10 @@ export class I3Client extends EventEmitter {
       try {
         const packet = decodePacket(packetData);
         if (packet.length > 0) {
-          this.log('debug', `Received packet: ${packet[0]}`);
+          // Skip noisy mudlist packets in debug log
+          if (packet[0] !== 'mudlist') {
+            this.log('debug', `Received packet: ${packet[0]}`);
+          }
           this.emit('packet', packet);
         }
       } catch (error) {

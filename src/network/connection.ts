@@ -87,6 +87,16 @@ export interface CommMessage {
 }
 
 /**
+ * AUTH protocol message type for launcher authentication responses.
+ */
+export interface AuthResponseMessage {
+  success: boolean;
+  error?: string;
+  errorCode?: 'invalid_credentials' | 'user_not_found' | 'name_taken' | 'validation_error';
+  requiresRegistration?: boolean;
+}
+
+/**
  * Connection state.
  */
 export type ConnectionState = 'connecting' | 'open' | 'closing' | 'closed';
@@ -359,6 +369,25 @@ export class Connection extends EventEmitter {
     try {
       const json = JSON.stringify(message);
       this.socket.send(`\x00[COMM]${json}`);
+    } catch (error) {
+      this.emit('error', error as Error);
+    }
+  }
+
+  /**
+   * Send an AUTH protocol message to the client.
+   * AUTH messages are prefixed with \x00[AUTH] to distinguish them from regular text.
+   * Used for launcher authentication responses.
+   * @param message The auth response message to send
+   */
+  sendAuthResponse(message: AuthResponseMessage): void {
+    if (this._state !== 'open') {
+      return;
+    }
+
+    try {
+      const json = JSON.stringify(message);
+      this.socket.send(`\x00[AUTH]${json}`);
     } catch (error) {
       this.emit('error', error as Error);
     }

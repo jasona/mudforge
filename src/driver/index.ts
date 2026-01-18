@@ -27,6 +27,7 @@ async function main(): Promise<void> {
     port: config.port,
     host: config.host,
     logger,
+    logHttpRequests: config.logHttpRequests,
   });
 
   // Wire up server events to driver

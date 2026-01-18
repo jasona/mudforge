@@ -15,6 +15,7 @@ export interface DriverConfig {
   // Logging
   logLevel: 'trace' | 'debug' | 'info' | 'warn' | 'error' | 'fatal';
   logPretty: boolean;
+  logHttpRequests: boolean;
 
   // Isolation/Sandbox
   isolateMemoryMb: number;
@@ -50,6 +51,13 @@ export interface DriverConfig {
   i2MudName: string;
   i2UdpPort: number;
   i2Host: string;
+
+  // Grapevine
+  grapevineEnabled: boolean;
+  grapevineClientId: string;
+  grapevineClientSecret: string;
+  grapevineGameName: string;
+  grapevineDefaultChannels: string[];
 }
 
 const LOG_LEVELS = ['trace', 'debug', 'info', 'warn', 'error', 'fatal'] as const;
@@ -94,6 +102,8 @@ export function loadConfig(): DriverConfig {
     logLevel: parseLogLevel(process.env['LOG_LEVEL'], 'info'),
     // Default to pretty logs in development, JSON logs in production
     logPretty: parseBoolean(process.env['LOG_PRETTY'], process.env['NODE_ENV'] !== 'production'),
+    // HTTP request logging (default off to reduce noise)
+    logHttpRequests: parseBoolean(process.env['LOG_HTTP_REQUESTS'], false),
 
     // Isolation/Sandbox
     isolateMemoryMb: parseNumber(process.env['ISOLATE_MEMORY_MB'], 128),
@@ -129,6 +139,17 @@ export function loadConfig(): DriverConfig {
     i2MudName: process.env['I2_MUD_NAME'] ?? process.env['I3_MUD_NAME'] ?? 'MudForge',
     i2UdpPort: parseNumber(process.env['I2_UDP_PORT'], 0), // 0 = game port + 4
     i2Host: process.env['I2_HOST'] ?? '0.0.0.0',
+
+    // Grapevine
+    grapevineEnabled: parseBoolean(process.env['GRAPEVINE_ENABLED'], false),
+    grapevineClientId: process.env['GRAPEVINE_CLIENT_ID'] ?? '',
+    grapevineClientSecret: process.env['GRAPEVINE_CLIENT_SECRET'] ?? '',
+    grapevineGameName:
+      process.env['GRAPEVINE_GAME_NAME'] ?? process.env['I3_MUD_NAME'] ?? 'MudForge',
+    grapevineDefaultChannels: (process.env['GRAPEVINE_CHANNELS'] ?? 'gossip')
+      .split(',')
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0),
   };
 }
 
@@ -164,6 +185,16 @@ export function validateConfig(config: DriverConfig): string[] {
     }
     if (config.i3RouterPort < 1 || config.i3RouterPort > 65535) {
       errors.push(`Invalid I3 router port: ${config.i3RouterPort}. Must be between 1 and 65535.`);
+    }
+  }
+
+  // Grapevine validation
+  if (config.grapevineEnabled) {
+    if (!config.grapevineClientId) {
+      errors.push('GRAPEVINE_CLIENT_ID is required when Grapevine is enabled.');
+    }
+    if (!config.grapevineClientSecret) {
+      errors.push('GRAPEVINE_CLIENT_SECRET is required when Grapevine is enabled.');
     }
   }
 

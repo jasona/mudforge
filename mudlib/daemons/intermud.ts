@@ -608,7 +608,7 @@ export class IntermudDaemon extends MudObject {
         if (efuns.i2IsReady()) {
           const seeded = efuns.i2SeedFromI3();
           if (seeded > 0) {
-            efuns.debug(`Auto-seeded ${seeded} MUDs to I2 from I3 mudlist`);
+            console.log(`[IntermudDaemon] Auto-seeded ${seeded} MUDs to I2 from I3 mudlist`);
           }
         }
       }
