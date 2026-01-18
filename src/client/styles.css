@@ -2162,7 +2162,7 @@ h6.gui-heading { font-size: 12px; }
   border-radius: 12px;
   overflow: hidden;
   box-shadow: var(--shadow-lg);
-  max-height: 90vh;
+  height: 420px;
 }
 
 /* Fantasy Art Panel - left side */
@@ -2185,8 +2185,10 @@ h6.gui-heading { font-size: 12px; }
 .launcher-content {
   display: flex;
   flex-direction: column;
+  flex: 1;
   padding: var(--spacing-xl);
   width: 280px;
+  box-sizing: border-box;
 }
 
 /* Hero Section */
@@ -2304,14 +2306,19 @@ h6.gui-heading { font-size: 12px; }
   background: var(--bg-tertiary);
 }
 
+/* Wrapper to push powered-by to bottom */
+.powered-by-wrapper {
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+}
+
 /* Powered by MudForge link */
 .powered-by {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
   gap: 6px;
-  margin-top: auto;
-  padding-top: var(--spacing-md);
   color: var(--text-tertiary);
   font-size: 11px;
   text-decoration: none;
