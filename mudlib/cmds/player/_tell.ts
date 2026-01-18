@@ -116,6 +116,8 @@ export async function execute(ctx: CommandContext): Promise<void> {
 
   const senderName = capitalize(ctx.player.name);
   const isGroup = foundTargets.length > 1;
+  const timestamp = Date.now();
+  const recipientNames = foundTargets.map((t) => capitalize(t.name));
 
   // Build the list of all participants (sender + all targets) for reply tracking
   const allParticipants = [ctx.player.name.toLowerCase(), ...foundTargets.map((t) => t.name.toLowerCase())];
@@ -139,6 +141,17 @@ export async function execute(ctx: CommandContext): Promise<void> {
 
     target.receive(`${header} ${message}\n`);
 
+    // Send to comm panel for the target
+    efuns.sendComm(target, {
+      type: 'comm',
+      commType: 'tell',
+      sender: senderName,
+      message,
+      recipients: recipientNames,
+      timestamp,
+      isSender: false,
+    });
+
     // Store reply info on target (who to reply to)
     // For group tells, store all participants except self
     const replyTo = allParticipants.filter((p) => p !== target.name.toLowerCase());
@@ -149,6 +162,17 @@ export async function execute(ctx: CommandContext): Promise<void> {
   const senderColor = getPlayerColor(ctx.player, 'tell');
   const targetList = foundTargets.map((t) => capitalize(t.name)).join(', ');
   ctx.sendLine(`${formatWithColor(senderColor, `You tell ${targetList}:`)} ${message}`);
+
+  // Send to comm panel for the sender
+  efuns.sendComm(ctx.player, {
+    type: 'comm',
+    commType: 'tell',
+    sender: senderName,
+    message,
+    recipients: recipientNames,
+    timestamp,
+    isSender: true,
+  });
 
   // Store reply info on sender too (for continuing the conversation)
   const senderReplyTo = foundTargets.map((t) => t.name.toLowerCase());

@@ -433,7 +433,7 @@ export class ChannelDaemon extends MudObject {
     });
 
     // Broadcast to all eligible players
-    this.broadcast(channelName, formattedMessage, player);
+    this.broadcast(channelName, formattedMessage, { sender: player.name, rawMessage: message });
 
     return true;
   }
@@ -564,6 +564,7 @@ export class ChannelDaemon extends MudObject {
     }
 
     const color = channel.color ?? 'white';
+    const timestamp = Date.now();
 
     for (const obj of players) {
       const player = obj as ChannelPlayer;
@@ -584,9 +585,21 @@ export class ChannelDaemon extends MudObject {
       // Format with channel prefix and emote indicator
       const formattedMessage = `{${color}}[${channel.displayName}]{/} * ${message}\n`;
 
-      // Send message
+      // Send message to terminal
       if (typeof player.receive === 'function') {
         player.receive(formattedMessage);
+      }
+
+      // Send to comm panel
+      if (typeof efuns !== 'undefined' && efuns.sendComm) {
+        efuns.sendComm(player, {
+          type: 'comm',
+          commType: 'channel',
+          sender: actor.name,
+          message: `* ${message}`,
+          channel: channel.displayName,
+          timestamp,
+        });
       }
     }
   }
@@ -602,13 +615,23 @@ export class ChannelDaemon extends MudObject {
 
   /**
    * Broadcast a message to all players on a channel.
+   * @param channelName The channel name
+   * @param message The formatted message to send to terminal
+   * @param commInfo Optional info for the comm panel (sender and raw message)
    */
-  private broadcast(channelName: string, message: string, sender?: ChannelPlayer): void {
+  private broadcast(
+    channelName: string,
+    message: string,
+    commInfo?: { sender: string; rawMessage: string }
+  ): void {
     // Get all connected players
     let players: MudObject[] = [];
     if (typeof efuns !== 'undefined' && efuns.allPlayers) {
       players = efuns.allPlayers();
     }
+
+    const channel = this.getChannel(channelName);
+    const timestamp = Date.now();
 
     for (const obj of players) {
       const player = obj as ChannelPlayer;
@@ -623,9 +646,21 @@ export class ChannelDaemon extends MudObject {
         continue;
       }
 
-      // Send message
+      // Send message to terminal
       if (typeof player.receive === 'function') {
         player.receive(message);
+      }
+
+      // Send to comm panel if we have the info
+      if (commInfo && typeof efuns !== 'undefined' && efuns.sendComm) {
+        efuns.sendComm(player, {
+          type: 'comm',
+          commType: 'channel',
+          sender: commInfo.sender,
+          message: commInfo.rawMessage,
+          channel: channel?.displayName || channelName,
+          timestamp,
+        });
       }
     }
   }
@@ -653,7 +688,7 @@ export class ChannelDaemon extends MudObject {
     });
 
     // Broadcast to all eligible players
-    this.broadcast(channelName, formattedMessage);
+    this.broadcast(channelName, formattedMessage, { sender: 'SYSTEM', rawMessage: message });
   }
 
   /**
@@ -846,7 +881,7 @@ export class ChannelDaemon extends MudObject {
     });
 
     // Broadcast to local players
-    this.broadcast(channelName, formattedMessage);
+    this.broadcast(channelName, formattedMessage, { sender: displaySender, rawMessage: message });
   }
 
   /**
@@ -877,7 +912,7 @@ export class ChannelDaemon extends MudObject {
     });
 
     // Broadcast to local players
-    this.broadcast(channelName, formattedMessage);
+    this.broadcast(channelName, formattedMessage, { sender: displaySender, rawMessage: `:${emote}` });
   }
 
   /**
@@ -961,7 +996,7 @@ export class ChannelDaemon extends MudObject {
     });
 
     // Broadcast to local players
-    this.broadcast(channelName, formattedMessage);
+    this.broadcast(channelName, formattedMessage, { sender: displaySender, rawMessage: message });
   }
 
   /**
@@ -991,7 +1026,7 @@ export class ChannelDaemon extends MudObject {
     });
 
     // Broadcast to local players
-    this.broadcast(channelName, formattedMessage);
+    this.broadcast(channelName, formattedMessage, { sender: displaySender, rawMessage: `:${emote}` });
   }
 
   /**

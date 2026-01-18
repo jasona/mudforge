@@ -518,6 +518,26 @@ declare global {
       targetPlayer?: MudObject
     ): void;
 
+    /**
+     * Send a communication message to a player's comm panel.
+     * Used for say/tell/channel messages to populate the communications panel.
+     * @param targetPlayer The player to send to
+     * @param message The communication message
+     */
+    sendComm(
+      targetPlayer: MudObject,
+      message: {
+        type: 'comm';
+        commType: 'say' | 'tell' | 'channel';
+        sender: string;
+        message: string;
+        channel?: string;
+        recipients?: string[];
+        timestamp: number;
+        isSender?: boolean;
+      }
+    ): void;
+
     // ========== Config Efuns ==========
 
     /**

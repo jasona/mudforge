@@ -20,7 +20,8 @@ type WebSocketClientEvent =
   | 'stats-message'
   | 'gui-message'
   | 'quest-message'
-  | 'completion-message';
+  | 'completion-message'
+  | 'comm-message';
 
 /**
  * Stats message structure for HP/MP/XP display.
@@ -89,6 +90,25 @@ export interface QuestMessage {
     progressText: string;
     status: 'active' | 'completed';
   }>;
+}
+
+/**
+ * Communication message types.
+ */
+export type CommType = 'say' | 'tell' | 'channel';
+
+/**
+ * Communication panel message.
+ */
+export interface CommMessage {
+  type: 'comm';
+  commType: CommType;
+  sender: string;
+  message: string;
+  channel?: string;
+  recipients?: string[];
+  timestamp: number;
+  isSender?: boolean;    // True if recipient is the one who sent this message
 }
 
 /**
@@ -270,6 +290,14 @@ export class WebSocketClient {
             this.emit('completion-message', completionMessage);
           } catch (error) {
             console.error('Failed to parse COMPLETE message:', error);
+          }
+        } else if (line.startsWith('\x00[COMM]')) {
+          const jsonStr = line.slice(7); // Remove \x00[COMM] prefix
+          try {
+            const commMessage = JSON.parse(jsonStr) as CommMessage;
+            this.emit('comm-message', commMessage);
+          } catch (error) {
+            console.error('Failed to parse COMM message:', error);
           }
         } else {
           this.emit('message', line);

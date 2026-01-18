@@ -68,6 +68,25 @@ export interface QuestMessage {
 }
 
 /**
+ * Communication message types for the comm panel.
+ */
+export type CommType = 'say' | 'tell' | 'channel';
+
+/**
+ * COMM protocol message type for say/tell/channel messages.
+ */
+export interface CommMessage {
+  type: 'comm';
+  commType: CommType;
+  sender: string;
+  message: string;
+  channel?: string;      // For channel messages
+  recipients?: string[]; // For group tells
+  timestamp: number;
+  isSender?: boolean;    // True if recipient is the one who sent this message
+}
+
+/**
  * Connection state.
  */
 export type ConnectionState = 'connecting' | 'open' | 'closing' | 'closed';
@@ -321,6 +340,25 @@ export class Connection extends EventEmitter {
     try {
       const json = JSON.stringify(message);
       this.socket.send(`\x00[COMPLETE]${json}`);
+    } catch (error) {
+      this.emit('error', error as Error);
+    }
+  }
+
+  /**
+   * Send a COMM protocol message to the client.
+   * COMM messages are prefixed with \x00[COMM] to distinguish them from regular text.
+   * Used for say/tell/channel messages to populate the communications panel.
+   * @param message The comm message to send
+   */
+  sendComm(message: CommMessage): void {
+    if (this._state !== 'open') {
+      return;
+    }
+
+    try {
+      const json = JSON.stringify(message);
+      this.socket.send(`\x00[COMM]${json}`);
     } catch (error) {
       this.emit('error', error as Error);
     }

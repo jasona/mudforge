@@ -61,6 +61,25 @@ export interface GUIMessage {
 }
 
 /**
+ * Communication message types for the comm panel.
+ */
+export type CommType = 'say' | 'tell' | 'channel';
+
+/**
+ * COMM message for say/tell/channel messages displayed in the comm panel.
+ */
+export interface CommMessage {
+  type: 'comm';
+  commType: CommType;
+  sender: string;
+  message: string;
+  channel?: string;      // For channel messages
+  recipients?: string[]; // For group tells
+  timestamp: number;
+  isSender?: boolean;    // True if recipient is the one who sent this message
+}
+
+/**
  * NPC AI context for configuring AI-powered dialogue.
  */
 export interface NPCAIContext {
@@ -1954,6 +1973,34 @@ export class EfunBridge {
     connection.send(`\x00[QUEST]${jsonStr}\n`);
   }
 
+  /**
+   * Send a COMM protocol message to a player for the communications panel.
+   * Used to capture say/tell/channel messages in a separate panel.
+   *
+   * @param targetPlayer The player to send to
+   * @param commMessage The communication message
+   */
+  sendComm(targetPlayer: MudObject, commMessage: CommMessage): void {
+    if (!targetPlayer) {
+      return; // Silently fail if no player
+    }
+
+    // Get the player's connection
+    const playerWithConnection = targetPlayer as MudObject & {
+      connection?: { send: (msg: string) => void };
+      _connection?: { send: (msg: string) => void };
+    };
+
+    const connection = playerWithConnection.connection || playerWithConnection._connection;
+    if (!connection?.send) {
+      return; // Silently fail if no connection
+    }
+
+    // Send structured message with COMM prefix
+    const jsonStr = JSON.stringify(commMessage);
+    connection.send(`\x00[COMM]${jsonStr}\n`);
+  }
+
   // ========== Config Efuns ==========
 
   /**
@@ -2660,6 +2707,7 @@ RULES:
       // GUI
       guiSend: this.guiSend.bind(this),
       sendQuestUpdate: this.sendQuestUpdate.bind(this),
+      sendComm: this.sendComm.bind(this),
 
       // Config
       getMudConfig: this.getMudConfig.bind(this),

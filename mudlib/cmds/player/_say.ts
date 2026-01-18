@@ -33,10 +33,21 @@ export function execute(ctx: CommandContext): void {
   }
 
   const playerName = (player as PlayerLike).name || 'Someone';
+  const timestamp = Date.now();
 
   // Tell the player what they said (use their own color preference)
   const selfColor = getPlayerColor(player, 'say');
   ctx.sendLine(formatWithColor(selfColor, `You say: ${args}`));
+
+  // Send to comm panel for the speaker
+  efuns.sendComm(player, {
+    type: 'comm',
+    commType: 'say',
+    sender: playerName,
+    message: args,
+    timestamp,
+    isSender: true,
+  });
 
   // Tell everyone else in the room (use each recipient's color preference)
   if (room) {
@@ -46,6 +57,16 @@ export function execute(ctx: CommandContext): void {
         if (other.receive) {
           const otherColor = getPlayerColor(other, 'say');
           other.receive(formatWithColor(otherColor, `${playerName} says: ${args}`) + '\n');
+
+          // Send to comm panel for each listener
+          efuns.sendComm(other, {
+            type: 'comm',
+            commType: 'say',
+            sender: playerName,
+            message: args,
+            timestamp,
+            isSender: false,
+          });
         }
         // Notify NPCs so they can respond
         if (other.hearSay) {

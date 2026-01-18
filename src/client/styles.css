@@ -1881,6 +1881,210 @@ h6.gui-heading { font-size: 12px; }
   /* Panels are shown/hidden via display property */
 }
 
+/* =============================================================================
+   Communications Panel
+   ============================================================================= */
+
+#comm-container {
+  position: absolute;
+  bottom: 60px;
+  left: 8px;
+  z-index: 100;
+}
+
+.comm-panel {
+  display: flex;
+  flex-direction: column;
+  width: 320px;
+  height: 250px;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow-lg);
+  opacity: 0.95;
+  transition: opacity 0.15s ease, box-shadow 0.15s ease;
+  overflow: hidden;
+}
+
+.comm-panel:hover {
+  opacity: 1;
+}
+
+.comm-panel.dragging {
+  opacity: 0.85;
+  box-shadow: var(--shadow-lg), 0 0 0 2px var(--accent);
+  cursor: grabbing;
+}
+
+.comm-panel.resizing {
+  box-shadow: var(--shadow-lg), 0 0 0 2px var(--accent);
+}
+
+.comm-panel.collapsed {
+  height: auto;
+}
+
+.comm-panel.collapsed .comm-panel-tabs,
+.comm-panel.collapsed .comm-panel-content,
+.comm-panel.collapsed .comm-panel-resize-handle {
+  display: none;
+}
+
+.comm-panel.hidden {
+  display: none;
+}
+
+.comm-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background-color: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border-primary);
+  cursor: grab;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.comm-panel-header:active {
+  cursor: grabbing;
+}
+
+.comm-panel-title {
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.comm-btn {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background-color: var(--bg-hover);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--border-radius-sm);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.comm-btn:hover {
+  color: var(--text-primary);
+  background-color: var(--bg-tertiary);
+  border-color: var(--accent);
+}
+
+.comm-panel-tabs {
+  display: flex;
+  gap: 2px;
+  padding: var(--spacing-xs);
+  background-color: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border-primary);
+  flex-shrink: 0;
+}
+
+.comm-tab {
+  flex: 1;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  color: var(--text-secondary);
+  background-color: var(--bg-hover);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--border-radius-sm);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.comm-tab:hover {
+  color: var(--text-primary);
+  background-color: var(--bg-secondary);
+}
+
+.comm-tab.active {
+  color: var(--accent);
+  background-color: var(--bg-secondary);
+  border-color: var(--accent);
+}
+
+.comm-panel-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--spacing-sm);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  line-height: 1.4;
+  background-color: var(--bg-terminal);
+}
+
+.comm-message {
+  padding: 2px 0;
+  word-wrap: break-word;
+}
+
+.comm-message-say {
+  color: var(--ansi-green);
+}
+
+.comm-message-tell {
+  color: var(--ansi-magenta);
+}
+
+.comm-message-channel {
+  color: var(--ansi-cyan);
+}
+
+.comm-timestamp {
+  color: var(--text-tertiary);
+  font-size: var(--font-size-xs);
+  margin-right: var(--spacing-xs);
+}
+
+.comm-sender {
+  font-weight: 600;
+}
+
+.comm-channel {
+  color: var(--ansi-yellow);
+  font-weight: 500;
+}
+
+/* Resize handle */
+.comm-panel-resize-handle {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 16px;
+  height: 16px;
+  cursor: nwse-resize;
+  z-index: 10;
+}
+
+.comm-panel-resize-handle::before {
+  content: '';
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid var(--text-tertiary);
+  border-bottom: 2px solid var(--text-tertiary);
+  opacity: 0.5;
+  transition: opacity 0.15s ease;
+}
+
+.comm-panel-resize-handle:hover::before {
+  opacity: 1;
+  border-color: var(--accent);
+}
+
 /* Responsive - compact floating panels on small screens */
 @media (max-width: 768px) {
   /* Make floating stats more compact on mobile */
@@ -1896,6 +2100,12 @@ h6.gui-heading { font-size: 12px; }
 
   .map-panel-content {
     min-height: 120px;
+  }
+
+  /* Make comm panel smaller on mobile */
+  .comm-panel {
+    width: 260px;
+    height: 180px;
   }
 }
 
