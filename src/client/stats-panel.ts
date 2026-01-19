@@ -1,20 +1,12 @@
 /**
- * StatsPanel - Draggable floating stats panel component.
+ * StatsPanel - Docked stats panel component.
  *
  * Displays player vitals (HP, MP, XP) with graphical bars,
- * plus level and gold information. Can be dragged to reposition,
- * and position is saved to localStorage.
+ * plus level and gold information. Docked in the left sidebar.
  */
 
 import type { StatsMessage } from './websocket-client.js';
 import { getAvatarSvg } from './avatars.js';
-
-const STORAGE_KEY = 'mudforge-stats-position';
-
-interface Position {
-  x: number;
-  y: number;
-}
 
 /**
  * StatsPanel class.
@@ -22,13 +14,8 @@ interface Position {
 export class StatsPanel {
   private container: HTMLElement;
   private panel: HTMLElement;
-  private header: HTMLElement | null = null;
   private isVisible: boolean = true;
   private isCollapsed: boolean = false;
-
-  // Drag state
-  private isDragging: boolean = false;
-  private dragOffset: Position = { x: 0, y: 0 };
 
   // Bar elements for updates
   private avatarContainer: HTMLElement | null = null;
@@ -114,7 +101,6 @@ export class StatsPanel {
     this.container.appendChild(this.panel);
 
     // Cache element references
-    this.header = this.panel.querySelector('.stats-panel-header');
     this.avatarContainer = this.panel.querySelector('[data-avatar]');
     this.hpBar = this.panel.querySelector('[data-bar="hp"]');
     this.hpText = this.panel.querySelector('[data-stat="hp"]');
@@ -125,9 +111,6 @@ export class StatsPanel {
     this.levelText = this.panel.querySelector('[data-stat="level"]');
     this.goldText = this.panel.querySelector('[data-stat="gold"]');
     this.bankText = this.panel.querySelector('[data-stat="bank"]');
-
-    // Restore saved position
-    this.restorePosition();
 
     // Set up event handlers
     this.setupEventHandlers();
@@ -142,171 +125,6 @@ export class StatsPanel {
       e.stopPropagation();
       this.toggle();
     });
-
-    // Drag handlers on header
-    if (this.header) {
-      this.header.addEventListener('mousedown', this.onDragStart.bind(this));
-      this.header.addEventListener('touchstart', this.onTouchStart.bind(this), { passive: false });
-    }
-
-    // Global mouse/touch move and up handlers
-    document.addEventListener('mousemove', this.onDragMove.bind(this));
-    document.addEventListener('mouseup', this.onDragEnd.bind(this));
-    document.addEventListener('touchmove', this.onTouchMove.bind(this), { passive: false });
-    document.addEventListener('touchend', this.onDragEnd.bind(this));
-  }
-
-  /**
-   * Handle drag start.
-   */
-  private onDragStart(e: MouseEvent): void {
-    // Ignore if clicking on the toggle button
-    if ((e.target as HTMLElement).closest('.stats-btn')) {
-      return;
-    }
-
-    this.isDragging = true;
-    this.panel.classList.add('dragging');
-
-    const rect = this.container.getBoundingClientRect();
-    this.dragOffset = {
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top,
-    };
-
-    e.preventDefault();
-  }
-
-  /**
-   * Handle touch start.
-   */
-  private onTouchStart(e: TouchEvent): void {
-    if ((e.target as HTMLElement).closest('.stats-btn')) {
-      return;
-    }
-
-    if (e.touches.length === 1) {
-      this.isDragging = true;
-      this.panel.classList.add('dragging');
-
-      const touch = e.touches[0];
-      const rect = this.container.getBoundingClientRect();
-      this.dragOffset = {
-        x: touch.clientX - rect.left,
-        y: touch.clientY - rect.top,
-      };
-
-      e.preventDefault();
-    }
-  }
-
-  /**
-   * Handle drag move.
-   */
-  private onDragMove(e: MouseEvent): void {
-    if (!this.isDragging) return;
-
-    const parent = this.container.parentElement;
-    if (!parent) return;
-
-    const parentRect = parent.getBoundingClientRect();
-    const panelRect = this.container.getBoundingClientRect();
-
-    let newX = e.clientX - parentRect.left - this.dragOffset.x;
-    let newY = e.clientY - parentRect.top - this.dragOffset.y;
-
-    // Clamp to parent bounds
-    newX = Math.max(0, Math.min(newX, parentRect.width - panelRect.width));
-    newY = Math.max(0, Math.min(newY, parentRect.height - panelRect.height));
-
-    this.setPosition(newX, newY);
-  }
-
-  /**
-   * Handle touch move.
-   */
-  private onTouchMove(e: TouchEvent): void {
-    if (!this.isDragging || e.touches.length !== 1) return;
-
-    const touch = e.touches[0];
-    const parent = this.container.parentElement;
-    if (!parent) return;
-
-    const parentRect = parent.getBoundingClientRect();
-    const panelRect = this.container.getBoundingClientRect();
-
-    let newX = touch.clientX - parentRect.left - this.dragOffset.x;
-    let newY = touch.clientY - parentRect.top - this.dragOffset.y;
-
-    // Clamp to parent bounds
-    newX = Math.max(0, Math.min(newX, parentRect.width - panelRect.width));
-    newY = Math.max(0, Math.min(newY, parentRect.height - panelRect.height));
-
-    this.setPosition(newX, newY);
-    e.preventDefault();
-  }
-
-  /**
-   * Handle drag end.
-   */
-  private onDragEnd(): void {
-    if (!this.isDragging) return;
-
-    this.isDragging = false;
-    this.panel.classList.remove('dragging');
-    this.savePosition();
-  }
-
-  /**
-   * Set panel position.
-   */
-  private setPosition(x: number, y: number): void {
-    this.container.style.left = `${x}px`;
-    this.container.style.top = `${y}px`;
-    this.container.style.right = 'auto';
-  }
-
-  /**
-   * Save position to localStorage.
-   */
-  private savePosition(): void {
-    try {
-      const position: Position = {
-        x: parseInt(this.container.style.left) || 0,
-        y: parseInt(this.container.style.top) || 0,
-      };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(position));
-    } catch {
-      // Ignore storage errors
-    }
-  }
-
-  /**
-   * Restore position from localStorage.
-   */
-  private restorePosition(): void {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const position: Position = JSON.parse(saved);
-        // Defer to allow container to be positioned
-        requestAnimationFrame(() => {
-          const parent = this.container.parentElement;
-          if (parent) {
-            const parentRect = parent.getBoundingClientRect();
-            const panelRect = this.container.getBoundingClientRect();
-
-            // Validate position is still within bounds
-            const x = Math.max(0, Math.min(position.x, parentRect.width - panelRect.width));
-            const y = Math.max(0, Math.min(position.y, parentRect.height - panelRect.height));
-
-            this.setPosition(x, y);
-          }
-        });
-      }
-    } catch {
-      // Ignore storage errors
-    }
   }
 
   /**

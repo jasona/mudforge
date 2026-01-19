@@ -43,6 +43,9 @@ export class Launcher {
     this.cacheElements();
     this.setupEventListeners();
     this.fetchGameConfig();
+
+    // Focus username field on load
+    this.usernameInput?.focus();
   }
 
   /**
