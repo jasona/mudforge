@@ -13,6 +13,7 @@ import { Connection } from './connection.js';
 import { ConnectionManager, getConnectionManager } from './connection-manager.js';
 import { EventEmitter } from 'events';
 import type { Logger } from 'pino';
+import { getDriverVersion, getGameConfig } from '../driver/version.js';
 
 /**
  * Server configuration.
@@ -101,6 +102,26 @@ export class Server extends EventEmitter {
         throw new Error('Server not ready');
       }
       return { status: 'ready' };
+    });
+
+    // Game/driver configuration endpoint (for client branding)
+    this.fastify.get('/api/config', async () => {
+      const game = getGameConfig();
+      const driver = getDriverVersion();
+      return {
+        game: {
+          name: game?.name ?? 'MudForge',
+          tagline: game?.tagline ?? 'Your Adventure Awaits',
+          version: game?.version ?? '1.0.0',
+          description: game?.description ?? 'A Modern MUD Experience',
+          establishedYear: game?.establishedYear ?? 2026,
+          website: game?.website ?? 'https://www.mudforge.org',
+        },
+        driver: {
+          name: driver.name,
+          version: driver.version,
+        },
+      };
     });
 
     // WebSocket endpoint

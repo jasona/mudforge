@@ -16,7 +16,13 @@
     "lint:fix": "eslint src/ tests/ --fix",
     "format": "prettier --write src/ tests/",
     "format:check": "prettier --check src/ tests/",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "bump:driver": "node scripts/bump-version.js driver",
+    "bump:driver:minor": "node scripts/bump-version.js driver minor",
+    "bump:driver:major": "node scripts/bump-version.js driver major",
+    "bump:game": "node scripts/bump-version.js game",
+    "bump:game:minor": "node scripts/bump-version.js game minor",
+    "bump:game:major": "node scripts/bump-version.js game major"
   },
   "repository": {
     "type": "git",

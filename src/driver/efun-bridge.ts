@@ -23,6 +23,13 @@ import { getI2Client } from '../network/i2-client.js';
 import { getGrapevineClient, type GrapevineEvent } from '../network/grapevine-client.js';
 import type { LPCValue } from '../network/lpc-codec.js';
 import type { I2Message } from '../network/i2-codec.js';
+import {
+  getDriverVersion,
+  getGameConfig,
+  getVersionString,
+  type DriverVersion,
+  type GameConfig,
+} from './version.js';
 
 /**
  * Pager options for the page efun.
@@ -2756,6 +2763,11 @@ RULES:
       grapevineUnsubscribe: this.grapevineUnsubscribe.bind(this),
       grapevineSend: this.grapevineSend.bind(this),
       grapevineOnMessage: this.grapevineOnMessage.bind(this),
+
+      // Version
+      driverVersion: this.driverVersion.bind(this),
+      gameConfig: this.gameConfig.bind(this),
+      versionString: this.versionString.bind(this),
     };
   }
 
@@ -3151,6 +3163,41 @@ RULES:
     if (this.grapevineMessageCallback) {
       this.grapevineMessageCallback(event);
     }
+  }
+
+  // ========== Version Efuns ==========
+
+  /**
+   * Get driver version information.
+   * @returns Object with driver name and version
+   */
+  driverVersion(): DriverVersion {
+    return getDriverVersion();
+  }
+
+  /**
+   * Get game configuration/identity.
+   * @returns Object with game name, tagline, version, etc.
+   */
+  gameConfig(): GameConfig {
+    return (
+      getGameConfig() ?? {
+        name: 'MudForge',
+        tagline: 'Your Adventure Awaits',
+        version: '1.0.0',
+        description: 'A Modern MUD Experience',
+        establishedYear: 2026,
+        website: 'https://www.mudforge.org',
+      }
+    );
+  }
+
+  /**
+   * Get formatted version string for display.
+   * @returns String like "GameName v1.0.0 (MudForge Driver v0.1.0)"
+   */
+  versionString(): string {
+    return getVersionString();
   }
 }
 

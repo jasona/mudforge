@@ -93,6 +93,9 @@ export const description = 'Show all connected players';
 export const usage = 'who';
 
 export async function execute(ctx: CommandContext): Promise<void> {
+  // Get game configuration
+  const game = efuns.gameConfig();
+
   // Get all connected players
   let players: MudObject[] = [];
   if (typeof efuns !== 'undefined' && efuns.allPlayers) {
@@ -107,16 +110,11 @@ export async function execute(ctx: CommandContext): Promise<void> {
   lines.push('');
   lines.push(`{cyan}╔${topBot}╗{/}`);
 
-  // ASCII Art Header - MUDFORGE (70 chars wide, centered in 80 char width)
+  // Dynamic game name header
   lines.push('');
-  lines.push('     {bold}{yellow}███╗   ███╗{/}{bold}{green}██╗   ██╗{/}{bold}{cyan}██████╗ {/}{bold}{magenta}███████╗{/}{bold}{red} ██████╗ {/}{bold}{yellow}██████╗ {/}{bold}{green} ██████╗ {/}{bold}{cyan}███████╗{/}');
-  lines.push('     {bold}{yellow}████╗ ████║{/}{bold}{green}██║   ██║{/}{bold}{cyan}██╔══██╗{/}{bold}{magenta}██╔════╝{/}{bold}{red}██╔═══██╗{/}{bold}{yellow}██╔══██╗{/}{bold}{green}██╔════╝ {/}{bold}{cyan}██╔════╝{/}');
-  lines.push('     {bold}{yellow}██╔████╔██║{/}{bold}{green}██║   ██║{/}{bold}{cyan}██║  ██║{/}{bold}{magenta}█████╗  {/}{bold}{red}██║   ██║{/}{bold}{yellow}██████╔╝{/}{bold}{green}██║  ███╗{/}{bold}{cyan}█████╗  {/}');
-  lines.push('     {bold}{yellow}██║╚██╔╝██║{/}{bold}{green}██║   ██║{/}{bold}{cyan}██║  ██║{/}{bold}{magenta}██╔══╝  {/}{bold}{red}██║   ██║{/}{bold}{yellow}██╔══██╗{/}{bold}{green}██║   ██║{/}{bold}{cyan}██╔══╝  {/}');
-  lines.push('     {bold}{yellow}██║ ╚═╝ ██║{/}{bold}{green}╚██████╔╝{/}{bold}{cyan}██████╔╝{/}{bold}{magenta}██║     {/}{bold}{red}╚██████╔╝{/}{bold}{yellow}██║  ██║{/}{bold}{green}╚██████╔╝{/}{bold}{cyan}███████╗{/}');
-  lines.push('     {bold}{yellow}╚═╝     ╚═╝{/}{bold}{green} ╚═════╝ {/}{bold}{cyan}╚═════╝ {/}{bold}{magenta}╚═╝     {/}{bold}{red} ╚═════╝ {/}{bold}{yellow}╚═╝  ╚═╝{/}{bold}{green} ╚═════╝ {/}{bold}{cyan}╚══════╝{/}');
+  lines.push(centerText(`{bold}{yellow}=== ${game.name.toUpperCase()} ==={/}`, BOX_WIDTH));
   lines.push('');
-  lines.push(centerText('{dim}A Modern MUD Experience - Est. 2026{/}', BOX_WIDTH));
+  lines.push(centerText(`{dim}${game.tagline} - Est. ${game.establishedYear}{/}`, BOX_WIDTH));
 
   // Divider
   lines.push(`{cyan}╠${topBot}╣{/}`);

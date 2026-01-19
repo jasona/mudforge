@@ -28,6 +28,7 @@ import pino, { type Logger } from 'pino';
 import type { MudObject } from './types.js';
 import type { Connection } from '../network/connection.js';
 import { join } from 'path';
+import { loadGameConfig } from './version.js';
 
 /**
  * Master object interface.
@@ -135,6 +136,10 @@ export class Driver {
     this.efunBridge = getEfunBridge({
       mudlibPath: this.config.mudlibPath,
     });
+
+    // Load game configuration (name, version, tagline)
+    const gameConfig = loadGameConfig(this.config.mudlibPath);
+    this.logger.info({ game: gameConfig.name, version: gameConfig.version }, 'Game config loaded');
 
     // Initialize Claude AI client if configured
     if (this.config.claudeApiKey) {

@@ -39,6 +39,53 @@ export class Launcher {
     this.onLoginSuccess = onLoginSuccess;
     this.cacheElements();
     this.setupEventListeners();
+    this.fetchGameConfig();
+  }
+
+  /**
+   * Fetch game configuration from the server and update UI.
+   */
+  private async fetchGameConfig(): Promise<void> {
+    try {
+      const response = await fetch('/api/config');
+      if (!response.ok) {
+        console.warn('Failed to fetch game config');
+        return;
+      }
+
+      const config = await response.json();
+
+      // Update launcher title
+      const titleEl = document.querySelector('.launcher-title');
+      if (titleEl && config.game?.name) {
+        titleEl.textContent = config.game.name;
+      }
+
+      // Update tagline
+      const taglineEl = document.querySelector('.launcher-tagline');
+      if (taglineEl && config.game?.tagline) {
+        taglineEl.textContent = config.game.tagline;
+      }
+
+      // Update page title
+      if (config.game?.name) {
+        document.title = config.game.name;
+      }
+
+      // Update in-game header
+      const headerTitle = document.querySelector('#header h1');
+      if (headerTitle && config.game?.name) {
+        headerTitle.textContent = config.game.name;
+      }
+
+      // Update meta description
+      const metaDesc = document.querySelector('meta[name="description"]');
+      if (metaDesc && config.game?.name && config.game?.description) {
+        metaDesc.setAttribute('content', `${config.game.name} - ${config.game.description}`);
+      }
+    } catch (error) {
+      console.warn('Failed to fetch game config:', error);
+    }
   }
 
   /**

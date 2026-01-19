@@ -203,11 +203,22 @@ export class LoginDaemon extends MudObject {
    * Send the welcome banner.
    */
   private sendBanner(connection: Connection): void {
+    const game = efuns.gameConfig();
+    const gameName = game.name;
+    const tagline = game.tagline;
+
+    // Center text within banner width
+    const bannerWidth = 80;
+    const centerText = (text: string): string => {
+      const padding = Math.max(0, Math.floor((bannerWidth - text.length) / 2));
+      return ' '.repeat(padding) + text;
+    };
+
     const banner = `
-================================================================================
-                      Welcome to MudForge
-                  A Modern MUD Experience
-================================================================================
+${'='.repeat(bannerWidth)}
+${centerText(`Welcome to ${gameName}`)}
+${centerText(tagline)}
+${'='.repeat(bannerWidth)}
 
 `;
     connection.send(banner);
