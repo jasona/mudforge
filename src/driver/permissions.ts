@@ -212,22 +212,16 @@ export class Permissions {
       return true;
     }
 
-    // Senior builders can write to senior paths + builder paths
+    // Senior builders can write to senior paths
     if (level >= PermissionLevel.SeniorBuilder) {
-      if (this.isSeniorPath(path) || this.isBuilderPath(path)) {
+      if (this.isSeniorPath(path)) {
         this.logAction(player, 'write', path, true);
         return true;
       }
     }
 
-    // Builders can write to builder paths
-    if (level >= PermissionLevel.Builder) {
-      if (this.isBuilderPath(path)) {
-        this.logAction(player, 'write', path, true);
-        return true;
-      }
-    }
-
+    // Builders (and senior builders) must have explicit domain assignments
+    // to write to builder paths like /areas/
     // Check individual domains (for specific player assignments)
     const domains = this.getDomains(name);
     for (const domain of domains) {

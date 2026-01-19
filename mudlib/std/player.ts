@@ -960,11 +960,11 @@ export class Player extends Living {
    * Uses the central permissions system as the source of truth.
    */
   get permissionLevel(): number {
-    // Use central permissions system if we have a name
-    if (this._name) {
+    // Use central permissions system if we have a name and efuns is available
+    if (this._name && typeof efuns !== 'undefined' && efuns.getPlayerPermissionLevel) {
       return efuns.getPlayerPermissionLevel(this._name);
     }
-    // Fall back to local property during initialization
+    // Fall back to local property during initialization or in tests
     return this._permissionLevel;
   }
 
@@ -1206,6 +1206,12 @@ export class Player extends Living {
     this._experience -= cost;
     this.level++;
     this.receive(`{bold}{yellow}Congratulations! You are now level ${this.level}!{/}\n`);
+
+    // Play level up celebration sound
+    if (typeof efuns !== 'undefined' && efuns.playSound) {
+      efuns.playSound(this, 'celebration', 'levelup', { volume: 0.7 });
+    }
+
     this.onLevelUp();
     return true;
   }
@@ -1690,6 +1696,11 @@ export class Player extends Living {
     this.receive('  {cyan}resurrect shrine{/} - Return to the nearest shrine (no items)\n');
     this.receive('\n');
 
+    // Play death sound
+    if (typeof efuns !== 'undefined' && efuns.playSound) {
+      efuns.playSound(this, 'alert', 'death', { volume: 0.7 });
+    }
+
     // Notify room
     if (this._deathLocation && 'broadcast' in this._deathLocation) {
       (this._deathLocation as MudObject & { broadcast: (msg: string, opts?: { exclude?: MudObject[] }) => void })
@@ -1753,6 +1764,11 @@ export class Player extends Living {
     this.receive('{green}{bold}You have been resurrected!{/}\n');
     this.receive('{dim}You feel weak, but alive. Your items have been recovered.{/}\n');
     this.receive('\n');
+
+    // Play resurrection sound
+    if (typeof efuns !== 'undefined' && efuns.playSound) {
+      efuns.playSound(this, 'alert', 'resurrection', { volume: 0.7 });
+    }
 
     // Notify room
     const room = this.environment;
@@ -1820,6 +1836,11 @@ export class Player extends Living {
       this.receive(`{dim}Your corpse is at: ${locationDesc}{/}\n`);
     }
     this.receive('\n');
+
+    // Play resurrection sound
+    if (typeof efuns !== 'undefined' && efuns.playSound) {
+      efuns.playSound(this, 'alert', 'resurrection', { volume: 0.7 });
+    }
 
     // Notify room
     const room = this.environment;

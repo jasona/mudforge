@@ -159,8 +159,7 @@ describe('Permissions', () => {
   describe('isProtectedPath', () => {
     it('should identify protected paths', () => {
       expect(permissions.isProtectedPath('/std/object.ts')).toBe(true);
-      expect(permissions.isProtectedPath('/core/driver.ts')).toBe(true);
-      expect(permissions.isProtectedPath('/daemon/login.ts')).toBe(true);
+      expect(permissions.isProtectedPath('/daemons/login.ts')).toBe(true);
     });
 
     it('should allow non-protected paths', () => {

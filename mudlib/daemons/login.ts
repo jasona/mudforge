@@ -204,7 +204,7 @@ export class LoginDaemon extends MudObject {
    * Send the welcome banner.
    */
   private sendBanner(connection: Connection): void {
-    const game = efuns.gameConfig();
+    const game = typeof efuns !== 'undefined' ? efuns.gameConfig() : { name: 'MudForge', tagline: 'A Modern MUD' };
     const gameName = game.name;
     const tagline = game.tagline;
 

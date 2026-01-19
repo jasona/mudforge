@@ -683,7 +683,7 @@ export class Living extends MudObject {
       }
 
       // Notify NPCs in the room that someone entered
-      for (const obj of newEnv.contents) {
+      for (const obj of newEnv.inventory) {
         if (obj !== this && obj instanceof Living) {
           // Check if the living has an onEnter method (NPCs do)
           const npc = obj as Living & { onEnter?: (who: Living, from?: Room) => void | Promise<void> };
