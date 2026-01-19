@@ -45,7 +45,7 @@ export class GeminiClient {
   constructor(config: Partial<GeminiClientConfig>) {
     this.config = {
       apiKey: config.apiKey ?? '',
-      model: config.model ?? 'gemini-2.5-flash-preview-05-20',
+      model: config.model ?? 'gemini-2.5-flash-image',
       rateLimitPerMinute: config.rateLimitPerMinute ?? 10,
       cacheTtlMs: config.cacheTtlMs ?? 3600000, // 1 hour default for images
     };
@@ -162,7 +162,6 @@ export class GeminiClient {
         contents: Array<{ parts: Array<{ text: string }> }>;
         generationConfig: {
           responseModalities: string[];
-          responseMimeType: string;
         };
       } = {
         contents: [
@@ -171,8 +170,7 @@ export class GeminiClient {
           },
         ],
         generationConfig: {
-          responseModalities: ['TEXT', 'IMAGE'],
-          responseMimeType: 'text/plain',
+          responseModalities: ['IMAGE'],
         },
       };
 

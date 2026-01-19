@@ -112,6 +112,17 @@ interface AIGenerateResult {
 }
 
 /**
+ * AI image generation result (Nano Banana).
+ */
+interface AIImageGenerateResult {
+  success: boolean;
+  imageBase64?: string;
+  mimeType?: string;
+  error?: string;
+  cached?: boolean;
+}
+
+/**
  * AI description result.
  */
 interface AIDescribeResult {
@@ -638,6 +649,19 @@ declare global {
       playerMessage: string,
       conversationHistory?: Array<{ role: 'player' | 'npc'; content: string }>
     ): Promise<AINpcResponseResult>;
+
+    /** Check if Gemini AI (Nano Banana) image generation is configured and available */
+    aiImageAvailable(): boolean;
+
+    /**
+     * Generate an image using Gemini AI (Nano Banana).
+     * @param prompt Description of the image to generate
+     * @param options Optional configuration (aspectRatio)
+     */
+    aiImageGenerate(
+      prompt: string,
+      options?: { aspectRatio?: '1:1' | '2:3' | '3:2' | '3:4' | '4:3' | '4:5' | '5:4' | '9:16' | '16:9' | '21:9' }
+    ): Promise<AIImageGenerateResult>;
 
     // ========== Intermud 3 Efuns ==========
 

@@ -135,7 +135,7 @@ export function loadConfig(): DriverConfig {
 
     // Gemini AI (Nano Banana image generation)
     geminiApiKey: process.env['GEMINI_API_KEY'] ?? '',
-    geminiModel: process.env['GEMINI_MODEL'] ?? 'gemini-2.5-flash-preview-05-20',
+    geminiModel: process.env['GEMINI_MODEL'] ?? 'gemini-2.5-flash-image',
     geminiRateLimitPerMinute: parseNumber(process.env['GEMINI_RATE_LIMIT'], 10),
     geminiCacheTtlMs: parseNumber(process.env['GEMINI_CACHE_TTL_MS'], 3600000),
 
