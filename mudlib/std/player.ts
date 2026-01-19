@@ -1030,6 +1030,7 @@ export class Player extends Living {
 
     // Send stats update to client (for graphical display)
     if (this._connection?.sendStats) {
+      const profilePortrait = this.getProperty('profilePortrait');
       this._connection.sendStats({
         type: 'update',
         hp: this.health,
@@ -1044,6 +1045,7 @@ export class Player extends Living {
         permissionLevel: this._permissionLevel,
         cwd: this._cwd,
         avatar: this._avatar,
+        profilePortrait: typeof profilePortrait === 'string' ? profilePortrait : undefined,
       });
     }
 

@@ -42,6 +42,7 @@ export interface StatsMessage {
   permissionLevel: number;
   cwd: string;
   avatar: string;
+  profilePortrait?: string; // AI-generated portrait data URI
 }
 
 /**

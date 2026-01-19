@@ -59,13 +59,20 @@ export class PortraitDaemon extends MudObject {
 
   /**
    * Get a portrait for a living target.
-   * Returns SVG markup.
+   * Returns SVG markup or data URI for AI-generated portraits.
    */
   async getPortrait(target: Living): Promise<string> {
     // Check if target is a player (has avatar property)
-    const asPlayer = target as Living & { avatar?: string };
+    const asPlayer = target as Living & { avatar?: string; getProperty?: (key: string) => unknown };
     if (asPlayer.avatar) {
-      // Player - return their avatar SVG
+      // Check for AI-generated profile portrait first
+      if (asPlayer.getProperty) {
+        const profilePortrait = asPlayer.getProperty('profilePortrait');
+        if (profilePortrait && typeof profilePortrait === 'string') {
+          return profilePortrait; // Return the data URI
+        }
+      }
+      // Fall back to built-in avatar
       return this.getPlayerPortrait(asPlayer.avatar);
     }
 

@@ -133,9 +133,15 @@ export class StatsPanel {
   handleMessage(message: StatsMessage): void {
     if (message.type !== 'update') return;
 
-    // Update avatar
-    if (this.avatarContainer && message.avatar) {
-      this.avatarContainer.innerHTML = getAvatarSvg(message.avatar);
+    // Update avatar - prefer AI portrait if available
+    if (this.avatarContainer) {
+      if (message.profilePortrait && message.profilePortrait.startsWith('data:')) {
+        // Use AI-generated portrait
+        this.avatarContainer.innerHTML = `<img src="${message.profilePortrait}" alt="Portrait" class="stats-avatar-img" />`;
+      } else if (message.avatar) {
+        // Fall back to base avatar SVG
+        this.avatarContainer.innerHTML = getAvatarSvg(message.avatar);
+      }
     }
 
     // Update level

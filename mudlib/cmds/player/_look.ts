@@ -101,6 +101,15 @@ export function execute(ctx: CommandContext): void {
   // Check room contents
   const roomItem = findItem(target, room.inventory);
   if (roomItem) {
+    // Check if target is a player with character description
+    const asPlayer = roomItem as MudObject & { getProperty?: (key: string) => unknown };
+    if (asPlayer.getProperty) {
+      const charDesc = asPlayer.getProperty('characterDescription');
+      if (charDesc && typeof charDesc === 'string') {
+        ctx.sendLine(charDesc);
+        return;
+      }
+    }
     ctx.sendLine(getObjectDescription(roomItem));
     return;
   }
