@@ -118,12 +118,22 @@ const SOUND_MAP: Record<string, string> = {
 };
 
 /**
+ * Metadata for a looping sound (used for pause/resume).
+ */
+interface LoopMetadata {
+  category: SoundCategory;
+  sound: string;
+  volume?: number;
+}
+
+/**
  * Audio playback manager.
  */
 export class SoundManager {
   private settings: SoundSettings;
   private audioCache: Map<string, HTMLAudioElement> = new Map();
   private loopingSounds: Map<string, HTMLAudioElement> = new Map();
+  private loopMetadata: Map<string, LoopMetadata> = new Map(); // Track loop info for resume
 
   constructor() {
     this.settings = this.loadSettings();
@@ -270,12 +280,15 @@ export class SoundManager {
    * The category determines which indicator is shown and which toggle applies.
    */
   loop(category: SoundCategory, sound: string, id: string, volume?: number): void {
+    // Always store metadata so we can resume later
+    this.loopMetadata.set(id, { category, sound, volume });
+
     if (!this.shouldPlay(category)) {
       return;
     }
 
     // Stop existing sound with same id
-    this.stopById(id);
+    this.stopById(id, false); // Don't clear metadata
 
     const audio = this.getAudio(category, sound);
     if (!audio) {
@@ -300,28 +313,34 @@ export class SoundManager {
 
   /**
    * Stop a specific looping sound by id.
+   * @param clearMetadata If true, also clears the loop metadata (default: true)
    */
-  stopById(id: string): void {
+  stopById(id: string, clearMetadata: boolean = true): void {
     const audio = this.loopingSounds.get(id);
     if (audio) {
       audio.pause();
       audio.currentTime = 0;
       this.loopingSounds.delete(id);
     }
+    if (clearMetadata) {
+      this.loopMetadata.delete(id);
+    }
   }
 
   /**
    * Stop all looping sounds in a category.
+   * @param clearMetadata If true, also clears the loop metadata (default: true)
    */
-  stopCategory(category: SoundCategory): void {
-    const prefix = `${category}/`;
+  stopCategory(category: SoundCategory, clearMetadata: boolean = true): void {
     for (const [id, audio] of this.loopingSounds.entries()) {
-      // Check if this is a category-based id or matches the category pattern
-      const soundKey = audio.src;
-      if (soundKey.includes(prefix) || id.startsWith(prefix)) {
+      const metadata = this.loopMetadata.get(id);
+      if (metadata && metadata.category === category) {
         audio.pause();
         audio.currentTime = 0;
         this.loopingSounds.delete(id);
+        if (clearMetadata) {
+          this.loopMetadata.delete(id);
+        }
       }
     }
   }
@@ -339,13 +358,29 @@ export class SoundManager {
 
   /**
    * Stop all looping sounds.
+   * @param clearMetadata If true, also clears the loop metadata (default: true)
    */
-  stopAll(): void {
+  stopAll(clearMetadata: boolean = true): void {
     for (const audio of this.loopingSounds.values()) {
       audio.pause();
       audio.currentTime = 0;
     }
     this.loopingSounds.clear();
+    if (clearMetadata) {
+      this.loopMetadata.clear();
+    }
+  }
+
+  /**
+   * Resume all loops that were playing (used when unmuting).
+   */
+  private resumeLoops(): void {
+    for (const [id, metadata] of this.loopMetadata.entries()) {
+      // Only resume if the category is enabled
+      if (this.settings.categoryEnabled[metadata.category]) {
+        this.loop(metadata.category, metadata.sound, id, metadata.volume);
+      }
+    }
   }
 
   /**
@@ -382,7 +417,11 @@ export class SoundManager {
   setEnabled(enabled: boolean): void {
     this.settings.enabled = enabled;
     if (!enabled) {
-      this.stopAll();
+      // Pause all loops but keep metadata so we can resume
+      this.stopAll(false);
+    } else {
+      // Resume any loops that were playing
+      this.resumeLoops();
     }
     this.saveSettings();
   }
@@ -427,7 +466,15 @@ export class SoundManager {
   setCategoryEnabled(category: SoundCategory, enabled: boolean): void {
     this.settings.categoryEnabled[category] = enabled;
     if (!enabled) {
-      this.stopCategory(category);
+      // Stop but keep metadata so we can resume
+      this.stopCategory(category, false);
+    } else if (this.settings.enabled) {
+      // Resume any loops in this category
+      for (const [id, metadata] of this.loopMetadata.entries()) {
+        if (metadata.category === category) {
+          this.loop(metadata.category, metadata.sound, id, metadata.volume);
+        }
+      }
     }
     this.saveSettings();
   }

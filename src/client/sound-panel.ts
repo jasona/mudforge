@@ -6,6 +6,8 @@
 
 import { SoundManager, ALL_CATEGORIES, type SoundCategory, type SoundMessage } from './sound-manager.js';
 
+const EXPANDED_STORAGE_KEY = 'mudforge-sound-expanded';
+
 /**
  * Category display information.
  */
@@ -41,7 +43,33 @@ export class SoundPanel {
     }
     this.container = container;
     this.soundManager = soundManager;
+    this.restoreExpandedState();
     this.render();
+  }
+
+  /**
+   * Restore expanded state from localStorage.
+   */
+  private restoreExpandedState(): void {
+    try {
+      const saved = localStorage.getItem(EXPANDED_STORAGE_KEY);
+      if (saved !== null) {
+        this.isExpanded = saved === 'true';
+      }
+    } catch {
+      // Ignore storage errors
+    }
+  }
+
+  /**
+   * Save expanded state to localStorage.
+   */
+  private saveExpandedState(): void {
+    try {
+      localStorage.setItem(EXPANDED_STORAGE_KEY, String(this.isExpanded));
+    } catch {
+      // Ignore storage errors
+    }
   }
 
   /**
@@ -54,6 +82,11 @@ export class SoundPanel {
     this.container.appendChild(this.panelElement);
     this.attachEventListeners();
     this.updateUI();
+
+    // Apply initial expanded state
+    if (this.isExpanded) {
+      this.setExpanded(true);
+    }
   }
 
   /**
@@ -123,13 +156,6 @@ export class SoundPanel {
         this.updateCategoryButtons();
       });
     });
-
-    // Click outside to collapse
-    document.addEventListener('click', (e) => {
-      if (this.isExpanded && !this.panelElement?.contains(e.target as Node)) {
-        this.setExpanded(false);
-      }
-    });
   }
 
   /**
@@ -149,6 +175,7 @@ export class SoundPanel {
       expandedPanel.classList.toggle('hidden', !expanded);
     }
     this.panelElement?.classList.toggle('expanded', expanded);
+    this.saveExpandedState();
   }
 
   /**
