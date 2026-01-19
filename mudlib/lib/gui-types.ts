@@ -79,9 +79,13 @@ export interface ElementStyle {
   gridColumn?: string;
   gridRow?: string;
   overflow?: 'visible' | 'hidden' | 'scroll' | 'auto';
+  overflowY?: 'visible' | 'hidden' | 'scroll' | 'auto';
   display?: string;
   gap?: string;
   cursor?: string;
+  objectFit?: 'contain' | 'cover' | 'fill' | 'none' | 'scale-down';
+  lineHeight?: string;
+  textTransform?: string;
 }
 
 // =============================================================================

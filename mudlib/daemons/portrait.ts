@@ -1,18 +1,27 @@
 /**
- * Portrait Daemon - Manages portrait generation for combat target display.
+ * Portrait Daemon - Manages AI-generated images for objects.
  *
- * Provides portraits for players (using their avatar) and NPCs (AI-generated
- * or fallback silhouette). NPC portraits are cached to disk to avoid
- * regenerating them.
+ * Provides images for:
+ * - Players (using their avatar or AI-generated profile portrait)
+ * - NPCs (AI-generated from longDesc)
+ * - Weapons, Armor, Containers, Items (AI-generated from longDesc)
+ *
+ * All generated images are cached to disk to avoid regenerating them.
  *
  * Usage:
  *   const daemon = getPortraitDaemon();
- *   const svg = await daemon.getPortrait(target);
+ *   const portrait = await daemon.getPortrait(target);
+ *   const image = await daemon.getObjectImage(obj, 'weapon');
  */
 
 import { MudObject } from '../std/object.js';
 import type { Living } from '../std/living.js';
 import { createHash } from 'crypto';
+
+/**
+ * Object image types.
+ */
+export type ObjectImageType = 'player' | 'npc' | 'weapon' | 'armor' | 'container' | 'item';
 
 /**
  * Cached portrait data.
@@ -24,7 +33,7 @@ interface CachedPortrait {
 }
 
 /**
- * Fallback SVG for when AI generation fails.
+ * Fallback SVG for when AI generation fails (for living beings).
  * A simple dark silhouette that works for any creature type.
  */
 const FALLBACK_SVG = `<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
@@ -37,10 +46,30 @@ const FALLBACK_SVG = `<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg
 </svg>`;
 
 /**
+ * Fallback SVG for items when AI generation fails.
+ * A simple treasure chest icon.
+ */
+const FALLBACK_ITEM_SVG = `<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+  <rect width="64" height="64" fill="#1a1a2e"/>
+  <rect x="12" y="24" width="40" height="28" rx="4" fill="#3d2d1d"/>
+  <rect x="12" y="20" width="40" height="8" rx="2" fill="#4d3d2d"/>
+  <rect x="28" y="32" width="8" height="10" rx="2" fill="#6a5a4a"/>
+  <circle cx="32" cy="36" r="2" fill="#8a7a6a"/>
+</svg>`;
+
+/**
  * Get the fallback portrait as a data URI.
  */
 function getFallbackDataUri(): string {
   const base64 = Buffer.from(FALLBACK_SVG).toString('base64');
+  return `data:image/svg+xml;base64,${base64}`;
+}
+
+/**
+ * Get the fallback item image as a data URI.
+ */
+function getFallbackItemDataUri(): string {
+  const base64 = Buffer.from(FALLBACK_ITEM_SVG).toString('base64');
   return `data:image/svg+xml;base64,${base64}`;
 }
 
@@ -195,8 +224,21 @@ export class PortraitDaemon extends MudObject {
     // Get the NPC's description
     const description = npc.longDesc || npc.shortDesc || 'a mysterious creature';
 
+    // Build the portrait prompt
+    const prompt = `Create a small square portrait icon for a fantasy RPG game character:
+
+${description}
+
+Style requirements:
+- Dark fantasy art style with rich, moody colors
+- Portrait/headshot composition focused on face/upper body
+- Dramatic lighting with shadows
+- Painterly texture suitable for a game UI
+- Should look like a character portrait from a classic RPG game
+- 64x64 pixel icon style, bold and recognizable`;
+
     // Try AI image generation with Gemini (Nano Banana)
-    const imageResult = await this.callAiImageGeneration(description);
+    const imageResult = await this.callAiImageGeneration(prompt);
     if (imageResult) {
       const portrait: CachedPortrait = {
         image: imageResult.imageBase64,
@@ -213,26 +255,15 @@ export class PortraitDaemon extends MudObject {
   }
 
   /**
-   * Call Gemini AI (Nano Banana) to generate an image portrait.
+   * Call Gemini AI (Nano Banana) to generate an image.
+   * @param prompt The full prompt to send to the AI
    */
-  private async callAiImageGeneration(description: string): Promise<{ imageBase64: string; mimeType: string } | null> {
+  private async callAiImageGeneration(prompt: string): Promise<{ imageBase64: string; mimeType: string } | null> {
     if (typeof efuns === 'undefined' || !efuns.aiImageAvailable?.()) {
       return null;
     }
 
     try {
-      const prompt = `Create a small square portrait icon for a fantasy RPG game character:
-
-${description}
-
-Style requirements:
-- Dark fantasy art style with rich, moody colors
-- Portrait/headshot composition focused on face/upper body
-- Dramatic lighting with shadows
-- Painterly texture suitable for a game UI
-- Should look like a character portrait from a classic RPG game
-- 64x64 pixel icon style, bold and recognizable`;
-
       const result = await efuns.aiImageGenerate(prompt, {
         aspectRatio: '1:1',
       });
@@ -249,6 +280,219 @@ Style requirements:
       console.error('[PortraitDaemon] Gemini image generation failed:', error);
       return null;
     }
+  }
+
+  // ========== Object Image Generation ==========
+
+  /**
+   * Get an image for any MudObject.
+   * Uses AI generation with disk/memory caching.
+   * @param obj The object to get an image for
+   * @param type The object type for prompt selection
+   * @param extraContext Optional extra context for prompt generation
+   */
+  async getObjectImage(
+    obj: MudObject,
+    type: ObjectImageType,
+    extraContext?: Record<string, unknown>
+  ): Promise<string> {
+    const objPath = obj.objectPath || '';
+    if (!objPath) {
+      return type === 'npc' || type === 'player' ? getFallbackDataUri() : getFallbackItemDataUri();
+    }
+
+    const cacheKey = this.getObjectCacheKey(objPath, type);
+
+    // Check memory cache
+    const cached = this._cache.get(cacheKey);
+    if (cached) {
+      return `data:${cached.mimeType};base64,${cached.image}`;
+    }
+
+    // Check if generation is already in progress
+    const pending = this._pendingGenerations.get(cacheKey);
+    if (pending) {
+      return pending;
+    }
+
+    // Check disk cache
+    const diskCached = await this.loadObjectFromDisk(cacheKey, type);
+    if (diskCached) {
+      this._cache.set(cacheKey, diskCached);
+      return `data:${diskCached.mimeType};base64,${diskCached.image}`;
+    }
+
+    // Generate new image
+    const generationPromise = this.generateObjectImage(obj, type, cacheKey, extraContext);
+    this._pendingGenerations.set(cacheKey, generationPromise);
+
+    try {
+      const dataUri = await generationPromise;
+      return dataUri;
+    } finally {
+      this._pendingGenerations.delete(cacheKey);
+    }
+  }
+
+  /**
+   * Generate a cache key for an object.
+   */
+  private getObjectCacheKey(objPath: string, type: ObjectImageType): string {
+    const hash = createHash('md5').update(objPath).digest('hex').slice(0, 16);
+    return `${type}_${hash}`;
+  }
+
+  /**
+   * Load a cached object image from disk.
+   */
+  private async loadObjectFromDisk(cacheKey: string, type: ObjectImageType): Promise<CachedPortrait | null> {
+    if (typeof efuns === 'undefined' || !efuns.readFile) {
+      return null;
+    }
+
+    try {
+      const filePath = `/data/images/${type}/${cacheKey}.json`;
+      const exists = await efuns.fileExists(filePath);
+      if (!exists) {
+        return null;
+      }
+
+      const content = await efuns.readFile(filePath);
+      const data = JSON.parse(content) as CachedPortrait;
+      return data;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Save an object image to disk cache.
+   */
+  private async saveObjectToDisk(cacheKey: string, type: ObjectImageType, portrait: CachedPortrait): Promise<void> {
+    if (typeof efuns === 'undefined' || !efuns.writeFile) {
+      return;
+    }
+
+    try {
+      // Ensure directory exists
+      const dirPath = `/data/images/${type}`;
+      const dirExists = await efuns.fileExists(dirPath);
+      if (!dirExists) {
+        await efuns.makeDir(dirPath, true);
+      }
+
+      const filePath = `/data/images/${type}/${cacheKey}.json`;
+      await efuns.writeFile(filePath, JSON.stringify(portrait, null, 2));
+    } catch (error) {
+      console.error('[PortraitDaemon] Failed to save object image to disk:', error);
+    }
+  }
+
+  /**
+   * Generate an AI image for an object.
+   */
+  private async generateObjectImage(
+    obj: MudObject,
+    type: ObjectImageType,
+    cacheKey: string,
+    extraContext?: Record<string, unknown>
+  ): Promise<string> {
+    const description = obj.longDesc || obj.shortDesc || 'a mysterious object';
+    const prompt = this.buildObjectPrompt(description, type, extraContext);
+
+    const imageResult = await this.callAiImageGeneration(prompt);
+    if (imageResult) {
+      const portrait: CachedPortrait = {
+        image: imageResult.imageBase64,
+        mimeType: imageResult.mimeType,
+        generatedAt: Date.now(),
+      };
+      this._cache.set(cacheKey, portrait);
+      await this.saveObjectToDisk(cacheKey, type, portrait);
+      return `data:${imageResult.mimeType};base64,${imageResult.imageBase64}`;
+    }
+
+    // Fall back to generic image
+    return type === 'npc' || type === 'player' ? getFallbackDataUri() : getFallbackItemDataUri();
+  }
+
+  /**
+   * Build an AI prompt for an object type.
+   */
+  private buildObjectPrompt(description: string, type: ObjectImageType, extraContext?: Record<string, unknown>): string {
+    switch (type) {
+      case 'player':
+        return `Create a small square portrait icon for a fantasy RPG player character:
+
+${description}
+
+Style requirements:
+- Dark fantasy art style with rich, moody colors
+- Portrait/headshot composition focused on face/upper body
+- Dramatic lighting with shadows
+- Painterly texture suitable for a game UI
+- Should look like a character portrait from a classic RPG game
+- 64x64 pixel icon style, bold and recognizable`;
+
+      case 'npc':
+        return `Create a small square portrait icon for a fantasy RPG game character:
+
+${description}
+
+Style requirements:
+- Dark fantasy art style with rich, moody colors
+- Portrait/headshot composition focused on face/upper body
+- Dramatic lighting with shadows
+- Painterly texture suitable for a game UI
+- Should look like a character portrait from a classic RPG game
+- 64x64 pixel icon style, bold and recognizable`;
+
+      case 'weapon':
+        const damageType = extraContext?.damageType as string | undefined;
+        return `Create a fantasy RPG weapon icon:
+${description}
+
+Style: Dark fantasy, painterly, dramatic lighting
+${damageType ? `Damage type: ${damageType}` : ''}
+Square composition, item icon style on a dark background
+No text, clean iconic design`;
+
+      case 'armor':
+        const slot = extraContext?.slot as string | undefined;
+        return `Create a fantasy RPG armor piece icon:
+${description}
+
+Style: Dark fantasy, painterly, dramatic lighting
+${slot ? `Slot: ${slot}` : ''}
+Square composition, item icon style on a dark background
+No text, clean iconic design`;
+
+      case 'container':
+        const state = extraContext?.isOpen ? 'open' : 'closed';
+        return `Create a fantasy RPG container icon:
+${description}
+
+Style: Dark fantasy, painterly
+State: ${state}
+Square composition, item icon style on a dark background
+No text, clean iconic design`;
+
+      case 'item':
+      default:
+        return `Create a fantasy RPG item icon:
+${description}
+
+Style: Dark fantasy, painterly, dramatic lighting
+Square composition, item icon style on a dark background
+No text, clean iconic design`;
+    }
+  }
+
+  /**
+   * Get the fallback image for an object type.
+   */
+  getFallbackImage(type: ObjectImageType): string {
+    return type === 'npc' || type === 'player' ? getFallbackDataUri() : getFallbackItemDataUri();
   }
 
   /**

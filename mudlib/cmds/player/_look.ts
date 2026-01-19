@@ -3,12 +3,13 @@
  *
  * Usage:
  *   look                    - Look at the room
- *   look <object>           - Examine an object
+ *   look <object>           - Examine an object (opens modal with AI image)
  *   look in <container>     - Look inside a container
  */
 
 import type { MudObject } from '../../lib/std.js';
 import { Container, NPC } from '../../lib/std.js';
+import { openLookModal } from '../../lib/look-modal.js';
 
 interface CommandContext {
   player: MudObject;
@@ -72,7 +73,7 @@ function formatWithThe(shortDesc: string): string {
   return 'The ' + shortDesc;
 }
 
-export function execute(ctx: CommandContext): void {
+export async function execute(ctx: CommandContext): Promise<void> {
   const { player, args } = ctx;
   const room = player.environment as Room | null;
 
@@ -82,12 +83,12 @@ export function execute(ctx: CommandContext): void {
   }
 
   if (!args) {
-    // Look at the room
+    // Look at the room - stays text-based
     lookAtRoom(ctx, room, player);
     return;
   }
 
-  // Check for "look in <container>" syntax
+  // Check for "look in <container>" syntax - stays text-based
   const inMatch = args.match(/^in\s+(.+)$/i);
   if (inMatch) {
     const containerName = inMatch[1].trim();
@@ -95,29 +96,22 @@ export function execute(ctx: CommandContext): void {
     return;
   }
 
-  // Look at something specific
+  // Look at something specific - use modal with AI image
   const target = args.toLowerCase();
 
   // Check room contents
   const roomItem = findItem(target, room.inventory);
   if (roomItem) {
-    // Check if target is a player with character description
-    const asPlayer = roomItem as MudObject & { getProperty?: (key: string) => unknown };
-    if (asPlayer.getProperty) {
-      const charDesc = asPlayer.getProperty('characterDescription');
-      if (charDesc && typeof charDesc === 'string') {
-        ctx.sendLine(charDesc);
-        return;
-      }
-    }
-    ctx.sendLine(getObjectDescription(roomItem));
+    // Open the look modal with AI-generated image
+    await openLookModal(player, roomItem);
     return;
   }
 
   // Check player's inventory
   const invItem = findItem(target, player.inventory);
   if (invItem) {
-    ctx.sendLine(getObjectDescription(invItem));
+    // Open the look modal with AI-generated image
+    await openLookModal(player, invItem);
     return;
   }
 
@@ -226,4 +220,9 @@ function lookInContainer(
   }
 }
 
-export default { name, description, usage, execute };
+export default {
+  name,
+  description,
+  usage,
+  execute,
+};

@@ -43,9 +43,13 @@ export function applyStyle(element: HTMLElement, style?: ElementStyle): void {
     gridColumn: 'gridColumn',
     gridRow: 'gridRow',
     overflow: 'overflow',
+    overflowY: 'overflowY',
     display: 'display',
     gap: 'gap',
     cursor: 'cursor',
+    objectFit: 'objectFit',
+    lineHeight: 'lineHeight',
+    textTransform: 'textTransform',
   };
 
   for (const [key, cssKey] of Object.entries(styleMap)) {
