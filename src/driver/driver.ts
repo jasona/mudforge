@@ -223,6 +223,7 @@ export class Driver {
       {
         mudlibPath: this.config.mudlibPath,
         watchEnabled: this.config.hotReload,
+        safelist: ['/std/player', '/master', '/daemons/login'],
       },
       this.registry
     );
@@ -286,8 +287,12 @@ export class Driver {
         await this.initializeGrapevine();
       }
 
-      // Note: Mudlib hot-reload is disabled - mudlib changes require server restart.
-      // Command hot-reload (in command-manager) is still active for builder commands.
+      // Enable file deletion cleanup for mudlib objects
+      // Note: File modifications still require manual 'update' command - only deletions are automatic
+      if (this.config.hotReload) {
+        this.hotReload.startWatching();
+        this.logger.info('Mudlib file watcher enabled for deletion cleanup');
+      }
 
       this.state = 'running';
       this.logger.info('MudForge Driver started successfully');

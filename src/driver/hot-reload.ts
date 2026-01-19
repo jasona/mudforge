@@ -6,9 +6,11 @@
  */
 
 import { watch, type FSWatcher } from 'fs';
+import { stat } from 'fs/promises';
+import { join } from 'path';
 import { Compiler } from './compiler.js';
 import { ObjectRegistry, getRegistry } from './object-registry.js';
-import type { BlueprintInfo } from './types.js';
+import type { BlueprintInfo, MudObject } from './types.js';
 
 export interface HotReloadConfig {
   /** Root directory for mudlib files */
@@ -17,6 +19,8 @@ export interface HotReloadConfig {
   watchEnabled: boolean;
   /** Debounce delay for file changes in ms */
   debounceMs: number;
+  /** Object paths that should never be auto-unloaded on file deletion */
+  safelist?: string[];
 }
 
 export interface UpdateResult {
@@ -58,6 +62,7 @@ export class HotReload {
       mudlibPath: config.mudlibPath ?? './mudlib',
       watchEnabled: config.watchEnabled ?? false,
       debounceMs: config.debounceMs ?? 100,
+      safelist: config.safelist ?? [],
     };
 
     this.compiler = new Compiler({ mudlibPath: this.config.mudlibPath });
@@ -65,22 +70,34 @@ export class HotReload {
   }
 
   /**
-   * Start watching the mudlib directory for changes.
+   * Start watching the mudlib directory for changes and deletions.
    */
   startWatching(): void {
     if (this.watcher) {
       return; // Already watching
     }
 
-    this.watcher = watch(
-      this.config.mudlibPath,
-      { recursive: true },
-      (eventType, filename) => {
-        if (filename && filename.endsWith('.ts')) {
-          this.handleFileChange(filename);
+    try {
+      this.watcher = watch(
+        this.config.mudlibPath,
+        { recursive: true },
+        (eventType, filename) => {
+          try {
+            if (filename && typeof filename === 'string' && filename.endsWith('.ts')) {
+              this.handleFileChange(eventType, filename);
+            }
+          } catch (error) {
+            console.error('[HotReload] Error in watch callback:', error);
+          }
         }
-      }
-    );
+      );
+
+      this.watcher.on('error', (error) => {
+        console.error('[HotReload] Watcher error:', error);
+      });
+    } catch (error) {
+      console.error('[HotReload] Failed to start watching:', error);
+    }
   }
 
   /**
@@ -100,32 +117,77 @@ export class HotReload {
   }
 
   /**
-   * Handle a file change event.
+   * Handle a file deletion event.
+   * Only processes 'rename' events (which indicate deletion when file no longer exists).
+   * File modifications are ignored - use 'update' command for hot-reload.
    */
-  private handleFileChange(filename: string): void {
-    // Skip generated area files - they're only loaded on server restart
-    if (filename.includes('areas/') || filename.includes('areas\\')) {
+  private handleFileChange(eventType: string, filename: string): void {
+    try {
+      // Only handle 'rename' events - 'change' events are modifications which we ignore
+      if (eventType !== 'rename') {
+        return;
+      }
+
+      // Skip generated area files - they're only loaded on server restart
+      if (filename.includes('areas/') || filename.includes('areas\\')) {
+        return;
+      }
+
+      // Skip config files
+      if (filename.includes('config/') || filename.includes('config\\')) {
+        return;
+      }
+
+      // Skip data files
+      if (filename.includes('data/') || filename.includes('data\\')) {
+        return;
+      }
+
+      console.log(`[HotReload] File rename event: ${filename}`);
+
+      // Debounce rapid changes
+      const existing = this.debounceTimers.get(filename);
+      if (existing) {
+        clearTimeout(existing);
+      }
+
+      const timer = setTimeout(() => {
+        this.debounceTimers.delete(filename);
+        this.processFileEvent(eventType, filename).catch((error) => {
+          console.error(`[HotReload] Unhandled error processing ${filename}:`, error);
+        });
+      }, this.config.debounceMs);
+
+      this.debounceTimers.set(filename, timer);
+    } catch (error) {
+      console.error(`[HotReload] Error in handleFileChange:`, error);
+    }
+  }
+
+  /**
+   * Process a file event - only handles deletions.
+   * File modifications still require the manual 'update' command.
+   */
+  private async processFileEvent(eventType: string, filename: string): Promise<void> {
+    // Only handle 'rename' events which indicate file creation or deletion
+    // 'change' events (modifications) are ignored - use 'update' command instead
+    if (eventType !== 'rename') {
       return;
     }
 
-    // Debounce rapid changes
-    const existing = this.debounceTimers.get(filename);
-    if (existing) {
-      clearTimeout(existing);
+    const fullPath = join(this.config.mudlibPath, filename);
+    const objectPath = this.fileToObjectPath(filename);
+
+    try {
+      // Check if file still exists
+      await stat(fullPath);
+      // File exists - this is a creation or rename, not a deletion
+      // Do nothing - modifications require manual 'update' command
+      console.log(`[HotReload] File created/renamed (ignored): ${objectPath}`);
+    } catch {
+      // File doesn't exist - this is a deletion
+      await this.handleDeletion(objectPath);
     }
-
-    const timer = setTimeout(async () => {
-      this.debounceTimers.delete(filename);
-      try {
-        const objectPath = this.fileToObjectPath(filename);
-        await this.update(objectPath);
-      } catch (error) {
-        // Log but don't crash on hot-reload errors
-        console.error(`[HotReload] Error processing ${filename}:`, error);
-      }
-    }, this.config.debounceMs);
-
-    this.debounceTimers.set(filename, timer);
   }
 
   /**
@@ -141,6 +203,99 @@ export class HotReload {
     }
 
     return path;
+  }
+
+  /**
+   * Handle file deletion by unloading the object and all its clones.
+   */
+  private async handleDeletion(objectPath: string): Promise<void> {
+    console.log(`[HotReload] File deleted, checking: ${objectPath}`);
+
+    // Check safelist - never auto-unload critical objects
+    if (this.config.safelist?.includes(objectPath)) {
+      console.log(`[HotReload] Skipping safelisted object: ${objectPath}`);
+      return;
+    }
+
+    // Check if object is actually loaded
+    const blueprint = this.registry.findBlueprint(objectPath);
+    if (!blueprint) {
+      console.log(`[HotReload] Object not loaded, skipping: ${objectPath}`);
+      return;
+    }
+
+    const cloneCount = blueprint.clones.size;
+    console.log(`[HotReload] Unloading ${objectPath} with ${cloneCount} clones`);
+
+    // Handle rooms with players - evacuate them first
+    try {
+      if (this.hasPlayersInObject(objectPath)) {
+        console.log(`[HotReload] Evacuating players from: ${objectPath}`);
+        await this.evacuatePlayers(objectPath);
+      }
+    } catch (error) {
+      console.error(`[HotReload] Error evacuating players from ${objectPath}:`, error);
+      // Continue with unload even if evacuation fails
+    }
+
+    // Unregister the blueprint (destroys all clones)
+    try {
+      await this.registry.unregisterBlueprint(objectPath);
+      console.log(
+        `[HotReload] Unloaded ${objectPath} (${cloneCount} clone${cloneCount !== 1 ? 's' : ''} destroyed)`
+      );
+    } catch (error) {
+      console.error(`[HotReload] Error unloading ${objectPath}:`, error);
+    }
+  }
+
+  /**
+   * Check if an object (typically a room) contains any players.
+   */
+  private hasPlayersInObject(objectPath: string): boolean {
+    const obj = this.registry.find(objectPath);
+    if (!obj || !obj.inventory) {
+      return false;
+    }
+
+    return obj.inventory.some((item) => {
+      // Check if item is a player by checking its blueprint path
+      const itemPath = item.objectPath || '';
+      const blueprintPath = (item as MudObject & { blueprint?: MudObject }).blueprint?.objectPath || '';
+      return itemPath === '/std/player' || blueprintPath === '/std/player';
+    });
+  }
+
+  /**
+   * Move all players out of an object before it's destroyed.
+   */
+  private async evacuatePlayers(objectPath: string): Promise<void> {
+    const obj = this.registry.find(objectPath);
+    if (!obj || !obj.inventory) {
+      return;
+    }
+
+    // Try to find a void room to evacuate to
+    const voidRoom = this.registry.find('/areas/void/void');
+
+    // Copy inventory array since we'll be modifying it
+    for (const item of [...obj.inventory]) {
+      try {
+        const itemPath = item.objectPath || '';
+        const blueprintPath = (item as MudObject & { blueprint?: MudObject }).blueprint?.objectPath || '';
+
+        if (itemPath === '/std/player' || blueprintPath === '/std/player') {
+          // This is a player - notify and move them
+          const player = item as MudObject & { receive?: (msg: string) => void };
+          if (player.receive) {
+            player.receive('{yellow}The room dissolves around you...{/}\n');
+          }
+          await item.moveTo(voidRoom || null);
+        }
+      } catch (error) {
+        console.error(`[HotReload] Error moving player:`, error);
+      }
+    }
   }
 
   /**
