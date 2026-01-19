@@ -39,6 +39,12 @@ export interface DriverConfig {
   claudeRateLimitPerMinute: number;
   claudeCacheTtlMs: number;
 
+  // Gemini AI (Nano Banana image generation)
+  geminiApiKey: string;
+  geminiModel: string;
+  geminiRateLimitPerMinute: number;
+  geminiCacheTtlMs: number;
+
   // Intermud 3
   i3Enabled: boolean;
   i3MudName: string;
@@ -126,6 +132,12 @@ export function loadConfig(): DriverConfig {
     claudeMaxTokens: parseNumber(process.env['CLAUDE_MAX_TOKENS'], 1024),
     claudeRateLimitPerMinute: parseNumber(process.env['CLAUDE_RATE_LIMIT'], 20),
     claudeCacheTtlMs: parseNumber(process.env['CLAUDE_CACHE_TTL_MS'], 300000),
+
+    // Gemini AI (Nano Banana image generation)
+    geminiApiKey: process.env['GEMINI_API_KEY'] ?? '',
+    geminiModel: process.env['GEMINI_MODEL'] ?? 'gemini-2.5-flash-preview-05-20',
+    geminiRateLimitPerMinute: parseNumber(process.env['GEMINI_RATE_LIMIT'], 10),
+    geminiCacheTtlMs: parseNumber(process.env['GEMINI_CACHE_TTL_MS'], 3600000),
 
     // Intermud 3
     i3Enabled: parseBoolean(process.env['I3_ENABLED'], false),

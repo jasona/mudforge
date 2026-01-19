@@ -8,7 +8,7 @@
 
 import type { CombatMessage, CombatTargetUpdateMessage } from './websocket-client.js';
 import { getAvatarSvg } from './avatars.js';
-import { isAvatarId, getFallbackPortrait, isValidSvg } from './npc-portraits.js';
+import { isAvatarId, getFallbackPortrait, isValidSvg, isDataUri } from './npc-portraits.js';
 
 /**
  * CombatPanel class.
@@ -156,20 +156,26 @@ export class CombatPanel {
 
     // Update portrait
     if (this.portraitContainer) {
-      let portraitSvg: string;
+      // Clear existing content
+      this.portraitContainer.innerHTML = '';
 
       if (isAvatarId(target.portrait)) {
-        // Player portrait - use avatar system
-        portraitSvg = getAvatarSvg(target.portrait);
+        // Player portrait - use avatar system (SVG)
+        this.portraitContainer.innerHTML = getAvatarSvg(target.portrait);
+      } else if (isDataUri(target.portrait)) {
+        // NPC portrait from Nano Banana - use img element
+        const img = document.createElement('img');
+        img.src = target.portrait;
+        img.alt = target.name;
+        img.className = 'combat-portrait-img';
+        this.portraitContainer.appendChild(img);
       } else if (isValidSvg(target.portrait)) {
         // NPC portrait - use provided SVG
-        portraitSvg = target.portrait;
+        this.portraitContainer.innerHTML = target.portrait;
       } else {
-        // Fallback portrait
-        portraitSvg = getFallbackPortrait();
+        // Fallback portrait (SVG)
+        this.portraitContainer.innerHTML = getFallbackPortrait();
       }
-
-      this.portraitContainer.innerHTML = portraitSvg;
     }
 
     // Update name (capitalize first letter)

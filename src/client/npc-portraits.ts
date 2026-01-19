@@ -48,3 +48,10 @@ export function isValidSvg(svg: string): boolean {
 export function isAvatarId(portrait: string): boolean {
   return portrait.startsWith('avatar_');
 }
+
+/**
+ * Check if a portrait value is a data URI (base64 encoded image).
+ */
+export function isDataUri(portrait: string): boolean {
+  return portrait.startsWith('data:');
+}

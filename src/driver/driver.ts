@@ -14,6 +14,7 @@ import { Scheduler, getScheduler, resetScheduler } from './scheduler.js';
 import { EfunBridge, getEfunBridge, resetEfunBridge } from './efun-bridge.js';
 import { MudlibLoader, getMudlibLoader, resetMudlibLoader } from './mudlib-loader.js';
 import { initializeClaudeClient } from './claude-client.js';
+import { initializeGeminiClient } from './gemini-client.js';
 import { CommandManager, getCommandManager, resetCommandManager, PermissionLevel } from './command-manager.js';
 import { getPermissions } from './permissions.js';
 import { getFileStore } from './persistence/file-store.js';
@@ -151,6 +152,17 @@ export class Driver {
         cacheTtlMs: this.config.claudeCacheTtlMs,
       });
       this.logger.info('Claude AI client initialized');
+    }
+
+    // Initialize Gemini AI client if configured (for image generation)
+    if (this.config.geminiApiKey) {
+      initializeGeminiClient({
+        apiKey: this.config.geminiApiKey,
+        model: this.config.geminiModel,
+        rateLimitPerMinute: this.config.geminiRateLimitPerMinute,
+        cacheTtlMs: this.config.geminiCacheTtlMs,
+      });
+      this.logger.info('Gemini AI client initialized (Nano Banana image generation)');
     }
 
     // Set up the bind player callback so login daemon can bind players

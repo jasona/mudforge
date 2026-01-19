@@ -18,7 +18,8 @@ import { createHash } from 'crypto';
  * Cached portrait data.
  */
 interface CachedPortrait {
-  svg: string;
+  image: string;       // Base64 image data or SVG for fallback
+  mimeType: string;    // 'image/png', 'image/jpeg', or 'image/svg+xml'
   generatedAt: number;
 }
 
@@ -26,7 +27,7 @@ interface CachedPortrait {
  * Fallback SVG for when AI generation fails.
  * A simple dark silhouette that works for any creature type.
  */
-const FALLBACK_PORTRAIT = `<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+const FALLBACK_SVG = `<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
   <rect width="64" height="64" fill="#1a1a2e"/>
   <ellipse cx="32" cy="24" rx="14" ry="16" fill="#2d2d3d"/>
   <ellipse cx="32" cy="52" rx="18" ry="16" fill="#2d2d3d"/>
@@ -34,6 +35,14 @@ const FALLBACK_PORTRAIT = `<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/200
   <circle cx="38" cy="22" r="2" fill="#4a4a5a"/>
   <text x="32" y="58" text-anchor="middle" fill="#5a5a6a" font-size="8" font-family="sans-serif">?</text>
 </svg>`;
+
+/**
+ * Get the fallback portrait as a data URI.
+ */
+function getFallbackDataUri(): string {
+  const base64 = Buffer.from(FALLBACK_SVG).toString('base64');
+  return `data:image/svg+xml;base64,${base64}`;
+}
 
 /**
  * Portrait Daemon class.
@@ -76,11 +85,12 @@ export class PortraitDaemon extends MudObject {
 
   /**
    * Get an NPC portrait (cached or generated).
+   * Returns a data URI suitable for use in an img tag.
    */
   private async getNpcPortrait(npc: Living): Promise<string> {
     const npcPath = npc.objectPath || '';
     if (!npcPath) {
-      return FALLBACK_PORTRAIT;
+      return getFallbackDataUri();
     }
 
     const cacheKey = this.getCacheKey(npcPath);
@@ -88,7 +98,7 @@ export class PortraitDaemon extends MudObject {
     // Check memory cache
     const cached = this._cache.get(cacheKey);
     if (cached) {
-      return cached.svg;
+      return `data:${cached.mimeType};base64,${cached.image}`;
     }
 
     // Check if generation is already in progress
@@ -101,7 +111,7 @@ export class PortraitDaemon extends MudObject {
     const diskCached = await this.loadFromDisk(cacheKey);
     if (diskCached) {
       this._cache.set(cacheKey, diskCached);
-      return diskCached.svg;
+      return `data:${diskCached.mimeType};base64,${diskCached.image}`;
     }
 
     // Generate new portrait
@@ -109,8 +119,8 @@ export class PortraitDaemon extends MudObject {
     this._pendingGenerations.set(cacheKey, generationPromise);
 
     try {
-      const svg = await generationPromise;
-      return svg;
+      const dataUri = await generationPromise;
+      return dataUri;
     } finally {
       this._pendingGenerations.delete(cacheKey);
     }
@@ -172,97 +182,66 @@ export class PortraitDaemon extends MudObject {
   }
 
   /**
-   * Generate a portrait for an NPC using AI.
+   * Generate a portrait for an NPC using Gemini AI (Nano Banana).
    */
   private async generateNpcPortrait(npc: Living, cacheKey: string): Promise<string> {
     // Get the NPC's description
     const description = npc.longDesc || npc.shortDesc || 'a mysterious creature';
 
-    // Try AI generation
-    const aiSvg = await this.callAiGeneration(description);
-    if (aiSvg) {
+    // Try AI image generation with Gemini (Nano Banana)
+    const imageResult = await this.callAiImageGeneration(description);
+    if (imageResult) {
       const portrait: CachedPortrait = {
-        svg: aiSvg,
+        image: imageResult.imageBase64,
+        mimeType: imageResult.mimeType,
         generatedAt: Date.now(),
       };
       this._cache.set(cacheKey, portrait);
       await this.saveToDisk(cacheKey, portrait);
-      return aiSvg;
+      return `data:${imageResult.mimeType};base64,${imageResult.imageBase64}`;
     }
 
     // Fall back to generic silhouette
-    const portrait: CachedPortrait = {
-      svg: FALLBACK_PORTRAIT,
-      generatedAt: Date.now(),
-    };
-    this._cache.set(cacheKey, portrait);
-    return FALLBACK_PORTRAIT;
+    return getFallbackDataUri();
   }
 
   /**
-   * Call AI to generate an SVG portrait.
+   * Call Gemini AI (Nano Banana) to generate an image portrait.
    */
-  private async callAiGeneration(description: string): Promise<string | null> {
-    if (typeof efuns === 'undefined' || !efuns.aiAvailable?.()) {
+  private async callAiImageGeneration(description: string): Promise<{ imageBase64: string; mimeType: string } | null> {
+    if (typeof efuns === 'undefined' || !efuns.aiImageAvailable?.()) {
       return null;
     }
 
     try {
-      const prompt = `Generate a 64x64 SVG portrait for: ${description}
+      const prompt = `Create a small square portrait icon for a fantasy RPG game character:
 
-Requirements:
-- Use viewBox="0 0 64 64"
-- Dark fantasy style with muted colors
-- Simple, iconic representation suitable for a small display
-- Dark background (#1a1a2e or similar)
-- Return ONLY valid SVG markup, no explanation
-- Keep it simple - no complex gradients or filters`;
+${description}
 
-      const result = await efuns.aiGenerate(prompt, {
-        maxTokens: 1500,
-        temperature: 0.7,
+Style requirements:
+- Dark fantasy art style with rich, moody colors
+- Portrait/headshot composition focused on face/upper body
+- Dramatic lighting with shadows
+- Painterly texture suitable for a game UI
+- Should look like a character portrait from a classic RPG game
+- 64x64 pixel icon style, bold and recognizable`;
+
+      const result = await efuns.aiImageGenerate(prompt, {
+        aspectRatio: '1:1',
       });
 
-      if (result && result.success && result.text) {
-        const svg = this.extractSvg(result.text);
-        if (svg && this.isValidSvg(svg)) {
-          return svg;
-        }
+      if (result && result.success && result.imageBase64 && result.mimeType) {
+        return {
+          imageBase64: result.imageBase64,
+          mimeType: result.mimeType,
+        };
       }
 
       return null;
     } catch (error) {
-      console.error('[PortraitDaemon] AI generation failed:', error);
+      console.error('[PortraitDaemon] Gemini image generation failed:', error);
       return null;
     }
-  }
-
-  /**
-   * Extract SVG from AI response text.
-   */
-  private extractSvg(text: string): string | null {
-    // Try to find SVG tags
-    const match = text.match(/<svg[\s\S]*?<\/svg>/i);
-    if (match) {
-      return match[0];
-    }
-    return null;
-  }
-
-  /**
-   * Basic validation that the string is valid SVG.
-   */
-  private isValidSvg(svg: string): boolean {
-    if (!svg.startsWith('<svg')) {
-      return false;
-    }
-    if (!svg.endsWith('</svg>')) {
-      return false;
-    }
-    if (!svg.includes('viewBox')) {
-      return false;
-    }
-    return true;
   }
 
   /**
@@ -280,10 +259,10 @@ Requirements:
   }
 
   /**
-   * Get the fallback portrait SVG.
+   * Get the fallback portrait as a data URI.
    */
   getFallbackPortrait(): string {
-    return FALLBACK_PORTRAIT;
+    return getFallbackDataUri();
   }
 }
 

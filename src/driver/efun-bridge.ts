@@ -13,6 +13,7 @@ import { getFileStore } from './persistence/file-store.js';
 import { getMudlibLoader, type MudlibLoader } from './mudlib-loader.js';
 import { getCommandManager } from './command-manager.js';
 import { getClaudeClient, type ClaudeMessage } from './claude-client.js';
+import { getGeminiClient } from './gemini-client.js';
 import type { PlayerSaveData } from './persistence/serializer.js';
 import type { MudObject } from './types.js';
 import { readFile, writeFile, access, readdir, stat, mkdir, rm, rename, copyFile } from 'fs/promises';
@@ -138,6 +139,17 @@ export interface AIDescribeDetails {
 export interface AIGenerateResult {
   success: boolean;
   text?: string;
+  error?: string;
+  cached?: boolean;
+}
+
+/**
+ * AI image generation result (Nano Banana).
+ */
+export interface AIImageGenerateResult {
+  success: boolean;
+  imageBase64?: string;
+  mimeType?: string;
   error?: string;
   cached?: boolean;
 }
@@ -2604,6 +2616,60 @@ RULES:
   }
 
   /**
+   * Check if Gemini AI (Nano Banana) image generation is configured and available.
+   */
+  aiImageAvailable(): boolean {
+    const client = getGeminiClient();
+    return client !== null && client.isConfigured();
+  }
+
+  /**
+   * Generate an image using Gemini AI (Nano Banana).
+   * @param prompt Description of the image to generate
+   * @param options Optional configuration (aspectRatio, resolution)
+   */
+  async aiImageGenerate(
+    prompt: string,
+    options?: { aspectRatio?: '1:1' | '2:3' | '3:2' | '3:4' | '4:3' | '4:5' | '5:4' | '9:16' | '16:9' | '21:9' }
+  ): Promise<AIImageGenerateResult> {
+    const client = getGeminiClient();
+    if (!client || !client.isConfigured()) {
+      return { success: false, error: 'Gemini AI not configured' };
+    }
+
+    const playerName = this.getPlayerNameForRateLimit();
+
+    // Check rate limit first
+    const rateCheckResult = client.checkRateLimit(`img:${playerName}`);
+    if (!rateCheckResult.allowed) {
+      return {
+        success: false,
+        error: `Rate limited. Try again in ${rateCheckResult.retryAfter ?? 60} seconds.`,
+      };
+    }
+
+    const result = await client.generateImageWithRateLimit(`img:${playerName}`, {
+      prompt,
+      aspectRatio: options?.aspectRatio ?? '1:1',
+    });
+
+    const response: AIImageGenerateResult = { success: result.success };
+    if (result.imageBase64 !== undefined) {
+      response.imageBase64 = result.imageBase64;
+    }
+    if (result.mimeType !== undefined) {
+      response.mimeType = result.mimeType;
+    }
+    if (result.error !== undefined) {
+      response.error = result.error;
+    }
+    if (result.cached !== undefined) {
+      response.cached = result.cached;
+    }
+    return response;
+  }
+
+  /**
    * Get all efuns as an object for exposing to sandbox.
    */
   getEfuns(): Record<string, unknown> {
@@ -2733,6 +2799,8 @@ RULES:
       aiGenerate: this.aiGenerate.bind(this),
       aiDescribe: this.aiDescribe.bind(this),
       aiNpcResponse: this.aiNpcResponse.bind(this),
+      aiImageAvailable: this.aiImageAvailable.bind(this),
+      aiImageGenerate: this.aiImageGenerate.bind(this),
 
       // Intermud 3
       i3IsConnected: this.i3IsConnected.bind(this),

@@ -2649,6 +2649,13 @@ h6.gui-heading { font-size: 12px; }
   display: block;
 }
 
+.combat-portrait-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
 .combat-info {
   display: flex;
   flex-direction: column;
