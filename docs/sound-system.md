@@ -572,6 +572,27 @@ function endBossFight(player: MudObject, boss: MudObject): void {
 }
 ```
 
+### NPC Look Sounds
+
+NPCs can have a sound that plays automatically when a player looks at them. This is useful for adding atmosphere to important NPCs like shopkeepers, quest givers, or bosses.
+
+```typescript
+// In NPC definition - using configure()
+npc.configure({
+  name: 'Ancient Dragon',
+  shortDesc: 'an ancient dragon',
+  lookSound: 'npcs/dragon-growl.mp3'
+});
+
+// Or using the setter directly
+npc.setLookSound('npcs/shopkeeper-greeting.mp3');
+
+// Set to null to disable
+npc.setLookSound(null);
+```
+
+The look sound plays at 70% volume using the `ambient` category when a player examines the NPC via the look modal. This integrates naturally with ambient sound controls.
+
 ## Best Practices
 
 ### 1. Use Appropriate Categories

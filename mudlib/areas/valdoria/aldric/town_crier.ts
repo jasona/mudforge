@@ -31,6 +31,7 @@ news from the castle.`,
       maxHealth: 50,
       health: 50,
       chatChance: 15, // 15% chance per heartbeat to announce something
+      lookSound: 'npcs/town-crier.mp3',
     });
 
     this.addId('crier');
