@@ -6,6 +6,7 @@
  */
 
 import type { WebSocketClient, AuthResponseMessage } from './websocket-client.js';
+import { getAvatarSvg, getAvatarList } from './avatars.js';
 
 /**
  * Launcher class handles the pre-game login interface.
@@ -30,6 +31,8 @@ export class Launcher {
   private regConfirm: HTMLInputElement | null = null;
   private regEmail: HTMLInputElement | null = null;
   private regGender: HTMLSelectElement | null = null;
+  private regAvatarPicker: HTMLElement | null = null;
+  private regAvatar: HTMLInputElement | null = null;
   private regSubmit: HTMLButtonElement | null = null;
   private regCancel: HTMLButtonElement | null = null;
   private regError: HTMLElement | null = null;
@@ -106,9 +109,68 @@ export class Launcher {
     this.regConfirm = document.getElementById('reg-confirm') as HTMLInputElement;
     this.regEmail = document.getElementById('reg-email') as HTMLInputElement;
     this.regGender = document.getElementById('reg-gender') as HTMLSelectElement;
+    this.regAvatarPicker = document.getElementById('reg-avatar-picker');
+    this.regAvatar = document.getElementById('reg-avatar') as HTMLInputElement;
     this.regSubmit = document.getElementById('reg-submit') as HTMLButtonElement;
     this.regCancel = document.getElementById('reg-cancel') as HTMLButtonElement;
     this.regError = document.getElementById('reg-error');
+
+    // Populate avatar picker
+    this.populateAvatarPicker();
+  }
+
+  /**
+   * Populate the avatar picker with all available avatars.
+   */
+  private populateAvatarPicker(): void {
+    if (!this.regAvatarPicker) return;
+
+    const avatarList = getAvatarList();
+    let currentCategory = '';
+
+    for (const avatar of avatarList) {
+      // Add category header if changed
+      if (avatar.category !== currentCategory) {
+        currentCategory = avatar.category;
+        const categoryLabel = document.createElement('div');
+        categoryLabel.className = 'avatar-picker-category';
+        categoryLabel.textContent =
+          currentCategory.charAt(0).toUpperCase() + currentCategory.slice(1);
+        this.regAvatarPicker.appendChild(categoryLabel);
+      }
+
+      // Create avatar item
+      const item = document.createElement('div');
+      item.className = 'avatar-picker-item';
+      item.dataset.avatarId = avatar.id;
+      item.innerHTML = getAvatarSvg(avatar.id);
+      item.title = `${avatar.category} - ${avatar.label}`;
+
+      // Click handler
+      item.addEventListener('click', () => this.selectAvatar(avatar.id));
+
+      this.regAvatarPicker.appendChild(item);
+    }
+  }
+
+  /**
+   * Select an avatar in the picker.
+   */
+  private selectAvatar(avatarId: string): void {
+    if (!this.regAvatarPicker || !this.regAvatar) return;
+
+    // Update hidden input
+    this.regAvatar.value = avatarId;
+
+    // Update visual selection
+    const items = this.regAvatarPicker.querySelectorAll('.avatar-picker-item');
+    items.forEach((item) => {
+      if ((item as HTMLElement).dataset.avatarId === avatarId) {
+        item.classList.add('selected');
+      } else {
+        item.classList.remove('selected');
+      }
+    });
   }
 
   /**
@@ -223,6 +285,7 @@ export class Launcher {
     const confirm = this.regConfirm?.value;
     const email = this.regEmail?.value.trim();
     const gender = this.regGender?.value;
+    const avatar = this.regAvatar?.value;
 
     // Validate inputs
     if (!name) {
@@ -275,6 +338,7 @@ export class Launcher {
       confirmPassword: confirm,
       email: email || undefined,
       gender: gender,
+      avatar: avatar || undefined,
     });
   }
 
@@ -325,7 +389,13 @@ export class Launcher {
     if (this.regConfirm) this.regConfirm.value = '';
     if (this.regEmail) this.regEmail.value = '';
     if (this.regGender) this.regGender.value = '';
+    if (this.regAvatar) this.regAvatar.value = '';
     this.clearRegError();
+
+    // Clear avatar selection
+    this.regAvatarPicker
+      ?.querySelectorAll('.avatar-picker-item')
+      .forEach((item) => item.classList.remove('selected'));
 
     // Show modal
     this.registerModal?.classList.remove('hidden');

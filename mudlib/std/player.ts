@@ -104,6 +104,7 @@ export interface PlayerSaveData {
   gold?: number; // Carried gold (lost on death)
   bankedGold?: number; // Banked gold (safe from death)
   guildData?: PlayerGuildData; // Guild memberships and skills
+  avatar?: string; // Avatar portrait ID
 }
 
 /**
@@ -148,6 +149,9 @@ export class Player extends Living {
   // Currency
   private _gold: number = 0; // Carried gold (lost on death)
   private _bankedGold: number = 0; // Banked gold (safe from death)
+
+  // Appearance
+  private _avatar: string = 'avatar_m1'; // Avatar portrait ID
 
   constructor() {
     super();
@@ -967,6 +971,7 @@ export class Player extends Living {
         bankedGold: this._bankedGold,
         permissionLevel: this._permissionLevel,
         cwd: this._cwd,
+        avatar: this._avatar,
       });
     }
 
@@ -1198,6 +1203,23 @@ export class Player extends Living {
   }
 
   /**
+   * Get the player's avatar portrait ID.
+   */
+  get avatar(): string {
+    return this._avatar;
+  }
+
+  /**
+   * Set the player's avatar portrait ID.
+   */
+  set avatar(value: string) {
+    // Valid avatar IDs: avatar_m1-m4, avatar_f1-f4, avatar_a1-a2
+    if (/^avatar_[mfa][1-4]$/.test(value) || /^avatar_a[12]$/.test(value)) {
+      this._avatar = value;
+    }
+  }
+
+  /**
    * Add gold to the player's carried gold.
    * @param amount Amount of gold to add
    */
@@ -1319,6 +1341,7 @@ export class Player extends Living {
       gold: this._gold,
       bankedGold: this._bankedGold,
       guildData: this.getProperty<PlayerGuildData>('guildData'),
+      avatar: this._avatar,
     };
   }
 
@@ -1403,6 +1426,11 @@ export class Player extends Living {
     }
     if (data.bankedGold !== undefined) {
       this._bankedGold = data.bankedGold;
+    }
+
+    // Restore avatar (if present - for backwards compatibility)
+    if (data.avatar !== undefined) {
+      this._avatar = data.avatar;
     }
 
     // Store equipment data for later restoration (after inventory is loaded)

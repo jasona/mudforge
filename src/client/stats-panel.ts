@@ -7,6 +7,7 @@
  */
 
 import type { StatsMessage } from './websocket-client.js';
+import { getAvatarSvg } from './avatars.js';
 
 const STORAGE_KEY = 'mudforge-stats-position';
 
@@ -30,6 +31,7 @@ export class StatsPanel {
   private dragOffset: Position = { x: 0, y: 0 };
 
   // Bar elements for updates
+  private avatarContainer: HTMLElement | null = null;
   private hpBar: HTMLElement | null = null;
   private hpText: HTMLElement | null = null;
   private mpBar: HTMLElement | null = null;
@@ -62,6 +64,7 @@ export class StatsPanel {
         <button class="stats-btn stats-btn-toggle" title="Toggle stats">_</button>
       </div>
       <div class="stats-panel-content">
+        <div class="stats-avatar" data-avatar></div>
         <div class="stats-level">
           <span class="stats-level-label">Level</span>
           <span class="stats-level-value" data-stat="level">1</span>
@@ -112,6 +115,7 @@ export class StatsPanel {
 
     // Cache element references
     this.header = this.panel.querySelector('.stats-panel-header');
+    this.avatarContainer = this.panel.querySelector('[data-avatar]');
     this.hpBar = this.panel.querySelector('[data-bar="hp"]');
     this.hpText = this.panel.querySelector('[data-stat="hp"]');
     this.mpBar = this.panel.querySelector('[data-bar="mp"]');
@@ -310,6 +314,11 @@ export class StatsPanel {
    */
   handleMessage(message: StatsMessage): void {
     if (message.type !== 'update') return;
+
+    // Update avatar
+    if (this.avatarContainer && message.avatar) {
+      this.avatarContainer.innerHTML = getAvatarSvg(message.avatar);
+    }
 
     // Update level
     if (this.levelText) {

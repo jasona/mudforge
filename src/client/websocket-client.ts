@@ -40,6 +40,7 @@ export interface StatsMessage {
   bankedGold: number;
   permissionLevel: number;
   cwd: string;
+  avatar: string;
 }
 
 /**
@@ -89,6 +90,7 @@ export interface AuthRequest {
   confirmPassword?: string;
   email?: string;
   gender?: string;
+  avatar?: string;
 }
 
 /**

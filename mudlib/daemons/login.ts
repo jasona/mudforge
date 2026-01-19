@@ -99,6 +99,7 @@ export interface AuthRequest {
   confirmPassword?: string;
   email?: string;
   gender?: string;
+  avatar?: string;
 }
 
 /**
@@ -407,6 +408,15 @@ ${'='.repeat(bannerWidth)}
     player.createAccount(session.name, passwordHash, session.email);
     player.gender = gender;
     player.shortDesc = session.name;
+
+    // Set default avatar based on gender
+    if (gender === 'male') {
+      player.avatar = 'avatar_m1';
+    } else if (gender === 'female') {
+      player.avatar = 'avatar_f1';
+    } else {
+      player.avatar = 'avatar_a1';
+    }
 
     // Grant admin permissions to the first player
     if (isFirstPlayer) {
@@ -806,6 +816,7 @@ ${'='.repeat(bannerWidth)}
     const confirmPassword = request.confirmPassword;
     const email = request.email?.trim() || '';
     const gender = request.gender;
+    const avatar = request.avatar;
 
     // Validate name
     if (!name || !this.isValidName(name)) {
@@ -877,7 +888,7 @@ ${'='.repeat(bannerWidth)}
     }
 
     // Create the player
-    await this.createAuthPlayer(connection, normalizedName, password, email, gender as 'male' | 'female' | 'neutral');
+    await this.createAuthPlayer(connection, normalizedName, password, email, gender as 'male' | 'female' | 'neutral', avatar);
   }
 
   /**
@@ -888,7 +899,8 @@ ${'='.repeat(bannerWidth)}
     name: string,
     password: string,
     email: string,
-    gender: 'male' | 'female' | 'neutral'
+    gender: 'male' | 'female' | 'neutral',
+    avatar?: string
   ): Promise<void> {
     // Hash the password
     const passwordHash = await hashPassword(password);
@@ -908,6 +920,18 @@ ${'='.repeat(bannerWidth)}
     player.createAccount(name, passwordHash, email);
     player.gender = gender;
     player.shortDesc = name;
+
+    // Set avatar (use provided avatar or default based on gender)
+    // Valid avatar IDs: avatar_m1-m4, avatar_f1-f4, avatar_a1-a2
+    if (avatar && /^avatar_([mf][1-4]|a[12])$/.test(avatar)) {
+      player.avatar = avatar;
+    } else if (gender === 'male') {
+      player.avatar = 'avatar_m1';
+    } else if (gender === 'female') {
+      player.avatar = 'avatar_f1';
+    } else {
+      player.avatar = 'avatar_a1';
+    }
 
     // Grant admin to first player
     if (isFirstPlayer) {
