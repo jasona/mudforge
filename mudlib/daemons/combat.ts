@@ -226,7 +226,51 @@ export class CombatDaemon extends MudObject {
     // Send combat target update to the attacker's client
     this.sendCombatTargetUpdate(attacker, defender);
 
+    // Start combat music for players entering combat
+    this.startCombatMusic(attacker);
+    this.startCombatMusic(defender);
+
     return true;
+  }
+
+  /**
+   * Start combat music for a player if not already playing.
+   * Uses the 'combat' category with 'combat-music' as the sound/ID.
+   */
+  private startCombatMusic(living: Living): void {
+    if (!this.isPlayer(living)) return;
+
+    // Only start if this is their first combat (not already in combat music)
+    // Check if they already have combat music playing by checking if they're in any other combat
+    let otherCombats = 0;
+    for (const entry of this._combats.values()) {
+      if (entry.attacker === living || entry.defender === living) {
+        otherCombats++;
+      }
+    }
+    // If they're only in this one combat (the one being initiated), start music
+    if (otherCombats <= 1 && typeof efuns !== 'undefined' && efuns.loopSound) {
+      efuns.loopSound(living, 'combat', 'combat-music', 'combat-music', { volume: 0.4 });
+    }
+  }
+
+  /**
+   * Stop combat music for a player.
+   */
+  private stopCombatMusic(living: Living): void {
+    if (!this.isPlayer(living)) return;
+
+    // Only stop if they have no more active combats
+    let activeCombats = 0;
+    for (const entry of this._combats.values()) {
+      if (entry.attacker === living || entry.defender === living) {
+        activeCombats++;
+      }
+    }
+    // If no more combats, stop the music
+    if (activeCombats === 0 && typeof efuns !== 'undefined' && efuns.stopSound) {
+      efuns.stopSound(living, 'combat', 'combat-music');
+    }
   }
 
   /**
@@ -295,7 +339,19 @@ export class CombatDaemon extends MudObject {
         }
       }
       this._combats.delete(key);
+
+      // Stop combat music for the other party (after combat removed from tracking)
+      if (entry) {
+        if (entry.attacker === living) {
+          this.stopCombatMusic(entry.defender);
+        } else {
+          this.stopCombatMusic(entry.attacker);
+        }
+      }
     }
+
+    // Stop combat music for the living (after all their combats are removed)
+    this.stopCombatMusic(living);
   }
 
   /**
@@ -767,6 +823,9 @@ export class CombatDaemon extends MudObject {
     // Remove from tracking
     const key = this.combatKey(attacker, defender);
     this._combats.delete(key);
+
+    // Stop combat music for attacker (after combat removed from tracking)
+    this.stopCombatMusic(attacker);
 
     // Clear combat states
     if (attacker.combatTarget === defender) {

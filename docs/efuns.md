@@ -120,6 +120,39 @@ Send a message to an object.
 efuns.send(player, 'You see a sword.');
 ```
 
+## Sound
+
+Play audio on the client. See [Sound System](sound-system.md) for full documentation.
+
+### playSound(player, category, sound, options?)
+
+Play a sound once.
+
+```typescript
+efuns.playSound(player, 'combat', 'hit');
+efuns.playSound(player, 'spell', 'cast', { volume: 0.8 });
+efuns.playSound(player, 'alert', 'bosses/dragon-roar.mp3');
+```
+
+**Categories:** `combat`, `spell`, `skill`, `potion`, `quest`, `celebration`, `discussion`, `alert`, `ambient`, `ui`
+
+### loopSound(player, category, sound, id, options?)
+
+Loop a sound continuously until stopped.
+
+```typescript
+efuns.loopSound(player, 'ambient', 'rain', 'room-weather', { volume: 0.3 });
+```
+
+### stopSound(player, category, id?)
+
+Stop a looping sound. If no id provided, stops all sounds in the category.
+
+```typescript
+efuns.stopSound(player, 'ambient', 'room-weather');  // Stop specific
+efuns.stopSound(player, 'ambient');                   // Stop all ambient
+```
+
 ## File Operations
 
 File operations are sandboxed to the mudlib directory.

@@ -75,6 +75,22 @@ export interface GUIMessage {
 export type CommType = 'say' | 'tell' | 'channel';
 
 /**
+ * Sound category types.
+ */
+export type SoundCategory = 'combat' | 'spell' | 'skill' | 'potion' | 'quest' | 'celebration' | 'discussion' | 'alert' | 'ambient' | 'ui';
+
+/**
+ * SOUND message for audio playback.
+ */
+export interface SoundMessage {
+  type: 'play' | 'loop' | 'stop';
+  category: SoundCategory;
+  sound: string;
+  volume?: number;
+  id?: string;
+}
+
+/**
  * COMM message for say/tell/channel messages displayed in the comm panel.
  */
 export interface CommMessage {
@@ -2023,6 +2039,130 @@ export class EfunBridge {
     connection.send(`\x00[COMM]${jsonStr}\n`);
   }
 
+  // ========== Sound Efuns ==========
+
+  /**
+   * Play a sound once on the target player's client.
+   *
+   * @param targetPlayer The player to send the sound to
+   * @param category The sound category (action, celebration, discussion, alert, ambient, ui)
+   * @param sound The sound identifier (e.g., 'hit', 'level-up', 'tell')
+   * @param options Optional settings (volume, id)
+   */
+  playSound(
+    targetPlayer: MudObject,
+    category: SoundCategory,
+    sound: string,
+    options?: { volume?: number; id?: string }
+  ): void {
+    if (!targetPlayer) {
+      return; // Silently fail if no player
+    }
+
+    // Get the player's connection
+    const playerWithConnection = targetPlayer as MudObject & {
+      connection?: { send: (msg: string) => void };
+      _connection?: { send: (msg: string) => void };
+    };
+
+    const connection = playerWithConnection.connection || playerWithConnection._connection;
+    if (!connection?.send) {
+      return; // Silently fail if no connection
+    }
+
+    const soundMessage: SoundMessage = {
+      type: 'play',
+      category,
+      sound,
+      ...(options?.volume !== undefined && { volume: options.volume }),
+      ...(options?.id && { id: options.id }),
+    };
+
+    const jsonStr = JSON.stringify(soundMessage);
+    connection.send(`\x00[SOUND]${jsonStr}\n`);
+  }
+
+  /**
+   * Loop a sound continuously on the target player's client.
+   * Must provide an id to stop the sound later.
+   *
+   * @param targetPlayer The player to send the sound to
+   * @param category The sound category
+   * @param sound The sound identifier
+   * @param id Unique ID to identify this looping sound (required for stopping)
+   * @param options Optional settings (volume)
+   */
+  loopSound(
+    targetPlayer: MudObject,
+    category: SoundCategory,
+    sound: string,
+    id: string,
+    options?: { volume?: number }
+  ): void {
+    if (!targetPlayer) {
+      return;
+    }
+
+    const playerWithConnection = targetPlayer as MudObject & {
+      connection?: { send: (msg: string) => void };
+      _connection?: { send: (msg: string) => void };
+    };
+
+    const connection = playerWithConnection.connection || playerWithConnection._connection;
+    if (!connection?.send) {
+      return;
+    }
+
+    const soundMessage: SoundMessage = {
+      type: 'loop',
+      category,
+      sound,
+      id,
+      ...(options?.volume !== undefined && { volume: options.volume }),
+    };
+
+    const jsonStr = JSON.stringify(soundMessage);
+    connection.send(`\x00[SOUND]${jsonStr}\n`);
+  }
+
+  /**
+   * Stop a playing/looping sound on the target player's client.
+   * If no id is provided, stops all sounds in the category.
+   *
+   * @param targetPlayer The player to send the stop command to
+   * @param category The sound category
+   * @param id Optional ID of specific sound to stop (omit to stop all in category)
+   */
+  stopSound(
+    targetPlayer: MudObject,
+    category: SoundCategory,
+    id?: string
+  ): void {
+    if (!targetPlayer) {
+      return;
+    }
+
+    const playerWithConnection = targetPlayer as MudObject & {
+      connection?: { send: (msg: string) => void };
+      _connection?: { send: (msg: string) => void };
+    };
+
+    const connection = playerWithConnection.connection || playerWithConnection._connection;
+    if (!connection?.send) {
+      return;
+    }
+
+    const soundMessage: SoundMessage = {
+      type: 'stop',
+      category,
+      sound: '', // Not needed for stop
+      ...(id && { id }),
+    };
+
+    const jsonStr = JSON.stringify(soundMessage);
+    connection.send(`\x00[SOUND]${jsonStr}\n`);
+  }
+
   // ========== Config Efuns ==========
 
   /**
@@ -2784,6 +2924,11 @@ RULES:
       guiSend: this.guiSend.bind(this),
       sendQuestUpdate: this.sendQuestUpdate.bind(this),
       sendComm: this.sendComm.bind(this),
+
+      // Sound
+      playSound: this.playSound.bind(this),
+      loopSound: this.loopSound.bind(this),
+      stopSound: this.stopSound.bind(this),
 
       // Config
       getMudConfig: this.getMudConfig.bind(this),

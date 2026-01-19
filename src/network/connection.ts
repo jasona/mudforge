@@ -119,6 +119,22 @@ export interface CombatTargetClearMessage {
 export type CombatMessage = CombatTargetUpdateMessage | CombatTargetClearMessage;
 
 /**
+ * Sound category types.
+ */
+export type SoundCategory = 'combat' | 'spell' | 'skill' | 'potion' | 'quest' | 'celebration' | 'discussion' | 'alert' | 'ambient' | 'ui';
+
+/**
+ * SOUND protocol message type for audio playback.
+ */
+export interface SoundMessage {
+  type: 'play' | 'loop' | 'stop';
+  category: SoundCategory;
+  sound: string;
+  volume?: number;
+  id?: string;
+}
+
+/**
  * Connection state.
  */
 export type ConnectionState = 'connecting' | 'open' | 'closing' | 'closed';
@@ -429,6 +445,25 @@ export class Connection extends EventEmitter {
     try {
       const json = JSON.stringify(message);
       this.socket.send(`\x00[COMBAT]${json}`);
+    } catch (error) {
+      this.emit('error', error as Error);
+    }
+  }
+
+  /**
+   * Send a SOUND protocol message to the client.
+   * SOUND messages are prefixed with \x00[SOUND] to distinguish them from regular text.
+   * Used for triggering audio playback on the client.
+   * @param message The sound message to send
+   */
+  sendSound(message: SoundMessage): void {
+    if (this._state !== 'open') {
+      return;
+    }
+
+    try {
+      const json = JSON.stringify(message);
+      this.socket.send(`\x00[SOUND]${json}`);
     } catch (error) {
       this.emit('error', error as Error);
     }

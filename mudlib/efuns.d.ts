@@ -9,6 +9,7 @@
  */
 
 import type { MudObject } from './std/object.js';
+import type { SoundCategory } from './lib/sound-types.js';
 
 /**
  * Player save data structure.
@@ -547,6 +548,92 @@ declare global {
         timestamp: number;
         isSender?: boolean;
       }
+    ): void;
+
+    // ========== Sound Efuns ==========
+
+    /**
+     * Play a sound once on the target player's client.
+     *
+     * The category determines which indicator is shown in the UI and which
+     * toggle controls playback.
+     *
+     * Sound resolution (in order):
+     * 1. Predefined sounds (e.g., 'hit' -> 'sounds/combat-hit.mp3')
+     * 2. Custom filename with .mp3 (e.g., 'custom.mp3' -> 'sounds/custom.mp3')
+     * 3. Path-style (e.g., 'custom/boom' -> 'sounds/custom/boom.mp3')
+     * 4. Default pattern (e.g., 'explosion' -> 'sounds/{category}-explosion.mp3')
+     *
+     * @param targetPlayer The player to send the sound to
+     * @param category The sound category - controls UI indicator and enable toggle
+     * @param sound Sound name, filename, or path
+     * @param options Optional settings (volume 0.0-1.0, id for tracking)
+     *
+     * @example
+     * // Predefined sound
+     * playSound(player, 'combat', 'hit');
+     *
+     * @example
+     * // Custom sound with combat indicator
+     * playSound(player, 'combat', 'boss-roar.mp3');
+     *
+     * @example
+     * // Custom path with spell indicator
+     * playSound(player, 'spell', 'fire/explosion');
+     */
+    playSound(
+      targetPlayer: MudObject,
+      category: SoundCategory,
+      sound: string,
+      options?: { volume?: number; id?: string }
+    ): void;
+
+    /**
+     * Loop a sound continuously on the target player's client.
+     * Must provide an id to stop the sound later.
+     *
+     * The category determines which indicator is shown in the UI and which
+     * toggle controls playback.
+     *
+     * Sound resolution (same as playSound):
+     * 1. Predefined sounds
+     * 2. Custom filename with .mp3
+     * 3. Path-style
+     * 4. Default pattern
+     *
+     * @param targetPlayer The player to send the sound to
+     * @param category The sound category - controls UI indicator and enable toggle
+     * @param sound Sound name, filename, or path
+     * @param id Unique ID to identify this looping sound (required for stopping)
+     * @param options Optional settings (volume 0.0-1.0)
+     *
+     * @example
+     * // Predefined ambient loop
+     * loopSound(player, 'ambient', 'rain', 'room-weather', { volume: 0.3 });
+     *
+     * @example
+     * // Custom loop with ambient indicator
+     * loopSound(player, 'ambient', 'dungeon/dripping.mp3', 'room-ambience');
+     */
+    loopSound(
+      targetPlayer: MudObject,
+      category: SoundCategory,
+      sound: string,
+      id: string,
+      options?: { volume?: number }
+    ): void;
+
+    /**
+     * Stop a playing/looping sound on the target player's client.
+     * If no id is provided, stops all sounds in the category.
+     * @param targetPlayer The player to send the stop command to
+     * @param category The sound category
+     * @param id Optional ID of specific sound to stop (omit to stop all in category)
+     */
+    stopSound(
+      targetPlayer: MudObject,
+      category: SoundCategory,
+      id?: string
     ): void;
 
     // ========== Config Efuns ==========

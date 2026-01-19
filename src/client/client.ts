@@ -14,6 +14,7 @@ import {
   CompletionMessage,
   CommMessage,
   CombatMessage,
+  SoundMessage,
 } from './websocket-client.js';
 import { InputHandler } from './input-handler.js';
 import { IdeEditor } from './ide-editor.js';
@@ -22,6 +23,8 @@ import { StatsPanel } from './stats-panel.js';
 import { QuestPanel } from './quest-panel.js';
 import { CommPanel } from './comm-panel.js';
 import { CombatPanel } from './combat-panel.js';
+import { SoundManager } from './sound-manager.js';
+import { SoundPanel } from './sound-panel.js';
 import { GUIModal } from './gui/gui-modal.js';
 import { Launcher } from './launcher.js';
 import type { MapMessage } from './map-renderer.js';
@@ -40,6 +43,8 @@ class MudClient {
   private questPanel: QuestPanel;
   private commPanel: CommPanel;
   private combatPanel: CombatPanel;
+  private soundManager: SoundManager;
+  private soundPanel: SoundPanel;
   private guiModal: GUIModal;
   private launcher: Launcher;
   private statusElement: HTMLElement;
@@ -83,6 +88,8 @@ class MudClient {
     });
     this.commPanel = new CommPanel('comm-container');
     this.combatPanel = new CombatPanel('combat-container');
+    this.soundManager = new SoundManager();
+    this.soundPanel = new SoundPanel('sound-container', this.soundManager);
     this.guiModal = new GUIModal((message: GUIClientMessage) => {
       this.wsClient.sendGUIMessage(message);
     });
@@ -167,6 +174,11 @@ class MudClient {
     // Combat panel events
     this.wsClient.on('combat-message', (message: CombatMessage) => {
       this.combatPanel.handleMessage(message);
+    });
+
+    // Sound panel events
+    this.wsClient.on('sound-message', (message: SoundMessage) => {
+      this.soundPanel.handleSoundMessage(message);
     });
 
     // Completion events

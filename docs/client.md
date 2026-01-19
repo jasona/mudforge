@@ -13,6 +13,7 @@ MudForge includes a modern, browser-based client with a Linear.app-inspired desi
 - **Connection Status** - Visual indicator showing connected/disconnected state
 - **Floating Stats Panel** - Draggable HP/MP/XP bars with real-time updates
 - **Interactive Map Panel** - Floating, resizable map showing explored areas
+- **Sound Panel** - Compact audio controls with per-category volume and mute
 - **Visual IDE Editor** - Full-featured code editor for builders with syntax highlighting
 
 ## Connecting
@@ -153,6 +154,59 @@ The Map Panel displays an interactive ASCII-art view of explored areas.
 - **Resize**: Drag edges to resize
 - **Collapse**: Click `[-]` to minimize
 - **Center**: Double-click to center on current location
+
+## Sound Panel
+
+The Sound Panel is a compact widget in the bottom-right corner for controlling game audio. See [Sound System](sound-system.md) for the complete developer guide.
+
+### Features
+
+- **Per-Category Toggles** - Enable/disable sound types independently
+- **Volume Control** - Master volume slider (0-100%)
+- **Activity Indicator** - Shows which sound category just played
+- **Persistent Settings** - Preferences saved to browser localStorage
+
+### Display Elements
+
+```
++-----------------------------+
+|  ⚔️ Combat       |  🔊     |  <- Compact view
++-----------------------------+
+
++-----------------------------+
+|  🔊 Ready        |  🔊     |  <- Click to expand
++-----------------------------+
+|  Volume  ═══●═══════  70%  |  <- Volume slider
++-----------------------------+
+| ⚔️ Combat   ✨ Spell       |
+| 💪 Skill    🧪 Potion      |  <- Category toggles
+| 📜 Quest    🎉 Celebration |
+| 💬 Discuss  ⚠️ Alert       |
+| 🌿 Ambient  🖱️ Interface   |
++-----------------------------+
+```
+
+### Sound Categories
+
+| Category | Icon | Default | Sounds |
+|----------|------|---------|--------|
+| Combat | ⚔️ | On | Hits, misses, blocks |
+| Spell | ✨ | On | Spell casting, magic |
+| Skill | 💪 | On | Skill use, abilities |
+| Potion | 🧪 | On | Item consumption |
+| Quest | 📜 | On | Quest events |
+| Celebration | 🎉 | On | Level up, achievements |
+| Discussion | 💬 | On | Chat, tells, channels |
+| Alert | ⚠️ | On | Warnings, low HP |
+| Ambient | 🌿 | Off | Room ambience |
+| Interface | 🖱️ | Off | UI clicks |
+
+### Controls
+
+- **Click indicator**: Expand/collapse the settings panel
+- **Click mute button**: Toggle all sounds on/off
+- **Drag volume slider**: Adjust master volume
+- **Click category buttons**: Toggle individual categories
 
 ## Keyboard Shortcuts
 

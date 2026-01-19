@@ -23,6 +23,7 @@ type WebSocketClientEvent =
   | 'completion-message'
   | 'comm-message'
   | 'combat-message'
+  | 'sound-message'
   | 'auth-response';
 
 /**
@@ -162,6 +163,22 @@ export interface CombatTargetClearMessage {
 }
 
 export type CombatMessage = CombatTargetUpdateMessage | CombatTargetClearMessage;
+
+/**
+ * Sound category types.
+ */
+export type SoundCategory = 'combat' | 'spell' | 'skill' | 'potion' | 'quest' | 'celebration' | 'discussion' | 'alert' | 'ambient' | 'ui';
+
+/**
+ * Sound message for audio playback.
+ */
+export interface SoundMessage {
+  type: 'play' | 'loop' | 'stop';
+  category: SoundCategory;
+  sound: string;
+  volume?: number;
+  id?: string;
+}
 
 /**
  * Event handler type.
@@ -366,6 +383,14 @@ export class WebSocketClient {
             this.emit('combat-message', combatMessage);
           } catch (error) {
             console.error('Failed to parse COMBAT message:', error);
+          }
+        } else if (line.startsWith('\x00[SOUND]')) {
+          const jsonStr = line.slice(8); // Remove \x00[SOUND] prefix
+          try {
+            const soundMessage = JSON.parse(jsonStr) as SoundMessage;
+            this.emit('sound-message', soundMessage);
+          } catch (error) {
+            console.error('Failed to parse SOUND message:', error);
           }
         } else {
           this.emit('message', line);
