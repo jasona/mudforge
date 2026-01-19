@@ -21,7 +21,7 @@ import { createHash } from 'crypto';
 /**
  * Object image types.
  */
-export type ObjectImageType = 'player' | 'npc' | 'weapon' | 'armor' | 'container' | 'item';
+export type ObjectImageType = 'player' | 'npc' | 'weapon' | 'armor' | 'container' | 'item' | 'corpse' | 'gold';
 
 /**
  * Cached portrait data.
@@ -296,12 +296,35 @@ Style requirements:
     type: ObjectImageType,
     extraContext?: Record<string, unknown>
   ): Promise<string> {
-    const objPath = obj.objectPath || '';
-    if (!objPath) {
-      return type === 'npc' || type === 'player' ? getFallbackDataUri() : getFallbackItemDataUri();
+    // For corpses, use the owner name as the unique identifier instead of objectPath
+    // since all corpses share the same blueprint path
+    // For gold piles, use the size category as the identifier since they're created dynamically
+    let cacheIdentifier: string;
+    if (type === 'corpse' && 'ownerName' in obj) {
+      const corpse = obj as MudObject & { ownerName: string };
+      cacheIdentifier = `corpse_${corpse.ownerName}`;
+    } else if (type === 'gold' && 'amount' in obj) {
+      const goldPile = obj as MudObject & { amount: number };
+      // Use size categories to share images between similar pile sizes
+      const amount = goldPile.amount;
+      let sizeCategory: string;
+      if (amount === 1) sizeCategory = 'single';
+      else if (amount < 10) sizeCategory = 'few';
+      else if (amount < 50) sizeCategory = 'small';
+      else if (amount < 200) sizeCategory = 'pile';
+      else if (amount < 500) sizeCategory = 'medium';
+      else if (amount < 1000) sizeCategory = 'large';
+      else if (amount < 5000) sizeCategory = 'huge';
+      else sizeCategory = 'hoard';
+      cacheIdentifier = `gold_${sizeCategory}`;
+    } else {
+      cacheIdentifier = obj.objectPath || '';
+      if (!cacheIdentifier) {
+        return type === 'npc' || type === 'player' ? getFallbackDataUri() : getFallbackItemDataUri();
+      }
     }
 
-    const cacheKey = this.getObjectCacheKey(objPath, type);
+    const cacheKey = this.getObjectCacheKey(cacheIdentifier, type);
 
     // Check memory cache
     const cached = this._cache.get(cacheKey);
@@ -474,6 +497,28 @@ ${description}
 
 Style: Dark fantasy, painterly
 State: ${state}
+Square composition, item icon style on a dark background
+No text, clean iconic design`;
+
+      case 'corpse':
+        return `Create a dark fantasy RPG corpse scene:
+${description}
+
+Style: Dark fantasy, grim, somber atmosphere
+- Fallen body or remains on the ground
+- Moody, dramatic lighting with shadows
+- Painterly texture suitable for a game UI
+Square composition on a dark background
+No text, clean dramatic design`;
+
+      case 'gold':
+        return `Create a fantasy RPG gold coins icon:
+${description}
+
+Style: Dark fantasy, painterly, warm golden glow
+- Shiny gold coins with fantasy designs
+- Dramatic lighting making the gold gleam
+- Treasure/loot aesthetic
 Square composition, item icon style on a dark background
 No text, clean iconic design`;
 

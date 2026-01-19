@@ -31,6 +31,16 @@ export function detectObjectType(obj: MudObject): ObjectImageType {
     return 'npc';
   }
 
+  // Check for Corpse (has ownerName property - before Container check since Corpse extends Container)
+  if ('ownerName' in obj && 'isPlayerCorpse' in obj) {
+    return 'corpse';
+  }
+
+  // Check for GoldPile (has amount property specific to gold)
+  if ('amount' in obj && 'addGold' in obj) {
+    return 'gold';
+  }
+
   // Check for Weapon (has minDamage and maxDamage)
   if ('minDamage' in obj && 'maxDamage' in obj) {
     return 'weapon';
@@ -468,6 +478,140 @@ function buildContainerLayout(obj: MudObject): LayoutContainer {
 }
 
 /**
+ * Build corpse-specific modal layout.
+ */
+function buildCorpseLayout(obj: MudObject): LayoutContainer {
+  const corpse = obj as MudObject & {
+    ownerName: string;
+    ownerLevel: number;
+    isPlayerCorpse: boolean;
+    decayTime: number;
+    inventory: MudObject[];
+  };
+
+  const ownerName = capitalizeFirst(corpse.ownerName || 'unknown');
+  const children: Array<LayoutContainer | DisplayElement> = [];
+
+  // Name
+  children.push({
+    type: 'heading',
+    id: 'look-name',
+    content: `Corpse of ${ownerName}`,
+    level: 3,
+    style: { color: '#888', margin: '0 0 8px 0', textAlign: 'center' },
+  } as DisplayElement);
+
+  // Stats grid
+  const stats: Array<{ label: string; value: string; color?: string }> = [];
+
+  if (corpse.ownerLevel) {
+    stats.push({ label: 'Level', value: `${corpse.ownerLevel}`, color: '#fbbf24' });
+  }
+
+  if (corpse.isPlayerCorpse) {
+    stats.push({ label: 'Type', value: 'Player', color: '#4ade80' });
+  } else {
+    stats.push({ label: 'Type', value: 'Creature', color: '#f87171' });
+  }
+
+  if (stats.length > 0) {
+    children.push(buildStatsGrid(stats));
+  }
+
+  // Contents preview (items on corpse)
+  if (corpse.inventory && corpse.inventory.length > 0) {
+    const previewItems = corpse.inventory.slice(0, 5);
+    const contentsChildren: Array<DisplayElement> = previewItems.map((item, i) => ({
+      type: 'text',
+      id: `look-contents-${i}`,
+      content: `• ${item.shortDesc}`,
+      style: { color: '#aaa', fontSize: '12px' },
+    }));
+
+    if (corpse.inventory.length > 5) {
+      contentsChildren.push({
+        type: 'text',
+        id: 'look-contents-more',
+        content: `... and ${corpse.inventory.length - 5} more`,
+        style: { color: '#666', fontSize: '12px', fontStyle: 'italic' },
+      } as DisplayElement);
+    }
+
+    children.push({
+      type: 'vertical',
+      gap: '2px',
+      style: { marginTop: '12px', padding: '8px', backgroundColor: '#1a1a1f', borderRadius: '4px' },
+      children: [
+        {
+          type: 'text',
+          id: 'look-contents-label',
+          content: 'Contains:',
+          style: { color: '#888', fontSize: '12px', marginBottom: '4px' },
+        } as DisplayElement,
+        ...contentsChildren,
+      ],
+    });
+  }
+
+  // Description
+  children.push({
+    type: 'paragraph',
+    id: 'look-description',
+    content: obj.longDesc,
+    style: { color: '#ddd', fontSize: '13px', lineHeight: '1.5', marginTop: '12px' },
+  } as DisplayElement);
+
+  return {
+    type: 'vertical',
+    gap: '4px',
+    children,
+  };
+}
+
+/**
+ * Build gold pile modal layout.
+ */
+function buildGoldLayout(obj: MudObject): LayoutContainer {
+  const goldPile = obj as MudObject & {
+    amount: number;
+  };
+
+  const amount = goldPile.amount || 0;
+  const children: Array<LayoutContainer | DisplayElement> = [];
+
+  // Name
+  children.push({
+    type: 'heading',
+    id: 'look-name',
+    content: 'Gold Coins',
+    level: 3,
+    style: { color: '#fbbf24', margin: '0 0 8px 0', textAlign: 'center' },
+  } as DisplayElement);
+
+  // Amount
+  children.push({
+    type: 'text',
+    id: 'look-amount',
+    content: `${amount.toLocaleString()} coin${amount !== 1 ? 's' : ''}`,
+    style: { color: '#fcd34d', fontSize: '18px', fontWeight: 'bold', textAlign: 'center', marginBottom: '12px' },
+  } as DisplayElement);
+
+  // Description
+  children.push({
+    type: 'paragraph',
+    id: 'look-description',
+    content: obj.longDesc,
+    style: { color: '#ddd', fontSize: '13px', lineHeight: '1.5' },
+  } as DisplayElement);
+
+  return {
+    type: 'vertical',
+    gap: '4px',
+    children,
+  };
+}
+
+/**
  * Build generic item modal layout.
  */
 function buildItemLayout(obj: MudObject): LayoutContainer {
@@ -567,6 +711,10 @@ function buildContentLayout(obj: MudObject, type: ObjectImageType): LayoutContai
       return buildArmorLayout(obj);
     case 'container':
       return buildContainerLayout(obj);
+    case 'corpse':
+      return buildCorpseLayout(obj);
+    case 'gold':
+      return buildGoldLayout(obj);
     case 'item':
     default:
       return buildItemLayout(obj);
