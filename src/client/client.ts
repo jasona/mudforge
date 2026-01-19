@@ -13,6 +13,7 @@ import {
   QuestMessage,
   CompletionMessage,
   CommMessage,
+  CombatMessage,
 } from './websocket-client.js';
 import { InputHandler } from './input-handler.js';
 import { IdeEditor } from './ide-editor.js';
@@ -20,6 +21,7 @@ import { MapPanel } from './map-panel.js';
 import { StatsPanel } from './stats-panel.js';
 import { QuestPanel } from './quest-panel.js';
 import { CommPanel } from './comm-panel.js';
+import { CombatPanel } from './combat-panel.js';
 import { GUIModal } from './gui/gui-modal.js';
 import { Launcher } from './launcher.js';
 import type { MapMessage } from './map-renderer.js';
@@ -37,6 +39,7 @@ class MudClient {
   private statsPanel: StatsPanel;
   private questPanel: QuestPanel;
   private commPanel: CommPanel;
+  private combatPanel: CombatPanel;
   private guiModal: GUIModal;
   private launcher: Launcher;
   private statusElement: HTMLElement;
@@ -79,6 +82,7 @@ class MudClient {
       },
     });
     this.commPanel = new CommPanel('comm-container');
+    this.combatPanel = new CombatPanel('combat-container');
     this.guiModal = new GUIModal((message: GUIClientMessage) => {
       this.wsClient.sendGUIMessage(message);
     });
@@ -158,6 +162,11 @@ class MudClient {
     // Comm panel events
     this.wsClient.on('comm-message', (message: CommMessage) => {
       this.commPanel.handleMessage(message);
+    });
+
+    // Combat panel events
+    this.wsClient.on('combat-message', (message: CombatMessage) => {
+      this.combatPanel.handleMessage(message);
     });
 
     // Completion events

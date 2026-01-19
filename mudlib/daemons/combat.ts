@@ -223,6 +223,9 @@ export class CombatDaemon extends MudObject {
         });
     }
 
+    // Send combat target update to the attacker's client
+    this.sendCombatTargetUpdate(attacker, defender);
+
     return true;
   }
 
@@ -268,10 +271,13 @@ export class CombatDaemon extends MudObject {
       }
     }
 
-    // Clear combat states
+    // Clear combat states and send panel clear messages
     if (living.combatTarget) {
       living.endCombat();
     }
+
+    // Clear combat panel for the living if they are a player
+    this.sendCombatTargetUpdate(living, null);
 
     // Remove combats from tracking
     for (const key of toRemove) {
@@ -280,8 +286,12 @@ export class CombatDaemon extends MudObject {
         // Clear combat state on the other party
         if (entry.attacker === living && entry.defender.combatTarget === living) {
           entry.defender.endCombat();
+          // Clear combat panel for the defender (if they're a player attacking the dying living)
+          this.sendCombatTargetUpdate(entry.defender, null);
         } else if (entry.defender === living && entry.attacker.combatTarget === living) {
           entry.attacker.endCombat();
+          // Clear combat panel for the attacker
+          this.sendCombatTargetUpdate(entry.attacker, null);
         }
       }
       this._combats.delete(key);
@@ -315,6 +325,12 @@ export class CombatDaemon extends MudObject {
 
     // Send messages
     this.sendRoundMessages(result);
+
+    // Update combat target panel with new health values (only if defender still alive)
+    // If defender died, the clear will be sent by handleCombatEnd below
+    if (!result.defenderDied && defender.alive) {
+      this.sendCombatTargetUpdate(attacker, defender);
+    }
 
     // Check wimpy for defender (before checking death - give them a chance to flee)
     if (!result.defenderDied && defender.alive) {
@@ -757,6 +773,9 @@ export class CombatDaemon extends MudObject {
       attacker.endCombat();
     }
 
+    // Clear combat target panel
+    this.sendCombatTargetUpdate(attacker, null);
+
     // Send appropriate message
     switch (reason) {
       case 'separated':
@@ -999,6 +1018,21 @@ export class CombatDaemon extends MudObject {
    */
   get combatCount(): number {
     return this._combats.size;
+  }
+
+  /**
+   * Send combat target update to a player's client.
+   * @param attacker The player attacking
+   * @param target The target (null to clear the panel)
+   */
+  private sendCombatTargetUpdate(attacker: Living, target: Living | null): void {
+    // Only send updates for player attackers with sendCombatTarget method
+    const asPlayer = attacker as Living & { sendCombatTarget?: (target: Living | null) => Promise<void> };
+    if (typeof asPlayer.sendCombatTarget === 'function') {
+      asPlayer.sendCombatTarget(target).catch(() => {
+        // Silently ignore errors
+      });
+    }
   }
 }
 

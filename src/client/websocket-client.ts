@@ -22,6 +22,7 @@ type WebSocketClientEvent =
   | 'quest-message'
   | 'completion-message'
   | 'comm-message'
+  | 'combat-message'
   | 'auth-response';
 
 /**
@@ -135,6 +136,31 @@ export interface CommMessage {
   timestamp: number;
   isSender?: boolean;    // True if recipient is the one who sent this message
 }
+
+/**
+ * Combat target update message.
+ */
+export interface CombatTargetUpdateMessage {
+  type: 'target_update';
+  target: {
+    name: string;
+    level: number;
+    portrait: string;      // SVG markup or avatar ID
+    health: number;
+    maxHealth: number;
+    healthPercent: number;
+    isPlayer: boolean;
+  };
+}
+
+/**
+ * Combat target clear message.
+ */
+export interface CombatTargetClearMessage {
+  type: 'target_clear';
+}
+
+export type CombatMessage = CombatTargetUpdateMessage | CombatTargetClearMessage;
 
 /**
  * Event handler type.
@@ -331,6 +357,14 @@ export class WebSocketClient {
             this.emit('auth-response', authMessage);
           } catch (error) {
             console.error('Failed to parse AUTH message:', error);
+          }
+        } else if (line.startsWith('\x00[COMBAT]')) {
+          const jsonStr = line.slice(9); // Remove \x00[COMBAT] prefix
+          try {
+            const combatMessage = JSON.parse(jsonStr) as CombatMessage;
+            this.emit('combat-message', combatMessage);
+          } catch (error) {
+            console.error('Failed to parse COMBAT message:', error);
           }
         } else {
           this.emit('message', line);

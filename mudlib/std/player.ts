@@ -53,6 +53,31 @@ export interface CompletionMessage {
 }
 
 /**
+ * Combat target update message.
+ */
+export interface CombatTargetUpdateMessage {
+  type: 'target_update';
+  target: {
+    name: string;
+    level: number;
+    portrait: string;      // SVG markup or avatar ID
+    health: number;
+    maxHealth: number;
+    healthPercent: number;
+    isPlayer: boolean;
+  };
+}
+
+/**
+ * Combat target clear message.
+ */
+export interface CombatTargetClearMessage {
+  type: 'target_clear';
+}
+
+export type CombatMessage = CombatTargetUpdateMessage | CombatTargetClearMessage;
+
+/**
  * Connection interface (implemented by driver's Connection class).
  */
 export interface Connection {
@@ -61,6 +86,7 @@ export interface Connection {
   sendStats?(message: StatsMessage): void;
   sendGUI?(message: GUIMessage): void;
   sendCompletion?(message: CompletionMessage): void;
+  sendCombat?(message: CombatMessage): void;
   close(): void;
   isConnected(): boolean;
 }
@@ -556,6 +582,52 @@ export class Player extends Living {
       }
     } catch {
       // Silently fail if map daemon isn't available
+    }
+  }
+
+  /**
+   * Send combat target update to the client.
+   * Called when combat starts, damage is dealt, or combat ends.
+   * @param target The combat target (null to clear the panel)
+   */
+  async sendCombatTarget(target: Living | null): Promise<void> {
+    // Check if connection supports combat messages
+    if (!this._connection?.sendCombat) {
+      return;
+    }
+
+    // Clear the panel if no target
+    if (!target) {
+      this._connection.sendCombat({ type: 'target_clear' });
+      return;
+    }
+
+    try {
+      // Dynamic import to avoid circular dependency
+      const { getPortraitDaemon } = await import('../daemons/portrait.js');
+      const portraitDaemon = getPortraitDaemon();
+
+      // Get portrait for the target
+      const portrait = await portraitDaemon.getPortrait(target);
+
+      // Determine if target is a player
+      const isPlayer = 'permissionLevel' in target && typeof (target as unknown as { permissionLevel: number }).permissionLevel === 'number';
+
+      // Send target update
+      this._connection.sendCombat({
+        type: 'target_update',
+        target: {
+          name: target.name,
+          level: target.level,
+          portrait,
+          health: target.health,
+          maxHealth: target.maxHealth,
+          healthPercent: target.healthPercent,
+          isPlayer,
+        },
+      });
+    } catch {
+      // Silently fail if portrait daemon isn't available
     }
   }
 

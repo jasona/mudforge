@@ -97,6 +97,28 @@ export interface AuthResponseMessage {
 }
 
 /**
+ * COMBAT protocol message types for combat target display.
+ */
+export interface CombatTargetUpdateMessage {
+  type: 'target_update';
+  target: {
+    name: string;
+    level: number;
+    portrait: string;      // SVG markup or avatar ID
+    health: number;
+    maxHealth: number;
+    healthPercent: number;
+    isPlayer: boolean;
+  };
+}
+
+export interface CombatTargetClearMessage {
+  type: 'target_clear';
+}
+
+export type CombatMessage = CombatTargetUpdateMessage | CombatTargetClearMessage;
+
+/**
  * Connection state.
  */
 export type ConnectionState = 'connecting' | 'open' | 'closing' | 'closed';
@@ -388,6 +410,25 @@ export class Connection extends EventEmitter {
     try {
       const json = JSON.stringify(message);
       this.socket.send(`\x00[AUTH]${json}`);
+    } catch (error) {
+      this.emit('error', error as Error);
+    }
+  }
+
+  /**
+   * Send a COMBAT protocol message to the client.
+   * COMBAT messages are prefixed with \x00[COMBAT] to distinguish them from regular text.
+   * Used for combat target panel display.
+   * @param message The combat message to send
+   */
+  sendCombat(message: CombatMessage): void {
+    if (this._state !== 'open') {
+      return;
+    }
+
+    try {
+      const json = JSON.stringify(message);
+      this.socket.send(`\x00[COMBAT]${json}`);
     } catch (error) {
       this.emit('error', error as Error);
     }
