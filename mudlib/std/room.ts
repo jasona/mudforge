@@ -100,6 +100,8 @@ export class Room extends MudObject {
         try {
           const item = await efuns.cloneObject(itemPath);
           if (item) {
+            // Mark as spawned by this room (prevents cleanup by reset daemon)
+            item.spawnRoom = this;
             await item.moveTo(this);
           }
         } catch (error) {

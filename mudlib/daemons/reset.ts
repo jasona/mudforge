@@ -178,6 +178,11 @@ export class ResetDaemon extends MudObject {
       // Skip players and NPCs (livings)
       if ('isLiving' in obj || 'connection' in obj) continue;
 
+      // Skip items spawned by a room (they belong there)
+      if ('spawnRoom' in obj && (obj as MudObject & { spawnRoom?: MudObject | null }).spawnRoom) {
+        continue;
+      }
+
       // Skip items that are not "takeable" (probably room features)
       const takeable = (obj as MudObject & { takeable?: boolean }).takeable;
       if (takeable === false) continue;

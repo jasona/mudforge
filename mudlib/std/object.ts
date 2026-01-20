@@ -38,6 +38,9 @@ export class MudObject {
   private _environment: MudObject | null = null;
   private _inventory: MudObject[] = [];
 
+  // Spawn tracking (set when object is spawned by a room)
+  private _spawnRoom: MudObject | null = null;
+
   // Actions
   private _actions: Map<string, Action> = new Map();
 
@@ -112,6 +115,21 @@ export class MudObject {
    */
   get inventory(): ReadonlyArray<MudObject> {
     return this._inventory;
+  }
+
+  /**
+   * Get the room this object was spawned in (if any).
+   * Objects spawned by rooms should not be cleaned up by the reset daemon.
+   */
+  get spawnRoom(): MudObject | null {
+    return this._spawnRoom;
+  }
+
+  /**
+   * Set the room this object was spawned in.
+   */
+  set spawnRoom(room: MudObject | null) {
+    this._spawnRoom = room;
   }
 
   // ========== Lifecycle Hooks ==========
