@@ -452,11 +452,17 @@ function createDivider(_element: DisplayElement): HTMLElement {
 }
 
 function createImage(element: DisplayElement): HTMLElement {
+  // Wrap image in container for consistent dark vignette effect
+  const wrapper = document.createElement('div');
+  wrapper.className = 'gui-image-wrapper';
+
   const img = document.createElement('img');
   img.className = 'gui-image';
   img.src = element.src ?? '';
   img.alt = element.alt ?? '';
-  return img;
+
+  wrapper.appendChild(img);
+  return wrapper;
 }
 
 function createIcon(element: DisplayElement): HTMLElement {

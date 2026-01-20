@@ -1765,9 +1765,30 @@ h6.gui-heading { font-size: 12px; }
   margin: var(--spacing-md) 0;
 }
 
+.gui-image-wrapper {
+  position: relative;
+  display: inline-block;
+  border-radius: var(--border-radius-sm);
+  overflow: hidden;
+}
+
+.gui-image-wrapper::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: var(--border-radius-sm);
+  /* Dark vignette effect to blend any light edges with dark UI */
+  box-shadow: inset 0 0 15px 5px rgba(0, 0, 0, 0.7);
+  pointer-events: none;
+}
+
 .gui-image {
   max-width: 100%;
   height: auto;
+  display: block;
   border-radius: var(--border-radius-sm);
 }
 

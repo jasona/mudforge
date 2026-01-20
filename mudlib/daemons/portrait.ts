@@ -235,7 +235,9 @@ Style requirements:
 - Dramatic lighting with shadows
 - Painterly texture suitable for a game UI
 - Should look like a character portrait from a classic RPG game
-- 64x64 pixel icon style, bold and recognizable`;
+- 64x64 pixel icon style, bold and recognizable
+- The artwork must fill the entire canvas from edge to edge
+- No borders, margins, or empty space around the subject`;
 
     // Try AI image generation with Gemini (Nano Banana)
     const imageResult = await this.callAiImageGeneration(prompt);
@@ -455,7 +457,9 @@ Style requirements:
 - Dramatic lighting with shadows
 - Painterly texture suitable for a game UI
 - Should look like a character portrait from a classic RPG game
-- 64x64 pixel icon style, bold and recognizable`;
+- 64x64 pixel icon style, bold and recognizable
+- The artwork must fill the entire canvas from edge to edge
+- No borders, margins, or empty space around the subject`;
 
       case 'npc':
         return `Create a small square portrait icon for a fantasy RPG game character:
@@ -468,7 +472,9 @@ Style requirements:
 - Dramatic lighting with shadows
 - Painterly texture suitable for a game UI
 - Should look like a character portrait from a classic RPG game
-- 64x64 pixel icon style, bold and recognizable`;
+- 64x64 pixel icon style, bold and recognizable
+- The artwork must fill the entire canvas from edge to edge
+- No borders, margins, or empty space around the subject`;
 
       case 'weapon':
         const damageType = extraContext?.damageType as string | undefined;
@@ -478,7 +484,8 @@ ${description}
 Style: Dark fantasy, painterly, dramatic lighting
 ${damageType ? `Damage type: ${damageType}` : ''}
 Square composition, item icon style on a dark background
-No text, clean iconic design`;
+No text, clean iconic design
+Fill entire canvas edge to edge, no borders or margins`;
 
       case 'armor':
         const slot = extraContext?.slot as string | undefined;
@@ -488,7 +495,8 @@ ${description}
 Style: Dark fantasy, painterly, dramatic lighting
 ${slot ? `Slot: ${slot}` : ''}
 Square composition, item icon style on a dark background
-No text, clean iconic design`;
+No text, clean iconic design
+Fill entire canvas edge to edge, no borders or margins`;
 
       case 'container':
         const state = extraContext?.isOpen ? 'open' : 'closed';
@@ -498,7 +506,8 @@ ${description}
 Style: Dark fantasy, painterly
 State: ${state}
 Square composition, item icon style on a dark background
-No text, clean iconic design`;
+No text, clean iconic design
+Fill entire canvas edge to edge, no borders or margins`;
 
       case 'corpse':
         return `Create a dark fantasy RPG corpse scene:
@@ -509,7 +518,8 @@ Style: Dark fantasy, grim, somber atmosphere
 - Moody, dramatic lighting with shadows
 - Painterly texture suitable for a game UI
 Square composition on a dark background
-No text, clean dramatic design`;
+No text, clean dramatic design
+Fill entire canvas edge to edge, no borders or margins`;
 
       case 'gold':
         return `Create a fantasy RPG gold coins icon:
@@ -520,7 +530,8 @@ Style: Dark fantasy, painterly, warm golden glow
 - Dramatic lighting making the gold gleam
 - Treasure/loot aesthetic
 Square composition, item icon style on a dark background
-No text, clean iconic design`;
+No text, clean iconic design
+Fill entire canvas edge to edge, no borders or margins`;
 
       case 'item':
       default:
@@ -529,7 +540,8 @@ ${description}
 
 Style: Dark fantasy, painterly, dramatic lighting
 Square composition, item icon style on a dark background
-No text, clean iconic design`;
+No text, clean iconic design
+Fill entire canvas edge to edge, no borders or margins`;
     }
   }
 
