@@ -178,8 +178,9 @@ export class ResetDaemon extends MudObject {
       // Skip players and NPCs (livings)
       if ('isLiving' in obj || 'connection' in obj) continue;
 
-      // Skip items spawned by a room (they belong there)
-      if ('spawnRoom' in obj && (obj as MudObject & { spawnRoom?: MudObject | null }).spawnRoom) {
+      // Skip items that are still in the room that spawned them
+      const spawnRoom = (obj as MudObject & { spawnRoom?: MudObject | null }).spawnRoom;
+      if (spawnRoom && spawnRoom === room) {
         continue;
       }
 
