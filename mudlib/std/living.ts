@@ -89,6 +89,9 @@ export const DEFAULT_EXIT_MESSAGE = '$N leaves $D.';
 export const DEFAULT_ENTER_MESSAGE = '$N arrives from $D.';
 
 export class Living extends MudObject {
+  /** Flag to identify living objects (players and NPCs) */
+  readonly isLiving: boolean = true;
+
   private _name: string = 'someone';
   private _title: string = '';
   private _gender: 'male' | 'female' | 'neutral' = 'neutral';
