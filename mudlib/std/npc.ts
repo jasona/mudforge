@@ -58,6 +58,7 @@ export class NPC extends Living {
   private _respawnTime: number = 0; // 0 = no respawn
   private _spawnRoom: Room | null = null;
   private _wanderAreaPath: string | null = null;
+  private _wanderAreaRestricted: boolean = false;
 
   // Combat configuration
   private _combatConfig: NPCCombatConfig | null = null;
@@ -448,6 +449,7 @@ export class NPC extends Living {
   enableWandering(directions: string[] = [], areaRestricted: boolean = false): void {
     this._wandering = true;
     this._wanderDirections = directions;
+    this._wanderAreaRestricted = areaRestricted;
     if (areaRestricted) {
       this.setWanderAreaFromSpawnRoom();
     }
@@ -478,6 +480,14 @@ export class NPC extends Living {
     let directions = env.getExitDirections();
     if (this._wanderDirections.length > 0) {
       directions = directions.filter((d) => this._wanderDirections.includes(d));
+    }
+
+    // Lazily derive area path from current environment if area-restricted but path not set
+    if (this._wanderAreaRestricted && !this._wanderAreaPath && env.objectPath) {
+      const lastSlash = env.objectPath.lastIndexOf('/');
+      if (lastSlash > 0) {
+        this._wanderAreaPath = env.objectPath.substring(0, lastSlash + 1);
+      }
     }
 
     // Filter by area path if restricted
