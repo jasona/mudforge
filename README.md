@@ -50,7 +50,7 @@ Following LDMud's proven architecture, MudForge embraces the principle that **ev
 
 ## Architecture
 
-```
+```text
 +-----------------------------------------------------------------+
 |                        Web Browser                              |
 |  +-----------------------------------------------------------+  |
@@ -66,10 +66,10 @@ Following LDMud's proven architecture, MudForge embraces the principle that **ev
 |  |  Manager    |  |  Registry   |  | (heartbeat) |              |
 |  +-------------+  +-------------+  +-------------+              |
 |  +-----------------------------------------------------------+  |
-|  |                 Mudlib Execution Context                   |  |
-|  |  +---------+  +-------------+  +---------------+           |  |
-|  |  | Master  |  | Sim Efuns   |  | Object Pool   |           |  |
-|  |  +---------+  +-------------+  +---------------+           |  |
+|  |                 Mudlib Execution Context                  |  |
+|  |  +---------+  +-------------+  +---------------+          |  |
+|  |  | Master  |  | Sim Efuns   |  | Object Pool   |          |  |
+|  |  +---------+  +-------------+  +---------------+          |  |
 |  +-----------------------------------------------------------+  |
 +-----------------------------------------------------------------+
                               |
@@ -80,8 +80,8 @@ Following LDMud's proven architecture, MudForge embraces the principle that **ev
 |  +-- master.ts              # Master object                     |
 |  +-- efuns.d.ts             # Global efun type declarations     |
 |  +-- std/                   # Standard library                  |
-|  |   +-- room.ts, living.ts, player.ts, item.ts, ...           |
-|  |   +-- weapon.ts, armor.ts, container.ts, npc.ts             |
+|  |   +-- room.ts, living.ts, player.ts, item.ts, ...            |
+|  |   +-- weapon.ts, armor.ts, container.ts, npc.ts              |
 |  +-- areas/                 # Game world content                |
 |  +-- data/                  # Persistent state (JSON)           |
 +-----------------------------------------------------------------+
@@ -89,7 +89,7 @@ Following LDMud's proven architecture, MudForge embraces the principle that **ev
 
 ## Object Hierarchy
 
-```
+```text
 MudObject                          # Root of all objects
 +-- Master                         # World bootstrap, global hooks
 +-- Room                           # Locations
@@ -151,6 +151,7 @@ cp .env.example .env
 
 ```bash
 # Development mode (with hot-reload and auto-restart)
+npm run build
 npm run dev
 
 # Or for production
@@ -159,7 +160,8 @@ npm start
 ```
 
 You should see output like:
-```
+
+```text
 [INFO] MudForge Driver starting...
 [INFO] Loading mudlib from ./mudlib
 [INFO] WebSocket server listening on http://localhost:3000
@@ -168,7 +170,8 @@ You should see output like:
 ### Connecting to the Game
 
 1. **Open your web browser** and go to:
-   ```
+
+   ```text
    http://localhost:3000
    ```
 
@@ -190,6 +193,7 @@ That's it! You're now connected to the MUD.
 | Mudlib Path | `./mudlib` | Game content directory |
 
 To change these, edit `.env` or set environment variables:
+
 ```bash
 PORT=8080 npm run dev
 ```
@@ -207,7 +211,7 @@ npm run typecheck  # TypeScript type checking
 
 ## Project Structure
 
-```
+```text
 src/
 +-- driver/           # Core driver implementation
 |   +-- driver.ts            # Main orchestrator
@@ -253,7 +257,7 @@ tests/                # Test suite
 
 ### Item Interaction
 
-```
+```text
 get sword                    # Pick up an item
 get all                      # Pick up all items
 get sword from chest         # Get item from container
@@ -271,7 +275,7 @@ look in chest                # See container contents
 
 ### Equipment System
 
-```
+```text
 wield sword                  # Wield a weapon
 wield dagger in left         # Dual-wield (off-hand)
 unwield                      # Unwield all weapons
@@ -282,7 +286,7 @@ equipment                    # View all equipped items
 
 ### Combat
 
-```
+```text
 kill goblin                  # Attack an NPC
 flee                         # Attempt to escape combat
 consider goblin              # Assess NPC difficulty
@@ -295,7 +299,7 @@ When defeated, players become ghosts and can `resurrect` at the resurrection poi
 
 Join up to 3 guilds simultaneously and learn unique skills:
 
-```
+```text
 guild list                   # See all available guilds
 guild info fighter           # Learn about a specific guild
 guild join fighter           # Join a guild (must meet requirements)
@@ -314,7 +318,7 @@ advance bash                  # Advance skill level (costs player XP)
 
 Accept and complete quests for XP, gold, and quest points:
 
-```
+```text
 quest                        # Show active quests
 quest log                    # Full quest log with progress
 quest info <name>            # Detailed quest information
@@ -332,7 +336,7 @@ Quest types include: kill targets, collect items, deliver packages, escort NPCs,
 
 Temporary effects that modify your stats:
 
-```
+```text
 buffs                        # View active buffs and debuffs
 ```
 
@@ -340,7 +344,7 @@ Effects can come from skills, potions, equipment, or environmental sources. Mult
 
 ### Gold & Economy
 
-```
+```text
 score                        # See your gold (carried and banked)
 get gold from corpse         # Loot gold from defeated enemies
 drop 100 gold                # Drop gold on the ground
@@ -353,7 +357,7 @@ Banks in towns allow you to safely store gold that won't be lost on death.
 
 Players can create colorful, personalized display names:
 
-```
+```text
 displayname Sir {blue}$N{/} the {green}Bold{/}
 ```
 
@@ -363,7 +367,7 @@ displayname Sir {blue}$N{/} the {green}Bold{/}
 
 ### Communication
 
-```
+```text
 say <message>                # Talk to players in the same room
 tell <player> <message>      # Private message to a player
 reply <message>              # Reply to last tell
@@ -379,7 +383,7 @@ remote bob wave              # Emote at someone in another room
 
 Create shortcuts for frequently used commands:
 
-```
+```text
 alias                        # View all aliases
 alias k kill                 # Create alias 'k' for 'kill'
 alias atk kill $*            # Alias with arguments
@@ -390,6 +394,7 @@ do n;n;e;get sword           # Execute multiple commands
 ### Session Reconnection & Link-Dead Handling
 
 If you disconnect unexpectedly:
+
 - Your character's form "fades from view" and is moved to a holding area
 - Other players in the room see a message about your departure
 - You have a configurable timeout (default 15 minutes) to reconnect
@@ -540,6 +545,7 @@ This project is under active development. See [tasks/tasks-modern-mud-driver.md]
 ## Inspiration
 
 MudForge draws inspiration from:
+
 - [LDMud](https://github.com/ldmud/ldmud) - The classic LPMud driver
 
 ## License
