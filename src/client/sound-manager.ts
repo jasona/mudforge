@@ -134,9 +134,77 @@ export class SoundManager {
   private audioCache: Map<string, HTMLAudioElement> = new Map();
   private loopingSounds: Map<string, HTMLAudioElement> = new Map();
   private loopMetadata: Map<string, LoopMetadata> = new Map(); // Track loop info for resume
+  private audioUnlocked: boolean = false;
+  private pendingSounds: Array<{ category: SoundCategory; sound: string; volume?: number }> = [];
+  private pendingLoops: Array<{ category: SoundCategory; sound: string; id: string; volume?: number }> = [];
 
   constructor() {
     this.settings = this.loadSettings();
+    this.setupAudioUnlock();
+  }
+
+  /**
+   * Set up audio unlock listeners for browsers with strict autoplay policies.
+   * macOS Chrome and Safari require user interaction before audio can play.
+   */
+  private setupAudioUnlock(): void {
+    const unlockAudio = (event: Event) => {
+      if (this.audioUnlocked) return;
+
+      // Only respond to trusted (real user) events
+      if (!event.isTrusted) return;
+
+      // Try to play a silent audio element to unlock HTML5 Audio
+      const silentAudio = new Audio();
+      // Use a data URI for a tiny silent WAV (better browser support than MP3)
+      // This is a valid 44-byte WAV file with 1 sample of silence
+      silentAudio.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
+      silentAudio.volume = 0.01;
+
+      silentAudio.play().then(() => {
+        this.onAudioUnlocked();
+        // Remove listeners after successful unlock
+        events.forEach(evt => {
+          document.removeEventListener(evt, unlockAudio, true);
+        });
+      }).catch(() => {
+        // Don't give up - might work on a different event type
+      });
+    };
+
+    // Listen for user interactions that unlock audio
+    // Use capture phase to get events before they're handled
+    const events = ['click', 'touchstart', 'touchend', 'keydown'];
+    events.forEach(event => {
+      document.addEventListener(event, unlockAudio, true);
+    });
+  }
+
+  /**
+   * Called when audio is unlocked after user interaction.
+   */
+  private onAudioUnlocked(): void {
+    if (this.audioUnlocked) return;
+    this.audioUnlocked = true;
+
+    // Play any pending sounds
+    for (const pending of this.pendingSounds) {
+      this.play(pending.category, pending.sound, pending.volume);
+    }
+    this.pendingSounds = [];
+
+    // Start any pending loops
+    for (const pending of this.pendingLoops) {
+      this.loop(pending.category, pending.sound, pending.id, pending.volume);
+    }
+    this.pendingLoops = [];
+  }
+
+  /**
+   * Check if audio is unlocked (user has interacted with the page).
+   */
+  isAudioUnlocked(): boolean {
+    return this.audioUnlocked;
   }
 
   /**
@@ -251,6 +319,12 @@ export class SoundManager {
       return;
     }
 
+    // Queue sound if audio isn't unlocked yet (macOS Chrome/Safari autoplay policy)
+    if (!this.audioUnlocked) {
+      this.pendingSounds.push({ category, sound, volume });
+      return;
+    }
+
     const audio = this.getAudio(category, sound);
     if (!audio) {
       return;
@@ -284,6 +358,14 @@ export class SoundManager {
     this.loopMetadata.set(id, { category, sound, volume });
 
     if (!this.shouldPlay(category)) {
+      return;
+    }
+
+    // Queue loop if audio isn't unlocked yet (macOS Chrome/Safari autoplay policy)
+    if (!this.audioUnlocked) {
+      // Remove any existing pending loop with same id
+      this.pendingLoops = this.pendingLoops.filter(p => p.id !== id);
+      this.pendingLoops.push({ category, sound, id, volume });
       return;
     }
 

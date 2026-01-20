@@ -785,6 +785,14 @@ export async function openLookModal(
   const type = detectObjectType(target);
   const portraitDaemon = getPortraitDaemon();
 
+  // Play NPC look sound if configured
+  if (type === 'npc' && 'lookSound' in target) {
+    const npc = target as MudObject & { lookSound: string | null };
+    if (npc.lookSound && efuns.playSound) {
+      efuns.playSound(player, 'ambient', npc.lookSound);
+    }
+  }
+
   // Get existing image for players, or fallback for others
   let initialImage: string;
   if (type === 'player') {
