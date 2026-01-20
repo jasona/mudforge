@@ -35,6 +35,9 @@ a wary eye out for predators.`,
       gold: 0,
       goldDrop: { min: 0, max: 0 },
       lootTable: [],
+      wandering: true,
+      wanderChance: 20,
+      wanderAreaRestricted: true,
     });
 
     this.setBaseStats({

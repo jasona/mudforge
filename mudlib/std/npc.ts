@@ -57,6 +57,7 @@ export class NPC extends Living {
   private _wanderDirections: string[] = [];
   private _respawnTime: number = 0; // 0 = no respawn
   private _spawnRoom: Room | null = null;
+  private _wanderAreaPath: string | null = null;
 
   // Combat configuration
   private _combatConfig: NPCCombatConfig | null = null;
@@ -442,10 +443,14 @@ export class NPC extends Living {
   /**
    * Enable wandering behavior.
    * @param directions Allowed directions, or empty for all exits
+   * @param areaRestricted If true, restrict wandering to spawn room's area
    */
-  enableWandering(directions: string[] = []): void {
+  enableWandering(directions: string[] = [], areaRestricted: boolean = false): void {
     this._wandering = true;
     this._wanderDirections = directions;
+    if (areaRestricted) {
+      this.setWanderAreaFromSpawnRoom();
+    }
   }
 
   /**
@@ -475,6 +480,18 @@ export class NPC extends Living {
       directions = directions.filter((d) => this._wanderDirections.includes(d));
     }
 
+    // Filter by area path if restricted
+    if (this._wanderAreaPath && typeof env.getExit === 'function') {
+      directions = directions.filter((d) => {
+        const exit = env.getExit(d);
+        if (!exit) return false;
+        const destPath = typeof exit.destination === 'string'
+          ? exit.destination
+          : (exit.destination as { objectPath?: string })?.objectPath;
+        return destPath?.startsWith(this._wanderAreaPath!) ?? false;
+      });
+    }
+
     if (directions.length === 0) return;
 
     const idx = typeof efuns !== 'undefined'
@@ -502,6 +519,34 @@ export class NPC extends Living {
    */
   get spawnRoom(): Room | null {
     return this._spawnRoom;
+  }
+
+  // ========== Wander Area ==========
+
+  /**
+   * Get the area path restriction for wandering.
+   */
+  get wanderAreaPath(): string | null {
+    return this._wanderAreaPath;
+  }
+
+  /**
+   * Set the area path restriction for wandering.
+   */
+  set wanderAreaPath(path: string | null) {
+    this._wanderAreaPath = path;
+  }
+
+  /**
+   * Set the wander area path from the spawn room's location.
+   * This extracts the directory path from the spawn room's object path.
+   */
+  setWanderAreaFromSpawnRoom(): void {
+    if (!this._spawnRoom?.objectPath) return;
+    const lastSlash = this._spawnRoom.objectPath.lastIndexOf('/');
+    if (lastSlash > 0) {
+      this._wanderAreaPath = this._spawnRoom.objectPath.substring(0, lastSlash + 1);
+    }
   }
 
   // ========== Combat Configuration ==========
@@ -862,6 +907,7 @@ export class NPC extends Living {
     wandering?: boolean;
     wanderChance?: number;
     wanderDirections?: string[];
+    wanderAreaRestricted?: boolean;
     respawnTime?: number;
     // Combat options
     baseXP?: number;
@@ -888,9 +934,12 @@ export class NPC extends Living {
     }
 
     if (options.chatChance !== undefined) this._chatChance = options.chatChance;
-    if (options.wandering !== undefined) this._wandering = options.wandering;
+    if (options.wandering) {
+      this.enableWandering(options.wanderDirections || [], options.wanderAreaRestricted || false);
+    } else if (options.wandering === false) {
+      this._wandering = false;
+    }
     if (options.wanderChance !== undefined) this._wanderChance = options.wanderChance;
-    if (options.wanderDirections) this._wanderDirections = options.wanderDirections;
     if (options.respawnTime !== undefined) this._respawnTime = options.respawnTime;
 
     // Sound configuration

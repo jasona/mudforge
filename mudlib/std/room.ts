@@ -549,8 +549,16 @@ export class Room extends MudObject {
     this._spawnedNpcIds.add(npc.objectId);
 
     // Set spawn room on the NPC
-    const npcWithSpawn = npc as MudObject & { _spawnRoom?: Room };
+    const npcWithSpawn = npc as MudObject & {
+      _spawnRoom?: Room;
+      setWanderAreaFromSpawnRoom?: () => void;
+    };
     npcWithSpawn._spawnRoom = this;
+
+    // Auto-set wander area path if NPC supports it
+    if (typeof npcWithSpawn.setWanderAreaFromSpawnRoom === 'function') {
+      npcWithSpawn.setWanderAreaFromSpawnRoom();
+    }
   }
 
   /**

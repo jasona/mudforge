@@ -36,6 +36,9 @@ are known for their bad temper and surprising ferocity when cornered.`,
       gold: 0,
       goldDrop: { min: 0, max: 2 },
       lootTable: [],
+      wandering: true,
+      wanderChance: 12,
+      wanderAreaRestricted: true,
     });
 
     this.setBaseStats({

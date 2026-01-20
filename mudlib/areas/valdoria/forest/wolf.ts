@@ -42,6 +42,9 @@ alert for both prey and danger. This is clearly a dangerous predator.`,
         { itemPath: '/items/quest/wolf_pelt', chance: 65 },
         { itemPath: '/items/quest/wolf_pelt', chance: 30 }, // Chance for second pelt
       ],
+      wandering: true,
+      wanderChance: 10,
+      wanderAreaRestricted: true,
     });
 
     // Set base stats (wolves are fast and tough)

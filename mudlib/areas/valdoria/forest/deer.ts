@@ -36,6 +36,9 @@ alert to every sound.`,
       gold: 0,
       goldDrop: { min: 0, max: 0 },
       lootTable: [],
+      wandering: true,
+      wanderChance: 15,
+      wanderAreaRestricted: true,
     });
 
     this.setBaseStats({
