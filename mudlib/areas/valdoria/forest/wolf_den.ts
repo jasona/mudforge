@@ -32,13 +32,17 @@ Wolves patrol this area constantly, defending their territory.`;
   }
 
   override async onCreate(): Promise<void> {
-    // Always wolves here
+    await super.onCreate();
+
+    // Spawn 2-3 wolves (manual spawning, not via setNpcs)
     if (typeof efuns !== 'undefined' && efuns.cloneObject) {
-      // Spawn 2-3 wolves
       const wolfCount = 2 + Math.floor(Math.random() * 2);
       for (let i = 0; i < wolfCount; i++) {
         const wolf = await efuns.cloneObject('/areas/valdoria/forest/wolf');
-        if (wolf) await wolf.moveTo(this);
+        if (wolf) {
+          this.registerSpawnedNpc(wolf); // Track for respawn coordination
+          await wolf.moveTo(this);
+        }
       }
     }
   }

@@ -52,6 +52,7 @@ export class Room extends MudObject {
   private _exits: Map<string, Exit> = new Map();
   private _items: string[] = [];
   private _npcs: string[] = [];
+  private _spawnedNpcIds: Set<string> = new Set(); // Track NPCs spawned by this room
   private _resetMessage: string = '';
   private _terrain: TerrainType = getDefaultTerrain();
   private _mapData: RoomMapData = {};
@@ -467,35 +468,69 @@ export class Room extends MudObject {
   }
 
   /**
+   * Check if a spawned NPC still exists in the world (not just this room).
+   * @param objectId The NPC's objectId to check
+   * @returns true if the NPC exists and is alive
+   */
+  private isSpawnedNpcAlive(objectId: string): boolean {
+    if (typeof efuns === 'undefined' || !efuns.findObject) return false;
+    const obj = efuns.findObject(objectId);
+    if (!obj) return false;
+
+    // Check if it's still alive
+    const living = obj as MudObject & { health?: number; alive?: boolean };
+    if (typeof living.alive === 'boolean') return living.alive;
+    if (typeof living.health === 'number') return living.health > 0;
+
+    return true; // Object exists, assume alive
+  }
+
+  /**
    * Spawn all NPCs that should be in this room but are missing.
    * Called during onCreate and onReset.
+   * Tracks spawned NPCs to avoid duplicates when they roam.
    */
   async spawnMissingNpcs(): Promise<void> {
     if (typeof efuns === 'undefined' || !efuns.cloneObject || this._npcs.length === 0) {
       return;
     }
 
+    // Clean up tracked IDs for NPCs that no longer exist
+    for (const npcId of this._spawnedNpcIds) {
+      if (!this.isSpawnedNpcAlive(npcId)) {
+        this._spawnedNpcIds.delete(npcId);
+      }
+    }
+
     for (const npcPath of this._npcs) {
-      // Check if an NPC from this blueprint already exists in the room
-      const hasNpc = this.inventory.some((obj) => {
-        const blueprint = (obj as MudObject & { blueprint?: { objectPath?: string } }).blueprint;
-        return blueprint?.objectPath === npcPath;
-      });
+      // Check if an NPC from this blueprint exists in our tracked set (anywhere in world)
+      let hasLivingNpc = false;
+      for (const npcId of this._spawnedNpcIds) {
+        const obj = efuns.findObject(npcId);
+        if (obj) {
+          const blueprint = (obj as MudObject & { blueprint?: { objectPath?: string } }).blueprint;
+          if (blueprint?.objectPath === npcPath) {
+            hasLivingNpc = true;
+            break;
+          }
+        }
+      }
 
       // Clone if missing
-      if (!hasNpc) {
+      if (!hasLivingNpc) {
         try {
           const npc = await efuns.cloneObject(npcPath);
           if (npc) {
+            // Track this NPC
+            this._spawnedNpcIds.add(npc.objectId);
+
             // Set the NPC's spawn room to this room for respawning
-            const npcWithRespawn = npc as MudObject & {
-              setRespawn?: (seconds: number, room: MudObject) => void;
+            const npcWithSpawn = npc as MudObject & {
+              _spawnRoom?: Room;
               _respawnTime?: number;
             };
-            // Only set spawn room if the NPC has respawn enabled
-            if (npcWithRespawn.setRespawn && npcWithRespawn._respawnTime && npcWithRespawn._respawnTime > 0) {
-              npcWithRespawn.setRespawn(npcWithRespawn._respawnTime, this);
-            }
+            npcWithSpawn._spawnRoom = this;
+
             await npc.moveTo(this);
           }
         } catch (error) {
@@ -503,6 +538,36 @@ export class Room extends MudObject {
         }
       }
     }
+  }
+
+  /**
+   * Manually register an NPC as spawned by this room.
+   * Use this when spawning NPCs directly in onCreate() instead of via setNpcs().
+   * @param npc The NPC to register
+   */
+  registerSpawnedNpc(npc: MudObject): void {
+    this._spawnedNpcIds.add(npc.objectId);
+
+    // Set spawn room on the NPC
+    const npcWithSpawn = npc as MudObject & { _spawnRoom?: Room };
+    npcWithSpawn._spawnRoom = this;
+  }
+
+  /**
+   * Manually unregister an NPC from this room's tracking.
+   * Use this when an NPC should no longer respawn here.
+   * @param npc The NPC to unregister
+   */
+  unregisterSpawnedNpc(npc: MudObject): void {
+    this._spawnedNpcIds.delete(npc.objectId);
+  }
+
+  /**
+   * Get the set of spawned NPC objectIds tracked by this room.
+   * Useful for debugging and admin commands.
+   */
+  getSpawnedNpcIds(): ReadonlySet<string> {
+    return this._spawnedNpcIds;
   }
 
   /**

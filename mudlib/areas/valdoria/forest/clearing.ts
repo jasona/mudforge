@@ -35,15 +35,23 @@ along game trails.`;
   }
 
   override async onCreate(): Promise<void> {
-    // Chance for various animals
+    await super.onCreate();
+
+    // Chance for various animals (manual spawning with tracking)
     if (typeof efuns !== 'undefined' && efuns.cloneObject) {
       if (Math.random() < 0.3) {
         const rabbit = await efuns.cloneObject('/areas/valdoria/forest/rabbit');
-        if (rabbit) await rabbit.moveTo(this);
+        if (rabbit) {
+          this.registerSpawnedNpc(rabbit); // Track for respawn coordination
+          await rabbit.moveTo(this);
+        }
       }
       if (Math.random() < 0.4) {
         const deer = await efuns.cloneObject('/areas/valdoria/forest/deer');
-        if (deer) await deer.moveTo(this);
+        if (deer) {
+          this.registerSpawnedNpc(deer); // Track for respawn coordination
+          await deer.moveTo(this);
+        }
       }
     }
   }

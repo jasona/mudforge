@@ -75,6 +75,9 @@ export class NPC extends Living {
   // Items to spawn on this NPC
   private _spawnItems: string[] = [];
 
+  // Sound to play when someone looks at this NPC
+  private _lookSound: string | null = null;
+
   constructor() {
     super();
     this.shortDesc = 'an NPC';
@@ -127,6 +130,32 @@ export class NPC extends Living {
         console.error(`[NPC] Failed to clone item ${itemPath}:`, error);
       }
     }
+  }
+
+  // ========== Look Sound ==========
+
+  /**
+   * Get the sound to play when someone looks at this NPC.
+   * @returns The sound identifier/filename, or null if none set
+   */
+  get lookSound(): string | null {
+    return this._lookSound;
+  }
+
+  /**
+   * Set a sound to play when someone looks at this NPC.
+   *
+   * The sound will be played in the 'ambient' category.
+   * Sound resolution follows the standard pattern:
+   * - Predefined sounds (e.g., 'growl')
+   * - Custom filename with .mp3 (e.g., 'dragon-roar.mp3')
+   * - Path-style (e.g., 'npc/dragon-roar')
+   * - Default pattern (e.g., 'growl' -> 'sounds/ambient-growl.mp3')
+   *
+   * @param sound Sound identifier, filename, or path (null to disable)
+   */
+  setLookSound(sound: string | null): void {
+    this._lookSound = sound;
   }
 
   // ========== Chat System ==========
@@ -756,14 +785,30 @@ export class NPC extends Living {
     if (this._respawnTime > 0 && this._spawnRoom) {
       const spawnRoom = this._spawnRoom;
       const npcPath = this.objectPath;
+      const selfId = this.objectId;
 
       if (typeof efuns !== 'undefined' && efuns.callOut) {
         efuns.callOut(async () => {
+          // Get room's spawn tracking (if available)
+          const roomWithTracking = spawnRoom as Room & {
+            _spawnedNpcIds?: Set<string>;
+          };
+
           // Clone a new NPC instead of reviving (cleaner approach)
           try {
             if (typeof efuns !== 'undefined' && efuns.cloneObject) {
               const newNpc = await efuns.cloneObject(npcPath);
               if (newNpc) {
+                // Update room's spawn tracking
+                if (roomWithTracking._spawnedNpcIds) {
+                  roomWithTracking._spawnedNpcIds.delete(selfId);
+                  roomWithTracking._spawnedNpcIds.add(newNpc.objectId);
+                }
+
+                // Set spawn room on new NPC
+                const newNpcWithSpawn = newNpc as NPC & { _spawnRoom?: Room };
+                newNpcWithSpawn._spawnRoom = spawnRoom;
+
                 await newNpc.moveTo(spawnRoom);
                 if ('broadcast' in spawnRoom) {
                   const spawnName = (newNpc as NPC).name;
@@ -774,7 +819,10 @@ export class NPC extends Living {
               }
             }
           } catch {
-            // Respawn failed - log if possible
+            // Respawn failed - remove from tracking so room reset can retry
+            if (roomWithTracking._spawnedNpcIds) {
+              roomWithTracking._spawnedNpcIds.delete(selfId);
+            }
           }
 
           // Destroy the old NPC
@@ -820,6 +868,8 @@ export class NPC extends Living {
     gold?: number;
     goldDrop?: GoldDrop;
     lootTable?: LootEntry[];
+    // Sound options
+    lookSound?: string;
   }): void {
     if (options.name) this.name = options.name;
     if (options.title) this.title = options.title;
@@ -842,6 +892,9 @@ export class NPC extends Living {
     if (options.wanderChance !== undefined) this._wanderChance = options.wanderChance;
     if (options.wanderDirections) this._wanderDirections = options.wanderDirections;
     if (options.respawnTime !== undefined) this._respawnTime = options.respawnTime;
+
+    // Sound configuration
+    if (options.lookSound !== undefined) this._lookSound = options.lookSound;
 
     // Combat configuration
     if (options.baseXP !== undefined || options.gold !== undefined ||
