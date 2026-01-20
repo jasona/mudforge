@@ -141,6 +141,26 @@ unlock chest             # Unlock with matching key in inventory
 lock chest               # Lock with matching key
 ```
 
+### Shopping
+
+#### shop (browse, trade)
+Open a merchant's shop interface.
+
+```
+shop                     # Open shop with merchant in the room
+shop grond               # Open shop with specific merchant
+shop blacksmith          # Use any merchant identifier
+```
+
+Opens a GUI modal with three panels:
+- **Merchant Wares**: Items available for purchase, grouped by category
+- **Transaction Ledger**: Running totals of items to buy and sell
+- **Your Items**: Your inventory with sell prices
+
+The shop uses a merged transaction flow where you can select items to buy AND sell, then finalize everything in a single transaction. Charisma affects prices - higher charisma means better deals.
+
+See [Merchant System](merchants.md) for details on how merchants work.
+
 ### Equipment
 
 #### wield

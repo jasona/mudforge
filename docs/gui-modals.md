@@ -766,6 +766,17 @@ const message: GUIOpenMessage = {
 
 ### Shop Interface
 
+MudForge includes a complete merchant/shop system with a three-panel GUI interface. See the [Merchant System Guide](merchants.md) for full documentation.
+
+The shop modal features:
+- **Left Panel**: Merchant wares grouped by category
+- **Center Panel**: Transaction ledger with running totals
+- **Right Panel**: Player inventory with sell prices
+
+Players can select items to buy AND sell, then finalize in a single transaction. The implementation is in `/mudlib/lib/shop-modal.ts`.
+
+**Simple Shop Example** (for custom implementations):
+
 ```typescript
 const message: GUIOpenMessage = {
   action: 'open',

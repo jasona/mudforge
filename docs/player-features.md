@@ -499,6 +499,70 @@ When you die:
 - Corpses decay over time - recover your gold quickly!
 - Carry healing potions for emergencies
 
+## Shopping with Merchants
+
+Trade with NPC merchants using the GUI shop interface.
+
+### Opening a Shop
+
+```
+shop                     # Open shop with merchant in the room
+shop grond               # Open shop with specific merchant
+```
+
+### The Shop Interface
+
+The shop modal has three panels:
+
+```
++------------------------------------------------------------------+
+|  [Shop Name]                                    Gold: 1,234      |
++------------------------------------------------------------------+
+|  MERCHANT WARES          |  TRANSACTION LEDGER  |  YOUR ITEMS    |
+|  Items for sale          |  Running totals      |  Your inventory|
+|  Click [+] to buy        |  Credits & debits    |  Click [+] sell|
++------------------------------------------------------------------+
+|  [Clear Cart]           [Finalize Transaction]    [Leave Shop]   |
++------------------------------------------------------------------+
+```
+
+**Merchant Wares** (left): Items the merchant sells, grouped by category. Click [+] to add to cart.
+
+**Transaction Ledger** (center): Shows items you're buying (debits) and selling (credits) with running totals.
+
+**Your Items** (right): Your inventory. Items the merchant accepts show sell prices. Click [+] to add to sell cart.
+
+### Merged Transactions
+
+You can buy AND sell items in a single transaction:
+
+1. Add items to buy from merchant → debits
+2. Add items to sell to merchant → credits
+3. Net amount = credits - debits
+4. Click "Finalize Transaction" to complete
+
+If you're selling more than you're buying, you receive gold. If buying more, you pay gold.
+
+### Charisma Bonus
+
+Your charisma stat affects prices:
+- **Higher charisma**: Pay less when buying, receive more when selling
+- Prices show base cost and your adjusted price
+
+### Sold Items
+
+When players sell items to a merchant:
+- The item appears in the merchant's wares with "(used)" tag
+- Other players can purchase these previously-owned items
+- Creates a dynamic player-driven economy
+
+### Tips
+
+- Use `consider` on items before selling rare equipment
+- High-value items may exceed merchant's available gold
+- Some merchants only accept certain item types (weapons, armor, potions)
+- Check the "(N/A)" indicator - means merchant won't buy that item
+
 ## Gold Economy
 
 MudForge includes a complete currency system.
@@ -516,6 +580,7 @@ inventory                # Shows gold you're carrying
 - Find gold piles in the world (`get gold`)
 - Receive gold from other players (`give` command)
 - Complete quests and achievements
+- Sell items to merchants (`shop` command)
 
 ### Managing Gold
 

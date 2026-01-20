@@ -164,6 +164,60 @@ The town crier is standing here.    <- NPC (red)
 A rusty sword lies on the ground.   <- Item (normal)
 ```
 
+## Creating a Merchant
+
+Merchants are NPCs that can buy and sell items through a GUI shop interface. See the [Merchant System Guide](merchants.md) for complete documentation.
+
+```typescript
+// /mudlib/areas/town/blacksmith.ts
+import { Merchant } from '../../std/merchant.js';
+
+export class Blacksmith extends Merchant {
+  constructor() {
+    super();
+
+    // Configure the merchant
+    this.setMerchant({
+      name: 'Grond the Smith',
+      shopName: "Grond's Forge",
+      shopDescription: 'Quality weapons and armor.',
+      buyRate: 0.6,           // Pays 60% of item value
+      sellRate: 1.0,          // Sells at 100% of stock price
+      acceptedTypes: ['weapon', 'armor'],
+      shopGold: 5000,
+    });
+
+    // Set NPC properties
+    this.shortDesc = 'Grond the Smith';
+    this.longDesc = 'A massive, barrel-chested blacksmith.';
+
+    this.addId('grond');
+    this.addId('blacksmith');
+    this.addId('merchant');
+
+    // Stock the shop
+    this.addStock('/items/iron_sword', 'Iron Sword', 100, 5, 'weapon');
+    this.addStock('/items/leather_armor', 'Leather Armor', 75, 5, 'armor');
+  }
+}
+```
+
+### Merchant Features
+
+- **GUI Shop Modal**: Three-panel interface (wares, ledger, inventory)
+- **Merged Transactions**: Buy and sell items in a single transaction
+- **Charisma Modifier**: Player charisma affects prices
+- **Sold Items**: Items sold by players are resold with "(used)" tag
+- **Category Filtering**: Merchants can specialize in item types
+
+### Stock Management
+
+```typescript
+// addStock(itemPath, name, price, quantity, category)
+this.addStock('/items/health_potion', 'Health Potion', 50, -1, 'potion');  // -1 = unlimited
+this.addStock('/items/iron_sword', 'Iron Sword', 100, 5, 'weapon');  // Limited stock
+```
+
 ## Creating a Container
 
 Containers can hold other items. Players can open, close, lock, unlock, and store items in them.
