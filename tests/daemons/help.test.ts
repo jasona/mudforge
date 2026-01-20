@@ -8,7 +8,6 @@ import {
   getHelpDaemon,
   resetHelpDaemon,
   type HelpTopic,
-  type HelpCategory,
 } from '../../mudlib/daemons/help.js';
 import { MudObject } from '../../mudlib/std/object.js';
 

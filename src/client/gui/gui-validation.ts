@@ -74,12 +74,13 @@ function validateRule(value: unknown, rule: ValidationRule): string | null {
       }
       break;
 
-    case 'email':
+    case 'email': {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(strValue)) {
         return rule.message ?? 'Invalid email address';
       }
       break;
+    }
 
     case 'custom':
       // Custom validation would need to be handled differently

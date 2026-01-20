@@ -2,7 +2,7 @@
  * GUI Layout - Renders layout containers
  */
 
-import type { LayoutContainer, ElementStyle } from './gui-types.js';
+import type { LayoutContainer } from './gui-types.js';
 import { applyStyle } from './gui-elements.js';
 
 type ChildRenderer = (child: LayoutContainer | unknown) => HTMLElement;

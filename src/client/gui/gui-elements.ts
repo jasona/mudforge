@@ -70,15 +70,6 @@ export function applyStyle(element: HTMLElement, style?: ElementStyle): void {
   }
 }
 
-/**
- * Escape HTML to prevent XSS.
- */
-function escapeHtml(text: string): string {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
-}
-
 // =============================================================================
 // Input Element Renderers
 // =============================================================================
@@ -454,7 +445,7 @@ function createParagraph(element: DisplayElement): HTMLElement {
   return p;
 }
 
-function createDivider(element: DisplayElement): HTMLElement {
+function createDivider(_element: DisplayElement): HTMLElement {
   const hr = document.createElement('hr');
   hr.className = 'gui-divider';
   return hr;
@@ -475,7 +466,7 @@ function createIcon(element: DisplayElement): HTMLElement {
   return span;
 }
 
-function createSpacer(element: DisplayElement): HTMLElement {
+function createSpacer(_element: DisplayElement): HTMLElement {
   const div = document.createElement('div');
   div.className = 'gui-spacer';
   return div;

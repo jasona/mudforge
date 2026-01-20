@@ -283,7 +283,7 @@ describe('Player Experience', () => {
         createdAt: Date.now(),
         lastLogin: Date.now(),
         playTime: 0,
-      } as any; // Cast to any to simulate old data format
+      } as unknown as Parameters<typeof player.restore>[0]; // Cast to simulate old data format
 
       player.restore(data);
 

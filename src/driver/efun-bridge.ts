@@ -10,7 +10,7 @@ import { getRegistry, type ObjectRegistry } from './object-registry.js';
 import { getScheduler, type Scheduler } from './scheduler.js';
 import { getPermissions, resetPermissions, type Permissions } from './permissions.js';
 import { getFileStore } from './persistence/file-store.js';
-import { getMudlibLoader, type MudlibLoader } from './mudlib-loader.js';
+import { getMudlibLoader } from './mudlib-loader.js';
 import { getCommandManager } from './command-manager.js';
 import { getClaudeClient, type ClaudeMessage } from './claude-client.js';
 import { getGeminiClient } from './gemini-client.js';

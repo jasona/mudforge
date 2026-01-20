@@ -445,7 +445,7 @@ export class GUIModal {
   /**
    * Close the modal.
    */
-  close(reason?: string): void {
+  close(_reason?: string): void {
     if (this.escapeHandler) {
       document.removeEventListener('keydown', this.escapeHandler, true);
       this.escapeHandler = null;

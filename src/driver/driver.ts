@@ -15,7 +15,7 @@ import { EfunBridge, getEfunBridge, resetEfunBridge } from './efun-bridge.js';
 import { MudlibLoader, getMudlibLoader, resetMudlibLoader } from './mudlib-loader.js';
 import { initializeClaudeClient } from './claude-client.js';
 import { initializeGeminiClient } from './gemini-client.js';
-import { CommandManager, getCommandManager, resetCommandManager, PermissionLevel } from './command-manager.js';
+import { CommandManager, getCommandManager, resetCommandManager } from './command-manager.js';
 import { getPermissions } from './permissions.js';
 import { getFileStore } from './persistence/file-store.js';
 import { Compiler } from './compiler.js';

@@ -130,7 +130,7 @@ export class GUIRenderer {
     }
 
     // Also get radio button values
-    for (const [id, element] of this.elementMap) {
+    for (const element of this.elementMap.values()) {
       const radioInputs = element.querySelectorAll('input[type="radio"]:checked');
       radioInputs.forEach((radio) => {
         const r = radio as HTMLInputElement;

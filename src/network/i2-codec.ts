@@ -265,7 +265,7 @@ export function createTellMessage(
 /**
  * Create a who request.
  */
-export function createWhoRequest(mudName: string, targetMud: string): I2Message {
+export function createWhoRequest(mudName: string, _targetMud: string): I2Message {
   return {
     command: I2Commands.RWHO_Q,
     params: {

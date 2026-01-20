@@ -485,7 +485,7 @@ export class GrapevineClient extends EventEmitter {
    * Clear all pending requests with an error.
    */
   private clearPendingRequests(reason: string): void {
-    for (const [_ref, pending] of this.pendingRequests) {
+    for (const pending of this.pendingRequests.values()) {
       clearTimeout(pending.timeout);
       pending.reject(new Error(reason));
     }

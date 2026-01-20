@@ -5,7 +5,7 @@
  * provides the efuns global that mudlib code expects.
  */
 
-import { resolve, join } from 'path';
+import { resolve } from 'path';
 import { pathToFileURL } from 'url';
 import type { MudObject, MudObjectConstructor } from './types.js';
 import { getRegistry, type ObjectRegistry } from './object-registry.js';

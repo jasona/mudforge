@@ -22,6 +22,7 @@ export default [
         clearInterval: 'readonly',
         Buffer: 'readonly',
         NodeJS: 'readonly',
+        fetch: 'readonly', // Node.js 18+ native fetch
       },
     },
     plugins: {
@@ -45,15 +46,34 @@ export default [
       globals: {
         document: 'readonly',
         window: 'readonly',
+        localStorage: 'readonly',
+        fetch: 'readonly',
+        requestAnimationFrame: 'readonly',
+        Audio: 'readonly',
+        confirm: 'readonly',
+        afterEach: 'readonly',
+        // HTML Elements
         HTMLElement: 'readonly',
         HTMLInputElement: 'readonly',
         HTMLTextAreaElement: 'readonly',
         HTMLDivElement: 'readonly',
         HTMLButtonElement: 'readonly',
+        HTMLSelectElement: 'readonly',
+        HTMLAudioElement: 'readonly',
+        HTMLImageElement: 'readonly',
+        HTMLElementTagNameMap: 'readonly',
+        // SVG Elements
+        SVGElement: 'readonly',
+        SVGSVGElement: 'readonly',
+        SVGGElement: 'readonly',
+        // Events
         KeyboardEvent: 'readonly',
+        MouseEvent: 'readonly',
+        TouchEvent: 'readonly',
+        // Other browser APIs
         WebSocket: 'readonly',
-        confirm: 'readonly',
-        afterEach: 'readonly',
+        MutationObserver: 'readonly',
+        ResizeObserver: 'readonly',
       },
     },
   },

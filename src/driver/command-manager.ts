@@ -13,7 +13,7 @@
 
 import { watch, type FSWatcher } from 'fs';
 import { readdir, stat } from 'fs/promises';
-import { join, basename, resolve } from 'path';
+import { join, resolve } from 'path';
 import { pathToFileURL } from 'url';
 import type { MudObject } from './types.js';
 import type { Logger } from 'pino';
