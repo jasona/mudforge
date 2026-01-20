@@ -76,7 +76,8 @@ export class GUIRenderer {
 
       // Attach click handler for buttons
       if (node.type === 'button' && this.onButtonClick) {
-        const button = element.querySelector('button');
+        // Button might be the element itself (unwrapped) or inside a wrapper
+        const button = element.tagName === 'BUTTON' ? element : element.querySelector('button');
         if (button) {
           button.addEventListener('click', () => {
             this.onButtonClick?.(

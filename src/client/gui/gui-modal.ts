@@ -97,7 +97,14 @@ export class GUIModal {
    * Open a modal from server message.
    */
   open(message: GUIOpenMessage): void {
-    // Close any existing modal
+    // Check if we're updating an existing modal with the same ID
+    if (this.overlay && this.modalConfig?.id === message.modal.id) {
+      // Same modal - just update content in place without flash
+      this.updateInPlace(message);
+      return;
+    }
+
+    // Close any existing modal (different modal)
     if (this.overlay) {
       this.close('replaced');
     }
@@ -165,6 +172,67 @@ export class GUIModal {
 
     // Focus first input
     this.focusFirstInput();
+  }
+
+  /**
+   * Update an existing modal in place without closing/reopening.
+   * This prevents the flash effect when updating content.
+   */
+  private updateInPlace(message: GUIOpenMessage): void {
+    if (!this.modal) return;
+
+    this.modalConfig = message.modal;
+    this.formData = message.data ? { ...message.data } : {};
+    this.layout = message.layout;
+
+    // Update title and subtitle if changed
+    const title = this.modal.querySelector('.gui-modal-title');
+    if (title) {
+      title.textContent = message.modal.title;
+    }
+
+    const subtitleEl = this.modal.querySelector('.gui-modal-subtitle');
+    if (message.modal.subtitle) {
+      if (subtitleEl) {
+        subtitleEl.textContent = message.modal.subtitle;
+      } else {
+        // Create subtitle if it doesn't exist
+        const titleWrapper = this.modal.querySelector('.gui-modal-title-wrapper');
+        if (titleWrapper) {
+          const newSubtitle = document.createElement('p');
+          newSubtitle.className = 'gui-modal-subtitle';
+          newSubtitle.textContent = message.modal.subtitle;
+          titleWrapper.appendChild(newSubtitle);
+        }
+      }
+    } else if (subtitleEl) {
+      subtitleEl.remove();
+    }
+
+    // Re-render body content
+    const body = this.modal.querySelector('.gui-modal-body');
+    if (body) {
+      // Clear existing content
+      body.innerHTML = '';
+
+      // Re-render layout
+      this.renderer.render(
+        message.layout,
+        body as HTMLElement,
+        this.formData,
+        (name, value) => {
+          this.formData[name] = value;
+        },
+        (buttonId, action, customAction) => {
+          this.handleLayoutButtonClick(buttonId, action, customAction);
+        }
+      );
+    }
+
+    // Update footer buttons
+    if (message.buttons && message.buttons.length > 0) {
+      this.renderButtons(message.buttons);
+    }
   }
 
   /**

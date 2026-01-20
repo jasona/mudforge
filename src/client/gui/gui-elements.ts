@@ -79,6 +79,19 @@ export function renderInputElement(
   data: Record<string, unknown>,
   onChange?: (name: string, value: unknown) => void
 ): HTMLElement {
+  // For buttons, don't wrap in a div - return the button directly for better inline behavior
+  if (element.type === 'button') {
+    const button = createButton(element);
+    applyStyle(button, element.style);
+    if (element.className) {
+      button.classList.add(element.className);
+    }
+    if (element.visible === false) {
+      button.style.display = 'none';
+    }
+    return button;
+  }
+
   const wrapper = document.createElement('div');
   wrapper.className = `gui-field gui-field-${element.type}`;
   if (element.className) {
@@ -122,9 +135,6 @@ export function renderInputElement(
       break;
     case 'slider':
       inputEl = createSlider(element, data, onChange);
-      break;
-    case 'button':
-      inputEl = createButton(element);
       break;
     case 'hidden':
       inputEl = createHiddenInput(element, data);

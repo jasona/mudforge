@@ -19,6 +19,7 @@ export { Container } from './container.js';
 export { Living } from './living.js';
 export { Player } from './player.js';
 export { NPC } from './npc.js';
+export { Merchant } from './merchant.js';
 
 // Equipment
 export { Weapon } from './weapon.js';
