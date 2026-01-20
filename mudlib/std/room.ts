@@ -530,8 +530,14 @@ export class Room extends MudObject {
             const npcWithSpawn = npc as MudObject & {
               _spawnRoom?: Room;
               _respawnTime?: number;
+              setWanderAreaFromSpawnRoom?: () => void;
             };
             npcWithSpawn._spawnRoom = this;
+
+            // Set wander area path for area-restricted wandering
+            if (typeof npcWithSpawn.setWanderAreaFromSpawnRoom === 'function') {
+              npcWithSpawn.setWanderAreaFromSpawnRoom();
+            }
 
             await npc.moveTo(this);
           }

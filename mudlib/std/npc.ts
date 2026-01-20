@@ -851,8 +851,16 @@ export class NPC extends Living {
                 }
 
                 // Set spawn room on new NPC
-                const newNpcWithSpawn = newNpc as NPC & { _spawnRoom?: Room };
+                const newNpcWithSpawn = newNpc as NPC & {
+                  _spawnRoom?: Room;
+                  setWanderAreaFromSpawnRoom?: () => void;
+                };
                 newNpcWithSpawn._spawnRoom = spawnRoom;
+
+                // Set wander area path for area-restricted wandering
+                if (typeof newNpcWithSpawn.setWanderAreaFromSpawnRoom === 'function') {
+                  newNpcWithSpawn.setWanderAreaFromSpawnRoom();
+                }
 
                 await newNpc.moveTo(spawnRoom);
                 if ('broadcast' in spawnRoom) {
