@@ -794,6 +794,51 @@ declare global {
      */
     i3OnPacket(callback: (packet: unknown[]) => void): void;
 
+    // ========== Snoop Efuns ==========
+
+    /**
+     * Register a snoop session. The snooper will see all messages received by the target.
+     * @param snooper The player doing the snooping
+     * @param target The object being snooped
+     * @returns true if successful
+     */
+    snoopRegister(snooper: MudObject, target: MudObject): boolean;
+
+    /**
+     * Unregister a snoop session.
+     * @param snooper The player to stop snooping
+     */
+    snoopUnregister(snooper: MudObject): void;
+
+    /**
+     * Forward a message to all snoopers of a target.
+     * Called from Living.receive() to forward messages.
+     * @param target The object that received the message
+     * @param message The message that was received
+     */
+    snoopForward(target: MudObject, message: string): void;
+
+    /**
+     * Get the target being snooped by a snooper.
+     * @param snooper The player doing the snooping
+     * @returns The target's objectId, or null if not snooping
+     */
+    snoopGetTarget(snooper: MudObject): string | null;
+
+    /**
+     * Check if a target is being snooped.
+     * @param target The object to check
+     * @returns Array of snooper objectIds
+     */
+    snoopGetSnoopers(target: MudObject): string[];
+
+    /**
+     * Handle when a snooped target disconnects or is destroyed.
+     * Cleans up all snoop sessions for this target.
+     * @param target The target that disconnected
+     */
+    snoopTargetDisconnected(target: MudObject): void;
+
     // ========== Intermud 2 Efuns ==========
 
     /** Check if I2 is ready */

@@ -254,6 +254,187 @@ type I3PacketCallback = (packet: LPCValue[]) => void;
 type I2MessageCallback = (message: I2Message, rinfo: { address: string; port: number }) => void;
 type GrapevineMessageCallback = (event: GrapevineEvent) => void;
 
+/**
+ * Snoop session data stored in driver.
+ */
+interface SnoopSession {
+  snooperId: string;
+  snooperConnection: { send: (msg: string) => void };
+  targetId: string;
+  targetName: string;
+}
+
+/**
+ * ANSI escape code prefix.
+ */
+const ESC = '\x1b[';
+
+/**
+ * ANSI color codes for terminal output.
+ */
+const ANSI = {
+  reset: `${ESC}0m`,
+  bold: `${ESC}1m`,
+  dim: `${ESC}2m`,
+  italic: `${ESC}3m`,
+  underline: `${ESC}4m`,
+  reverse: `${ESC}7m`,
+  hidden: `${ESC}8m`,
+  black: `${ESC}30m`,
+  red: `${ESC}31m`,
+  green: `${ESC}32m`,
+  yellow: `${ESC}33m`,
+  blue: `${ESC}34m`,
+  magenta: `${ESC}35m`,
+  cyan: `${ESC}36m`,
+  white: `${ESC}37m`,
+  BLACK: `${ESC}90m`,
+  RED: `${ESC}91m`,
+  GREEN: `${ESC}92m`,
+  YELLOW: `${ESC}93m`,
+  BLUE: `${ESC}94m`,
+  MAGENTA: `${ESC}95m`,
+  CYAN: `${ESC}96m`,
+  WHITE: `${ESC}97m`,
+  bgBlack: `${ESC}40m`,
+  bgRed: `${ESC}41m`,
+  bgGreen: `${ESC}42m`,
+  bgYellow: `${ESC}43m`,
+  bgBlue: `${ESC}44m`,
+  bgMagenta: `${ESC}45m`,
+  bgCyan: `${ESC}46m`,
+  bgWhite: `${ESC}47m`,
+};
+
+/**
+ * Generate 256-color foreground code.
+ */
+function fg256(n: number): string {
+  return `${ESC}38;5;${Math.max(0, Math.min(255, Math.floor(n)))}m`;
+}
+
+/**
+ * Generate 256-color background code.
+ */
+function bg256(n: number): string {
+  return `${ESC}48;5;${Math.max(0, Math.min(255, Math.floor(n)))}m`;
+}
+
+/**
+ * Extended 256-color palette - named colors.
+ */
+const COLORS_256: Record<string, number> = {
+  orange: 208,
+  pink: 218,
+  purple: 129,
+  brown: 94,
+  lime: 118,
+  teal: 30,
+  navy: 17,
+  maroon: 52,
+  olive: 58,
+  silver: 7,
+  gold: 220,
+  coral: 203,
+  salmon: 209,
+  violet: 135,
+  indigo: 54,
+  crimson: 160,
+  azure: 39,
+  aqua: 51,
+  mint: 121,
+  lavender: 183,
+  rose: 211,
+  peach: 223,
+  sky: 117,
+  forest: 22,
+  gray: 244,
+  grey: 244,
+};
+
+/**
+ * Token to ANSI code mapping.
+ */
+const TOKEN_MAP: Record<string, string> = {
+  '/': ANSI.reset,
+  reset: ANSI.reset,
+  n: '\n',
+  newline: '\n',
+  bold: ANSI.bold,
+  b: ANSI.bold,
+  dim: ANSI.dim,
+  italic: ANSI.italic,
+  i: ANSI.italic,
+  underline: ANSI.underline,
+  u: ANSI.underline,
+  reverse: ANSI.reverse,
+  hidden: ANSI.hidden,
+  black: ANSI.black,
+  red: ANSI.red,
+  green: ANSI.green,
+  yellow: ANSI.yellow,
+  blue: ANSI.blue,
+  magenta: ANSI.magenta,
+  cyan: ANSI.cyan,
+  white: ANSI.white,
+  BLACK: ANSI.BLACK,
+  RED: ANSI.RED,
+  GREEN: ANSI.GREEN,
+  YELLOW: ANSI.YELLOW,
+  BLUE: ANSI.BLUE,
+  MAGENTA: ANSI.MAGENTA,
+  CYAN: ANSI.CYAN,
+  WHITE: ANSI.WHITE,
+  'bg:black': ANSI.bgBlack,
+  'bg:red': ANSI.bgRed,
+  'bg:green': ANSI.bgGreen,
+  'bg:yellow': ANSI.bgYellow,
+  'bg:blue': ANSI.bgBlue,
+  'bg:magenta': ANSI.bgMagenta,
+  'bg:cyan': ANSI.bgCyan,
+  'bg:white': ANSI.bgWhite,
+};
+
+// Add extended 256-color names to TOKEN_MAP
+for (const [name, index] of Object.entries(COLORS_256)) {
+  TOKEN_MAP[name] = fg256(index);
+  TOKEN_MAP[`bg:${name}`] = bg256(index);
+}
+
+/**
+ * Parse a color token and return the ANSI code.
+ */
+function parseToken(token: string): string | null {
+  if (TOKEN_MAP[token]) {
+    return TOKEN_MAP[token];
+  }
+
+  // fg:N (256-color foreground)
+  const fgMatch = token.match(/^fg:(\d+)$/);
+  if (fgMatch && fgMatch[1]) {
+    return fg256(parseInt(fgMatch[1], 10));
+  }
+
+  // bg:N (256-color background)
+  const bgNumMatch = token.match(/^bg:(\d+)$/);
+  if (bgNumMatch && bgNumMatch[1]) {
+    return bg256(parseInt(bgNumMatch[1], 10));
+  }
+
+  return null;
+}
+
+/**
+ * Convert color tokens like {red}text{/} to ANSI escape codes.
+ */
+function driverColorize(text: string): string {
+  const tokenRegex = /\{([a-zA-Z0-9/:,]+)\}/g;
+  return text.replace(tokenRegex, (match, token) => {
+    const code = parseToken(token);
+    return code ?? match;
+  });
+}
+
 export class EfunBridge {
   private config: EfunBridgeConfig;
   private registry: ObjectRegistry;
@@ -271,6 +452,11 @@ export class EfunBridge {
   private i3PacketCallback: I3PacketCallback | null = null;
   private i2MessageCallback: I2MessageCallback | null = null;
   private grapevineMessageCallback: GrapevineMessageCallback | null = null;
+
+  /** Snoop sessions: snooperId -> session data */
+  private snoopSessions: Map<string, SnoopSession> = new Map();
+  /** Reverse lookup: targetId -> set of snooperIds */
+  private snoopTargets: Map<string, Set<string>> = new Map();
 
   constructor(config: Partial<EfunBridgeConfig> = {}) {
     this.config = {
@@ -475,6 +661,191 @@ export class EfunBridge {
     if (typeof objWithReceive.receive === 'function') {
       objWithReceive.receive(message);
     }
+  }
+
+  // ========== Snoop Efuns ==========
+
+  /**
+   * Register a snoop session. The snooper will see all messages received by the target.
+   * @param snooper The player doing the snooping
+   * @param target The object being snooped
+   * @returns true if successful
+   */
+  snoopRegister(snooper: MudObject, target: MudObject): boolean {
+    // Use context.thisPlayer for the connection since sandbox objects may not
+    // have the connection property accessible across the V8 boundary
+    const contextPlayer = this.context.thisPlayer;
+    if (!contextPlayer) {
+      return false;
+    }
+
+    const playerWithConn = contextPlayer as MudObject & {
+      objectId: string;
+      connection?: { send: (msg: string) => void };
+      _connection?: { send: (msg: string) => void };
+    };
+    const snooperWithId = snooper as MudObject & {
+      objectId: string;
+    };
+    const targetWithId = target as MudObject & {
+      objectId: string;
+      name?: string;
+    };
+
+    const connection = playerWithConn.connection || playerWithConn._connection;
+    if (!connection?.send) {
+      return false;
+    }
+
+    const snooperId = snooperWithId.objectId;
+    const targetId = targetWithId.objectId;
+
+    // Stop existing snoop session if any
+    this.snoopUnregister(snooper);
+
+    // Create new session
+    const session: SnoopSession = {
+      snooperId,
+      snooperConnection: connection,
+      targetId,
+      targetName: targetWithId.name || 'unknown',
+    };
+
+    this.snoopSessions.set(snooperId, session);
+
+    // Add to reverse lookup
+    let snoopers = this.snoopTargets.get(targetId);
+    if (!snoopers) {
+      snoopers = new Set();
+      this.snoopTargets.set(targetId, snoopers);
+    }
+    snoopers.add(snooperId);
+
+    return true;
+  }
+
+  /**
+   * Unregister a snoop session.
+   * @param snooper The player to stop snooping
+   */
+  snoopUnregister(snooper: MudObject): void {
+    const snooperWithId = snooper as MudObject & { objectId: string };
+    const snooperId = snooperWithId.objectId;
+
+    const session = this.snoopSessions.get(snooperId);
+    if (!session) return;
+
+    // Remove from reverse lookup
+    const snoopers = this.snoopTargets.get(session.targetId);
+    if (snoopers) {
+      snoopers.delete(snooperId);
+      if (snoopers.size === 0) {
+        this.snoopTargets.delete(session.targetId);
+      }
+    }
+
+    this.snoopSessions.delete(snooperId);
+  }
+
+  /**
+   * Forward a message to all snoopers of a target.
+   * Call this from Living.receive() to forward messages.
+   * @param target The object that received the message
+   * @param message The message that was received
+   */
+  snoopForward(target: MudObject, message: string): void {
+    // Skip if no snoop sessions registered at all
+    if (this.snoopTargets.size === 0) return;
+
+    const targetWithId = target as MudObject & { objectId: string };
+    const targetId = targetWithId.objectId;
+
+    const snooperIds = this.snoopTargets.get(targetId);
+    if (!snooperIds || snooperIds.size === 0) return;
+
+    // Colorize the message (convert {red}text{/} to ANSI codes)
+    // NPC messages don't go through Player.receive() which does colorization
+    const colorizedMessage = driverColorize(message);
+
+    // Build GUI update message
+    const guiUpdate = {
+      action: 'update',
+      modalId: 'snoop-modal',
+      updates: {
+        data: {
+          _appendMessage: colorizedMessage,
+        },
+      },
+    };
+    const jsonStr = JSON.stringify(guiUpdate);
+
+    // Send to all snoopers
+    for (const snooperId of snooperIds) {
+      const session = this.snoopSessions.get(snooperId);
+      if (session?.snooperConnection) {
+        try {
+          session.snooperConnection.send(`\x00[GUI]${jsonStr}\n`);
+        } catch {
+          // Connection may have been closed
+        }
+      }
+    }
+  }
+
+  /**
+   * Get the target being snooped by a snooper.
+   * @param snooper The player doing the snooping
+   * @returns The target's objectId, or null if not snooping
+   */
+  snoopGetTarget(snooper: MudObject): string | null {
+    const snooperWithId = snooper as MudObject & { objectId: string };
+    const session = this.snoopSessions.get(snooperWithId.objectId);
+    return session?.targetId || null;
+  }
+
+  /**
+   * Check if a target is being snooped.
+   * @param target The object to check
+   * @returns Array of snooper objectIds
+   */
+  snoopGetSnoopers(target: MudObject): string[] {
+    const targetWithId = target as MudObject & { objectId: string };
+    const snoopers = this.snoopTargets.get(targetWithId.objectId);
+    return snoopers ? Array.from(snoopers) : [];
+  }
+
+  /**
+   * Handle when a snooped target disconnects or is destroyed.
+   * Cleans up all snoop sessions for this target.
+   * @param target The target that disconnected
+   */
+  snoopTargetDisconnected(target: MudObject): void {
+    const targetWithId = target as MudObject & { objectId: string };
+    const targetId = targetWithId.objectId;
+
+    const snooperIds = this.snoopTargets.get(targetId);
+    if (!snooperIds) return;
+
+    // Notify and clean up each snooper
+    for (const snooperId of snooperIds) {
+      const session = this.snoopSessions.get(snooperId);
+      if (session?.snooperConnection) {
+        // Send close message
+        const closeMsg = {
+          action: 'close',
+          modalId: 'snoop-modal',
+          reason: 'Target disconnected',
+        };
+        try {
+          session.snooperConnection.send(`\x00[GUI]${JSON.stringify(closeMsg)}\n`);
+        } catch {
+          // Connection may have been closed
+        }
+      }
+      this.snoopSessions.delete(snooperId);
+    }
+
+    this.snoopTargets.delete(targetId);
   }
 
   // ========== File Efuns ==========
@@ -2924,6 +3295,14 @@ RULES:
       guiSend: this.guiSend.bind(this),
       sendQuestUpdate: this.sendQuestUpdate.bind(this),
       sendComm: this.sendComm.bind(this),
+
+      // Snoop
+      snoopRegister: this.snoopRegister.bind(this),
+      snoopUnregister: this.snoopUnregister.bind(this),
+      snoopForward: this.snoopForward.bind(this),
+      snoopGetTarget: this.snoopGetTarget.bind(this),
+      snoopGetSnoopers: this.snoopGetSnoopers.bind(this),
+      snoopTargetDisconnected: this.snoopTargetDisconnected.bind(this),
 
       // Sound
       playSound: this.playSound.bind(this),

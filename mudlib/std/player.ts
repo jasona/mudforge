@@ -766,6 +766,11 @@ export class Player extends Living {
       }
 
       this._connection.send(processed);
+
+      // Forward to snoopers via driver efun
+      if (typeof efuns !== 'undefined' && efuns.snoopForward) {
+        efuns.snoopForward(this, message);
+      }
     }
   }
 
@@ -852,6 +857,11 @@ export class Player extends Living {
    * @param input The input string
    */
   async processInput(input: string): Promise<void> {
+    // Forward command to snoopers (if any)
+    if (typeof efuns !== 'undefined' && efuns.snoopForward) {
+      efuns.snoopForward(this, `{dim}> ${input}{/}\n`);
+    }
+
     // If there's a custom input handler, use it
     if (this._inputHandler) {
       await this._inputHandler(input);
@@ -1885,6 +1895,16 @@ export class Player extends Living {
         'notify',
         `{bold}${this.name}{/} disconnected from ${this.getDisplayAddress()}${reasonText}`
       );
+    }
+
+    // Clean up snoop sessions (both as snooper and as target)
+    if (typeof efuns !== 'undefined') {
+      if (efuns.snoopUnregister) {
+        efuns.snoopUnregister(this);
+      }
+      if (efuns.snoopTargetDisconnected) {
+        efuns.snoopTargetDisconnected(this);
+      }
     }
   }
 

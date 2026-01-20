@@ -486,10 +486,14 @@ export class Living extends MudObject {
   /**
    * Receive a message (output to this living).
    * Override this in Player to send to connection.
+   * For NPCs, this forwards to any snoopers watching this living.
    * @param message The message to receive
    */
   receive(message: string): void {
-    // Default: do nothing (NPCs don't display messages)
+    // Forward to snoopers via driver efun (NPCs don't display messages, but snoopers should see them)
+    if (typeof efuns !== 'undefined' && efuns.snoopForward) {
+      efuns.snoopForward(this, message);
+    }
   }
 
   /**

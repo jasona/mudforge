@@ -1447,6 +1447,28 @@ body {
   display: none;
 }
 
+/* Snoop Modal Terminal Output */
+.snoop-line {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-word;
+  padding: 2px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.snoop-line:last-child {
+  border-bottom: none;
+}
+
+#gui-display-message-display {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+}
+
 /* Global Error */
 .gui-global-error {
   padding: var(--spacing-sm) var(--spacing-md);

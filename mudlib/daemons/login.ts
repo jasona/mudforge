@@ -405,6 +405,12 @@ ${'='.repeat(bannerWidth)}
 
     // Create player object
     const player = new Player();
+
+    // Set up player identity (objectId) - players don't go through cloneObject
+    // so we need to set this manually
+    (player as unknown as { _initIdentity: (path: string, id: string, isClone: boolean) => void })
+      ._initIdentity('/std/player', `player:${session.name}`, false);
+
     player.createAccount(session.name, passwordHash, session.email);
     player.gender = gender;
     player.shortDesc = session.name;
@@ -532,6 +538,11 @@ ${'='.repeat(bannerWidth)}
     } else {
       // Existing player - restore from saved data
       player = new Player();
+
+      // Set up player identity (objectId) - players don't go through cloneObject
+      // so we need to set this manually
+      (player as unknown as { _initIdentity: (path: string, id: string, isClone: boolean) => void })
+        ._initIdentity('/std/player', `player:${session.name}`, false);
 
       // Call player.restore() with the full save data
       if (session.savedData) {
@@ -917,6 +928,12 @@ ${'='.repeat(bannerWidth)}
 
     // Create player object
     const player = new Player();
+
+    // Set up player identity (objectId) - players don't go through cloneObject
+    // so we need to set this manually
+    (player as unknown as { _initIdentity: (path: string, id: string, isClone: boolean) => void })
+      ._initIdentity('/std/player', `player:${name}`, false);
+
     player.createAccount(name, passwordHash, email);
     player.gender = gender;
     player.shortDesc = name;

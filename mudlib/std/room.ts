@@ -405,6 +405,7 @@ export class Room extends MudObject {
       }
 
       // Check if object has a receive method
+      // Note: Living.receive() and Player.receive() handle snoop forwarding
       const receiver = obj as MudObject & { receive?: (msg: string) => void };
       if (typeof receiver.receive === 'function') {
         receiver.receive(message);

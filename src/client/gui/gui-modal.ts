@@ -7,6 +7,7 @@
 import { GUIRenderer } from './gui-renderer.js';
 import { validateForm, extractInputElements } from './gui-validation.js';
 import { applyStyle } from './gui-elements.js';
+import { parseAnsi } from '../ansi-parser.js';
 import type {
   GUIOpenMessage,
   GUIUpdateMessage,
@@ -156,11 +157,42 @@ export class GUIModal {
       document.addEventListener('keydown', this.escapeHandler, true);
     }
 
+    // Set up Enter key handler for form submission
+    this.setupEnterKeyHandler();
+
     // Set up global action handler for interactive HTML
     this.setupGlobalActionHandler();
 
     // Focus first input
     this.focusFirstInput();
+  }
+
+  /**
+   * Set up Enter key handler for text inputs to submit form.
+   */
+  private setupEnterKeyHandler(): void {
+    if (!this.modal) return;
+
+    this.modal.addEventListener('keydown', (e: KeyboardEvent) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        const target = e.target as HTMLElement;
+        // Only handle Enter on text inputs (not textareas)
+        if (target.tagName === 'INPUT' && (target as HTMLInputElement).type === 'text') {
+          e.preventDefault();
+          // Find and click the primary/submit button
+          const submitBtn = this.modal?.querySelector('.gui-btn-primary') as HTMLButtonElement;
+          if (submitBtn) {
+            submitBtn.click();
+          } else {
+            // Fall back to finding a button with submit action
+            const inlineSubmitBtn = this.modal?.querySelector('[data-action="submit"]') as HTMLButtonElement;
+            if (inlineSubmitBtn) {
+              inlineSubmitBtn.click();
+            }
+          }
+        }
+      }
+    });
   }
 
   /**
@@ -334,6 +366,15 @@ export class GUIModal {
     };
 
     this.onMessage(message);
+
+    // For snoop modal, clear the command input after submission
+    if (this.modalConfig?.id === 'snoop-modal') {
+      const commandInput = this.modal?.querySelector('#gui-input-command-input') as HTMLInputElement;
+      if (commandInput) {
+        commandInput.value = '';
+        commandInput.focus();
+      }
+    }
   }
 
   /**
@@ -398,6 +439,24 @@ export class GUIModal {
 
     // Update form data
     if (message.updates.data) {
+      // Handle special _appendMessage for snoop modal
+      if (message.updates.data._appendMessage && this.modalConfig?.id === 'snoop-modal') {
+        const msgDisplay = this.modal.querySelector('#gui-display-message-display');
+        if (msgDisplay) {
+          // Parse ANSI codes and append the message
+          const rawMessage = message.updates.data._appendMessage as string;
+          const parsedHtml = parseAnsi(rawMessage);
+          msgDisplay.innerHTML += `<div class="snoop-line">${parsedHtml}</div>`;
+          // Auto-scroll to bottom - the message container has overflow
+          const container = msgDisplay.closest('#gui-layout-message-container') as HTMLElement;
+          if (container) {
+            container.scrollTop = container.scrollHeight;
+          }
+        }
+        // Don't merge _appendMessage into formData
+        delete message.updates.data._appendMessage;
+      }
+
       Object.assign(this.formData, message.updates.data);
       this.renderer.updateData(this.formData);
     }
