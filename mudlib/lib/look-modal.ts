@@ -887,6 +887,11 @@ export async function openLookModal(
         },
       },
     };
-    efuns.guiSend(updateMessage);
+    // Try to send the update - may fail if player closed the modal or disconnected
+    try {
+      efuns.guiSend(updateMessage);
+    } catch {
+      // Modal was closed or player disconnected - ignore
+    }
   }
 }
