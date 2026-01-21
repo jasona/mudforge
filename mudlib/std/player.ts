@@ -167,6 +167,9 @@ export class Player extends Living {
   private _disconnectTime: number = 0; // When disconnected (Unix timestamp)
   private _disconnectTimerId: number | null = null; // Timer for auto-quit
 
+  // Activity tracking (for idle time)
+  private _lastActivityTime: number = 0;
+
   // Map exploration tracking
   private _exploredRooms: Set<string> = new Set();
   private _revealedRooms: Set<string> = new Set();
@@ -202,6 +205,7 @@ export class Player extends Living {
     this._connection = connection;
     this._sessionStart = typeof efuns !== 'undefined' ? efuns.time() : Math.floor(Date.now() / 1000);
     this._lastLogin = this._sessionStart;
+    this._lastActivityTime = this._sessionStart;
 
     // Always register for heartbeats when connected (for stats panel updates)
     if (typeof efuns !== 'undefined' && efuns.setHeartbeat) {
@@ -857,6 +861,9 @@ export class Player extends Living {
    * @param input The input string
    */
   async processInput(input: string): Promise<void> {
+    // Update last activity time for idle tracking
+    this._lastActivityTime = typeof efuns !== 'undefined' ? efuns.time() : Math.floor(Date.now() / 1000);
+
     // Forward command to snoopers (if any)
     if (typeof efuns !== 'undefined' && efuns.snoopForward) {
       efuns.snoopForward(this, `{dim}> ${input}{/}\n`);
@@ -1140,6 +1147,25 @@ export class Player extends Living {
       total += now - this._sessionStart;
     }
     return total;
+  }
+
+  /**
+   * Get idle time in seconds (time since last activity).
+   * Returns 0 if not connected or no activity recorded.
+   */
+  get idleTime(): number {
+    if (!this._connection || this._lastActivityTime === 0) {
+      return 0;
+    }
+    const now = typeof efuns !== 'undefined' ? efuns.time() : Math.floor(Date.now() / 1000);
+    return now - this._lastActivityTime;
+  }
+
+  /**
+   * Get the timestamp of last activity.
+   */
+  get lastActivityTime(): number {
+    return this._lastActivityTime;
   }
 
   // ========== Experience & Leveling ==========

@@ -48,7 +48,10 @@
       "Bash(grep:*)",
       "Bash(node -e:*)",
       "Bash(git restore:*)",
-      "Bash(accept quest\".\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")"
+      "Bash(accept quest\".\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git pull:*)",
+      "Bash(git stash:*)",
+      "Bash(find:*)"
     ]
   }
 }

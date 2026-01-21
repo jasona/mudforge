@@ -27,6 +27,7 @@ interface PlayerInfo extends MudObject {
   createdAt?: number;
   lastLogin?: number;
   playTime?: number;
+  idleTime?: number;
   displayName?: string | null;
   getDisplayName?(): string;
   isConnected?(): boolean;
@@ -196,6 +197,11 @@ async function displayPlayerInfo(
       if (player.lastLogin && player.lastLogin > 0) {
         const sessionDuration = now - efuns.toSeconds(player.lastLogin);
         ctx.sendLine(`   ${padLabel('Logged In:', labelWidth)}{dim}${efuns.formatDuration(sessionDuration)} ago{/}`);
+      }
+      // Show idle time if player has been idle for at least 1 minute
+      const idleTime = player.idleTime ?? 0;
+      if (idleTime >= 60) {
+        ctx.sendLine(`   ${padLabel('Idle:', labelWidth)}{dim}${efuns.formatDuration(idleTime)}{/}`);
       }
     } else {
       ctx.sendLine(`   ${padLabel('Status:', labelWidth)}{yellow}Linkdead{/}`);
