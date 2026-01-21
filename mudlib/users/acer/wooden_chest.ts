@@ -4,7 +4,7 @@
  * A basic container that can hold items.
  */
 
-import { Container } from '../../lib/std.js';
+import { Container, ItemSize } from '../../lib/std.js';
 
 export class WoodenChest extends Container {
   constructor() {
@@ -28,7 +28,7 @@ a reasonable amount of equipment.`,
 
     // This chest can be picked up (override default)
     this.takeable = true;
-    this.weight = 10;
+    this.size = 'huge' as ItemSize; // Large furniture (weight 10)
     this.value = 25;
   }
 }

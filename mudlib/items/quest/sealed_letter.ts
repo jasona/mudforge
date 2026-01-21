@@ -4,7 +4,7 @@
  * A sealed letter that must be delivered to Master Vorn.
  */
 
-import { Item } from '../../lib/std.js';
+import { Item, ItemSize } from '../../lib/std.js';
 
 export class SealedLetter extends Item {
   constructor() {
@@ -23,7 +23,7 @@ Whatever message it contains, it seems urgent.`;
     this.addId('message');
     this.addId('sealed');
 
-    this.weight = 0;
+    this.size = 'tiny' as ItemSize; // A letter weighs almost nothing
     this.value = 0;
 
     // Quest items should save but not be droppable (prevent losing them)

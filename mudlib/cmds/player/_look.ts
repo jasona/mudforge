@@ -10,6 +10,9 @@
 import type { MudObject } from '../../lib/std.js';
 import { Container, NPC } from '../../lib/std.js';
 import { openLookModal } from '../../lib/look-modal.js';
+import { canSeeInRoom, getDarknessMessage } from '../../std/visibility/index.js';
+import type { Living } from '../../std/living.js';
+import type { Room as RoomClass } from '../../std/room.js';
 
 interface CommandContext {
   player: MudObject;
@@ -82,6 +85,12 @@ export async function execute(ctx: CommandContext): Promise<void> {
     return;
   }
 
+  // Check if player can see in the room
+  const playerLiving = player as Living;
+  const roomObj = room as unknown as RoomClass;
+  const lightCheck = canSeeInRoom(playerLiving, roomObj);
+  const canSee = lightCheck.canSee;
+
   if (!args) {
     // Look at the room - stays text-based
     lookAtRoom(ctx, room, player);
@@ -92,6 +101,21 @@ export async function execute(ctx: CommandContext): Promise<void> {
   const inMatch = args.match(/^in\s+(.+)$/i);
   if (inMatch) {
     const containerName = inMatch[1].trim();
+
+    // For looking in containers, check if it's in inventory (always OK) or room (needs light)
+    const invContainer = findItem(containerName, player.inventory);
+    if (invContainer) {
+      // Can look in inventory containers even in darkness (by feel)
+      lookInContainer(ctx, room, player, containerName);
+      return;
+    }
+
+    // Looking in room containers requires light
+    if (!canSee) {
+      ctx.sendLine(getDarknessMessage());
+      return;
+    }
+
     lookInContainer(ctx, room, player, containerName);
     return;
   }
@@ -99,19 +123,25 @@ export async function execute(ctx: CommandContext): Promise<void> {
   // Look at something specific - use modal with AI image
   const target = args.toLowerCase();
 
-  // Check room contents
-  const roomItem = findItem(target, room.inventory);
-  if (roomItem) {
-    // Open the look modal with AI-generated image
-    await openLookModal(player, roomItem);
-    return;
-  }
-
-  // Check player's inventory
+  // Check player's inventory first - can always examine own items (by feel)
   const invItem = findItem(target, player.inventory);
   if (invItem) {
     // Open the look modal with AI-generated image
     await openLookModal(player, invItem);
+    return;
+  }
+
+  // Check room contents - requires light to see
+  if (!canSee) {
+    // Can't see anything in the room
+    ctx.sendLine("It's too dark to see anything in the room.");
+    return;
+  }
+
+  const roomItem = findItem(target, room.inventory);
+  if (roomItem) {
+    // Open the look modal with AI-generated image
+    await openLookModal(player, roomItem);
     return;
   }
 

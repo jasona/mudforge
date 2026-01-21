@@ -8,6 +8,23 @@
 import { MudObject } from './object.js';
 
 /**
+ * Item size categories.
+ */
+export type ItemSize = 'tiny' | 'small' | 'medium' | 'large' | 'huge' | 'immovable';
+
+/**
+ * Default weights for each size category.
+ */
+export const SIZE_WEIGHTS: Record<ItemSize, number> = {
+  tiny: 0.1,      // coins, rings, gems
+  small: 0.5,     // daggers, scrolls, potions
+  medium: 1,      // swords, helms, books
+  large: 3,       // two-handed weapons, shields, armor
+  huge: 10,       // chests, large furniture
+  immovable: Infinity, // boulders, statues, pillars
+};
+
+/**
  * Base class for items.
  */
 export class Item extends MudObject {
@@ -16,6 +33,14 @@ export class Item extends MudObject {
   private _takeable: boolean = true;
   private _dropable: boolean = true;
   private _savable: boolean = true;
+  private _size: ItemSize = 'medium';
+  private _weightExplicitlySet: boolean = false;
+
+  // Light source properties
+  private _isLightSource: boolean = false;
+  private _lightRadius: number = 0;
+  private _fuelRemaining: number = -1; // -1 = infinite
+  private _activeWhenDropped: boolean = false;
 
   constructor() {
     super();
@@ -26,6 +51,30 @@ export class Item extends MudObject {
   // ========== Properties ==========
 
   /**
+   * Get the item's size category.
+   */
+  get size(): ItemSize {
+    return this._size;
+  }
+
+  /**
+   * Set the item's size category.
+   * This automatically updates the weight to the default for this size,
+   * unless the weight has been explicitly set.
+   */
+  set size(value: ItemSize) {
+    this._size = value;
+    // Update takeable based on size
+    if (value === 'immovable') {
+      this._takeable = false;
+      this._weight = Infinity;
+    } else if (!this._weightExplicitlySet) {
+      // Only update weight if it hasn't been explicitly set
+      this._weight = SIZE_WEIGHTS[value];
+    }
+  }
+
+  /**
    * Get the item's weight.
    */
   get weight(): number {
@@ -33,10 +82,20 @@ export class Item extends MudObject {
   }
 
   /**
-   * Set the item's weight.
+   * Set the item's weight explicitly.
+   * This overrides the automatic size-based weight.
    */
   set weight(value: number) {
     this._weight = Math.max(0, value);
+    this._weightExplicitlySet = true;
+  }
+
+  /**
+   * Get the effective weight of this item for encumbrance calculations.
+   * Subclasses like Bag can override this to apply weight reduction.
+   */
+  getEffectiveWeight(): number {
+    return this._weight;
   }
 
   /**
@@ -95,6 +154,75 @@ export class Item extends MudObject {
    */
   set savable(value: boolean) {
     this._savable = value;
+  }
+
+  // ========== Light Source Properties ==========
+
+  /**
+   * Check if this item is a light source.
+   */
+  get isLightSource(): boolean {
+    return this._isLightSource;
+  }
+
+  /**
+   * Get the light radius (0-50).
+   */
+  get lightRadius(): number {
+    return this._lightRadius;
+  }
+
+  /**
+   * Get remaining fuel in ms (-1 = infinite).
+   */
+  get fuelRemaining(): number {
+    return this._fuelRemaining;
+  }
+
+  /**
+   * Set remaining fuel.
+   */
+  set fuelRemaining(value: number) {
+    this._fuelRemaining = value;
+  }
+
+  /**
+   * Check if light is active when dropped on ground.
+   */
+  get activeWhenDropped(): boolean {
+    return this._activeWhenDropped;
+  }
+
+  /**
+   * Configure this item as a light source.
+   * @param options Light source configuration
+   */
+  setLightSource(options: {
+    lightRadius?: number;
+    fuelRemaining?: number;
+    activeWhenDropped?: boolean;
+  }): void {
+    this._isLightSource = true;
+    if (options.lightRadius !== undefined) {
+      this._lightRadius = Math.max(0, Math.min(50, options.lightRadius));
+    }
+    if (options.fuelRemaining !== undefined) {
+      this._fuelRemaining = options.fuelRemaining;
+    }
+    if (options.activeWhenDropped !== undefined) {
+      this._activeWhenDropped = options.activeWhenDropped;
+    }
+  }
+
+  /**
+   * Check if the light source is currently providing light.
+   * Returns true if it's a light source with fuel.
+   */
+  isLit(): boolean {
+    if (!this._isLightSource || this._lightRadius <= 0) {
+      return false;
+    }
+    return this._fuelRemaining === -1 || this._fuelRemaining > 0;
   }
 
   // ========== Lifecycle Hooks ==========
@@ -164,13 +292,15 @@ export class Item extends MudObject {
       longDesc?: string;
       weight?: number;
       value?: number;
+      size?: ItemSize;
     },
     long?: string,
     weight?: number,
     value?: number
   ): void {
     if (typeof shortOrOptions === 'object') {
-      // Object form
+      // Object form - set size first so weight can override it
+      if (shortOrOptions.size !== undefined) this.size = shortOrOptions.size;
       if (shortOrOptions.shortDesc) this.shortDesc = shortOrOptions.shortDesc;
       if (shortOrOptions.longDesc) this.longDesc = shortOrOptions.longDesc;
       if (shortOrOptions.weight !== undefined) this.weight = shortOrOptions.weight;

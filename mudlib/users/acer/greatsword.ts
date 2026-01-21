@@ -17,12 +17,13 @@ from solid iron, with a central fuller running its length to reduce weight while
 maintaining strength. The long hilt is wrapped in worn leather, designed to
 accommodate a two-handed grip. Wield this weapon requires considerable strength,
 but the devastating power it delivers makes the effort worthwhile.`,
-      weight: 12,
+      handedness: 'two_handed',
+      size: 'huge', // Massive greatsword
+      weight: 12, // Explicit: exceptionally heavy
       value: 150,
       minDamage: 12,
       maxDamage: 22,
       damageType: 'physical',
-      handedness: 'two_handed',
       slot: 'main_hand',
     });
 

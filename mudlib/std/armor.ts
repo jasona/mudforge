@@ -4,7 +4,7 @@
  * Armor can be worn by Living beings and provides protection.
  */
 
-import { Item } from './item.js';
+import { Item, ItemSize } from './item.js';
 import { MudObject } from './object.js';
 import { Living } from './living.js';
 import type { DamageType } from './weapon.js';
@@ -28,7 +28,8 @@ export class Armor extends Item {
     super();
     this.shortDesc = 'a piece of armor';
     this.longDesc = 'This is a piece of armor.';
-    this.weight = 3;
+    // Armor is generally large/heavy
+    this.size = 'large';
   }
 
   // ========== Properties ==========
@@ -282,12 +283,15 @@ export class Armor extends Item {
   setArmor(options: {
     shortDesc?: string;
     longDesc?: string;
+    size?: ItemSize;
     weight?: number;
     value?: number;
     armor?: number;
     slot?: ArmorSlot;
     resistances?: Partial<Record<DamageType, number>>;
   }): void {
+    // Set size first so weight can override
+    if (options.size !== undefined) this.size = options.size;
     if (options.shortDesc) this.shortDesc = options.shortDesc;
     if (options.longDesc) this.longDesc = options.longDesc;
     if (options.weight !== undefined) this.weight = options.weight;

@@ -11,7 +11,7 @@
  *   get gold from <corpse>    - Loot gold from a corpse
  */
 
-import type { MudObject } from '../../lib/std.js';
+import type { MudObject, Living } from '../../lib/std.js';
 import { Item, Container } from '../../lib/std.js';
 import { Corpse } from '../../std/corpse.js';
 import { GoldPile } from '../../std/gold-pile.js';
@@ -22,6 +22,8 @@ import {
   countMatching,
   isGoldKeyword,
 } from '../../lib/item-utils.js';
+import { canSeeInRoom } from '../../std/visibility/index.js';
+import type { Room } from '../../std/room.js';
 
 interface CommandContext {
   player: MudObject;
@@ -45,9 +47,24 @@ export const usage = 'get <item> | get all | get <item> from <container>';
 function canTake(item: MudObject, taker: MudObject): { canTake: boolean; reason?: string } {
   // Check if it's an Item with takeable property
   if (item instanceof Item) {
+    // Check for immovable items first
+    if (item.size === 'immovable') {
+      return { canTake: false, reason: "You can't pick that up. It's immovable." };
+    }
+
     if (!item.takeable) {
       return { canTake: false, reason: "You can't take that." };
     }
+
+    // Check encumbrance (if taker is a Living)
+    const living = taker as Living;
+    if (typeof living.canCarryItem === 'function') {
+      const carryCheck = living.canCarryItem(item);
+      if (!carryCheck.canCarry) {
+        return { canTake: false, reason: carryCheck.reason };
+      }
+    }
+
     // Call onTake hook
     const result = item.onTake(taker);
     if (result === false) {
@@ -90,18 +107,31 @@ export async function execute(ctx: CommandContext): Promise<void> {
     return;
   }
 
+  // Check visibility for room-based operations
+  const playerLiving = player as Living;
+  const roomObj = room as unknown as Room;
+  const lightCheck = canSeeInRoom(playerLiving, roomObj);
+
   // Parse "from <container>" syntax
   const fromMatch = args.match(/^(.+?)\s+from\s+(.+)$/i);
 
   if (fromMatch) {
-    // Get from container
+    // Get from container - check if container is in inventory (OK in dark) or room (needs light)
     const [, itemName, containerName] = fromMatch;
-    await getFromContainer(ctx, room, itemName.trim(), containerName.trim());
+    await getFromContainer(ctx, room, itemName.trim(), containerName.trim(), lightCheck.canSee);
   } else if (args.trim().toLowerCase() === 'all') {
-    // Get all from room
+    // Get all from room - requires light
+    if (!lightCheck.canSee) {
+      ctx.sendLine("It's too dark! You can't see what to pick up.");
+      return;
+    }
     await getAllFromRoom(ctx, room);
   } else {
-    // Get single item from room
+    // Get single item from room - requires light
+    if (!lightCheck.canSee) {
+      ctx.sendLine("It's too dark! You can't see what to pick up.");
+      return;
+    }
     await getFromRoom(ctx, room, args.trim());
   }
 }
@@ -382,14 +412,22 @@ async function getFromContainer(
   ctx: CommandContext,
   room: MudObject,
   itemName: string,
-  containerName: string
+  containerName: string,
+  canSeeRoom: boolean
 ): Promise<void> {
   const { player } = ctx;
 
-  // Find the container in room or player's inventory (no indexed selection for containers)
-  let container = findContainer(containerName, room.inventory);
+  // Find the container - check inventory first (can access in darkness by feel)
+  let container = findContainer(containerName, player.inventory);
+  let containerInInventory = !!container;
+
+  // If not in inventory, check room (requires light)
   if (!container) {
-    container = findContainer(containerName, player.inventory);
+    if (!canSeeRoom) {
+      ctx.sendLine("It's too dark! You can't see any containers here.");
+      return;
+    }
+    container = findContainer(containerName, room.inventory);
   }
 
   if (!container) {

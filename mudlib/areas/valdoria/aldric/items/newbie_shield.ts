@@ -13,7 +13,7 @@ export class NewbieShield extends Armor {
 seen better days - the wood is dented and scratched from
 countless practice sessions. But it will serve to block a blow
 or two while you learn the basics of combat.`,
-      weight: 3,
+      size: 'large', // Standard shield (weight 3)
       value: 5,
       armor: 1,
       slot: 'off_hand',

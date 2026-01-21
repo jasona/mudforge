@@ -20,6 +20,8 @@ import {
   OPPOSITE_DIRECTIONS,
 } from '../lib/terrain.js';
 import type { RoomMapData, MapCoordinates, POIMarker } from '../lib/map-types.js';
+import { LightLevel, DEFAULT_ROOM_LIGHT } from './visibility/types.js';
+import { canSee, formatVisibleName, canSeeInRoom, getDarknessMessage } from './visibility/index.js';
 
 /**
  * Exit definition.
@@ -56,6 +58,7 @@ export class Room extends MudObject {
   private _resetMessage: string = '';
   private _terrain: TerrainType = getDefaultTerrain();
   private _mapData: RoomMapData = {};
+  private _lightLevel: LightLevel = DEFAULT_ROOM_LIGHT;
 
   constructor() {
     super();
@@ -199,6 +202,23 @@ export class Room extends MudObject {
    */
   setMapHidden(hidden: boolean): void {
     this._mapData.hidden = hidden;
+  }
+
+  // ========== Light Level ==========
+
+  /**
+   * Get the base light level of this room.
+   */
+  get lightLevel(): LightLevel {
+    return this._lightLevel;
+  }
+
+  /**
+   * Set the base light level of this room.
+   * @param level The light level (use LightLevel enum)
+   */
+  set lightLevel(level: LightLevel) {
+    this._lightLevel = level;
   }
 
   // ========== Exits ==========
@@ -622,6 +642,16 @@ export class Room extends MudObject {
   getFullDescription(viewer?: MudObject): string {
     const lines: string[] = [];
 
+    // Check if viewer can see in this room (darkness check)
+    const viewerLiving = viewer as Living & { isLiving?: boolean };
+    if (viewerLiving?.isLiving) {
+      const lightCheck = canSeeInRoom(viewerLiving, this);
+      if (!lightCheck.canSee) {
+        // Too dark to see - return darkness message only
+        return getDarknessMessage();
+      }
+    }
+
     // Room description - reflow to remove manual line breaks
     // This allows screenWidth config to wrap properly
     lines.push(reflowText(this.longDesc));
@@ -636,12 +666,26 @@ export class Room extends MudObject {
     }
 
     // Contents (excluding hidden items and the viewer)
-    const visibleContents = this.inventory.filter((obj) => {
+    // Filter by visibility if viewer is a Living
+    const visibleContents: { obj: MudObject; isPartiallyVisible: boolean }[] = [];
+
+    for (const obj of this.inventory) {
       // Exclude the viewer from the list
-      if (viewer && obj === viewer) return false;
-      // Could add visibility checks here
-      return true;
-    });
+      if (viewer && obj === viewer) continue;
+
+      // Check visibility for Living entities
+      const objLiving = obj as Living & { isLiving?: boolean };
+      if (objLiving.isLiving && viewerLiving?.isLiving) {
+        const visResult = canSee(viewerLiving, objLiving, this);
+        if (visResult.canSee) {
+          visibleContents.push({ obj, isPartiallyVisible: visResult.isPartiallyVisible });
+        }
+        // Skip if not visible
+      } else {
+        // Non-living objects are always visible
+        visibleContents.push({ obj, isPartiallyVisible: false });
+      }
+    }
 
     if (visibleContents.length > 0) {
       // Sort: players first, NPCs second, items last
@@ -651,10 +695,10 @@ export class Room extends MudObject {
       };
 
       const sortedContents = [...visibleContents].sort((a, b) => {
-        const aIsPlayer = isPlayer(a);
-        const bIsPlayer = isPlayer(b);
-        const aIsNPC = a instanceof NPC;
-        const bIsNPC = b instanceof NPC;
+        const aIsPlayer = isPlayer(a.obj);
+        const bIsPlayer = isPlayer(b.obj);
+        const aIsNPC = a.obj instanceof NPC;
+        const bIsNPC = b.obj instanceof NPC;
 
         // Players first
         if (aIsPlayer && !bIsPlayer) return -1;
@@ -667,12 +711,17 @@ export class Room extends MudObject {
       });
 
       lines.push('');
-      for (const obj of sortedContents) {
+      for (const { obj, isPartiallyVisible } of sortedContents) {
         let desc = obj.shortDesc;
 
         // Capitalize first letter of description
         if (desc && desc.length > 0) {
           desc = desc.charAt(0).toUpperCase() + desc.slice(1);
+        }
+
+        // Add [i] indicator for partially visible (detected invisible) entities
+        if (isPartiallyVisible) {
+          desc = formatVisibleName(desc, true);
         }
 
         // Add open/closed indicator for containers that support it
@@ -692,9 +741,9 @@ export class Room extends MudObject {
               viewer as Parameters<typeof obj.getQuestIndicatorSync>[0]
             );
             if (indicator === '?') {
-              questIndicator = ' {green}?{/}';
+              questIndicator = ' {bold}{yellow}[?]{/}';
             } else if (indicator === '!') {
-              questIndicator = ' {yellow}!{/}';
+              questIndicator = ' {bold}{yellow}[!]{/}';
             }
           }
           desc = `{red}${desc}{/}${questIndicator}`;
@@ -712,12 +761,23 @@ export class Room extends MudObject {
    */
   look(viewer: MudObject): void {
     const receiver = viewer as MudObject & { receive?: (msg: string) => void };
+
+    // Check if viewer can see in this room
+    const viewerLiving = viewer as Living & { isLiving?: boolean };
+    let title = this.shortDesc;
+    if (viewerLiving?.isLiving) {
+      const lightCheck = canSeeInRoom(viewerLiving, this);
+      if (!lightCheck.canSee) {
+        title = '{dim}Darkness{/}';
+      }
+    }
+
     const desc = this.getFullDescription(viewer);
 
     if (typeof receiver.receive === 'function') {
-      receiver.receive(`${this.shortDesc}\n\n${desc}`);
+      receiver.receive(`${title}\n\n${desc}`);
     } else if (typeof efuns !== 'undefined') {
-      efuns.send(viewer, `${this.shortDesc}\n\n${desc}`);
+      efuns.send(viewer, `${title}\n\n${desc}`);
     }
   }
 

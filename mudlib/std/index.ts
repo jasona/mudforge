@@ -12,11 +12,14 @@
 // Base classes
 export { MudObject } from './object.js';
 export { Room } from './room.js';
-export { Item } from './item.js';
+export { Item, SIZE_WEIGHTS } from './item.js';
+export type { ItemSize } from './item.js';
 export { Container } from './container.js';
+export { Bag } from './bag.js';
 
 // Living beings
-export { Living } from './living.js';
+export { Living, ENCUMBRANCE_THRESHOLDS, ENCUMBRANCE_PENALTIES } from './living.js';
+export type { EncumbranceLevel } from './living.js';
 export { Player } from './player.js';
 export { NPC } from './npc.js';
 export { Merchant } from './merchant.js';
@@ -31,6 +34,9 @@ export * from './equipment.js';
 // Combat
 export { Corpse } from './corpse.js';
 export * from './combat/index.js';
+
+// Visibility
+export * from './visibility/index.js';
 
 // Note: Trainer is NOT exported from this barrel to avoid circular dependency.
 // Import directly: import { Trainer } from '../std/trainer.js';

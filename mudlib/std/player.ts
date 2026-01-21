@@ -24,6 +24,7 @@ import type { PlayerExplorationData, MapMessage } from '../lib/map-types.js';
 import type { GUIMessage, GUIClientMessage } from '../lib/gui-types.js';
 import type { PlayerGuildData } from './guild/types.js';
 import type { QuestPlayer } from './quest/types.js';
+import type { RaceId } from './race/types.js';
 
 /**
  * STATS protocol message for HP/MP/XP display.
@@ -131,6 +132,8 @@ export interface PlayerSaveData {
   bankedGold?: number; // Banked gold (safe from death)
   guildData?: PlayerGuildData; // Guild memberships and skills
   avatar?: string; // Avatar portrait ID
+  staffVanished?: boolean; // Staff visibility toggle
+  race?: RaceId; // Player race
 }
 
 /**
@@ -181,6 +184,12 @@ export class Player extends Living {
 
   // Appearance
   private _avatar: string = 'avatar_m1'; // Avatar portrait ID
+
+  // Staff vanish (visibility system)
+  private _staffVanished: boolean = false;
+
+  // Race
+  private _race: RaceId = 'human';
 
   constructor() {
     super();
@@ -1335,6 +1344,86 @@ export class Player extends Living {
     }
   }
 
+  // ========== Race ==========
+
+  /**
+   * Get the player's race.
+   */
+  get race(): RaceId {
+    return this._race;
+  }
+
+  /**
+   * Set the player's race.
+   * Should only be set during character creation.
+   */
+  set race(value: RaceId) {
+    this._race = value;
+  }
+
+  // ========== Staff Vanish (Visibility) ==========
+
+  /**
+   * Check if the player is staff vanished.
+   * Staff vanish makes the player invisible to lower-rank staff and all players.
+   */
+  get isStaffVanished(): boolean {
+    return this._staffVanished;
+  }
+
+  /**
+   * Toggle staff vanish mode.
+   * Only available to builders and above (permissionLevel >= 1).
+   * @returns true if successfully toggled, false if not allowed
+   */
+  vanish(): boolean {
+    const permLevel = this.permissionLevel;
+
+    // Must be builder or above to vanish
+    if (permLevel < 1) {
+      this.receive("{red}You don't have permission to vanish.{/}\n");
+      return false;
+    }
+
+    this._staffVanished = !this._staffVanished;
+
+    // Get the room for announcements
+    const room = this.environment;
+
+    if (this._staffVanished) {
+      this.receive('{cyan}You fade from view.{/}\n');
+      // Announce departure to those who can't see us
+      if (room && 'broadcast' in room) {
+        const roomObj = room as { broadcast: (msg: string, opts?: { filter?: (o: unknown) => boolean }) => void };
+        roomObj.broadcast(`{dim}${this.name} vanishes into thin air.{/}\n`, {
+          filter: (obj: unknown) => {
+            // Only send to those who won't be able to see us anymore
+            const viewer = obj as { permissionLevel?: number };
+            const viewerLevel = viewer.permissionLevel ?? 0;
+            return viewerLevel <= permLevel;
+          },
+        });
+      }
+    } else {
+      this.receive('{cyan}You fade back into view.{/}\n');
+      // Announce arrival to those who couldn't see us
+      if (room && 'broadcast' in room) {
+        const roomObj = room as { broadcast: (msg: string, opts?: { exclude?: unknown[]; filter?: (o: unknown) => boolean }) => void };
+        roomObj.broadcast(`{dim}${this.name} appears out of thin air.{/}\n`, {
+          exclude: [this],
+          filter: (obj: unknown) => {
+            // Only send to those who couldn't see us before
+            const viewer = obj as { permissionLevel?: number };
+            const viewerLevel = viewer.permissionLevel ?? 0;
+            return viewerLevel <= permLevel;
+          },
+        });
+      }
+    }
+
+    return true;
+  }
+
   /**
    * Add gold to the player's carried gold.
    * @param amount Amount of gold to add
@@ -1458,6 +1547,8 @@ export class Player extends Living {
       bankedGold: this._bankedGold,
       guildData: this.getProperty<PlayerGuildData>('guildData'),
       avatar: this._avatar,
+      staffVanished: this._staffVanished,
+      race: this._race,
     };
   }
 
@@ -1549,6 +1640,17 @@ export class Player extends Living {
       this._avatar = data.avatar;
     }
 
+    // Restore staff vanished state (if present - for backwards compatibility)
+    if (data.staffVanished !== undefined) {
+      this._staffVanished = data.staffVanished;
+    }
+
+    // Restore race (default to 'human' for existing players without race)
+    this._race = data.race || 'human';
+
+    // Apply race latent abilities
+    this._applyRaceAbilitiesDeferred();
+
     // Store equipment data for later restoration (after inventory is loaded)
     if (data.equipment && data.equipment.length > 0) {
       this.setProperty('_pendingEquipment', data.equipment);
@@ -1576,6 +1678,20 @@ export class Player extends Living {
       guildDaemon.applyAllPassives(this);
     } catch {
       // Guild daemon not available yet - passives will be applied on first skill use
+    }
+  }
+
+  /**
+   * Apply race latent abilities after a deferred load.
+   * This ensures the race daemon is available.
+   */
+  private async _applyRaceAbilitiesDeferred(): Promise<void> {
+    try {
+      const { getRaceDaemon } = await import('../daemons/race.js');
+      const raceDaemon = getRaceDaemon();
+      raceDaemon.applyLatentAbilities(this, this._race);
+    } catch {
+      // Race daemon not available yet - abilities will be applied later
     }
   }
 

@@ -233,7 +233,9 @@ export const MAGE_GUILD: GuildDefinition = {
     { guildLevel: 3, skills: ['mage:fire_bolt'] },
     { guildLevel: 5, skills: ['mage:frost_armor'] },
     { guildLevel: 7, skills: ['mage:lightning'] },
+    { guildLevel: 9, skills: ['mage:detect_invisible'] },
     { guildLevel: 10, skills: ['mage:fireball'] },
+    { guildLevel: 12, skills: ['mage:invisibility'] },
     { guildLevel: 13, skills: ['mage:teleport'] },
     { guildLevel: 16, skills: ['mage:mana_shield'] },
     { guildLevel: 20, skills: ['mage:meteor_storm'] },
@@ -432,6 +434,50 @@ export const MAGE_SKILLS: SkillDefinition[] = [
     useVerb: 'call down',
     useMessage: 'You call down a devastating meteor storm from the heavens!',
   },
+  {
+    id: 'mage:detect_invisible',
+    name: 'Detect Invisible',
+    description: 'Grants the ability to see invisible creatures.',
+    type: 'buff',
+    target: 'self',
+    guild: 'mage',
+    guildLevelRequired: 9,
+    manaCost: 30,
+    cooldown: 60000,
+    maxLevel: 50,
+    learnCost: 1200,
+    advanceCostPerLevel: 90,
+    effect: {
+      baseMagnitude: 1, // Binary effect - either you can see invisible or not
+      magnitudePerLevel: 0,
+      duration: 300000, // 5 minutes
+      effectType: 'see_invisible',
+    },
+    useVerb: 'cast',
+    useMessage: 'You cast detect invisible. Your eyes shimmer with arcane power!',
+  },
+  {
+    id: 'mage:invisibility',
+    name: 'Invisibility',
+    description: 'Become invisible to normal sight. Requires See Invisible to detect.',
+    type: 'buff',
+    target: 'self',
+    guild: 'mage',
+    guildLevelRequired: 12,
+    manaCost: 45,
+    cooldown: 120000,
+    maxLevel: 50,
+    learnCost: 2000,
+    advanceCostPerLevel: 100,
+    effect: {
+      baseMagnitude: 70, // VisibilityLevel.INVISIBLE = 70
+      magnitudePerLevel: 0.2,
+      duration: 180000, // 3 minutes
+      effectType: 'invisibility',
+    },
+    useVerb: 'cast',
+    useMessage: 'You cast invisibility and fade from view!',
+  },
 ];
 
 // ==================== THIEF GUILD ====================
@@ -461,7 +507,7 @@ export const THIEF_SKILLS: SkillDefinition[] = [
   {
     id: 'thief:hide',
     name: 'Hide',
-    description: 'Conceal yourself in the shadows.',
+    description: 'Conceal yourself in the shadows. Requires Detect Hidden to see you.',
     type: 'buff',
     target: 'self',
     guild: 'thief',
@@ -472,9 +518,10 @@ export const THIEF_SKILLS: SkillDefinition[] = [
     learnCost: 50,
     advanceCostPerLevel: 20,
     effect: {
-      baseMagnitude: 1,
-      magnitudePerLevel: 0,
+      baseMagnitude: 50, // VisibilityLevel.HIDDEN = 50
+      magnitudePerLevel: 0.3, // Higher skill = harder to detect
       duration: 60000,
+      effectType: 'stealth', // Uses stealth effect for visibility system
     },
     useVerb: 'slip',
     useMessage: 'You slip into the shadows...',
@@ -501,7 +548,7 @@ export const THIEF_SKILLS: SkillDefinition[] = [
   {
     id: 'thief:sneak',
     name: 'Sneak',
-    description: 'Move silently without alerting others.',
+    description: 'Move silently without alerting others. High perception can detect you.',
     type: 'buff',
     target: 'self',
     guild: 'thief',
@@ -512,9 +559,10 @@ export const THIEF_SKILLS: SkillDefinition[] = [
     learnCost: 200,
     advanceCostPerLevel: 35,
     effect: {
-      baseMagnitude: 1,
-      magnitudePerLevel: 0,
+      baseMagnitude: 30, // VisibilityLevel.SNEAKING = 30
+      magnitudePerLevel: 0.15, // Higher skill = harder to detect
       duration: 120000,
+      effectType: 'stealth', // Uses stealth effect for visibility system
     },
     useVerb: 'begin',
     useMessage: 'You begin moving silently...',

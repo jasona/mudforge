@@ -13,7 +13,8 @@ export class Chainmail extends Armor {
 against slashing attacks. Each ring has been individually riveted,
 a sign of quality craftsmanship. The mail extends to mid-thigh and
 includes a coif for head protection.`,
-      weight: 12,
+      size: 'huge', // Chainmail is very heavy
+      weight: 12, // Explicit: even heavier than typical huge items
       value: 200,
       armor: 5,
       slot: 'chest',

@@ -1,0 +1,116 @@
+[
+  {
+    "id": "human",
+    "name": "Human",
+    "shortDescription": "Versatile and adaptable, humans excel in any role.",
+    "statBonuses": {},
+    "abilities": []
+  },
+  {
+    "id": "elf",
+    "name": "Elf",
+    "shortDescription": "Graceful and long-lived, elves possess natural magical talent.",
+    "statBonuses": {
+      "dexterity": 2,
+      "intelligence": 1,
+      "constitution": -1
+    },
+    "abilities": [
+      "Night Vision",
+      "Magic Resistance"
+    ]
+  },
+  {
+    "id": "dwarf",
+    "name": "Dwarf",
+    "shortDescription": "Stout and resilient, dwarves are master craftsmen and warriors.",
+    "statBonuses": {
+      "constitution": 2,
+      "strength": 1,
+      "charisma": -1
+    },
+    "abilities": [
+      "Infravision",
+      "Poison Resistance",
+      "Natural Armor"
+    ]
+  },
+  {
+    "id": "orc",
+    "name": "Orc",
+    "shortDescription": "Powerful and fierce, orcs are born for battle.",
+    "statBonuses": {
+      "strength": 3,
+      "constitution": 1,
+      "intelligence": -2,
+      "charisma": -1
+    },
+    "abilities": [
+      "Infravision",
+      "Fast Healing"
+    ],
+    "restrictions": [
+      "cleric"
+    ]
+  },
+  {
+    "id": "halfling",
+    "name": "Halfling",
+    "shortDescription": "Small and lucky, halflings are natural rogues and survivors.",
+    "statBonuses": {
+      "dexterity": 2,
+      "luck": 2,
+      "strength": -2
+    },
+    "abilities": [
+      "Natural Stealth",
+      "Poison Resistance"
+    ]
+  },
+  {
+    "id": "gnome",
+    "name": "Gnome",
+    "shortDescription": "Clever and curious, gnomes are natural inventors and illusionists.",
+    "statBonuses": {
+      "intelligence": 2,
+      "wisdom": 1,
+      "strength": -2
+    },
+    "abilities": [
+      "Night Vision",
+      "Magic Resistance",
+      "Keen Senses"
+    ]
+  },
+  {
+    "id": "tiefling",
+    "name": "Tiefling",
+    "shortDescription": "Touched by infernal blood, tieflings bear the mark of the lower planes.",
+    "statBonuses": {
+      "charisma": 2,
+      "intelligence": 1,
+      "wisdom": -1
+    },
+    "abilities": [
+      "Fire Resistance",
+      "Infravision"
+    ],
+    "restrictions": [
+      "cleric"
+    ]
+  },
+  {
+    "id": "dragonborn",
+    "name": "Dragonborn",
+    "shortDescription": "Proud dragon-descendants with scales and elemental resistance.",
+    "statBonuses": {
+      "strength": 2,
+      "charisma": 1,
+      "dexterity": -1
+    },
+    "abilities": [
+      "Fire Resistance",
+      "Natural Armor"
+    ]
+  }
+]

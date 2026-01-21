@@ -6,7 +6,7 @@
  * When picked up, the gold is added to the player's gold.
  */
 
-import { Item } from './item.js';
+import { Item, ItemSize } from './item.js';
 import type { MudObject } from './object.js';
 
 export class GoldPile extends Item {
@@ -14,6 +14,8 @@ export class GoldPile extends Item {
 
   constructor(amount: number = 0) {
     super();
+    // Gold coins are tiny
+    this.size = 'tiny' as ItemSize;
     this._amount = Math.max(0, Math.floor(amount));
     this.updateDescription();
   }

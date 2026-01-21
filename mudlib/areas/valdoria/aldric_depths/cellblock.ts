@@ -3,6 +3,7 @@
  */
 
 import { Room, MudObject } from '../../../lib/std.js';
+import { LightLevel } from '../../../std/visibility/types.js';
 
 /**
  * The Cellblock room.
@@ -31,6 +32,9 @@ see a larger chamber.`;
     // Map coordinates - north of corridor (lower Y)
     this.setMapCoordinates({ x: 0, y: 2, z: -1, area: '/areas/valdoria/aldric_depths' });
     this.setTerrain('dungeon');
+
+    // Very dark with minimal light
+    this.lightLevel = LightLevel.VERY_DARK;
 
     this.setupRoom();
   }

@@ -19,12 +19,12 @@ export class RustyDagger extends Weapon {
         'This small dagger is pitted with rust and has clearly seen better days. ' +
         'The blade is chipped in several places, but it could still do some damage ' +
         'in a pinch. A faint smell of goblin lingers on the leather-wrapped hilt.',
-      weight: 1,
+      handedness: 'light',
+      size: 'medium', // Heavier than typical light weapons
       value: 5,
       minDamage: 1,
       maxDamage: 4,
       damageType: 'piercing',
-      handedness: 'light',
       attackSpeed: 0.1, // Slightly fast due to small size
     });
   }

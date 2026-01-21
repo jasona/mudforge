@@ -6,6 +6,7 @@
 
 import type { StatName } from '../living.js';
 import type { DamageType } from '../weapon.js';
+import type { RaceId } from '../race/types.js';
 
 /**
  * Guild identifiers for the four starter guilds.
@@ -48,6 +49,8 @@ export interface SkillEffect {
   tickInterval?: number;
   /** Custom effect handler name */
   customHandler?: string;
+  /** Effect type for visibility system (stealth, invisibility, see_invisible, detect_hidden) */
+  effectType?: string;
 }
 
 /**
@@ -114,6 +117,10 @@ export interface GuildDefinition {
   motto?: string;
   /** Path to guild hall room */
   guildHallPath?: string;
+  /** Races that are allowed to join (if specified, only these can join) */
+  allowedRaces?: RaceId[];
+  /** Races that are forbidden from joining */
+  forbiddenRaces?: RaceId[];
 }
 
 /**

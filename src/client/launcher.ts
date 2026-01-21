@@ -31,11 +31,29 @@ export class Launcher {
   private regConfirm: HTMLInputElement | null = null;
   private regEmail: HTMLInputElement | null = null;
   private regGender: HTMLSelectElement | null = null;
+  private regRacePicker: HTMLElement | null = null;
+  private regRace: HTMLInputElement | null = null;
+  private raceDetails: HTMLElement | null = null;
+  private raceName: HTMLElement | null = null;
+  private raceDescription: HTMLElement | null = null;
+  private raceBonuses: HTMLElement | null = null;
+  private raceAbilities: HTMLElement | null = null;
+  private raceRestrictions: HTMLElement | null = null;
   private regAvatarPicker: HTMLElement | null = null;
   private regAvatar: HTMLInputElement | null = null;
   private regSubmit: HTMLButtonElement | null = null;
   private regCancel: HTMLButtonElement | null = null;
   private regError: HTMLElement | null = null;
+
+  // Cached race data
+  private racesData: Array<{
+    id: string;
+    name: string;
+    shortDescription: string;
+    statBonuses: Record<string, number>;
+    abilities: string[];
+    restrictions?: string[];
+  }> = [];
 
   constructor(wsClient: WebSocketClient, onLoginSuccess: () => void) {
     this.wsClient = wsClient;
@@ -112,6 +130,14 @@ export class Launcher {
     this.regConfirm = document.getElementById('reg-confirm') as HTMLInputElement;
     this.regEmail = document.getElementById('reg-email') as HTMLInputElement;
     this.regGender = document.getElementById('reg-gender') as HTMLSelectElement;
+    this.regRacePicker = document.getElementById('reg-race-picker');
+    this.regRace = document.getElementById('reg-race') as HTMLInputElement;
+    this.raceDetails = document.getElementById('race-details');
+    this.raceName = document.getElementById('race-name');
+    this.raceDescription = document.getElementById('race-description');
+    this.raceBonuses = document.getElementById('race-bonuses');
+    this.raceAbilities = document.getElementById('race-abilities');
+    this.raceRestrictions = document.getElementById('race-restrictions');
     this.regAvatarPicker = document.getElementById('reg-avatar-picker');
     this.regAvatar = document.getElementById('reg-avatar') as HTMLInputElement;
     this.regSubmit = document.getElementById('reg-submit') as HTMLButtonElement;
@@ -120,6 +146,9 @@ export class Launcher {
 
     // Populate avatar picker
     this.populateAvatarPicker();
+
+    // Fetch and populate race picker
+    this.fetchRaces();
   }
 
   /**
@@ -174,6 +203,136 @@ export class Launcher {
         item.classList.remove('selected');
       }
     });
+  }
+
+  /**
+   * Fetch races from the API and populate the race picker.
+   */
+  private async fetchRaces(): Promise<void> {
+    try {
+      const response = await fetch('/api/races');
+      if (!response.ok) {
+        console.warn('Failed to fetch races, using defaults');
+        this.racesData = [
+          { id: 'human', name: 'Human', shortDescription: 'Versatile and adaptable', statBonuses: {}, abilities: [] }
+        ];
+      } else {
+        this.racesData = await response.json();
+      }
+      this.populateRacePicker();
+    } catch (error) {
+      console.warn('Failed to fetch races:', error);
+      this.racesData = [
+        { id: 'human', name: 'Human', shortDescription: 'Versatile and adaptable', statBonuses: {}, abilities: [] }
+      ];
+      this.populateRacePicker();
+    }
+  }
+
+  /**
+   * Populate the race picker with available races.
+   */
+  private populateRacePicker(): void {
+    if (!this.regRacePicker) return;
+
+    // Clear existing content
+    this.regRacePicker.innerHTML = '';
+
+    for (const race of this.racesData) {
+      const card = document.createElement('div');
+      card.className = 'race-picker-card';
+      card.dataset.raceId = race.id;
+      card.innerHTML = `
+        <div class="race-card-name">${race.name}</div>
+        <div class="race-card-desc">${race.shortDescription}</div>
+      `;
+
+      card.addEventListener('click', () => this.selectRace(race.id));
+      this.regRacePicker.appendChild(card);
+    }
+
+    // Select human by default
+    this.selectRace('human');
+  }
+
+  /**
+   * Select a race in the picker.
+   */
+  private selectRace(raceId: string): void {
+    if (!this.regRacePicker || !this.regRace) return;
+
+    // Update hidden input
+    this.regRace.value = raceId;
+
+    // Update visual selection
+    const cards = this.regRacePicker.querySelectorAll('.race-picker-card');
+    cards.forEach((card) => {
+      if ((card as HTMLElement).dataset.raceId === raceId) {
+        card.classList.add('selected');
+      } else {
+        card.classList.remove('selected');
+      }
+    });
+
+    // Update race details
+    this.updateRaceDetails(raceId);
+  }
+
+  /**
+   * Update the race details panel with selected race info.
+   */
+  private updateRaceDetails(raceId: string): void {
+    const race = this.racesData.find(r => r.id === raceId);
+    if (!race || !this.raceDetails) return;
+
+    // Hide placeholder, show content
+    const placeholder = this.raceDetails.querySelector('.race-details-placeholder');
+    const content = this.raceDetails.querySelector('.race-details-content');
+    if (placeholder) placeholder.classList.add('hidden');
+    if (content) content.classList.remove('hidden');
+
+    // Update name
+    if (this.raceName) {
+      this.raceName.textContent = race.name;
+    }
+
+    // Update description
+    if (this.raceDescription) {
+      this.raceDescription.textContent = race.shortDescription;
+    }
+
+    // Update stat bonuses
+    if (this.raceBonuses) {
+      const bonusEntries = Object.entries(race.statBonuses).filter(([, v]) => v !== 0);
+      if (bonusEntries.length > 0) {
+        const bonusHtml = bonusEntries.map(([stat, bonus]) => {
+          const sign = bonus > 0 ? '+' : '';
+          const color = bonus > 0 ? 'bonus-positive' : 'bonus-negative';
+          return `<span class="${color}">${sign}${bonus} ${stat.substring(0, 3).toUpperCase()}</span>`;
+        }).join(' ');
+        this.raceBonuses.innerHTML = `<strong>Stats:</strong> ${bonusHtml}`;
+      } else {
+        this.raceBonuses.innerHTML = '<strong>Stats:</strong> <span class="bonus-neutral">Balanced</span>';
+      }
+    }
+
+    // Update abilities
+    if (this.raceAbilities) {
+      if (race.abilities && race.abilities.length > 0) {
+        this.raceAbilities.innerHTML = `<strong>Abilities:</strong> ${race.abilities.join(', ')}`;
+      } else {
+        this.raceAbilities.innerHTML = '';
+      }
+    }
+
+    // Update restrictions
+    if (this.raceRestrictions) {
+      if (race.restrictions && race.restrictions.length > 0) {
+        this.raceRestrictions.innerHTML = `<strong>Cannot join:</strong> <span class="restriction">${race.restrictions.join(', ')}</span>`;
+      } else {
+        this.raceRestrictions.innerHTML = '';
+      }
+    }
   }
 
   /**
@@ -288,6 +447,7 @@ export class Launcher {
     const confirm = this.regConfirm?.value;
     const email = this.regEmail?.value.trim();
     const gender = this.regGender?.value;
+    const race = this.regRace?.value || 'human';
     const avatar = this.regAvatar?.value;
 
     // Validate inputs
@@ -341,6 +501,7 @@ export class Launcher {
       confirmPassword: confirm,
       email: email || undefined,
       gender: gender,
+      race: race,
       avatar: avatar || undefined,
     });
   }
@@ -399,6 +560,10 @@ export class Launcher {
     this.regAvatarPicker
       ?.querySelectorAll('.avatar-picker-item')
       .forEach((item) => item.classList.remove('selected'));
+
+    // Reset race selection to human
+    if (this.regRace) this.regRace.value = 'human';
+    this.selectRace('human');
 
     // Show modal
     this.registerModal?.classList.remove('hidden');

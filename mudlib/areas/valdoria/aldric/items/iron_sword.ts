@@ -13,7 +13,7 @@ export class IronSword extends Weapon {
 but functional, and the leather-wrapped grip shows signs of quality
 craftsmanship. While not exceptional, it's a reliable weapon for any
 adventurer.`,
-      weight: 3,
+      size: 'large', // Heavier than average sword
       value: 100,
       minDamage: 4,
       maxDamage: 8,

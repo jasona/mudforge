@@ -423,6 +423,99 @@ export const Effects = {
   combatDebuff(stat: CombatStatName, amount: number, duration: number, name?: string): Effect {
     return Effects.combatModifier(stat, -Math.abs(amount), duration, name);
   },
+
+  // ========== Visibility Effects ==========
+
+  /**
+   * Create a hide effect (thief hide - stationary stealth).
+   * @param duration Duration in milliseconds
+   * @param skillLevel Skill level (affects visibility level, 0-100)
+   */
+  hide(duration: number, skillLevel: number = 50): Effect {
+    const magnitude = Math.max(50, Math.min(100, skillLevel)); // 50-100 for hidden
+    return {
+      id: generateId('hide'),
+      name: 'Hidden',
+      type: 'stealth',
+      duration,
+      magnitude,
+      category: 'buff',
+      description: 'You are hidden from view',
+      effectType: 'stealth',
+    };
+  },
+
+  /**
+   * Create a sneak effect (thief sneak - moving stealth).
+   * @param duration Duration in milliseconds
+   * @param skillLevel Skill level (affects visibility level, 0-100)
+   */
+  sneak(duration: number, skillLevel: number = 30): Effect {
+    const magnitude = Math.max(1, Math.min(49, skillLevel)); // 1-49 for sneaking
+    return {
+      id: generateId('sneak'),
+      name: 'Sneaking',
+      type: 'stealth',
+      duration,
+      magnitude,
+      category: 'buff',
+      description: 'You are moving quietly',
+      effectType: 'stealth',
+    };
+  },
+
+  /**
+   * Create an invisibility effect (mage spell).
+   * @param duration Duration in milliseconds
+   * @param spellPower Spell power (affects duration/quality)
+   */
+  invisibility(duration: number, spellPower: number = 70): Effect {
+    return {
+      id: generateId('invis'),
+      name: 'Invisibility',
+      type: 'invisibility',
+      duration,
+      magnitude: Math.min(100, spellPower),
+      category: 'buff',
+      description: 'You are invisible',
+      effectType: 'invisibility',
+    };
+  },
+
+  /**
+   * Create a see invisible effect (detection buff).
+   * @param duration Duration in milliseconds
+   */
+  seeInvisible(duration: number): Effect {
+    return {
+      id: generateId('see_invis'),
+      name: 'See Invisible',
+      type: 'see_invisible',
+      duration,
+      magnitude: 1,
+      category: 'buff',
+      description: 'You can see invisible creatures',
+      effectType: 'see_invisible',
+    };
+  },
+
+  /**
+   * Create a detect hidden effect (perception buff).
+   * @param duration Duration in milliseconds
+   * @param skillLevel Skill level (adds to perception, 0-100)
+   */
+  detectHidden(duration: number, skillLevel: number = 30): Effect {
+    return {
+      id: generateId('detect_hidden'),
+      name: 'Detect Hidden',
+      type: 'detect_hidden',
+      duration,
+      magnitude: skillLevel,
+      category: 'buff',
+      description: `+${skillLevel} perception`,
+      effectType: 'detect_hidden',
+    };
+  },
 };
 
 /**

@@ -13,7 +13,8 @@ export class IronShield extends Armor {
 slightly convex with a central boss, and the grip is made of
 thick leather wrapped around an iron bar. Scratches and dents
 on the surface attest to its proven reliability in battle.`,
-      weight: 6,
+      size: 'large', // Shield category
+      weight: 6, // Explicit: iron shields are heavier than wooden
       value: 90,
       armor: 3,
       slot: 'shield',

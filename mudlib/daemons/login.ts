@@ -10,6 +10,9 @@ import { Player } from '../std/player.js';
 import type { PlayerSaveData } from '../std/player.js';
 import { getChannelDaemon } from './channels.js';
 import { getQuestDaemon } from './quest.js';
+import { getRaceDaemon } from './race.js';
+import type { RaceId } from '../std/race/types.js';
+import { isValidRaceId } from '../std/race/definitions.js';
 import type { QuestPlayer } from '../std/quest/types.js';
 import { scrypt, randomBytes, timingSafeEqual } from 'crypto';
 import { promisify } from 'util';
@@ -100,6 +103,7 @@ export interface AuthRequest {
   email?: string;
   gender?: string;
   avatar?: string;
+  race?: string;
 }
 
 /**
@@ -414,6 +418,11 @@ ${'='.repeat(bannerWidth)}
     player.createAccount(session.name, passwordHash, session.email);
     player.gender = gender;
     player.shortDesc = session.name;
+    player.race = 'human'; // Console login defaults to human
+
+    // Apply race bonuses and abilities for console-created players
+    const raceDaemon = getRaceDaemon();
+    raceDaemon.applyRace(player, 'human');
 
     // Set default avatar based on gender
     if (gender === 'male') {
@@ -828,6 +837,7 @@ ${'='.repeat(bannerWidth)}
     const email = request.email?.trim() || '';
     const gender = request.gender;
     const avatar = request.avatar;
+    const race = request.race || 'human'; // Default to human if not specified
 
     // Validate name
     if (!name || !this.isValidName(name)) {
@@ -898,8 +908,11 @@ ${'='.repeat(bannerWidth)}
       return;
     }
 
+    // Validate race (default to human if invalid)
+    const validatedRace: RaceId = isValidRaceId(race) ? race : 'human';
+
     // Create the player
-    await this.createAuthPlayer(connection, normalizedName, password, email, gender as 'male' | 'female' | 'neutral', avatar);
+    await this.createAuthPlayer(connection, normalizedName, password, email, gender as 'male' | 'female' | 'neutral', avatar, validatedRace);
   }
 
   /**
@@ -911,7 +924,8 @@ ${'='.repeat(bannerWidth)}
     password: string,
     email: string,
     gender: 'male' | 'female' | 'neutral',
-    avatar?: string
+    avatar?: string,
+    race: RaceId = 'human'
   ): Promise<void> {
     // Hash the password
     const passwordHash = await hashPassword(password);
@@ -937,6 +951,11 @@ ${'='.repeat(bannerWidth)}
     player.createAccount(name, passwordHash, email);
     player.gender = gender;
     player.shortDesc = name;
+    player.race = race;
+
+    // Apply race bonuses and abilities
+    const raceDaemon = getRaceDaemon();
+    raceDaemon.applyRace(player, race);
 
     // Set avatar (use provided avatar or default based on gender)
     // Valid avatar IDs: avatar_m1-m4, avatar_f1-f4, avatar_a1-a2

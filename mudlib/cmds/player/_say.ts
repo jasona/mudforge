@@ -4,6 +4,9 @@
 
 import type { MudObject } from '../../lib/std.js';
 import { getPlayerColor, formatWithColor } from './_colors.js';
+import { canSee, getVisibleDisplayName } from '../../std/visibility/index.js';
+import type { Living } from '../../std/living.js';
+import type { Room } from '../../std/room.js';
 
 interface CommandContext {
   player: MudObject;
@@ -50,27 +53,39 @@ export function execute(ctx: CommandContext): void {
   });
 
   // Tell everyone else in the room (use each recipient's color preference)
+  // Check visibility for each listener to determine how to display speaker's name
   if (room) {
+    const speakerLiving = player as Living;
+
     for (const obj of room.inventory) {
       if (obj !== player) {
         const other = obj as PlayerLike;
+
+        // Determine the speaker's name based on listener's visibility of them
+        const listenerLiving = other as Living;
+        const roomObj = room as Room;
+        const { name: displayedName } = getVisibleDisplayName(listenerLiving, speakerLiving, roomObj);
+
         if (other.receive) {
           const otherColor = getPlayerColor(other, 'say');
-          other.receive(formatWithColor(otherColor, `${playerName} says: ${args}`) + '\n');
+          other.receive(formatWithColor(otherColor, `${displayedName} says: ${args}`) + '\n');
 
           // Send to comm panel for each listener
           efuns.sendComm(other, {
             type: 'comm',
             commType: 'say',
-            sender: playerName,
+            sender: displayedName,
             message: args,
             timestamp,
             isSender: false,
           });
         }
-        // Notify NPCs so they can respond
+        // Notify NPCs so they can respond (only if they can see the speaker)
         if (other.hearSay) {
-          other.hearSay(player, args);
+          const visResult = canSee(listenerLiving, speakerLiving, roomObj);
+          if (visResult.canSee) {
+            other.hearSay(player, args);
+          }
         }
       }
     }

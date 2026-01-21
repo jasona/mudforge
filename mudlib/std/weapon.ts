@@ -4,7 +4,7 @@
  * Weapons can be wielded by Living beings and affect combat.
  */
 
-import { Item } from './item.js';
+import { Item, ItemSize } from './item.js';
 import { MudObject } from './object.js';
 import { Living } from './living.js';
 import type { EquipResult, CanEquipResult, WeaponHandedness } from './equipment.js';
@@ -64,7 +64,8 @@ export class Weapon extends Item {
     super();
     this.shortDesc = 'a weapon';
     this.longDesc = 'This is a weapon.';
-    this.weight = 2;
+    // Default weapons are medium size (swords, etc.)
+    this.size = 'medium';
   }
 
   // ========== Properties ==========
@@ -120,9 +121,16 @@ export class Weapon extends Item {
 
   /**
    * Set weapon handedness.
+   * Also updates size: light weapons default to 'small', two-handed to 'large'.
    */
   set handedness(value: WeaponHandedness) {
     this._handedness = value;
+    // Update default size based on handedness (unless explicitly set)
+    if (value === 'light') {
+      this.size = 'small';
+    } else if (value === 'two_handed') {
+      this.size = 'large';
+    }
   }
 
   /**
@@ -454,6 +462,7 @@ export class Weapon extends Item {
   setWeapon(options: {
     shortDesc?: string;
     longDesc?: string;
+    size?: ItemSize;
     weight?: number;
     value?: number;
     minDamage?: number;
@@ -466,6 +475,10 @@ export class Weapon extends Item {
     attackSpeed?: number;
     specialAttackChance?: number;
   }): void {
+    // Set handedness first (it may adjust size)
+    if (options.handedness) this.handedness = options.handedness;
+    // Then set size explicitly if provided
+    if (options.size !== undefined) this.size = options.size;
     if (options.shortDesc) this.shortDesc = options.shortDesc;
     if (options.longDesc) this.longDesc = options.longDesc;
     if (options.weight !== undefined) this.weight = options.weight;
@@ -473,7 +486,6 @@ export class Weapon extends Item {
     if (options.minDamage !== undefined) this.minDamage = options.minDamage;
     if (options.maxDamage !== undefined) this.maxDamage = options.maxDamage;
     if (options.damageType) this.damageType = options.damageType;
-    if (options.handedness) this.handedness = options.handedness;
     if (options.slot) this.slot = options.slot;
     if (options.skillRequired !== undefined) {
       this.setSkillRequired(options.skillRequired, options.skillLevel || 0);

@@ -446,10 +446,31 @@ Style requirements:
    */
   private buildObjectPrompt(description: string, type: ObjectImageType, extraContext?: Record<string, unknown>): string {
     switch (type) {
-      case 'player':
+      case 'player': {
+        // Check for race appearance info
+        const raceInfo = extraContext?.race as string | undefined;
+        const raceName = extraContext?.raceName as string | undefined;
+        const raceFeatures = extraContext?.raceFeatures as string | undefined;
+        const raceBuild = extraContext?.raceBuild as string | undefined;
+        const raceStyleHints = extraContext?.raceStyleHints as string | undefined;
+
+        let raceSection = '';
+        if (raceName) {
+          raceSection = `\nRace: ${raceName}`;
+          if (raceFeatures) {
+            raceSection += `\nDistinctive features: ${raceFeatures}`;
+          }
+          if (raceBuild) {
+            raceSection += `\nBuild: ${raceBuild}`;
+          }
+          if (raceStyleHints) {
+            raceSection += `\nStyle hints: ${raceStyleHints}`;
+          }
+        }
+
         return `Create a small square portrait icon for a fantasy RPG player character:
 
-${description}
+${description}${raceSection}
 
 Style requirements:
 - Dark fantasy art style with rich, moody colors
@@ -460,6 +481,7 @@ Style requirements:
 - 64x64 pixel icon style, bold and recognizable
 - The artwork must fill the entire canvas from edge to edge
 - No borders, margins, or empty space around the subject`;
+      }
 
       case 'npc':
         return `Create a small square portrait icon for a fantasy RPG game character:
@@ -550,6 +572,43 @@ Fill entire canvas edge to edge, no borders or margins`;
    */
   getFallbackImage(type: ObjectImageType): string {
     return type === 'npc' || type === 'player' ? getFallbackDataUri() : getFallbackItemDataUri();
+  }
+
+  /**
+   * Build a race-aware portrait prompt for AI generation.
+   * Used by the portrait command to include race appearance details.
+   */
+  buildRaceAwarePrompt(
+    description: string,
+    raceName: string,
+    raceFeatures: string,
+    raceBuild: string,
+    raceStyleHints: string
+  ): string {
+    let raceSection = '';
+    if (raceName) {
+      raceSection = `\nRace: ${raceName}`;
+      if (raceFeatures) {
+        raceSection += `\nDistinctive features: ${raceFeatures}`;
+      }
+      if (raceBuild) {
+        raceSection += `\nBuild: ${raceBuild}`;
+      }
+      if (raceStyleHints) {
+        raceSection += `\nStyle hints: ${raceStyleHints}`;
+      }
+    }
+
+    return `Create a portrait for a fantasy RPG character:
+
+${description}${raceSection}
+
+Style requirements:
+- Dark fantasy art style with rich, moody colors
+- Portrait/headshot composition
+- Dramatic lighting with shadows
+- 64x64 pixel icon style, bold and recognizable
+- Fill entire canvas edge to edge`;
   }
 
   /**

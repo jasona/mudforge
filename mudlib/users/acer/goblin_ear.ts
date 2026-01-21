@@ -18,7 +18,7 @@ export class GoblinEar extends Item {
         'This small, pointed ear has been crudely hacked from a goblin corpse. ' +
         'The greenish skin is leathery and wrinkled. Some towns pay a bounty ' +
         'for these as proof of goblin extermination.',
-      weight: 0.1,
+      size: 'tiny', // A small ear (weight 0.1)
       value: 2,
     });
   }

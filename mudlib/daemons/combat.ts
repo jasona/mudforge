@@ -45,6 +45,7 @@ export class CombatDaemon extends MudObject {
    * Calculate round time based on attacker's stats and equipment.
    * Formula: BASE_ROUND_TIME / max(0.5, 1 + attackSpeed + weaponSpeed)
    *          - (DEX - 10) / 5 * 100ms
+   *          + encumbrance penalty
    */
   calculateRoundTime(attacker: Living): number {
     // Get attack speed from combat stats
@@ -66,6 +67,15 @@ export class CombatDaemon extends MudObject {
     // Apply dexterity bonus (each point over 10 reduces time by 20ms)
     const dex = attacker.getStat('dexterity');
     roundTime -= ((dex - 10) / 5) * 100;
+
+    // Apply encumbrance penalty (increases round time)
+    if (typeof attacker.getEncumbrancePenalties === 'function') {
+      const penalties = attacker.getEncumbrancePenalties();
+      if (penalties.attackSpeedPenalty > 0) {
+        // Increase round time by the penalty percentage
+        roundTime *= (1 + penalties.attackSpeedPenalty);
+      }
+    }
 
     // Clamp to valid range
     return Math.max(MIN_ROUND_TIME, Math.min(MAX_ROUND_TIME, Math.round(roundTime)));
@@ -635,13 +645,23 @@ export class CombatDaemon extends MudObject {
 
   /**
    * Calculate dodge chance.
-   * Formula: toDodge + (DEX - 10) * 2
+   * Formula: toDodge + (DEX - 10) * 2 - encumbrance penalty
    */
   calculateDodgeChance(defender: Living): number {
     const toDodge = defender.getCombatStat('toDodge');
     const dex = defender.getStat('dexterity');
 
-    const dodgeChance = toDodge + (dex - 10) * 2;
+    let dodgeChance = toDodge + (dex - 10) * 2;
+
+    // Apply encumbrance penalty (reduces dodge chance)
+    if (typeof defender.getEncumbrancePenalties === 'function') {
+      const penalties = defender.getEncumbrancePenalties();
+      if (penalties.dodgePenalty > 0) {
+        // Reduce dodge chance by the penalty percentage of the max (50)
+        dodgeChance -= 50 * penalties.dodgePenalty;
+      }
+    }
+
     return Math.max(0, Math.min(50, dodgeChance));
   }
 

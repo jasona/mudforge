@@ -5,6 +5,9 @@
  */
 
 import type { MudObject } from '../../lib/std.js';
+import { canSeeInRoom, getDarknessMessage } from '../../std/visibility/index.js';
+import type { Living } from '../../std/living.js';
+import type { Room as RoomClass } from '../../std/room.js';
 
 interface CommandContext {
   player: MudObject;
@@ -27,6 +30,17 @@ export function execute(ctx: CommandContext): void {
 
   if (!room) {
     ctx.sendLine('You are floating in a void.');
+    return;
+  }
+
+  // Check if player can see in the room
+  const playerLiving = player as Living;
+  const roomObj = room as unknown as RoomClass;
+  const lightCheck = canSeeInRoom(playerLiving, roomObj);
+
+  if (!lightCheck.canSee) {
+    // Too dark to see
+    ctx.sendLine(`{bold}{dim}Darkness{/} {dim}[You can't see the exits]{/}`);
     return;
   }
 
