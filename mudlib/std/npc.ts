@@ -786,6 +786,7 @@ export class NPC extends Living {
     const corpse = new Corpse();
     corpse.ownerName = this.name;
     corpse.isPlayerCorpse = false;
+    corpse.level = this.level;
 
     // Transfer NPC's inventory to corpse
     const items = [...this.inventory];

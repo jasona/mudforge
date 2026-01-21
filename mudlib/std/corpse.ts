@@ -39,6 +39,9 @@ export class Corpse extends Container {
   /** Object ID of the original living (for player resurrection) */
   private _ownerId: string | null = null;
 
+  /** Level of the creature that died (for bury rewards) */
+  private _level: number = 1;
+
   /** Decay timer ID */
   private _decayTimerId: number = 0;
 
@@ -115,6 +118,20 @@ export class Corpse extends Container {
    */
   set ownerId(id: string | null) {
     this._ownerId = id;
+  }
+
+  /**
+   * Get the level of the creature that died.
+   */
+  get level(): number {
+    return this._level;
+  }
+
+  /**
+   * Set the level of the creature that died.
+   */
+  set level(value: number) {
+    this._level = Math.max(1, value);
   }
 
   // ========== Initialization ==========
