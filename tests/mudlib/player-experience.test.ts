@@ -199,11 +199,11 @@ describe('Player Experience', () => {
     });
 
     it('should fail at max stat', () => {
-      player.setBaseStat('strength', 100);
+      player.setBaseStat('strength', 50); // MAX_STAT is 50
       player.experience = 10000;
       const result = player.raiseStat('strength');
       expect(result).toBe(false);
-      expect(player.getBaseStat('strength')).toBe(100);
+      expect(player.getBaseStat('strength')).toBe(50);
     });
 
     it('should work for all stats', () => {

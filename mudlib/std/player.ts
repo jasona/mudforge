@@ -7,6 +7,11 @@
  */
 
 import { Living, type Stats, type StatName, MAX_STAT } from './living.js';
+
+/**
+ * Maximum player level cap.
+ */
+export const MAX_PLAYER_LEVEL = 50;
 import { MudObject } from './object.js';
 import { Item } from './item.js';
 import { colorize, stripColors, wordWrap } from '../lib/colors.js';
@@ -1223,6 +1228,20 @@ export class Player extends Living {
   }
 
   /**
+   * Override level setter to enforce player level cap.
+   */
+  override set level(value: number) {
+    super.level = Math.max(1, Math.min(MAX_PLAYER_LEVEL, value));
+  }
+
+  /**
+   * Override level getter to maintain consistent behavior.
+   */
+  override get level(): number {
+    return super.level;
+  }
+
+  /**
    * Calculate XP cost to raise a stat by 1 point.
    * Cost increases with current stat value: currentStat * 50
    * @param stat The stat to check
@@ -1244,9 +1263,15 @@ export class Player extends Living {
 
   /**
    * Spend XP to level up.
-   * @returns true if level up succeeded, false if not enough XP
+   * @returns true if level up succeeded, false if not enough XP or at max level
    */
   levelUp(): boolean {
+    // Check level cap
+    if (this.level >= MAX_PLAYER_LEVEL) {
+      this.receive(`{yellow}You have reached the maximum level!{/}\n`);
+      return false;
+    }
+
     const cost = this.xpForNextLevel;
     if (this._experience < cost) {
       return false;

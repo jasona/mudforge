@@ -5,12 +5,42 @@
  */
 
 import type { Effect, EffectType, EffectCategory, CombatStatName, DamageType, StatName } from './types.js';
+import { MAX_STAT_MODIFIER, MAX_COMBAT_MODIFIER, MAX_DOT_MAGNITUDE, MAX_BUFF_STACKS } from '../living.js';
 
 /**
  * Generate a unique effect ID.
  */
 function generateId(baseName: string): string {
   return `${baseName}_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
+}
+
+/**
+ * Clamp effect magnitude based on effect type.
+ * @param type The effect type
+ * @param magnitude The raw magnitude
+ * @returns The clamped magnitude
+ */
+function clampMagnitude(type: EffectType, magnitude: number): number {
+  switch (type) {
+    case 'stat_modifier':
+      return Math.max(-MAX_STAT_MODIFIER, Math.min(MAX_STAT_MODIFIER, magnitude));
+    case 'combat_modifier':
+      return Math.max(-MAX_COMBAT_MODIFIER, Math.min(MAX_COMBAT_MODIFIER, magnitude));
+    case 'damage_over_time':
+    case 'heal_over_time':
+      return Math.max(1, Math.min(MAX_DOT_MAGNITUDE, magnitude));
+    default:
+      return magnitude;
+  }
+}
+
+/**
+ * Clamp max stacks to the system maximum.
+ * @param stacks The requested max stacks
+ * @returns The clamped max stacks
+ */
+function clampMaxStacks(stacks: number): number {
+  return Math.min(stacks, MAX_BUFF_STACKS);
 }
 
 /**
@@ -30,19 +60,21 @@ export const Effects = {
     tickInterval: number = 2000,
     maxStacks: number = 5
   ): Effect {
+    const clampedMagnitude = clampMagnitude('damage_over_time', damagePerTick);
+    const clampedStacks = clampMaxStacks(maxStacks);
     return {
       id: generateId('poison'),
       name: 'Poison',
       type: 'damage_over_time',
       duration,
-      magnitude: damagePerTick,
+      magnitude: clampedMagnitude,
       tickInterval,
       nextTick: tickInterval,
       damageType: 'poison',
-      maxStacks,
+      maxStacks: clampedStacks,
       stacks: 1,
       category: 'debuff',
-      description: `${damagePerTick} poison dmg/tick`,
+      description: `${clampedMagnitude} poison dmg/tick`,
     };
   },
 
@@ -57,19 +89,20 @@ export const Effects = {
     damagePerTick: number,
     tickInterval: number = 1500
   ): Effect {
+    const clampedMagnitude = clampMagnitude('damage_over_time', damagePerTick);
     return {
       id: generateId('burn'),
       name: 'Burning',
       type: 'damage_over_time',
       duration,
-      magnitude: damagePerTick,
+      magnitude: clampedMagnitude,
       tickInterval,
       nextTick: tickInterval,
       damageType: 'fire',
-      maxStacks: 3,
+      maxStacks: clampMaxStacks(3),
       stacks: 1,
       category: 'debuff',
-      description: `${damagePerTick} fire dmg/tick`,
+      description: `${clampedMagnitude} fire dmg/tick`,
     };
   },
 
@@ -84,19 +117,20 @@ export const Effects = {
     damagePerTick: number,
     tickInterval: number = 3000
   ): Effect {
+    const clampedMagnitude = clampMagnitude('damage_over_time', damagePerTick);
     return {
       id: generateId('bleed'),
       name: 'Bleeding',
       type: 'damage_over_time',
       duration,
-      magnitude: damagePerTick,
+      magnitude: clampedMagnitude,
       tickInterval,
       nextTick: tickInterval,
       damageType: 'slashing',
-      maxStacks: 5,
+      maxStacks: clampMaxStacks(5),
       stacks: 1,
       category: 'debuff',
-      description: `${damagePerTick} bleed dmg/tick`,
+      description: `${clampedMagnitude} bleed dmg/tick`,
     };
   },
 
@@ -111,16 +145,17 @@ export const Effects = {
     healPerTick: number,
     tickInterval: number = 2000
   ): Effect {
+    const clampedMagnitude = clampMagnitude('heal_over_time', healPerTick);
     return {
       id: generateId('regen'),
       name: 'Regeneration',
       type: 'heal_over_time',
       duration,
-      magnitude: healPerTick,
+      magnitude: clampedMagnitude,
       tickInterval,
       nextTick: tickInterval,
       category: 'buff',
-      description: `+${healPerTick} HP/tick`,
+      description: `+${clampedMagnitude} HP/tick`,
     };
   },
 
@@ -137,18 +172,19 @@ export const Effects = {
     duration: number,
     name?: string
   ): Effect {
-    const effectName = name || (amount >= 0 ? `${stat} Buff` : `${stat} Debuff`);
-    const category: EffectCategory = amount >= 0 ? 'buff' : 'debuff';
-    const sign = amount >= 0 ? '+' : '';
+    const clampedAmount = clampMagnitude('stat_modifier', amount);
+    const effectName = name || (clampedAmount >= 0 ? `${stat} Buff` : `${stat} Debuff`);
+    const category: EffectCategory = clampedAmount >= 0 ? 'buff' : 'debuff';
+    const sign = clampedAmount >= 0 ? '+' : '';
     return {
       id: generateId(`stat_${stat}`),
       name: effectName,
       type: 'stat_modifier',
       duration,
-      magnitude: amount,
+      magnitude: clampedAmount,
       stat,
       category,
-      description: `${sign}${amount} ${stat}`,
+      description: `${sign}${clampedAmount} ${stat}`,
     };
   },
 
@@ -193,18 +229,19 @@ export const Effects = {
     duration: number,
     name?: string
   ): Effect {
+    const clampedAmount = clampMagnitude('combat_modifier', amount);
     const effectName = name || `${stat} Modifier`;
-    const category: EffectCategory = amount >= 0 ? 'buff' : 'debuff';
-    const sign = amount >= 0 ? '+' : '';
+    const category: EffectCategory = clampedAmount >= 0 ? 'buff' : 'debuff';
+    const sign = clampedAmount >= 0 ? '+' : '';
     return {
       id: generateId(`combat_${stat}`),
       name: effectName,
       type: 'combat_modifier',
       duration,
-      magnitude: amount,
+      magnitude: clampedAmount,
       combatStat: stat,
       category,
-      description: `${sign}${amount} ${stat}`,
+      description: `${sign}${clampedAmount} ${stat}`,
     };
   },
 
@@ -357,15 +394,16 @@ export const Effects = {
    * @param amount Amount to reduce strength by
    */
   weakness(duration: number, amount: number): Effect {
+    const clampedAmount = clampMagnitude('stat_modifier', -amount);
     return {
       id: generateId('weakness'),
       name: 'Weakness',
       type: 'stat_modifier',
       duration,
-      magnitude: -amount,
+      magnitude: clampedAmount,
       stat: 'strength',
       category: 'debuff',
-      description: `-${amount} strength`,
+      description: `${clampedAmount} strength`,
     };
   },
 

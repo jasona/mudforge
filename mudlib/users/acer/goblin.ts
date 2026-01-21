@@ -21,9 +21,6 @@ export class Goblin extends NPC {
         'Its beady yellow eyes dart around nervously, and its mouth is full ' +
         'of sharp, crooked teeth. It clutches a rusty dagger in one clawed hand.',
       gender: 'neutral',
-      level: 2,
-      maxHealth: 25,
-      health: 25,
       respawnTime: 120, // 2 minutes
       chatChance: 15,
       chats: [
@@ -33,10 +30,6 @@ export class Goblin extends NPC {
         { message: 'scratches itself', type: 'emote' },
         { message: 'Me stab you!', type: 'say', chance: 50 },
       ],
-      // Combat configuration
-      baseXP: 15,
-      gold: 0, // Will use goldDrop range instead
-      goldDrop: { min: 2, max: 8 },
       lootTable: [
         { itemPath: '/users/acer/rusty_dagger', chance: 25 },
         { itemPath: '/users/acer/goblin_ear', chance: 75 },
@@ -44,16 +37,17 @@ export class Goblin extends NPC {
       ],
     });
 
-    // Set base stats (goblins are weak but quick)
-    this.setBaseStats({
-      strength: 8,
-      dexterity: 12,
-      constitution: 8,
-      intelligence: 6,
-      wisdom: 6,
-      charisma: 4,
-      luck: 8,
-    });
+    // Use auto-balance for level 2 normal NPC
+    this.setLevel(2);
+
+    // Override stats for goblin flavor (weak but quick)
+    this.setBaseStat('strength', 8);
+    this.setBaseStat('dexterity', 12);
+    this.setBaseStat('constitution', 8);
+    this.setBaseStat('intelligence', 6);
+    this.setBaseStat('wisdom', 6);
+    this.setBaseStat('charisma', 4);
+    this.setBaseStat('luck', 8);
 
     // Set mana (goblins don't use magic)
     this.maxMana = 0;

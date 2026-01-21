@@ -5,7 +5,7 @@
  * chat messages, respond to triggers, and perform autonomous actions.
  */
 
-import { Living } from './living.js';
+import { Living, type StatName } from './living.js';
 import { MudObject } from './object.js';
 import { Room } from './room.js';
 import { Corpse } from './corpse.js';
@@ -17,6 +17,21 @@ import type { NPCAIContext, ConversationMessage } from '../lib/ai-types.js';
 
 // Re-export AI types for convenience
 export type { NPCAIContext, ConversationMessage } from '../lib/ai-types.js';
+
+/**
+ * NPC type for auto-balance multipliers.
+ */
+export type NPCType = 'normal' | 'elite' | 'boss' | 'miniboss';
+
+/**
+ * Multipliers for different NPC types.
+ */
+export const NPC_TYPE_MULTIPLIERS: Record<NPCType, { hp: number; damage: number; xp: number; gold: number }> = {
+  normal:   { hp: 1.0,  damage: 1.0,  xp: 1.0, gold: 1.0 },
+  miniboss: { hp: 1.5,  damage: 1.15, xp: 1.5, gold: 1.5 },
+  elite:    { hp: 2.0,  damage: 1.25, xp: 2.0, gold: 2.0 },
+  boss:     { hp: 3.0,  damage: 1.5,  xp: 5.0, gold: 5.0 },
+};
 
 // Quest daemon accessor functions
 function getQuestDaemonLazy() {
@@ -627,6 +642,65 @@ export class NPC extends Living {
     if (options.gold !== undefined) {
       this._gold = options.gold;
     }
+  }
+
+  /**
+   * Auto-balance NPC based on level. Sets HP, stats, XP, gold, and damage.
+   * All values can be overridden after calling this method.
+   * @param level The NPC level (1-60)
+   * @param type The NPC type for multipliers (default: 'normal')
+   */
+  setLevel(level: number, type: NPCType = 'normal'): this {
+    const mult = NPC_TYPE_MULTIPLIERS[type];
+
+    // Set level (NPCs can go up to 60)
+    this.level = Math.max(1, Math.min(60, level));
+
+    // Auto-calculate HP: 50 + level * 15
+    const baseHP = 50 + (level * 15);
+    this.maxHealth = Math.round(baseHP * mult.hp);
+    this.health = this.maxHealth;
+
+    // Auto-calculate stats: 8 + floor(level / 5)
+    const baseStat = 8 + Math.floor(level / 5);
+    const stats: StatName[] = ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma', 'luck'];
+    for (const stat of stats) {
+      this.setBaseStat(stat, baseStat);
+    }
+
+    // Auto-calculate combat config
+    const baseXP = level * 10;
+    const baseGoldMin = level * 2;
+    const baseGoldMax = level * 5;
+
+    this.setCombat({
+      level: this.level,
+      baseXP: Math.round(baseXP * mult.xp),
+      goldDrop: {
+        min: Math.round(baseGoldMin * mult.gold),
+        max: Math.round(baseGoldMax * mult.gold),
+      },
+    });
+
+    // Store type for reference
+    this.setProperty('npcType', type);
+
+    return this;
+  }
+
+  /**
+   * Get the base unarmed damage range for this NPC based on level.
+   * Used when NPC has no weapon equipped.
+   */
+  getBaseDamageRange(): { min: number; max: number } {
+    const type = (this.getProperty('npcType') as NPCType) || 'normal';
+    const mult = NPC_TYPE_MULTIPLIERS[type];
+    const minDmg = Math.max(1, Math.floor(this.level / 2));
+    const maxDmg = Math.max(2, this.level);
+    return {
+      min: Math.round(minDmg * mult.damage),
+      max: Math.round(maxDmg * mult.damage),
+    };
   }
 
   /**

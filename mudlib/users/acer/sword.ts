@@ -18,12 +18,11 @@ along the fuller, pulsing softly with arcane energy. The crossguard is wrought i
 the shape of dragon wings, and the leather-wrapped hilt feels perfectly balanced
 in your hand.`,
       handedness: 'one_handed',
-      size: 'large', // Quality longsword
-      weight: 4, // Explicit: heavier than typical large
-      value: 500,
-      minDamage: 8,
-      maxDamage: 15,
-      damageType: 'physical',
+      size: 'large',
+      weight: 4,
+      itemLevel: 15, // Auto-balance: enchanted quality
+      value: 500, // Override: enchanted items are valuable
+      damageType: 'slashing',
       slot: 'main_hand',
     });
 

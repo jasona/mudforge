@@ -28,11 +28,16 @@ comings and goings in the square. He carries a rolled parchment
 tucked under one arm - no doubt containing the latest decrees and
 news from the castle.`,
       gender: 'male',
-      maxHealth: 50,
-      health: 50,
       chatChance: 15, // 15% chance per heartbeat to announce something
       lookSound: 'npcs/town-crier.mp3',
     });
+
+    // Use auto-balance for level 3 normal (civilian)
+    this.setLevel(3);
+
+    // Override health - he's a civilian, not a fighter
+    this.maxHealth = 50;
+    this.health = 50;
 
     this.addId('crier');
     this.addId('town crier');

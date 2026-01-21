@@ -23,10 +23,15 @@ He examines a piece of leather with practiced scrutiny, testing its
 suppleness with calloused fingers. A look of dissatisfaction crosses
 his face - clearly, he's running low on quality materials.`,
       gender: 'male',
-      maxHealth: 80,
-      health: 80,
       chatChance: 10,
     });
+
+    // Use auto-balance for level 8 normal (tough civilian)
+    this.setLevel(8);
+
+    // Override health - he's a civilian, not a fighter
+    this.maxHealth = 80;
+    this.health = 80;
 
     this.addId('tanner');
     this.addId('gorik');

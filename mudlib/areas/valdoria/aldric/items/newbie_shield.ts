@@ -13,10 +13,10 @@ export class NewbieShield extends Armor {
 seen better days - the wood is dented and scratched from
 countless practice sessions. But it will serve to block a blow
 or two while you learn the basics of combat.`,
-      size: 'large', // Standard shield (weight 3)
-      value: 5,
-      armor: 1,
-      slot: 'off_hand',
+      size: 'large',
+      slot: 'shield',
+      itemLevel: 1, // Auto-balance: newbie tier
+      value: 5, // Override: newbie items are cheap
     });
 
     this.addId('shield');

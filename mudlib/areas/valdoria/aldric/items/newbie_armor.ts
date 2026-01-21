@@ -13,11 +13,11 @@ export class NewbieArmor extends Armor {
 protection but is better than nothing for a new adventurer just
 starting out. The padding shows signs of repair from previous
 owners' training sessions.`,
-      size: 'medium', // Light cloth armor
-      weight: 2, // Explicit: slightly heavier than typical medium
-      value: 5,
-      armor: 1,
+      size: 'medium',
+      weight: 2,
       slot: 'chest',
+      itemLevel: 1, // Auto-balance: newbie tier
+      value: 5, // Override: newbie items are cheap
     });
 
     this.addId('armor');

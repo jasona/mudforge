@@ -16,10 +16,9 @@ export class LeatherGloves extends Armor {
 palms are reinforced with an extra layer of leather for grip and protection,
 while the fingers remain thin enough to maintain fine dexterity. The cuffs
 extend partway up the forearm and are secured with small brass buckles.`,
-      size: 'small', // Light hand armor
-      value: 35,
-      armor: 1,
+      size: 'small',
       slot: 'hands',
+      itemLevel: 5, // Auto-balance: basic leather quality
     });
 
     this.addId('gloves');

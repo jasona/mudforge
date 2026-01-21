@@ -60,6 +60,9 @@ export class Weapon extends Item {
   private _specialAttackChance: number = 0; // 0-100 percentage per round
   private _specialAttack: SpecialAttackCallback | null = null;
 
+  // Auto-balance item level
+  private _itemLevel: number = 1;
+
   constructor() {
     super();
     this.shortDesc = 'a weapon';
@@ -276,6 +279,46 @@ export class Weapon extends Item {
     return this._specialAttack(attacker, defender);
   }
 
+  // ========== Item Level Auto-Balance ==========
+
+  /**
+   * Get the item level.
+   */
+  get itemLevel(): number {
+    return this._itemLevel;
+  }
+
+  /**
+   * Auto-balance weapon based on item level. Sets damage and value.
+   * Handedness affects damage (two-handed +50%, light -25%).
+   * All values can be overridden after calling this method.
+   * @param level The item level (1-50)
+   */
+  setItemLevel(level: number): this {
+    this._itemLevel = Math.max(1, Math.min(50, level));
+
+    // Base damage formula: min = 2 + level*0.5, max = 4 + level
+    let minDmg = Math.round(2 + (level * 0.5));
+    let maxDmg = Math.round(4 + level);
+
+    // Apply handedness multiplier
+    if (this._handedness === 'two_handed') {
+      minDmg = Math.round(minDmg * 1.5);
+      maxDmg = Math.round(maxDmg * 1.5);
+    } else if (this._handedness === 'light') {
+      minDmg = Math.round(minDmg * 0.75);
+      maxDmg = Math.round(maxDmg * 0.75);
+    }
+
+    this._minDamage = Math.max(1, minDmg);
+    this._maxDamage = Math.max(this._minDamage + 1, maxDmg);
+
+    // Value formula: level * 15
+    this._value = level * 15;
+
+    return this;
+  }
+
   // ========== Combat ==========
 
   /**
@@ -474,6 +517,7 @@ export class Weapon extends Item {
     skillLevel?: number;
     attackSpeed?: number;
     specialAttackChance?: number;
+    itemLevel?: number;
   }): void {
     // Set handedness first (it may adjust size)
     if (options.handedness) this.handedness = options.handedness;
@@ -483,8 +527,15 @@ export class Weapon extends Item {
     if (options.longDesc) this.longDesc = options.longDesc;
     if (options.weight !== undefined) this.weight = options.weight;
     if (options.value !== undefined) this.value = options.value;
+    // If itemLevel is set, use auto-balance (unless damage is explicitly provided)
+    if (options.itemLevel !== undefined) {
+      this.setItemLevel(options.itemLevel);
+    }
+    // Explicit damage values override itemLevel
     if (options.minDamage !== undefined) this.minDamage = options.minDamage;
     if (options.maxDamage !== undefined) this.maxDamage = options.maxDamage;
+    // Explicit value overrides itemLevel
+    if (options.value !== undefined) this.value = options.value;
     if (options.damageType) this.damageType = options.damageType;
     if (options.slot) this.slot = options.slot;
     if (options.skillRequired !== undefined) {

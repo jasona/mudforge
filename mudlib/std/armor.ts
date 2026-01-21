@@ -18,11 +18,25 @@ export type ArmorSlot = 'head' | 'chest' | 'hands' | 'legs' | 'feet' | 'cloak' |
 /**
  * Base class for armor.
  */
+/**
+ * Slot multipliers for armor value distribution.
+ */
+const SLOT_ARMOR_MULTIPLIER: Record<ArmorSlot, number> = {
+  chest: 1.0,
+  head: 0.6,
+  legs: 0.75,
+  hands: 0.4,
+  feet: 0.5,
+  cloak: 0.3,
+  shield: 0.6,
+};
+
 export class Armor extends Item {
   private _armor: number = 1;
   private _slot: ArmorSlot = 'chest';
   private _wearer: Living | null = null;
   private _resistances: Map<DamageType, number> = new Map();
+  private _itemLevel: number = 1;
 
   constructor() {
     super();
@@ -115,6 +129,39 @@ export class Armor extends Item {
    */
   getResistances(): Map<DamageType, number> {
     return new Map(this._resistances);
+  }
+
+  // ========== Item Level Auto-Balance ==========
+
+  /**
+   * Get the item level.
+   */
+  get itemLevel(): number {
+    return this._itemLevel;
+  }
+
+  /**
+   * Auto-balance armor based on item level and slot. Sets armor value and gold value.
+   * Slot affects armor distribution (chest = 100%, head = 60%, etc.).
+   * All values can be overridden after calling this method.
+   * @param level The item level (1-50)
+   */
+  setItemLevel(level: number): this {
+    this._itemLevel = Math.max(1, Math.min(50, level));
+
+    // Base armor formula: 1 + floor(level / 3)
+    const baseArmor = 1 + Math.floor(level / 3);
+
+    // Apply slot multiplier
+    const slotMult = SLOT_ARMOR_MULTIPLIER[this._slot] || 1.0;
+    this._armor = Math.max(1, Math.round(baseArmor * slotMult));
+
+    // Value formula: level * 10, adjusted by slot
+    const valueMultiplier = this._slot === 'chest' ? 1.5 :
+                            (this._slot === 'hands' || this._slot === 'feet') ? 0.5 : 1.0;
+    this._value = Math.round(level * 10 * valueMultiplier);
+
+    return this;
   }
 
   // ========== Combat ==========
@@ -289,15 +336,23 @@ export class Armor extends Item {
     armor?: number;
     slot?: ArmorSlot;
     resistances?: Partial<Record<DamageType, number>>;
+    itemLevel?: number;
   }): void {
-    // Set size first so weight can override
+    // Set slot first (needed for itemLevel calculation)
+    if (options.slot) this.slot = options.slot;
+    // Set size so weight can override
     if (options.size !== undefined) this.size = options.size;
     if (options.shortDesc) this.shortDesc = options.shortDesc;
     if (options.longDesc) this.longDesc = options.longDesc;
     if (options.weight !== undefined) this.weight = options.weight;
-    if (options.value !== undefined) this.value = options.value;
+    // If itemLevel is set, use auto-balance (unless armor/value is explicitly provided)
+    if (options.itemLevel !== undefined) {
+      this.setItemLevel(options.itemLevel);
+    }
+    // Explicit armor value overrides itemLevel
     if (options.armor !== undefined) this.armor = options.armor;
-    if (options.slot) this.slot = options.slot;
+    // Explicit value overrides itemLevel
+    if (options.value !== undefined) this.value = options.value;
     if (options.resistances) {
       for (const [type, value] of Object.entries(options.resistances)) {
         this.setResistance(type as DamageType, value);

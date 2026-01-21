@@ -13,11 +13,9 @@ export class BattleAxe extends Weapon {
 blade is made of thick, tempered steel capable of cleaving through
 armor. The long oak shaft is reinforced with iron bands. It's a
 weapon that demands strength but rewards with devastating power.`,
-      handedness: 'two_handed', // Sets size to 'large' (3)
-      weight: 8, // Explicit: this axe is exceptionally heavy
-      value: 180,
-      minDamage: 8,
-      maxDamage: 16,
+      handedness: 'two_handed',
+      weight: 8,
+      itemLevel: 8, // Auto-balance: quality steel
       damageType: 'slashing',
       attackSpeed: -0.2,
     });

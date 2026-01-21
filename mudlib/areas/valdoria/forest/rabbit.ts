@@ -19,9 +19,6 @@ export class ForestRabbit extends NPC {
 Its nose twitches constantly as it nibbles on grass and keeps
 a wary eye out for predators.`,
       gender: 'neutral',
-      level: 1,
-      maxHealth: 8,
-      health: 8,
       respawnTime: 60,
       chatChance: 20,
       chats: [
@@ -31,24 +28,27 @@ a wary eye out for predators.`,
         { message: 'hops around in a small circle', type: 'emote' },
         { message: 'grooms its fur with its paws', type: 'emote' },
       ],
-      baseXP: 3,
-      gold: 0,
-      goldDrop: { min: 0, max: 0 },
       lootTable: [],
       wandering: true,
       wanderChance: 20,
       wanderAreaRestricted: true,
     });
 
-    this.setBaseStats({
-      strength: 2,
-      dexterity: 16,
-      constitution: 4,
-      intelligence: 2,
-      wisdom: 8,
-      charisma: 10,
-      luck: 12,
-    });
+    // Use auto-balance for level 1 normal NPC
+    this.setLevel(1);
+
+    // Override stats for rabbit flavor (very fast, fragile)
+    this.setBaseStat('strength', 2);
+    this.setBaseStat('dexterity', 16);
+    this.setBaseStat('constitution', 4);
+    this.setBaseStat('intelligence', 2);
+    this.setBaseStat('wisdom', 8);
+    this.setBaseStat('charisma', 10);
+    this.setBaseStat('luck', 12);
+
+    // Override: rabbits are fragile
+    this.maxHealth = 8;
+    this.health = 8;
 
     this.maxMana = 0;
     this.mana = 0;

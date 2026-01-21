@@ -16,11 +16,10 @@ export class LeatherArmor extends Armor {
 the chest and back. The leather has been treated and hardened to provide decent
 protection while remaining flexible enough for easy movement. Brass buckles
 secure the sides, and the interior is lined with soft cloth for comfort.`,
-      size: 'large', // Body armor
-      weight: 8, // Explicit: full leather suit is heavier
-      value: 100,
-      armor: 3,
+      size: 'large',
+      weight: 8,
       slot: 'chest',
+      itemLevel: 6, // Auto-balance: basic leather quality
     });
 
     this.addId('armor');

@@ -22,10 +22,15 @@ He keeps glancing toward the south road, muttering about bandits
 and lost profits. Several other merchants cast sympathetic looks
 his way, but business is business.`,
       gender: 'male',
-      maxHealth: 60,
-      health: 60,
       chatChance: 10,
     });
+
+    // Use auto-balance for level 5 normal (civilian)
+    this.setLevel(5);
+
+    // Override health - he's a civilian, not a fighter
+    this.maxHealth = 60;
+    this.health = 60;
 
     this.addId('merchant');
     this.addId('aldwin');

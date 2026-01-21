@@ -22,10 +22,15 @@ and leather pants - but carries himself with the quiet confidence of
 a master warrior. A wooden training sword rests against the wall
 beside him, well-worn from years of instruction.`,
       gender: 'male',
-      maxHealth: 200,
-      health: 200,
       chatChance: 10,
     });
+
+    // Use auto-balance for level 25 normal (veteran warrior trainer)
+    this.setLevel(25);
+
+    // Override health - he's a tough old warrior
+    this.maxHealth = 200;
+    this.health = 200;
 
     this.addId('vorn');
     this.addId('master');
