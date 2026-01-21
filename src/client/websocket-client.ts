@@ -67,6 +67,8 @@ export interface IdeMessage {
   success?: boolean;
   errors?: Array<{ line: number; column: number; message: string }>;
   message?: string;
+  /** Mode for custom button text: 'bug' shows "Submit Bug" instead of "Save" */
+  mode?: 'bug';
 }
 
 /**

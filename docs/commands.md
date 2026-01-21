@@ -96,33 +96,50 @@ Pick up items from the room or from containers.
 
 ```
 get sword                # Pick up an item from the room
+get sword 2              # Pick up the 2nd sword (when duplicates exist)
 get all                  # Pick up all items in the room
+get all sword            # Pick up all swords from the room
 get sword from chest     # Get an item from a container
+get sword 2 from chest   # Get the 2nd sword from a container
 get all from chest       # Get all items from a container
+get all sword from chest # Get all swords from a container
 get gold                 # Pick up gold coins from the floor
 get gold from corpse     # Loot gold from a corpse
 ```
+
+When multiple items share the same name, append a number to select a specific one. The index is 1-based (first item is 1, second is 2, etc.). Use "all <item>" to pick up all matching items at once.
 
 #### drop (put)
 Drop items or put them in containers.
 
 ```
 drop sword               # Drop an item on the floor
+drop sword 2             # Drop the 2nd sword (when duplicates exist)
 drop all                 # Drop all items
+drop all sword           # Drop all swords
 drop sword in chest      # Put an item in a container
+drop sword 2 in chest    # Put the 2nd sword in a container
+drop all sword in chest  # Put all swords in a container
 put sword in chest       # Same as drop ... in
 drop gold                # Drop all your gold
 drop 50 gold             # Drop a specific amount of gold
 ```
+
+When multiple items share the same name, append a number to select a specific one. The index is 1-based. Use "all <item>" to drop all matching items at once.
 
 #### give
 Give items or gold to another player or NPC.
 
 ```
 give sword to bob        # Give an item
+give sword 2 to bob      # Give the 2nd sword (when duplicates exist)
+give all to bob          # Give all non-equipped items
+give all sword to bob    # Give all swords
 give 100 gold to bob     # Give specific amount of gold
 give gold to bob         # Give all your gold
 ```
+
+When multiple items share the same name, append a number to select a specific one. The "give all" command transfers all non-equipped, droppable items. Use "give all <item> to <target>" to give all matching items at once.
 
 #### open / close
 Open or close containers and doors.
@@ -359,6 +376,30 @@ help <category>         # List topics in a category
 help search <term>      # Search for topics
 help commands           # List all commands
 ```
+
+#### bug
+Submit a bug report to GitHub Issues.
+
+```
+bug <short description>
+```
+
+Opens an IDE-style editor where you can provide detailed information about the bug. The report is submitted directly to the game's GitHub repository.
+
+Example:
+```
+bug The door in the tavern doesn't open
+```
+
+This opens an editor with a template:
+- Steps to Reproduce
+- Expected Behavior
+- Actual Behavior
+- Additional Context
+
+Click "Submit Bug" (or Ctrl+S) to submit. The bug report includes your player name, current location, and timestamp automatically.
+
+**Note:** Requires `GITHUB_TOKEN`, `GITHUB_OWNER`, and `GITHUB_REPO` to be configured in `.env`.
 
 ### Character Customization
 

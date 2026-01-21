@@ -38,7 +38,7 @@ interface PageOptions {
  * IDE message for client communication.
  */
 interface IdeMessage {
-  action: 'open' | 'save-result' | 'error';
+  action: 'open' | 'save-result' | 'error' | 'close';
   path?: string;
   content?: string;
   readOnly?: boolean;
@@ -46,6 +46,8 @@ interface IdeMessage {
   success?: boolean;
   errors?: Array<{ line: number; column: number; message: string }>;
   message?: string;
+  /** Mode for custom button text: 'bug' shows "Submit Bug" instead of "Save" */
+  mode?: 'bug';
 }
 
 /**
@@ -879,6 +881,24 @@ declare global {
      * @returns Number of MUDs added
      */
     i2SeedFromI3(): number;
+
+    // ========== GitHub Efuns ==========
+
+    /** Check if GitHub issue creation is configured and available */
+    githubAvailable(): boolean;
+
+    /**
+     * Create a GitHub issue for bug reports.
+     * Available to all players - no special permission required.
+     * @param title Issue title
+     * @param body Issue body (markdown)
+     * @param labels Labels to apply (default: ["bug", "in-game-report"])
+     */
+    githubCreateIssue(
+      title: string,
+      body: string,
+      labels?: string[]
+    ): Promise<{ success: boolean; url?: string; issueNumber?: number; error?: string }>;
   };
 }
 

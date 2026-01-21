@@ -31,6 +31,7 @@ import {
   type DriverVersion,
   type GameConfig,
 } from './version.js';
+import { getGitHubClient } from './github-client.js';
 
 /**
  * Pager options for the page efun.
@@ -50,7 +51,7 @@ export interface PageOptions {
  * IDE message types for client communication.
  */
 export interface IdeMessage {
-  action: 'open' | 'save-result' | 'error';
+  action: 'open' | 'save-result' | 'error' | 'close';
   path?: string;
   content?: string;
   readOnly?: boolean;
@@ -58,6 +59,8 @@ export interface IdeMessage {
   success?: boolean;
   errors?: Array<{ line: number; column: number; message: string }>;
   message?: string;
+  /** Mode for custom button text: 'bug' shows "Submit Bug" instead of "Save" */
+  mode?: 'bug';
 }
 
 /**
@@ -3198,6 +3201,41 @@ RULES:
     return response;
   }
 
+  // ========== GitHub Efuns ==========
+
+  /**
+   * Check if GitHub issue creation is configured and available.
+   */
+  githubAvailable(): boolean {
+    const client = getGitHubClient();
+    return client !== null && client.isConfigured();
+  }
+
+  /**
+   * Create a GitHub issue for bug reports.
+   * Available to all players - no special permission required.
+   *
+   * @param title Issue title
+   * @param body Issue body (markdown)
+   * @param labels Labels to apply (default: ["bug", "in-game-report"])
+   */
+  async githubCreateIssue(
+    title: string,
+    body: string,
+    labels?: string[]
+  ): Promise<{ success: boolean; url?: string; issueNumber?: number; error?: string }> {
+    const client = getGitHubClient();
+    if (!client || !client.isConfigured()) {
+      return {
+        success: false,
+        error: 'Bug reporting not configured. Please contact an administrator.',
+      };
+    }
+
+    const result = await client.createIssue(title, body, labels || ['bug', 'in-game-report']);
+    return result;
+  }
+
   /**
    * Get all efuns as an object for exposing to sandbox.
    */
@@ -3379,6 +3417,10 @@ RULES:
       driverVersion: this.driverVersion.bind(this),
       gameConfig: this.gameConfig.bind(this),
       versionString: this.versionString.bind(this),
+
+      // GitHub
+      githubAvailable: this.githubAvailable.bind(this),
+      githubCreateIssue: this.githubCreateIssue.bind(this),
     };
   }
 

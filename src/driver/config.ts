@@ -64,6 +64,11 @@ export interface DriverConfig {
   grapevineClientSecret: string;
   grapevineGameName: string;
   grapevineDefaultChannels: string[];
+
+  // GitHub (for bug reports)
+  githubToken: string;
+  githubOwner: string;
+  githubRepo: string;
 }
 
 const LOG_LEVELS = ['trace', 'debug', 'info', 'warn', 'error', 'fatal'] as const;
@@ -162,6 +167,11 @@ export function loadConfig(): DriverConfig {
       .split(',')
       .map((s) => s.trim())
       .filter((s) => s.length > 0),
+
+    // GitHub (for bug reports)
+    githubToken: process.env['GITHUB_TOKEN'] ?? '',
+    githubOwner: process.env['GITHUB_OWNER'] ?? '',
+    githubRepo: process.env['GITHUB_REPO'] ?? '',
   };
 }
 

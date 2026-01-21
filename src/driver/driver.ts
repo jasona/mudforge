@@ -15,6 +15,7 @@ import { EfunBridge, getEfunBridge, resetEfunBridge } from './efun-bridge.js';
 import { MudlibLoader, getMudlibLoader, resetMudlibLoader } from './mudlib-loader.js';
 import { initializeClaudeClient } from './claude-client.js';
 import { initializeGeminiClient } from './gemini-client.js';
+import { initializeGitHubClient } from './github-client.js';
 import { CommandManager, getCommandManager, resetCommandManager } from './command-manager.js';
 import { getPermissions } from './permissions.js';
 import { getFileStore } from './persistence/file-store.js';
@@ -163,6 +164,16 @@ export class Driver {
         cacheTtlMs: this.config.geminiCacheTtlMs,
       });
       this.logger.info('Gemini AI client initialized (Nano Banana image generation)');
+    }
+
+    // Initialize GitHub client if configured (for bug reports)
+    if (this.config.githubToken && this.config.githubOwner && this.config.githubRepo) {
+      initializeGitHubClient({
+        token: this.config.githubToken,
+        owner: this.config.githubOwner,
+        repo: this.config.githubRepo,
+      });
+      this.logger.info('GitHub client initialized (bug reports)');
     }
 
     // Set up the bind player callback so login daemon can bind players

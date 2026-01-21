@@ -235,6 +235,7 @@ export class IdeEditor {
   private errors: CompileError[] = [];
   private callbacks: IdeCallbacks | null = null;
   private currentTheme: ThemeName = 'one-dark';
+  private currentMode: 'bug' | undefined = undefined;
 
   private headerElement: HTMLElement | null = null;
   private errorPanelElement: HTMLElement | null = null;
@@ -281,6 +282,7 @@ export class IdeEditor {
     this.isReadOnly = message.readOnly || false;
     this.callbacks = callbacks;
     this.errors = [];
+    this.currentMode = message.mode;
 
     this.createModal();
     this.createEditor(message.content || '', message.language || 'typescript');
@@ -326,6 +328,14 @@ export class IdeEditor {
       this.updateErrorPanel();
       this.updateStatus('Saved successfully');
       this.updateLinter([]);
+
+      // Auto-close on success when in bug mode
+      if (this.currentMode === 'bug') {
+        // Give user a moment to see the success message, then close
+        setTimeout(() => {
+          this.forceClose();
+        }, 500);
+      }
     } else {
       this.errors = message.errors || [];
       if (this.errors.length === 0 && message.message) {
@@ -387,6 +397,9 @@ export class IdeEditor {
       )
       .join('');
 
+    // Custom button text based on mode
+    const saveButtonText = this.currentMode === 'bug' ? 'Submit Bug (Ctrl+S)' : 'Save (Ctrl+S)';
+
     this.container.innerHTML = `
       <div class="ide-header">
         <div class="ide-filepath">${this.escapeHtml(this.currentPath)}${this.isReadOnly ? ' (read-only)' : ''}</div>
@@ -394,7 +407,7 @@ export class IdeEditor {
           <select class="ide-theme-select" title="Color Theme">
             ${themeOptions}
           </select>
-          ${!this.isReadOnly ? '<button class="ide-btn ide-btn-save">Save (Ctrl+S)</button>' : ''}
+          ${!this.isReadOnly ? `<button class="ide-btn ide-btn-save">${saveButtonText}</button>` : ''}
           <button class="ide-btn ide-btn-close">Close (Esc)</button>
         </div>
       </div>
@@ -652,6 +665,7 @@ export class IdeEditor {
     this.statusElement = null;
     this.errors = [];
     this.callbacks = null;
+    this.currentMode = undefined;
   }
 }
 
