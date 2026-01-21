@@ -373,9 +373,9 @@ export class Room extends MudObject {
         let room = efuns.findObject(exit.destination);
         if (room) return room;
 
-        // If not found, try to load/clone it
-        if (efuns.cloneObject) {
-          room = await efuns.cloneObject(exit.destination);
+        // If not found, load the blueprint (not clone - rooms are singletons)
+        if (efuns.loadBlueprint) {
+          room = await efuns.loadBlueprint(exit.destination);
           return room;
         }
       }
