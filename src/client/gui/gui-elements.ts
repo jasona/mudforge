@@ -7,6 +7,7 @@ import type {
   DisplayElement,
   ElementStyle,
 } from './gui-types.js';
+import { AVATARS } from '../avatars.js';
 
 /**
  * Apply inline styles to an element.
@@ -468,7 +469,15 @@ function createImage(element: DisplayElement): HTMLElement {
 
   const img = document.createElement('img');
   img.className = 'gui-image';
-  img.src = element.src ?? '';
+
+  // Check if src is an avatar ID and convert to SVG data URI
+  let src = element.src ?? '';
+  if (src && AVATARS[src]) {
+    const svgContent = AVATARS[src];
+    src = `data:image/svg+xml;base64,${btoa(svgContent)}`;
+  }
+
+  img.src = src;
   img.alt = element.alt ?? '';
 
   wrapper.appendChild(img);
