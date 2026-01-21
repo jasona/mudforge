@@ -8,9 +8,13 @@
  */
 
 import type { MudObject } from '../../lib/std.js';
+import { getLoreDaemon } from '../../daemons/lore.js';
+import { getRaceDaemon } from '../../daemons/race.js';
+import type { RaceId } from '../../std/race/types.js';
 
 interface PlayerWithProperties extends MudObject {
   name: string;
+  race: RaceId;
   getProperty(key: string): unknown;
   setProperty(key: string, value: unknown): void;
   deleteProperty(key: string): void;
@@ -107,17 +111,56 @@ async function cmdGenerate(ctx: CommandContext): Promise<void> {
   ctx.sendLine('{dim}This may take a moment.{/}');
 
   try {
-    // Build the prompt
-    const prompt = `Create a portrait for a fantasy RPG character based on this description:
+    // Get race information for the prompt
+    const raceId = player.race || 'human';
+    const raceDaemon = getRaceDaemon();
+    const loreDaemon = getLoreDaemon();
+    const race = raceDaemon.getRace(raceId);
 
+    // Build race context from lore and appearance
+    let raceContext = '';
+    if (race) {
+      // Get lore entry for detailed race description
+      const loreEntry = loreDaemon.getLore(race.loreEntryId);
+      if (loreEntry) {
+        raceContext += `\n\nRace: ${race.name}\n`;
+        raceContext += `Race Description: ${loreEntry.content}\n`;
+      }
+
+      // Add appearance details
+      const appearance = race.appearance;
+      if (appearance.distinctiveFeatures.length > 0) {
+        raceContext += `\nDistinctive racial features that MUST be visible: ${appearance.distinctiveFeatures.join(', ')}`;
+      }
+      if (appearance.skinTones.length > 0) {
+        raceContext += `\nTypical skin tones: ${appearance.skinTones.join(', ')}`;
+      }
+      if (appearance.eyeColors.length > 0) {
+        raceContext += `\nTypical eye colors: ${appearance.eyeColors.join(', ')}`;
+      }
+      raceContext += `\nBuild: ${appearance.buildDescription}`;
+      raceContext += `\nHeight range: ${appearance.heightRange}`;
+      if (appearance.portraitStyleHints) {
+        raceContext += `\nStyle hints: ${appearance.portraitStyleHints}`;
+      }
+    }
+
+    // Build the prompt with race information
+    const prompt = `Create a portrait for a fantasy RPG character.
+
+PLAYER'S DESCRIPTION:
 ${description}
+${raceContext}
+
+IMPORTANT: The character's racial features are essential and must be clearly visible in the portrait. The player's description should be combined with their race's distinctive features.
 
 Style requirements:
 - Fantasy portrait art style with rich colors
 - Portrait/headshot composition showing face and upper body
 - Dramatic lighting with atmospheric mood
 - Painterly texture suitable for a game character portrait
-- Professional quality, detailed and polished`;
+- Professional quality, detailed and polished
+- 64x64 pixel icon style, bold and recognizable`;
 
     const result = await efuns.aiImageGenerate(prompt, {
       aspectRatio: '1:1',
@@ -131,7 +174,7 @@ Style requirements:
 
       ctx.sendLine('');
       ctx.sendLine('{green}Portrait generated successfully!{/}');
-      ctx.sendLine('{dim}Your AI portrait will now be shown in the combat panel.{/}');
+      ctx.sendLine(`{dim}Your ${race?.name || 'character'} portrait will now be shown in the combat panel.{/}`);
     } else {
       const errorMsg = result?.error || 'Unknown error';
       ctx.sendLine(`{red}Failed to generate portrait: ${errorMsg}{/}`);

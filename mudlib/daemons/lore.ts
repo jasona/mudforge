@@ -13,6 +13,7 @@
  */
 
 import { MudObject } from '../std/object.js';
+import { getPlayableRaces } from '../std/race/definitions.js';
 
 /**
  * Lore categories for organizing world knowledge.
@@ -29,7 +30,8 @@ export type LoreCategory =
   | 'location'   // Specific notable places (buildings, dungeons)
   | 'economics'  // Trade, currency, commerce
   | 'mechanics'  // World mechanics (magic systems, etc.)
-  | 'faith';     // Religions, gods, worship
+  | 'faith'      // Religions, gods, worship
+  | 'race';      // Playable races
 
 /**
  * A single lore entry containing world knowledge.
@@ -64,7 +66,7 @@ interface SerializedLore {
 const VALID_CATEGORIES: LoreCategory[] = [
   'world', 'region', 'faction', 'history', 'character',
   'event', 'item', 'creature', 'location', 'economics',
-  'mechanics', 'faith'
+  'mechanics', 'faith', 'race'
 ];
 
 /**
@@ -79,6 +81,30 @@ export class LoreDaemon extends MudObject {
     super();
     this.shortDesc = 'Lore Daemon';
     this.longDesc = 'The lore daemon manages world lore entries for AI context.';
+
+    // Register built-in race lore entries
+    this.registerRaceLore();
+  }
+
+  /**
+   * Register built-in race lore entries from race definitions.
+   * Lore is generated from the single source of truth in definitions.ts.
+   */
+  private registerRaceLore(): void {
+    const races = getPlayableRaces();
+
+    for (const race of races) {
+      const entry: LoreEntry = {
+        id: race.loreEntryId,
+        category: 'race',
+        title: `The ${race.name} People`,
+        content: race.longDescription,
+        tags: ['race', race.id, 'playable'],
+        priority: 8,
+      };
+
+      this._lore.set(entry.id, entry);
+    }
   }
 
   // ==================== Core Methods ====================

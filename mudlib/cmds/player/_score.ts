@@ -15,6 +15,7 @@ interface StatsPlayer extends MudObject {
   name: string;
   title: string;
   gender: 'male' | 'female' | 'neutral';
+  race: string;
   level: number;
   experience: number;
   xpForNextLevel: number;
@@ -145,7 +146,8 @@ export function execute(ctx: CommandContext): void {
   if (args === 'brief' || args === 'b') {
     const healthPct = Math.round((player.health / player.maxHealth) * 100);
     const manaPct = Math.round((player.mana / player.maxMana) * 100);
-    ctx.sendLine(`{bold}${player.name}{/} [Lv ${player.level}] HP: ${player.health}/${player.maxHealth} (${healthPct}%) | MP: ${player.mana}/${player.maxMana} (${manaPct}%) | XP: ${player.experience} | {yellow}Gold: ${player.gold}{/}`);
+    const raceName = player.race.charAt(0).toUpperCase() + player.race.slice(1);
+    ctx.sendLine(`{bold}${player.name}{/} [${raceName} Lv ${player.level}] HP: ${player.health}/${player.maxHealth} (${healthPct}%) | MP: ${player.mana}/${player.maxMana} (${manaPct}%) | XP: ${player.experience} | {yellow}Gold: ${player.gold}{/}`);
 
     const statLine = Object.entries(STAT_SHORT_NAMES)
       .map(([stat, short]) => `${short}:${stats[stat as StatName]}`)
@@ -197,6 +199,7 @@ export function execute(ctx: CommandContext): void {
   const displayName = player.title ? `${player.name} ${player.title}` : player.name;
   ctx.sendLine(`  {bold}Name:{/}   ${displayName}`);
   ctx.sendLine(`  {bold}Gender:{/} ${player.gender.charAt(0).toUpperCase() + player.gender.slice(1)}`);
+  ctx.sendLine(`  {bold}Race:{/}   ${player.race.charAt(0).toUpperCase() + player.race.slice(1)}`);
   ctx.sendLine(`  {bold}Level:{/}  ${player.level}`);
 
   const playerClass = player.getProperty('class') as string | undefined;

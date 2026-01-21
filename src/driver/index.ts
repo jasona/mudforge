@@ -26,6 +26,7 @@ async function main(): Promise<void> {
   const server = new Server({
     port: config.port,
     host: config.host,
+    mudlibPath: config.mudlibPath,
     logger,
     logHttpRequests: config.logHttpRequests,
   });

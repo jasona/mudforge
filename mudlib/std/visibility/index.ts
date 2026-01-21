@@ -26,6 +26,13 @@ import type { Item } from '../item.js';
 import type { MudObject } from '../object.js';
 import type { Effect } from '../combat/types.js';
 
+/**
+ * Interface for entities with race perception abilities.
+ */
+interface RacePerceptionEntity {
+  getProperty?(key: string): unknown;
+}
+
 // Re-export types for convenience
 export * from './types.js';
 
@@ -368,8 +375,22 @@ export function getVisibilityLevelName(target: Living): string {
 export const MIN_LIGHT_TO_SEE = LightLevel.DIM;
 
 /**
+ * Check if a viewer has race-based dark vision (nightVision or infravision).
+ */
+function hasRaceDarkVision(viewer: Living): boolean {
+  const raceViewer = viewer as RacePerceptionEntity;
+  if (!raceViewer.getProperty) return false;
+
+  const perceptionAbilities = raceViewer.getProperty('racePerceptionAbilities') as string[] | undefined;
+  if (!perceptionAbilities || perceptionAbilities.length === 0) return false;
+
+  return perceptionAbilities.includes('nightVision') || perceptionAbilities.includes('infravision');
+}
+
+/**
  * Check if a viewer can see in a room based on light levels.
  * Considers room base light plus carried light sources.
+ * Also considers race abilities like nightVision and infravision.
  *
  * @param viewer The entity trying to see
  * @param room The room to check (defaults to viewer's environment)
@@ -409,6 +430,11 @@ export function canSeeInRoom(
 
   if (effectiveLight >= MIN_LIGHT_TO_SEE) {
     return { canSee: true, effectiveLight, reason: 'sufficient light' };
+  }
+
+  // Check for race dark vision abilities (nightVision, infravision)
+  if (hasRaceDarkVision(viewer)) {
+    return { canSee: true, effectiveLight, reason: 'dark vision' };
   }
 
   return {

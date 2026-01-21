@@ -24,6 +24,7 @@ import type { PlayerExplorationData, MapMessage } from '../lib/map-types.js';
 import type { GUIMessage, GUIClientMessage } from '../lib/gui-types.js';
 import type { PlayerGuildData } from './guild/types.js';
 import type { QuestPlayer } from './quest/types.js';
+import type { RaceId } from './race/types.js';
 
 /**
  * STATS protocol message for HP/MP/XP display.
@@ -132,6 +133,7 @@ export interface PlayerSaveData {
   guildData?: PlayerGuildData; // Guild memberships and skills
   avatar?: string; // Avatar portrait ID
   staffVanished?: boolean; // Staff visibility toggle
+  race?: RaceId; // Player race
 }
 
 /**
@@ -185,6 +187,9 @@ export class Player extends Living {
 
   // Staff vanish (visibility system)
   private _staffVanished: boolean = false;
+
+  // Race
+  private _race: RaceId = 'human';
 
   constructor() {
     super();
@@ -1339,6 +1344,23 @@ export class Player extends Living {
     }
   }
 
+  // ========== Race ==========
+
+  /**
+   * Get the player's race.
+   */
+  get race(): RaceId {
+    return this._race;
+  }
+
+  /**
+   * Set the player's race.
+   * Should only be set during character creation.
+   */
+  set race(value: RaceId) {
+    this._race = value;
+  }
+
   // ========== Staff Vanish (Visibility) ==========
 
   /**
@@ -1526,6 +1548,7 @@ export class Player extends Living {
       guildData: this.getProperty<PlayerGuildData>('guildData'),
       avatar: this._avatar,
       staffVanished: this._staffVanished,
+      race: this._race,
     };
   }
 
@@ -1622,6 +1645,12 @@ export class Player extends Living {
       this._staffVanished = data.staffVanished;
     }
 
+    // Restore race (default to 'human' for existing players without race)
+    this._race = data.race || 'human';
+
+    // Apply race latent abilities
+    this._applyRaceAbilitiesDeferred();
+
     // Store equipment data for later restoration (after inventory is loaded)
     if (data.equipment && data.equipment.length > 0) {
       this.setProperty('_pendingEquipment', data.equipment);
@@ -1649,6 +1678,20 @@ export class Player extends Living {
       guildDaemon.applyAllPassives(this);
     } catch {
       // Guild daemon not available yet - passives will be applied on first skill use
+    }
+  }
+
+  /**
+   * Apply race latent abilities after a deferred load.
+   * This ensures the race daemon is available.
+   */
+  private async _applyRaceAbilitiesDeferred(): Promise<void> {
+    try {
+      const { getRaceDaemon } = await import('../daemons/race.js');
+      const raceDaemon = getRaceDaemon();
+      raceDaemon.applyLatentAbilities(this, this._race);
+    } catch {
+      // Race daemon not available yet - abilities will be applied later
     }
   }
 

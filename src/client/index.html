@@ -118,29 +118,79 @@
   <div id="register-modal" class="register-modal hidden">
     <div class="register-backdrop"></div>
     <div class="register-content">
-      <h2>Create Character</h2>
-      <p class="register-subtitle">Enter your details to begin your adventure</p>
+      <div class="register-header">
+        <h2>Create Your Character</h2>
+        <p class="register-subtitle">Choose your identity and begin your adventure</p>
+      </div>
+
       <div class="register-form">
-        <input type="text" id="reg-name" placeholder="Character Name" autocomplete="username" autocapitalize="none" spellcheck="false" readonly>
-        <input type="password" id="reg-password" placeholder="Password (6+ characters)" autocomplete="new-password">
-        <input type="password" id="reg-confirm" placeholder="Confirm Password" autocomplete="new-password">
-        <input type="email" id="reg-email" placeholder="Email Address" autocomplete="email">
-        <select id="reg-gender">
-          <option value="">Select Gender</option>
-          <option value="male">Male</option>
-          <option value="female">Female</option>
-          <option value="neutral">Neutral</option>
-        </select>
-        <div class="avatar-picker-section">
-          <label class="avatar-picker-label">Choose Your Avatar</label>
-          <div id="reg-avatar-picker" class="avatar-picker"></div>
-          <input type="hidden" id="reg-avatar" value="">
+        <div class="register-layout">
+          <!-- Left Column: Account Details -->
+          <div class="register-column register-account">
+            <h3 class="register-section-title">Account Details</h3>
+            <div class="register-field">
+              <label for="reg-name">Character Name</label>
+              <input type="text" id="reg-name" placeholder="Enter name" autocomplete="username" autocapitalize="none" spellcheck="false" readonly>
+            </div>
+            <div class="register-field">
+              <label for="reg-password">Password</label>
+              <input type="password" id="reg-password" placeholder="6+ characters" autocomplete="new-password">
+            </div>
+            <div class="register-field">
+              <label for="reg-confirm">Confirm Password</label>
+              <input type="password" id="reg-confirm" placeholder="Confirm password" autocomplete="new-password">
+            </div>
+            <div class="register-field">
+              <label for="reg-email">Email (Optional)</label>
+              <input type="email" id="reg-email" placeholder="For account recovery" autocomplete="email">
+            </div>
+            <div class="register-field">
+              <label for="reg-gender">Gender</label>
+              <select id="reg-gender">
+                <option value="">Select gender</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+                <option value="neutral">Neutral</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Center Column: Race Selection -->
+          <div class="register-column register-race">
+            <h3 class="register-section-title">Choose Your Race</h3>
+            <div class="race-picker-layout">
+              <div id="reg-race-picker" class="race-picker"></div>
+              <div id="race-details" class="race-details">
+                <div class="race-details-placeholder">
+                  <span>Select a race to view details</span>
+                </div>
+                <div class="race-details-content hidden">
+                  <h4 id="race-name"></h4>
+                  <p id="race-description"></p>
+                  <div id="race-bonuses"></div>
+                  <div id="race-abilities"></div>
+                  <div id="race-restrictions"></div>
+                </div>
+              </div>
+            </div>
+            <input type="hidden" id="reg-race" value="human">
+          </div>
+
+          <!-- Right Column: Avatar Selection -->
+          <div class="register-column register-avatar">
+            <h3 class="register-section-title">Choose Your Avatar</h3>
+            <div id="reg-avatar-picker" class="avatar-picker"></div>
+            <input type="hidden" id="reg-avatar" value="">
+          </div>
         </div>
-        <div class="register-buttons">
-          <button id="reg-submit" class="register-button primary">Create Character</button>
-          <button id="reg-cancel" class="register-button secondary">Cancel</button>
+
+        <div class="register-footer">
+          <div id="reg-error" class="register-error"></div>
+          <div class="register-buttons">
+            <button id="reg-cancel" class="register-button secondary">Cancel</button>
+            <button id="reg-submit" class="register-button primary">Create Character</button>
+          </div>
         </div>
-        <div id="reg-error" class="login-error"></div>
       </div>
     </div>
   </div>

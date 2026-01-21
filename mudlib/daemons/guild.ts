@@ -14,6 +14,7 @@
 import { MudObject } from '../std/object.js';
 import type { Living } from '../std/living.js';
 import { getChannelDaemon } from './channels.js';
+import type { RaceId } from '../std/race/types.js';
 import {
   type GuildId,
   type GuildDefinition,
@@ -43,6 +44,7 @@ interface GuildPlayer extends Living {
   name: string;
   gold?: number;
   experience?: number;
+  race?: RaceId;
   receive(message: string): void;
   getProperty(key: string): unknown;
   setProperty(key: string, value: unknown): void;
@@ -263,6 +265,27 @@ export class GuildDaemon extends MudObject {
             reason: `You need at least ${required} ${stat} to join the ${guild.name}.`,
           };
         }
+      }
+    }
+
+    // Race restrictions check
+    const playerRace = player.race || 'human';
+
+    // Check forbidden races
+    if (guild.forbiddenRaces && guild.forbiddenRaces.includes(playerRace)) {
+      return {
+        canJoin: false,
+        reason: `The ${guild.name} does not accept members of the ${playerRace} race.`,
+      };
+    }
+
+    // Check allowed races (if specified, only these can join)
+    if (guild.allowedRaces && guild.allowedRaces.length > 0) {
+      if (!guild.allowedRaces.includes(playerRace)) {
+        return {
+          canJoin: false,
+          reason: `The ${guild.name} only accepts members of the ${guild.allowedRaces.join(', ')} races.`,
+        };
       }
     }
 

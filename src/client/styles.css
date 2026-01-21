@@ -2357,7 +2357,7 @@ h6.gui-heading { font-size: 12px; }
   height: 18px;
 }
 
-/* Registration Modal */
+/* Registration Modal - Horizontal Layout */
 .register-modal {
   position: fixed;
   inset: 0;
@@ -2365,6 +2365,7 @@ h6.gui-heading { font-size: 12px; }
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: var(--spacing-lg);
 }
 
 .register-modal.hidden {
@@ -2374,37 +2375,84 @@ h6.gui-heading { font-size: 12px; }
 .register-backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(4px);
 }
 
 .register-content {
   position: relative;
   background: var(--bg-secondary);
   border: 1px solid var(--border-primary);
-  border-radius: 12px;
-  padding: var(--spacing-xl);
+  border-radius: 16px;
   width: 100%;
-  max-width: 360px;
-  box-shadow: var(--shadow-lg);
+  max-width: 1000px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
 }
 
-.register-content h2 {
-  font-size: 20px;
+.register-header {
+  padding: var(--spacing-lg) var(--spacing-xl);
+  border-bottom: 1px solid var(--border-primary);
+  background: linear-gradient(180deg, var(--bg-tertiary) 0%, var(--bg-secondary) 100%);
+}
+
+.register-header h2 {
+  font-size: 24px;
   font-weight: 600;
   color: var(--text-primary);
-  margin-bottom: var(--spacing-xs);
+  margin: 0 0 var(--spacing-xs) 0;
 }
 
 .register-subtitle {
   color: var(--text-secondary);
-  margin-bottom: var(--spacing-lg);
   font-size: var(--font-size-sm);
+  margin: 0;
 }
 
 .register-form {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-sm);
+}
+
+.register-layout {
+  display: grid;
+  grid-template-columns: 240px 1fr 200px;
+  gap: var(--spacing-lg);
+  padding: var(--spacing-lg) var(--spacing-xl);
+}
+
+.register-column {
+  display: flex;
+  flex-direction: column;
+}
+
+.register-section-title {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0 0 var(--spacing-md) 0;
+  padding-bottom: var(--spacing-sm);
+  border-bottom: 1px solid var(--border-primary);
+}
+
+/* Account Details Column */
+.register-account {
+  min-width: 200px;
+}
+
+.register-field {
+  margin-bottom: var(--spacing-sm);
+}
+
+.register-field label {
+  display: block;
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+  font-weight: 500;
 }
 
 .register-form input,
@@ -2415,7 +2463,7 @@ h6.gui-heading { font-size: 12px; }
   border: 1px solid var(--border-primary);
   border-radius: var(--border-radius-sm);
   color: var(--text-primary);
-  font-size: var(--font-size-base);
+  font-size: var(--font-size-sm);
   font-family: var(--font-sans);
   transition: border-color 0.2s, box-shadow 0.2s;
 }
@@ -2425,9 +2473,10 @@ h6.gui-heading { font-size: 12px; }
 }
 
 .register-form input[readonly] {
-  background: var(--bg-secondary);
-  color: var(--text-secondary);
-  cursor: not-allowed;
+  background: var(--bg-primary);
+  color: var(--accent);
+  font-weight: 500;
+  cursor: default;
 }
 
 .register-form select {
@@ -2451,70 +2500,171 @@ h6.gui-heading { font-size: 12px; }
   box-shadow: 0 0 0 2px var(--accent-subtle);
 }
 
-.register-buttons {
-  display: flex;
-  gap: var(--spacing-sm);
-  margin-top: var(--spacing-sm);
-}
-
-.register-button {
+/* Race Selection Column */
+.register-race {
   flex: 1;
-  padding: 10px 16px;
-  border: none;
-  border-radius: var(--border-radius-sm);
-  font-size: var(--font-size-base);
-  font-weight: 500;
-  font-family: var(--font-sans);
-  cursor: pointer;
-  transition: background 0.2s;
+  min-width: 300px;
 }
 
-.register-button.primary {
-  background: var(--accent);
-  color: white;
-}
-
-.register-button.primary:hover {
-  background: var(--accent-hover);
-}
-
-.register-button.secondary {
-  background: var(--bg-tertiary);
-  color: var(--text-secondary);
-  border: 1px solid var(--border-primary);
-}
-
-.register-button.secondary:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
-}
-
-.register-button:active {
-  transform: scale(0.98);
-}
-
-/* Avatar Picker */
-.avatar-picker-section {
-  margin-top: var(--spacing-sm);
-}
-
-.avatar-picker-label {
-  display: block;
-  font-size: var(--font-size-sm);
-  color: var(--text-secondary);
-  margin-bottom: var(--spacing-sm);
-}
-
-.avatar-picker {
+.race-picker-layout {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-md);
+  flex: 1;
+}
+
+.race-picker {
+  display: grid;
+  grid-template-columns: 1fr;
   gap: var(--spacing-xs);
   padding: var(--spacing-sm);
   background: var(--bg-tertiary);
   border: 1px solid var(--border-primary);
   border-radius: var(--border-radius-sm);
-  max-height: 180px;
+  max-height: 320px;
   overflow-y: auto;
+}
+
+.race-picker-card {
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--bg-secondary);
+  border: 2px solid var(--border-primary);
+  border-radius: var(--border-radius-sm);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease, transform 0.1s ease;
+}
+
+.race-picker-card:hover {
+  border-color: var(--text-secondary);
+  background-color: var(--bg-hover);
+  transform: translateX(2px);
+}
+
+.race-picker-card.selected {
+  border-color: var(--accent);
+  background-color: var(--bg-hover);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.race-card-name {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+
+.race-card-desc {
+  font-size: var(--font-size-xs);
+  color: var(--text-tertiary);
+  line-height: 1.3;
+}
+
+.race-details {
+  padding: var(--spacing-md);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--border-radius-sm);
+  display: flex;
+  flex-direction: column;
+}
+
+.race-details-placeholder {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-tertiary);
+  font-size: var(--font-size-sm);
+  font-style: italic;
+}
+
+.race-details-placeholder.hidden {
+  display: none;
+}
+
+.race-details-content.hidden {
+  display: none;
+}
+
+.race-details h4 {
+  margin: 0 0 var(--spacing-sm) 0;
+  font-size: var(--font-size-base);
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.race-details p {
+  margin: 0 0 var(--spacing-md) 0;
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+#race-bonuses,
+#race-abilities,
+#race-restrictions {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  margin-top: var(--spacing-sm);
+  line-height: 1.6;
+}
+
+#race-bonuses strong,
+#race-abilities strong,
+#race-restrictions strong {
+  color: var(--text-primary);
+}
+
+.bonus-positive {
+  color: var(--success);
+  font-weight: 600;
+}
+
+.bonus-negative {
+  color: var(--warning);
+  font-weight: 600;
+}
+
+.bonus-neutral {
+  color: var(--text-tertiary);
+}
+
+.restriction {
+  color: var(--warning);
+}
+
+/* Avatar Selection Column */
+.register-avatar {
+  min-width: 180px;
+}
+
+.avatar-picker {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--border-radius-sm);
+  max-height: 320px;
+  overflow-y: auto;
+  justify-items: center;
+}
+
+.avatar-picker-category {
+  grid-column: 1 / -1;
+  font-size: var(--font-size-xs);
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: var(--spacing-xs) 0;
+  margin-top: var(--spacing-xs);
+  border-top: 1px solid var(--border-primary);
+}
+
+.avatar-picker-category:first-child {
+  margin-top: 0;
+  border-top: none;
 }
 
 .avatar-picker-item {
@@ -2530,12 +2680,123 @@ h6.gui-heading { font-size: 12px; }
 
 .avatar-picker-item:hover {
   border-color: var(--text-secondary);
-  transform: scale(1.05);
+  transform: scale(1.1);
 }
 
 .avatar-picker-item.selected {
   border-color: var(--accent);
-  box-shadow: 0 0 0 2px var(--accent-subtle);
+  box-shadow: 0 0 0 3px var(--accent-subtle);
+  transform: scale(1.1);
+}
+
+.avatar-picker-item svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* Footer */
+.register-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-md) var(--spacing-xl);
+  border-top: 1px solid var(--border-primary);
+  background: var(--bg-tertiary);
+  border-radius: 0 0 16px 16px;
+}
+
+.register-error {
+  flex: 1;
+  color: var(--error);
+  font-size: var(--font-size-sm);
+  margin-right: var(--spacing-md);
+}
+
+.register-buttons {
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
+.register-button {
+  padding: 10px 24px;
+  border: none;
+  border-radius: var(--border-radius-sm);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+}
+
+.register-button.primary {
+  background: var(--accent);
+  color: white;
+  padding: 10px 32px;
+}
+
+.register-button.primary:hover {
+  background: var(--accent-hover);
+}
+
+.register-button.secondary {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-primary);
+}
+
+.register-button.secondary:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.register-button:active {
+  transform: scale(0.98);
+}
+
+/* Responsive: Stack on smaller screens */
+@media (max-width: 900px) {
+  .register-layout {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto;
+  }
+
+  .register-account {
+    grid-column: 1 / 2;
+    grid-row: 1 / 2;
+  }
+
+  .register-race {
+    grid-column: 2 / 3;
+    grid-row: 1 / 3;
+  }
+
+  .register-avatar {
+    grid-column: 1 / 2;
+    grid-row: 2 / 3;
+  }
+}
+
+@media (max-width: 700px) {
+  .register-layout {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto;
+  }
+
+  .register-account,
+  .register-race,
+  .register-avatar {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
+  .race-picker-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .avatar-picker {
+    grid-template-columns: repeat(5, 1fr);
+    max-height: 150px;
+  }
 }
 
 .avatar-picker-item svg {
