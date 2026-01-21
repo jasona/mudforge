@@ -2,7 +2,9 @@
  * score - View your character's statistics.
  *
  * Usage:
- *   score        - View full character sheet
+ *   score        - View graphical character sheet (GUI)
+ *   score gui    - View graphical character sheet (GUI)
+ *   score text   - View full text-based character sheet
  *   score stats  - View only stats
  *   score brief  - View condensed info
  */
@@ -10,6 +12,7 @@
 import type { MudObject } from '../../lib/std.js';
 import { STAT_SHORT_NAMES, type StatName, Living } from '../../std/living.js';
 import { getVisibilityLevelName } from '../../std/visibility/index.js';
+import { openScoreModal } from '../../lib/score-modal.js';
 
 interface StatsPlayer extends MudObject {
   name: string;
@@ -29,6 +32,7 @@ interface StatsPlayer extends MudObject {
   playTime: number;
   gold: number;
   bankedGold: number;
+  avatar: string;
   isStaffVanished?: boolean;
   getStats(): Record<StatName, number>;
   getBaseStats(): Record<StatName, number>;
@@ -46,7 +50,7 @@ interface CommandContext {
 
 export const name = ['score', 'sc', 'stats', 'status'];
 export const description = 'View your character statistics';
-export const usage = 'score [stats|brief]';
+export const usage = 'score [gui|text|stats|brief]';
 
 /**
  * Format a stat value with its equipment modifier (if any).
@@ -138,7 +142,36 @@ export function execute(ctx: CommandContext): void {
   const player = ctx.player as StatsPlayer;
   const args = ctx.args.trim().toLowerCase();
 
-  // Get stats
+  // GUI mode (default)
+  if (!args || args === 'gui' || args === 'g') {
+    openScoreModal({
+      name: player.name,
+      title: player.title,
+      gender: player.gender,
+      race: player.race,
+      level: player.level,
+      permissionLevel: player.permissionLevel ?? 0,
+      health: player.health,
+      maxHealth: player.maxHealth,
+      mana: player.mana,
+      maxMana: player.maxMana,
+      experience: player.experience,
+      xpForNextLevel: player.xpForNextLevel,
+      xpToNextLevel: player.xpToNextLevel,
+      gold: player.gold,
+      bankedGold: player.bankedGold,
+      playTime: player.playTime,
+      alive: player.alive,
+      avatar: player.avatar,
+      getProperty: (key: string) => player.getProperty(key),
+      getStats: () => player.getStats(),
+      getBaseStats: () => player.getBaseStats(),
+      getStatBonus: (stat: StatName) => player.getStatBonus(stat),
+    });
+    return;
+  }
+
+  // Get stats for text modes
   const stats = player.getStats();
   const baseStats = player.getBaseStats();
 
@@ -188,7 +221,13 @@ export function execute(ctx: CommandContext): void {
     return;
   }
 
-  // Full character sheet
+  // Text mode - full character sheet
+  if (args !== 'text' && args !== 't') {
+    ctx.sendLine(`Unknown option: ${args}. Use 'score' for GUI, 'score text' for text mode.`);
+    return;
+  }
+
+  // Full character sheet (text mode)
   ctx.sendLine('');
   ctx.sendLine('{bold}{cyan}╔══════════════════════════════════════════╗{/}');
   ctx.sendLine('              {bold}CHARACTER SHEET{/}');
