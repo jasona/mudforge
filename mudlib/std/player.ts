@@ -131,6 +131,7 @@ export interface PlayerSaveData {
   bankedGold?: number; // Banked gold (safe from death)
   guildData?: PlayerGuildData; // Guild memberships and skills
   avatar?: string; // Avatar portrait ID
+  staffVanished?: boolean; // Staff visibility toggle
 }
 
 /**
@@ -181,6 +182,9 @@ export class Player extends Living {
 
   // Appearance
   private _avatar: string = 'avatar_m1'; // Avatar portrait ID
+
+  // Staff vanish (visibility system)
+  private _staffVanished: boolean = false;
 
   constructor() {
     super();
@@ -1335,6 +1339,69 @@ export class Player extends Living {
     }
   }
 
+  // ========== Staff Vanish (Visibility) ==========
+
+  /**
+   * Check if the player is staff vanished.
+   * Staff vanish makes the player invisible to lower-rank staff and all players.
+   */
+  get isStaffVanished(): boolean {
+    return this._staffVanished;
+  }
+
+  /**
+   * Toggle staff vanish mode.
+   * Only available to builders and above (permissionLevel >= 1).
+   * @returns true if successfully toggled, false if not allowed
+   */
+  vanish(): boolean {
+    const permLevel = this.permissionLevel;
+
+    // Must be builder or above to vanish
+    if (permLevel < 1) {
+      this.receive("{red}You don't have permission to vanish.{/}\n");
+      return false;
+    }
+
+    this._staffVanished = !this._staffVanished;
+
+    // Get the room for announcements
+    const room = this.environment;
+
+    if (this._staffVanished) {
+      this.receive('{cyan}You fade from view.{/}\n');
+      // Announce departure to those who can't see us
+      if (room && 'broadcast' in room) {
+        const roomObj = room as { broadcast: (msg: string, opts?: { filter?: (o: unknown) => boolean }) => void };
+        roomObj.broadcast(`{dim}${this.name} vanishes into thin air.{/}\n`, {
+          filter: (obj: unknown) => {
+            // Only send to those who won't be able to see us anymore
+            const viewer = obj as { permissionLevel?: number };
+            const viewerLevel = viewer.permissionLevel ?? 0;
+            return viewerLevel <= permLevel;
+          },
+        });
+      }
+    } else {
+      this.receive('{cyan}You fade back into view.{/}\n');
+      // Announce arrival to those who couldn't see us
+      if (room && 'broadcast' in room) {
+        const roomObj = room as { broadcast: (msg: string, opts?: { exclude?: unknown[]; filter?: (o: unknown) => boolean }) => void };
+        roomObj.broadcast(`{dim}${this.name} appears out of thin air.{/}\n`, {
+          exclude: [this],
+          filter: (obj: unknown) => {
+            // Only send to those who couldn't see us before
+            const viewer = obj as { permissionLevel?: number };
+            const viewerLevel = viewer.permissionLevel ?? 0;
+            return viewerLevel <= permLevel;
+          },
+        });
+      }
+    }
+
+    return true;
+  }
+
   /**
    * Add gold to the player's carried gold.
    * @param amount Amount of gold to add
@@ -1458,6 +1525,7 @@ export class Player extends Living {
       bankedGold: this._bankedGold,
       guildData: this.getProperty<PlayerGuildData>('guildData'),
       avatar: this._avatar,
+      staffVanished: this._staffVanished,
     };
   }
 
@@ -1547,6 +1615,11 @@ export class Player extends Living {
     // Restore avatar (if present - for backwards compatibility)
     if (data.avatar !== undefined) {
       this._avatar = data.avatar;
+    }
+
+    // Restore staff vanished state (if present - for backwards compatibility)
+    if (data.staffVanished !== undefined) {
+      this._staffVanished = data.staffVanished;
     }
 
     // Store equipment data for later restoration (after inventory is loaded)

@@ -15,6 +15,8 @@
 import type { MudObject, Living } from '../../lib/std.js';
 import { getCombatDaemon } from '../../daemons/combat.js';
 import { parseItemInput, findAllMatching } from '../../lib/item-utils.js';
+import { canSeeInRoom } from '../../std/visibility/index.js';
+import type { Room } from '../../std/room.js';
 
 interface CommandContext {
   player: MudObject;
@@ -103,6 +105,14 @@ export function execute(ctx: CommandContext): void {
   const room = player.environment;
   if (!room) {
     ctx.sendLine("You're not in a room!");
+    return;
+  }
+
+  // Check if player can see in the room
+  const roomObj = room as unknown as Room;
+  const lightCheck = canSeeInRoom(attacker, roomObj);
+  if (!lightCheck.canSee) {
+    ctx.sendLine("It's too dark! You can't see who to attack.");
     return;
   }
 

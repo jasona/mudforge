@@ -3,6 +3,7 @@
  */
 
 import { Room, MudObject } from '../../../lib/std.js';
+import { LightLevel } from '../../../std/visibility/types.js';
 
 /**
  * The Depths room.
@@ -32,6 +33,9 @@ storage chamber.`;
     this.setMapCoordinates({ x: 0, y: 0, z: -1, area: '/areas/valdoria/aldric_depths' });
     this.setTerrain('dungeon');
     this.setMapIcon('†');
+
+    // Pitch black - the darkness itself seems to consume light
+    this.lightLevel = LightLevel.PITCH_BLACK;
 
     this.setupRoom();
   }

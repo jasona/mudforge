@@ -11,6 +11,8 @@
 
 import type { MudObject } from '../../lib/std.js';
 import type { PlayerSaveData } from '../../std/player.js';
+import { canSee } from '../../std/visibility/index.js';
+import type { Living } from '../../std/living.js';
 
 interface CommandContext {
   player: MudObject;
@@ -77,6 +79,7 @@ export async function execute(ctx: CommandContext): Promise<void> {
   // First, check if the player is currently online (active in game world)
   let onlinePlayer: PlayerInfo | null = null;
   let isOnline = false;
+  let canSeeTarget = false;
 
   if (typeof efuns !== 'undefined' && efuns.findActivePlayer) {
     onlinePlayer = efuns.findActivePlayer(normalizedName) as PlayerInfo | null;
@@ -98,8 +101,21 @@ export async function execute(ctx: CommandContext): Promise<void> {
     }
   }
 
-  // If player is online, use their live data
-  if (onlinePlayer) {
+  // Check visibility - if viewer can't see the online player, treat as offline
+  if (onlinePlayer && isOnline) {
+    const viewerLiving = ctx.player as Living;
+    const targetLiving = onlinePlayer as Living;
+    const visResult = canSee(viewerLiving, targetLiving);
+    canSeeTarget = visResult.canSee;
+
+    // If can't see, treat as offline (don't reveal their online status)
+    if (!canSeeTarget) {
+      isOnline = false;
+    }
+  }
+
+  // If player is online and visible, use their live data
+  if (onlinePlayer && isOnline) {
     await displayPlayerInfo(ctx, onlinePlayer, isOnline);
     return;
   }

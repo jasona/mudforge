@@ -12,6 +12,8 @@
 
 import type { MudObject } from '../../lib/std.js';
 import { getPlayerColor, formatWithColor } from './_colors.js';
+import { canSee } from '../../std/visibility/index.js';
+import type { Living } from '../../std/living.js';
 
 interface CommandContext {
   player: MudObject & {
@@ -99,7 +101,17 @@ export async function execute(ctx: CommandContext): Promise<void> {
     );
 
     if (target) {
-      foundTargets.push(target);
+      // Check if sender can see the target (invisible targets appear as "not found")
+      const senderLiving = ctx.player as Living;
+      const targetLiving = target as Living;
+      const visResult = canSee(senderLiving, targetLiving);
+
+      if (visResult.canSee) {
+        foundTargets.push(target);
+      } else {
+        // Invisible target - treat as not found
+        notFound.push(targetName);
+      }
     } else {
       notFound.push(targetName);
     }

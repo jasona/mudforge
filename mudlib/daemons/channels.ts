@@ -9,6 +9,8 @@
 
 import { MudObject } from '../std/object.js';
 import { composeMessage } from '../lib/message-composer.js';
+import { canSee, getVisibleDisplayName } from '../std/visibility/index.js';
+import type { Living } from '../std/living.js';
 
 /**
  * Channel access types.
@@ -432,9 +434,6 @@ export class ChannelDaemon extends MudObject {
       this.sendToGrapevine(channel.grapevineChannelName, player.name, message);
     }
 
-    // Format the message
-    const formattedMessage = this.formatMessage(channel, player.name, message);
-
     // Store in history
     this.addToHistory(channelName, {
       channel: channelName,
@@ -443,10 +442,66 @@ export class ChannelDaemon extends MudObject {
       timestamp: Date.now(),
     });
 
-    // Broadcast to all eligible players
-    this.broadcast(channelName, formattedMessage, { sender: player.name, rawMessage: message });
+    // Broadcast to all eligible players with visibility-aware sender names
+    this.broadcastWithVisibility(channelName, channel, player, message);
 
     return true;
+  }
+
+  /**
+   * Broadcast a message with visibility-aware sender names.
+   * Each recipient sees the sender's name based on their visibility of them.
+   */
+  private broadcastWithVisibility(
+    channelName: string,
+    channel: ChannelConfig,
+    sender: ChannelPlayer,
+    message: string
+  ): void {
+    // Get all connected players
+    let players: MudObject[] = [];
+    if (typeof efuns !== 'undefined' && efuns.allPlayers) {
+      players = efuns.allPlayers();
+    }
+
+    const timestamp = Date.now();
+
+    for (const obj of players) {
+      const player = obj as ChannelPlayer;
+
+      // Skip if player can't access channel
+      if (!this.canAccess(player, channelName)) {
+        continue;
+      }
+
+      // Skip if player has channel off
+      if (!this.isChannelOn(player, channelName)) {
+        continue;
+      }
+
+      // Get the visible sender name for this recipient
+      const visibleName = this.getVisibleSenderName(sender, player);
+
+      // Format message with visibility-aware sender name
+      const formattedMessage = this.formatMessage(channel, visibleName, message);
+
+      // Send message to terminal
+      if (typeof player.receive === 'function') {
+        player.receive(formattedMessage);
+      }
+
+      // Send to comm panel
+      if (typeof efuns !== 'undefined' && efuns.sendComm) {
+        efuns.sendComm(player, {
+          type: 'comm',
+          commType: 'channel',
+          sender: visibleName,
+          message: message,
+          channel: channel.displayName,
+          timestamp,
+        });
+      }
+    }
   }
 
   /**
@@ -560,6 +615,7 @@ export class ChannelDaemon extends MudObject {
 
   /**
    * Broadcast an emote to all channel members with viewer-specific messages.
+   * Includes visibility awareness - invisible actors show as "Someone" or "Name (invis)".
    */
   private broadcastEmote(
     channelName: string,
@@ -590,8 +646,14 @@ export class ChannelDaemon extends MudObject {
         continue;
       }
 
+      // Get visibility-aware actor name
+      const visibleActorName = this.getVisibleSenderName(actor, player);
+
+      // Create a proxy actor object with the visibility-aware name for message composition
+      const proxyActor = { ...actor, name: visibleActorName };
+
       // Compose viewer-specific message
-      const message = composeMessage(template, player, actor, target, '');
+      const message = composeMessage(template, player, proxyActor, target, '');
 
       // Format with channel prefix and emote indicator
       const formattedMessage = `{${color}}[${channel.displayName}]{/} * ${message}\n`;
@@ -606,7 +668,7 @@ export class ChannelDaemon extends MudObject {
         efuns.sendComm(player, {
           type: 'comm',
           commType: 'channel',
-          sender: actor.name,
+          sender: visibleActorName,
           message: `* ${message}`,
           channel: channel.displayName,
           timestamp,
@@ -622,6 +684,20 @@ export class ChannelDaemon extends MudObject {
     // Apply channel color if defined
     const color = channel.color ?? 'white';
     return `{${color}}[${channel.displayName}]{/} {bold}${sender}{/}: ${message}\n`;
+  }
+
+  /**
+   * Get the visible sender name for a recipient based on visibility checks.
+   * @param sender The sender player
+   * @param recipient The recipient player
+   * @returns The display name (original, with "(invis)", or "Someone")
+   */
+  private getVisibleSenderName(sender: ChannelPlayer, recipient: ChannelPlayer): string {
+    const senderLiving = sender as unknown as Living;
+    const recipientLiving = recipient as unknown as Living;
+
+    const { name } = getVisibleDisplayName(recipientLiving, senderLiving);
+    return name;
   }
 
   /**

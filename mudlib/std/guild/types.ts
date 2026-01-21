@@ -48,6 +48,8 @@ export interface SkillEffect {
   tickInterval?: number;
   /** Custom effect handler name */
   customHandler?: string;
+  /** Effect type for visibility system (stealth, invisibility, see_invisible, detect_hidden) */
+  effectType?: string;
 }
 
 /**

@@ -3,6 +3,7 @@
  */
 
 import { Room, MudObject } from '../../../lib/std.js';
+import { LightLevel } from '../../../std/visibility/types.js';
 
 /**
  * The Guard Room.
@@ -29,6 +30,9 @@ The corridor lies to the {green}west{/}.`;
     // Map coordinates - east of corridor (same Y as corridor)
     this.setMapCoordinates({ x: 1, y: 3, z: -1, area: '/areas/valdoria/aldric_depths' });
     this.setTerrain('dungeon');
+
+    // Dim flickering torches
+    this.lightLevel = LightLevel.DIM;
 
     this.setupRoom();
   }

@@ -3,6 +3,7 @@
  */
 
 import { Room, MudObject } from '../../../lib/std.js';
+import { LightLevel } from '../../../std/visibility/types.js';
 
 /**
  * The Dungeon Corridor room.
@@ -27,6 +28,9 @@ to the {green}east{/}.`;
     // Map coordinates - north of entrance (lower Y)
     this.setMapCoordinates({ x: 0, y: 3, z: -1, area: '/areas/valdoria/aldric_depths' });
     this.setTerrain('dungeon');
+
+    // Very dark corridor with sparse torchlight
+    this.lightLevel = LightLevel.VERY_DARK;
 
     this.setupRoom();
   }

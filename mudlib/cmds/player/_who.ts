@@ -6,6 +6,8 @@
  */
 
 import type { MudObject } from '../../lib/std.js';
+import { canSee } from '../../std/visibility/index.js';
+import type { Living } from '../../std/living.js';
 
 interface CommandContext {
   player: MudObject;
@@ -20,6 +22,11 @@ interface PlayerInfo extends MudObject {
   permissionLevel?: number;
   title?: string;
   getDisplayName?(): string;
+}
+
+interface VisiblePlayer {
+  player: PlayerInfo;
+  isPartiallyVisible: boolean;
 }
 
 // Box width (content between the borders)
@@ -96,10 +103,26 @@ export async function execute(ctx: CommandContext): Promise<void> {
   // Get game configuration
   const game = efuns.gameConfig();
 
-  // Get all connected players
-  let players: MudObject[] = [];
+  // Get all connected players and filter by visibility
+  let allPlayers: MudObject[] = [];
   if (typeof efuns !== 'undefined' && efuns.allPlayers) {
-    players = efuns.allPlayers();
+    allPlayers = efuns.allPlayers();
+  }
+
+  // Filter players by visibility
+  const viewerLiving = ctx.player as Living;
+  const visiblePlayers: VisiblePlayer[] = [];
+
+  for (const obj of allPlayers) {
+    const playerLiving = obj as Living;
+    const visResult = canSee(viewerLiving, playerLiving);
+
+    if (visResult.canSee) {
+      visiblePlayers.push({
+        player: obj as PlayerInfo,
+        isPartiallyVisible: visResult.isPartiallyVisible,
+      });
+    }
   }
 
   const lines: string[] = [];
@@ -119,37 +142,38 @@ export async function execute(ctx: CommandContext): Promise<void> {
   // Divider
   lines.push(`{cyan}╠${topBot}╣{/}`);
 
-  if (players.length === 0) {
+  if (visiblePlayers.length === 0) {
     lines.push(boxLine(''));
     lines.push(boxLine(centerText('{dim}No players are currently online.{/}', BOX_WIDTH)));
     lines.push(boxLine(''));
   } else {
 
     // Sort players: admins first, then by level
-    const sortedPlayers = [...players].sort((a, b) => {
-      const aInfo = a as PlayerInfo;
-      const bInfo = b as PlayerInfo;
-      const aPermLevel = aInfo.permissionLevel ?? 0;
-      const bPermLevel = bInfo.permissionLevel ?? 0;
+    const sortedPlayers = [...visiblePlayers].sort((a, b) => {
+      const aPermLevel = a.player.permissionLevel ?? 0;
+      const bPermLevel = b.player.permissionLevel ?? 0;
 
       if (aPermLevel !== bPermLevel) {
         return bPermLevel - aPermLevel;
       }
 
-      const aLevel = aInfo.level ?? 1;
-      const bLevel = bInfo.level ?? 1;
+      const aLevel = a.player.level ?? 1;
+      const bLevel = b.player.level ?? 1;
       return bLevel - aLevel;
     });
 
     lines.push("");
-    for (const obj of sortedPlayers) {
-      const player = obj as PlayerInfo;
-      const displayName = player.getDisplayName?.() ?? player.name;
-      const rank = getPlayerRank(player);
+    for (const { player, isPartiallyVisible } of sortedPlayers) {
+      let displayName = player.getDisplayName?.() ?? player.name;
 
-      const paddedName = displayName;
+      // Add [i] indicator for partially visible (detected invisible) players
+      if (isPartiallyVisible) {
+        displayName = `{bold}{green}[i]{/} ${displayName}`;
+      }
+
+      const rank = getPlayerRank(player);
       const paddedRank = efuns.sprintf("%-8s", rank);
-      lines.push("   " + paddedRank + paddedName);
+      lines.push("   " + paddedRank + displayName);
     }
     lines.push("");
     lines.push("");
@@ -159,9 +183,9 @@ export async function execute(ctx: CommandContext): Promise<void> {
   lines.push(`{cyan}╠${topBot}╣{/}`);
 
   // Player count
-  const countStr = players.length === 1
+  const countStr = visiblePlayers.length === 1
     ? '{bold}{green}1{/} player online'
-    : `{bold}{green}${players.length}{/} players online`;
+    : `{bold}{green}${visiblePlayers.length}{/} players online`;
   lines.push(centerText(countStr, BOX_WIDTH));
 
   // Bottom border

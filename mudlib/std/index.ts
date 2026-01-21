@@ -35,5 +35,8 @@ export * from './equipment.js';
 export { Corpse } from './corpse.js';
 export * from './combat/index.js';
 
+// Visibility
+export * from './visibility/index.js';
+
 // Note: Trainer is NOT exported from this barrel to avoid circular dependency.
 // Import directly: import { Trainer } from '../std/trainer.js';

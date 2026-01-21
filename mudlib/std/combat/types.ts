@@ -127,7 +127,11 @@ export type EffectType =
   | 'stun' // Cannot attack
   | 'slow' // Reduced attack speed
   | 'haste' // Increased attack speed
-  | 'invulnerable'; // Cannot take damage
+  | 'invulnerable' // Cannot take damage
+  | 'stealth' // Thief hide/sneak (visibility reduction)
+  | 'invisibility' // Mage invisibility (true invisible)
+  | 'see_invisible' // Detection buff (see invisible entities)
+  | 'detect_hidden'; // Perception buff (detect hidden/sneaking)
 
 /**
  * Effect category for display grouping.
@@ -176,6 +180,9 @@ export interface Effect {
 
   /** If true, effect is hidden from the buffs command */
   hidden?: boolean;
+
+  /** Effect subtype for visibility system (stealth, invisibility, see_invisible, detect_hidden) */
+  effectType?: string;
 
   /** Custom tick callback */
   onTick?: (target: Living, effect: Effect) => void;

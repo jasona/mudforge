@@ -3,6 +3,7 @@
  */
 
 import { Room, MudObject } from '../../../lib/std.js';
+import { LightLevel } from '../../../std/visibility/types.js';
 
 /**
  * The Storage Chamber.
@@ -29,6 +30,9 @@ the cellblock lies to the {green}south{/}.`;
     // Map coordinates - north of cellblock (lower Y)
     this.setMapCoordinates({ x: 0, y: 1, z: -1, area: '/areas/valdoria/aldric_depths' });
     this.setTerrain('dungeon');
+
+    // Very dark storage area
+    this.lightLevel = LightLevel.VERY_DARK;
 
     this.setupRoom();
   }

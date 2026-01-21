@@ -36,6 +36,12 @@ export class Item extends MudObject {
   private _size: ItemSize = 'medium';
   private _weightExplicitlySet: boolean = false;
 
+  // Light source properties
+  private _isLightSource: boolean = false;
+  private _lightRadius: number = 0;
+  private _fuelRemaining: number = -1; // -1 = infinite
+  private _activeWhenDropped: boolean = false;
+
   constructor() {
     super();
     this.shortDesc = 'an item';
@@ -148,6 +154,75 @@ export class Item extends MudObject {
    */
   set savable(value: boolean) {
     this._savable = value;
+  }
+
+  // ========== Light Source Properties ==========
+
+  /**
+   * Check if this item is a light source.
+   */
+  get isLightSource(): boolean {
+    return this._isLightSource;
+  }
+
+  /**
+   * Get the light radius (0-50).
+   */
+  get lightRadius(): number {
+    return this._lightRadius;
+  }
+
+  /**
+   * Get remaining fuel in ms (-1 = infinite).
+   */
+  get fuelRemaining(): number {
+    return this._fuelRemaining;
+  }
+
+  /**
+   * Set remaining fuel.
+   */
+  set fuelRemaining(value: number) {
+    this._fuelRemaining = value;
+  }
+
+  /**
+   * Check if light is active when dropped on ground.
+   */
+  get activeWhenDropped(): boolean {
+    return this._activeWhenDropped;
+  }
+
+  /**
+   * Configure this item as a light source.
+   * @param options Light source configuration
+   */
+  setLightSource(options: {
+    lightRadius?: number;
+    fuelRemaining?: number;
+    activeWhenDropped?: boolean;
+  }): void {
+    this._isLightSource = true;
+    if (options.lightRadius !== undefined) {
+      this._lightRadius = Math.max(0, Math.min(50, options.lightRadius));
+    }
+    if (options.fuelRemaining !== undefined) {
+      this._fuelRemaining = options.fuelRemaining;
+    }
+    if (options.activeWhenDropped !== undefined) {
+      this._activeWhenDropped = options.activeWhenDropped;
+    }
+  }
+
+  /**
+   * Check if the light source is currently providing light.
+   * Returns true if it's a light source with fuel.
+   */
+  isLit(): boolean {
+    if (!this._isLightSource || this._lightRadius <= 0) {
+      return false;
+    }
+    return this._fuelRemaining === -1 || this._fuelRemaining > 0;
   }
 
   // ========== Lifecycle Hooks ==========

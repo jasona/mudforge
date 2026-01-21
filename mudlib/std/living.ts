@@ -12,6 +12,12 @@ import type { Weapon } from './weapon.js';
 import type { Armor } from './armor.js';
 import type { CombatStats, CombatStatName, Effect } from './combat/types.js';
 import { DEFAULT_COMBAT_STATS } from './combat/types.js';
+import {
+  canSee as visibilityCanSee,
+  getVisibleBeings as visibilityGetVisibleBeings,
+  getVisibilityLevelName,
+  type VisibilityCheckResult,
+} from './visibility/index.js';
 
 /**
  * Encumbrance level names.
@@ -1544,6 +1550,34 @@ export class Living extends MudObject {
     }
 
     return { canCarry: true };
+  }
+
+  // ========== Visibility ==========
+
+  /**
+   * Check if this living can see another living.
+   * Considers visibility effects, perception, light, and staff hierarchy.
+   * @param target The target to check visibility for
+   * @returns Visibility check result with canSee, isPartiallyVisible, and reason
+   */
+  canSee(target: Living): VisibilityCheckResult {
+    return visibilityCanSee(this, target, this.environment as Room | null);
+  }
+
+  /**
+   * Get all living beings visible to this living in the current location.
+   * @returns Array of visible Living objects
+   */
+  getVisibleBeings(): Living[] {
+    return visibilityGetVisibleBeings(this);
+  }
+
+  /**
+   * Get the current visibility level name (Normal, Sneaking, Hidden, Invisible, Vanished).
+   * @returns String name of current visibility level
+   */
+  getVisibilityLevel(): string {
+    return getVisibilityLevelName(this);
   }
 
   // ========== Setup ==========

@@ -63,6 +63,9 @@ displayed around his shop are clearly works of craftsmanship.`;
     this.addStock('/areas/valdoria/aldric/items/chainmail', 'Chainmail Shirt', 200, 3, 'armor');
     this.addStock('/areas/valdoria/aldric/items/iron_helm', 'Iron Helm', 60, 6, 'armor');
     this.addStock('/areas/valdoria/aldric/items/iron_shield', 'Iron Shield', 90, 4, 'armor');
+
+    // Supplies
+    this.addStock('/users/acer/torch', 'Torch', 5, -1, 'misc');
   }
 
   private setupChats(): void {

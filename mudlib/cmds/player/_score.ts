@@ -8,7 +8,8 @@
  */
 
 import type { MudObject } from '../../lib/std.js';
-import { STAT_SHORT_NAMES, type StatName } from '../../std/living.js';
+import { STAT_SHORT_NAMES, type StatName, Living } from '../../std/living.js';
+import { getVisibilityLevelName } from '../../std/visibility/index.js';
 
 interface StatsPlayer extends MudObject {
   name: string;
@@ -27,10 +28,12 @@ interface StatsPlayer extends MudObject {
   playTime: number;
   gold: number;
   bankedGold: number;
+  isStaffVanished?: boolean;
   getStats(): Record<StatName, number>;
   getBaseStats(): Record<StatName, number>;
   getStatBonus(stat: StatName): number;
   getProperty(key: string): unknown;
+  getVisibilityLevel?(): string;
 }
 
 interface CommandContext {
@@ -264,6 +267,42 @@ export function execute(ctx: CommandContext): void {
   ctx.sendLine(`  {bold}Status:{/}    ${player.alive ? '{green}Alive{/}' : '{red}Dead{/}'}`);
 
   ctx.sendLine('');
+
+  // Visibility
+  const playerLiving = player as unknown as Living;
+  const visibilityLevel = getVisibilityLevelName(playerLiving);
+  const isVanished = player.isStaffVanished ?? false;
+
+  // Only show visibility section if not Normal
+  if (visibilityLevel !== 'Normal' || isVanished) {
+    ctx.sendLine('{bold}{yellow}── Visibility ──{/}');
+
+    // Determine display based on visibility state
+    let visDisplay: string;
+    if (isVanished) {
+      const permLevel = player.permissionLevel ?? 0;
+      const rankName = getPermissionName(permLevel).replace(/{[^}]+}/g, ''); // Remove color codes
+      visDisplay = `{cyan}Vanished{/} {dim}(${rankName}){/}`;
+    } else {
+      // Color code based on visibility level
+      switch (visibilityLevel) {
+        case 'Sneaking':
+          visDisplay = '{yellow}Sneaking{/}';
+          break;
+        case 'Hidden':
+          visDisplay = '{green}Hidden{/}';
+          break;
+        case 'Invisible':
+          visDisplay = '{cyan}Invisible{/}';
+          break;
+        default:
+          visDisplay = visibilityLevel;
+      }
+    }
+
+    ctx.sendLine(`  {bold}Visibility:{/} ${visDisplay}`);
+    ctx.sendLine('');
+  }
 }
 
 export default { name, description, usage, execute };

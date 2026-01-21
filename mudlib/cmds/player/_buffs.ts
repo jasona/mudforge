@@ -92,6 +92,22 @@ function getEffectDescription(effect: Effect): string {
 
     case 'invulnerable':
       return 'Immune to damage';
+
+    // Visibility effects
+    case 'stealth':
+      if (magnitude >= 50) {
+        return 'Hidden from view';
+      }
+      return 'Moving quietly';
+
+    case 'invisibility':
+      return 'Invisible to normal sight';
+
+    case 'see_invisible':
+      return 'Can see invisible creatures';
+
+    case 'detect_hidden':
+      return `+${magnitude} perception`;
   }
 
   return '';
@@ -125,6 +141,13 @@ function getEffectCategory(effect: Effect): EffectCategory {
       return effect.magnitude >= 0 ? 'buff' : 'debuff';
 
     case 'thorns':
+      return 'buff';
+
+    // Visibility effects are all buffs
+    case 'stealth':
+    case 'invisibility':
+    case 'see_invisible':
+    case 'detect_hidden':
       return 'buff';
 
     default:

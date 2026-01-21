@@ -14,6 +14,8 @@
  */
 
 import type { MudObject } from '../../lib/std.js';
+import { canSee } from '../../std/visibility/index.js';
+import type { Living } from '../../std/living.js';
 
 interface CommandContext {
   player: MudObject;
@@ -29,6 +31,10 @@ interface SoulDaemon {
     verb: string,
     targetName: string
   ): Promise<{ success: boolean; error?: string }>;
+}
+
+interface Player extends MudObject {
+  name: string;
 }
 
 export const name = ['remote', 'rem', 'remoteemote'];
@@ -67,6 +73,27 @@ export async function execute(ctx: CommandContext): Promise<void> {
     ctx.sendLine(`{red}Unknown emote: {bold}${emote}{/}`);
     ctx.sendLine('{dim}Use "emotes" to see available emotes.{/}');
     return;
+  }
+
+  // Check if target is visible to the sender before allowing remote emote
+  if (typeof efuns !== 'undefined' && efuns.allPlayers) {
+    const allPlayers = efuns.allPlayers() as Player[];
+    const target = allPlayers.find(
+      (p) => p.name.toLowerCase() === targetName.toLowerCase() ||
+             p.name.toLowerCase().startsWith(targetName.toLowerCase())
+    );
+
+    if (target) {
+      const senderLiving = ctx.player as Living;
+      const targetLiving = target as Living;
+      const visResult = canSee(senderLiving, targetLiving);
+
+      if (!visResult.canSee) {
+        // Invisible target - treat as not found
+        ctx.sendLine(`{yellow}No player named '${targetName}' is online.{/}`);
+        return;
+      }
+    }
   }
 
   // Execute the remote emote
