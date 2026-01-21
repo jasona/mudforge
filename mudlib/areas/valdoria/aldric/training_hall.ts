@@ -25,7 +25,8 @@ High windows let in diffused light, and the air carries the faint
 scent of leather and honest sweat.
 
 A chalk board near the entrance displays training schedules and
-motivational quotes from famous warriors of old.
+motivational quotes from famous warriors of old. Near the equipment
+racks, a hand-painted sign reads: {yellow}"FREE GEAR FOR NEW ADVENTURERS!"{/}
 
 The town center lies to the {green}southwest{/}.`;
 
@@ -38,7 +39,10 @@ The town center lies to the {green}southwest{/}.`;
     this.addExit('southwest', '/areas/valdoria/aldric/center');
 
     // Set NPCs that belong to this room - they'll respawn on reset if missing
-    this.setNpcs(['/areas/valdoria/aldric/master_vorn']);
+    this.setNpcs([
+      '/areas/valdoria/aldric/master_vorn',
+      '/areas/valdoria/aldric/newbie_armourer',
+    ]);
 
     // Add some items for flavor
     this.addId('training hall');
