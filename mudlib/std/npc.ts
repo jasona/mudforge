@@ -825,8 +825,8 @@ export class NPC extends Living {
       this.doChat();
     }
 
-    // Wander
-    if (this._wandering && random(100) < this._wanderChance) {
+    // Wander (skip if in combat)
+    if (this._wandering && !this.inCombat && random(100) < this._wanderChance) {
       await this.doWander();
     }
   }
