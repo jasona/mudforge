@@ -17,12 +17,13 @@ from finest steel, its edge honed to razor sharpness. Intricate runes are etched
 along the fuller, pulsing softly with arcane energy. The crossguard is wrought in
 the shape of dragon wings, and the leather-wrapped hilt feels perfectly balanced
 in your hand.`,
-      weight: 4,
+      handedness: 'one_handed',
+      size: 'large', // Quality longsword
+      weight: 4, // Explicit: heavier than typical large
       value: 500,
       minDamage: 8,
       maxDamage: 15,
       damageType: 'physical',
-      handedness: 'one_handed',
       slot: 'main_hand',
     });
 

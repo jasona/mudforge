@@ -8,6 +8,23 @@
 import { MudObject } from './object.js';
 
 /**
+ * Item size categories.
+ */
+export type ItemSize = 'tiny' | 'small' | 'medium' | 'large' | 'huge' | 'immovable';
+
+/**
+ * Default weights for each size category.
+ */
+export const SIZE_WEIGHTS: Record<ItemSize, number> = {
+  tiny: 0.1,      // coins, rings, gems
+  small: 0.5,     // daggers, scrolls, potions
+  medium: 1,      // swords, helms, books
+  large: 3,       // two-handed weapons, shields, armor
+  huge: 10,       // chests, large furniture
+  immovable: Infinity, // boulders, statues, pillars
+};
+
+/**
  * Base class for items.
  */
 export class Item extends MudObject {
@@ -16,6 +33,8 @@ export class Item extends MudObject {
   private _takeable: boolean = true;
   private _dropable: boolean = true;
   private _savable: boolean = true;
+  private _size: ItemSize = 'medium';
+  private _weightExplicitlySet: boolean = false;
 
   constructor() {
     super();
@@ -26,6 +45,30 @@ export class Item extends MudObject {
   // ========== Properties ==========
 
   /**
+   * Get the item's size category.
+   */
+  get size(): ItemSize {
+    return this._size;
+  }
+
+  /**
+   * Set the item's size category.
+   * This automatically updates the weight to the default for this size,
+   * unless the weight has been explicitly set.
+   */
+  set size(value: ItemSize) {
+    this._size = value;
+    // Update takeable based on size
+    if (value === 'immovable') {
+      this._takeable = false;
+      this._weight = Infinity;
+    } else if (!this._weightExplicitlySet) {
+      // Only update weight if it hasn't been explicitly set
+      this._weight = SIZE_WEIGHTS[value];
+    }
+  }
+
+  /**
    * Get the item's weight.
    */
   get weight(): number {
@@ -33,10 +76,20 @@ export class Item extends MudObject {
   }
 
   /**
-   * Set the item's weight.
+   * Set the item's weight explicitly.
+   * This overrides the automatic size-based weight.
    */
   set weight(value: number) {
     this._weight = Math.max(0, value);
+    this._weightExplicitlySet = true;
+  }
+
+  /**
+   * Get the effective weight of this item for encumbrance calculations.
+   * Subclasses like Bag can override this to apply weight reduction.
+   */
+  getEffectiveWeight(): number {
+    return this._weight;
   }
 
   /**
@@ -164,13 +217,15 @@ export class Item extends MudObject {
       longDesc?: string;
       weight?: number;
       value?: number;
+      size?: ItemSize;
     },
     long?: string,
     weight?: number,
     value?: number
   ): void {
     if (typeof shortOrOptions === 'object') {
-      // Object form
+      // Object form - set size first so weight can override it
+      if (shortOrOptions.size !== undefined) this.size = shortOrOptions.size;
       if (shortOrOptions.shortDesc) this.shortDesc = shortOrOptions.shortDesc;
       if (shortOrOptions.longDesc) this.longDesc = shortOrOptions.longDesc;
       if (shortOrOptions.weight !== undefined) this.weight = shortOrOptions.weight;

@@ -11,7 +11,7 @@
  *   get gold from <corpse>    - Loot gold from a corpse
  */
 
-import type { MudObject } from '../../lib/std.js';
+import type { MudObject, Living } from '../../lib/std.js';
 import { Item, Container } from '../../lib/std.js';
 import { Corpse } from '../../std/corpse.js';
 import { GoldPile } from '../../std/gold-pile.js';
@@ -45,9 +45,24 @@ export const usage = 'get <item> | get all | get <item> from <container>';
 function canTake(item: MudObject, taker: MudObject): { canTake: boolean; reason?: string } {
   // Check if it's an Item with takeable property
   if (item instanceof Item) {
+    // Check for immovable items first
+    if (item.size === 'immovable') {
+      return { canTake: false, reason: "You can't pick that up. It's immovable." };
+    }
+
     if (!item.takeable) {
       return { canTake: false, reason: "You can't take that." };
     }
+
+    // Check encumbrance (if taker is a Living)
+    const living = taker as Living;
+    if (typeof living.canCarryItem === 'function') {
+      const carryCheck = living.canCarryItem(item);
+      if (!carryCheck.canCarry) {
+        return { canTake: false, reason: carryCheck.reason };
+      }
+    }
+
     // Call onTake hook
     const result = item.onTake(taker);
     if (result === false) {

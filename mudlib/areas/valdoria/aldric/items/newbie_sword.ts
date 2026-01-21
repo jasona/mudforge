@@ -13,12 +13,12 @@ export class NewbieSword extends Weapon {
 impressive, it's sturdy enough to serve a new adventurer until they
 can afford something better. The leather grip is soft from years of
 use by countless beginners.`,
-      weight: 2,
+      handedness: 'one_handed',
+      weight: 2, // Explicit: lighter than typical swords
       value: 5,
       minDamage: 2,
       maxDamage: 4,
       damageType: 'slashing',
-      handedness: 'one_handed',
     });
 
     this.addId('sword');

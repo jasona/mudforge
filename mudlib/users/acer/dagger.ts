@@ -15,12 +15,12 @@ export class SteelDagger extends Weapon {
       longDesc: `A well-balanced steel dagger with a keen double-edged blade. The hilt is wrapped
 in dark leather for a secure grip, and the crossguard is minimal to allow for
 quick, precise strikes. This weapon is light enough to be wielded in either hand.`,
-      weight: 1,
+      handedness: 'light',
+      size: 'medium', // Steel dagger, heavier than typical light weapons
       value: 50,
       minDamage: 3,
       maxDamage: 6,
       damageType: 'physical',
-      handedness: 'light',
       slot: 'main_hand',
     });
 

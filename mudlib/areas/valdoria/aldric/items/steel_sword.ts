@@ -13,12 +13,12 @@ export class SteelSword extends Weapon {
 a mirror-like polish, its edge keen enough to split a hair. The pommel
 is weighted for better control, and the guard is decorated with simple
 but elegant engravings.`,
-      weight: 3,
+      handedness: 'one_handed',
+      size: 'large', // Quality steel sword, heavier than average
       value: 250,
       minDamage: 6,
       maxDamage: 12,
       damageType: 'slashing',
-      handedness: 'one_handed',
     });
 
     this.addId('sword');

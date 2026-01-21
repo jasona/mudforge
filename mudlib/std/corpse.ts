@@ -7,6 +7,7 @@
  */
 
 import { Container } from './container.js';
+import type { ItemSize } from './item.js';
 import type { Living } from './living.js';
 import type { MudObject } from './object.js';
 import { getConfigDaemon } from '../daemons/config.js';
@@ -52,6 +53,8 @@ export class Corpse extends Container {
     super();
     this.shortDesc = 'a corpse';
     this.longDesc = 'The remains of a fallen creature.';
+    // Corpses are huge and cannot be picked up
+    this.size = 'huge' as ItemSize;
     this.takeable = false;
     this.maxItems = 100;
     this.maxWeight = 10000;

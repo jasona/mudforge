@@ -13,12 +13,12 @@ export class IronDagger extends Weapon {
 wrapped in dark leather for a secure grip. Light and quick, it's
 perfect as a backup weapon or for those who prefer speed over raw
 power.`,
-      weight: 1,
+      handedness: 'light', // Sets size to 'small' (0.5)
+      size: 'medium', // Override: iron daggers are heavier than typical light weapons
       value: 40,
       minDamage: 2,
       maxDamage: 5,
       damageType: 'piercing',
-      handedness: 'light',
       attackSpeed: 0.2,
     });
 

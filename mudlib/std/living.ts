@@ -6,11 +6,37 @@
 
 import { MudObject } from './object.js';
 import { Room } from './room.js';
+import { Item } from './item.js';
 import type { EquipmentSlot } from './equipment.js';
 import type { Weapon } from './weapon.js';
 import type { Armor } from './armor.js';
 import type { CombatStats, CombatStatName, Effect } from './combat/types.js';
 import { DEFAULT_COMBAT_STATS } from './combat/types.js';
+
+/**
+ * Encumbrance level names.
+ */
+export type EncumbranceLevel = 'none' | 'light' | 'medium' | 'heavy';
+
+/**
+ * Encumbrance thresholds (percentage of max carry weight).
+ */
+export const ENCUMBRANCE_THRESHOLDS = {
+  none: 74,     // 0-74%: No penalties
+  light: 99,    // 75-99%: -10% attack speed
+  medium: 124,  // 100-124%: -25% attack speed, -10% dodge
+  heavy: Infinity, // 125%+: -50% attack speed, -25% dodge, cannot pick up more
+};
+
+/**
+ * Encumbrance penalties.
+ */
+export const ENCUMBRANCE_PENALTIES = {
+  none: { attackSpeedPenalty: 0, dodgePenalty: 0 },
+  light: { attackSpeedPenalty: 0.10, dodgePenalty: 0 },
+  medium: { attackSpeedPenalty: 0.25, dodgePenalty: 0.10 },
+  heavy: { attackSpeedPenalty: 0.50, dodgePenalty: 0.25 },
+};
 
 /**
  * Command parser result.
@@ -1434,6 +1460,90 @@ export class Living extends MudObject {
 
   set luck(value: number) {
     this.setBaseStat('luck', value);
+  }
+
+  // ========== Encumbrance ==========
+
+  /**
+   * Get maximum carry weight based on Strength.
+   * Formula: 50 + (STR * 5)
+   */
+  getMaxCarryWeight(): number {
+    return 50 + (this.getStat('strength') * 5);
+  }
+
+  /**
+   * Get the total weight of all carried items.
+   * Uses effective weight (accounting for bag reductions).
+   */
+  getCarriedWeight(): number {
+    let total = 0;
+    for (const obj of this.inventory) {
+      if (obj instanceof Item) {
+        total += obj.getEffectiveWeight();
+      }
+    }
+    return total;
+  }
+
+  /**
+   * Get encumbrance as a percentage of max carry weight.
+   */
+  getEncumbrancePercent(): number {
+    const maxWeight = this.getMaxCarryWeight();
+    if (maxWeight <= 0) return 0;
+    return (this.getCarriedWeight() / maxWeight) * 100;
+  }
+
+  /**
+   * Get current encumbrance level.
+   */
+  getEncumbranceLevel(): EncumbranceLevel {
+    const percent = this.getEncumbrancePercent();
+    if (percent <= ENCUMBRANCE_THRESHOLDS.none) return 'none';
+    if (percent <= ENCUMBRANCE_THRESHOLDS.light) return 'light';
+    if (percent <= ENCUMBRANCE_THRESHOLDS.medium) return 'medium';
+    return 'heavy';
+  }
+
+  /**
+   * Get encumbrance penalties for current level.
+   */
+  getEncumbrancePenalties(): { attackSpeedPenalty: number; dodgePenalty: number } {
+    return ENCUMBRANCE_PENALTIES[this.getEncumbranceLevel()];
+  }
+
+  /**
+   * Check if the living can carry an additional item.
+   * Returns an object with canCarry flag and reason if unable.
+   * @param item The item to check
+   */
+  canCarryItem(item: MudObject): { canCarry: boolean; reason?: string } {
+    // Check if it's an immovable item
+    if (item instanceof Item) {
+      if (item.size === 'immovable') {
+        return { canCarry: false, reason: "You can't pick that up. It's immovable." };
+      }
+
+      if (!item.takeable) {
+        return { canCarry: false, reason: "You can't take that." };
+      }
+
+      const itemWeight = item.getEffectiveWeight();
+      const currentWeight = this.getCarriedWeight();
+      const maxWeight = this.getMaxCarryWeight();
+      const newPercent = ((currentWeight + itemWeight) / maxWeight) * 100;
+
+      // Cannot pick up if would exceed 125% (heavy threshold)
+      if (newPercent > 125) {
+        return {
+          canCarry: false,
+          reason: "You're carrying too much weight to pick that up.",
+        };
+      }
+    }
+
+    return { canCarry: true };
   }
 
   // ========== Setup ==========

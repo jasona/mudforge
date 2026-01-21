@@ -21,7 +21,7 @@ export class HealingPotion extends Item {
         'A small glass vial contains a swirling red liquid that seems to glow ' +
         'faintly from within. The cork is sealed with wax stamped with an ' +
         'alchemist\'s mark. Drinking this should restore some health.',
-      weight: 0.5,
+      size: 'small', // A small vial (weight 0.5)
       value: 25,
     });
 

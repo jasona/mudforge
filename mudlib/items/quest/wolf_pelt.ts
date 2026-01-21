@@ -4,7 +4,7 @@
  * Collected for the Wolf Pelts quest from the tanner.
  */
 
-import { Item } from '../../lib/std.js';
+import { Item, ItemSize } from '../../lib/std.js';
 
 export class WolfPelt extends Item {
   constructor() {
@@ -20,7 +20,7 @@ goods from this material. It still carries a faint musky scent.`;
     this.addId('fur');
     this.addId('hide');
 
-    this.weight = 3;
+    this.size = 'large' as ItemSize; // A whole pelt is large (weight 3)
     this.value = 8;
 
     // Quest items can be dropped and saved
