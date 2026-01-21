@@ -2,16 +2,19 @@
  * Kill command - Attack a target to initiate combat.
  *
  * Usage:
- *   kill <target>    - Attack a target in the room
- *   attack <target>  - Alias for kill
+ *   kill <target>       - Attack a target in the room
+ *   kill <target> <N>   - Attack the Nth matching target (e.g., "kill deer 2")
+ *   attack <target>     - Alias for kill
  *
  * Examples:
  *   kill goblin
+ *   kill deer 2         - Attack the second deer
  *   attack orc
  */
 
 import type { MudObject, Living } from '../../lib/std.js';
 import { getCombatDaemon } from '../../daemons/combat.js';
+import { parseItemInput, findAllMatching } from '../../lib/item-utils.js';
 
 interface CommandContext {
   player: MudObject;
@@ -22,7 +25,7 @@ interface CommandContext {
 
 export const name = ['kill', 'attack'];
 export const description = 'Attack a target to initiate combat';
-export const usage = 'kill <target>';
+export const usage = 'kill <target> [number]';
 
 /**
  * Check if an object is a Living.
@@ -32,41 +35,51 @@ function isLiving(obj: MudObject): obj is Living {
 }
 
 /**
- * Find a target by name in a list of objects.
+ * Find all Living targets matching a name in a list of objects.
  */
-function findTarget(targetName: string, objects: MudObject[]): Living | undefined {
-  const lowerName = targetName.toLowerCase();
+function findAllLivingMatching(name: string, objects: MudObject[]): Living[] {
+  const matches = findAllMatching(name, objects);
+  return matches.filter((obj): obj is Living => isLiving(obj));
+}
 
-  for (const obj of objects) {
-    if (!isLiving(obj)) continue;
+/**
+ * Find a target by name in a list of objects, with optional index.
+ * @param targetName - The target name to search for
+ * @param objects - List of objects to search
+ * @param index - Optional 1-based index (e.g., 2 for second match)
+ */
+function findTarget(targetName: string, objects: MudObject[], index?: number): Living | undefined {
+  const matches = findAllLivingMatching(targetName, objects);
 
-    // Check ID
-    if (obj.id(lowerName)) {
-      return obj;
-    }
+  if (matches.length === 0) return undefined;
 
-    // Check name property if it exists
-    if ('name' in obj && typeof obj.name === 'string') {
-      if (obj.name.toLowerCase().includes(lowerName)) {
-        return obj;
-      }
-    }
+  if (index !== undefined) {
+    if (index < 1 || index > matches.length) return undefined;
+    return matches[index - 1]; // Convert to 0-based
   }
 
-  return undefined;
+  return matches[0]; // Default to first match
+}
+
+/**
+ * Count how many Living targets match a name.
+ */
+function countLivingMatching(name: string, objects: MudObject[]): number {
+  return findAllLivingMatching(name, objects).length;
 }
 
 export function execute(ctx: CommandContext): void {
   const { player, args } = ctx;
-  const targetName = args.trim();
+  const input = args.trim();
 
-  if (!targetName) {
+  if (!input) {
     ctx.sendLine('Kill whom?');
     ctx.sendLine('');
-    ctx.sendLine('Usage: kill <target>');
+    ctx.sendLine('Usage: kill <target> [number]');
     ctx.sendLine('');
     ctx.sendLine('Examples:');
     ctx.sendLine('  kill goblin');
+    ctx.sendLine('  kill deer 2    - Attack the second deer');
     ctx.sendLine('  attack orc');
     return;
   }
@@ -93,10 +106,26 @@ export function execute(ctx: CommandContext): void {
     return;
   }
 
+  // Parse input for indexed selection (e.g., "deer 2")
+  const parsed = parseItemInput(input);
+  const targetName = parsed.name;
+
   // Find target in the room
-  const target = findTarget(targetName, room.inventory);
+  const target = findTarget(targetName, room.inventory, parsed.index);
 
   if (!target) {
+    // Check if target exists but index is out of range
+    if (parsed.index !== undefined) {
+      const count = countLivingMatching(targetName, room.inventory);
+      if (count > 0) {
+        if (count === 1) {
+          ctx.sendLine(`There is only 1 ${targetName} here.`);
+        } else {
+          ctx.sendLine(`There are only ${count} ${targetName}s here.`);
+        }
+        return;
+      }
+    }
     ctx.sendLine(`You don't see '${targetName}' here.`);
     return;
   }

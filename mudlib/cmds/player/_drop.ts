@@ -3,6 +3,7 @@
  *
  * Usage:
  *   drop <item>               - Drop an item on the floor
+ *   drop <item> <number>      - Drop the Nth matching item (e.g., "drop sword 2")
  *   drop all                  - Drop all droppable items
  *   drop gold                 - Drop all your gold
  *   drop <amount> gold        - Drop a specific amount of gold
@@ -13,6 +14,7 @@
 import type { MudObject, Living, Weapon, Armor } from '../../lib/std.js';
 import { Item, Container } from '../../lib/std.js';
 import { GoldPile } from '../../std/gold-pile.js';
+import { parseItemInput, findItem, findAllMatching, countMatching } from '../../lib/item-utils.js';
 
 interface PlayerWithGold extends MudObject {
   gold?: number;
@@ -47,9 +49,10 @@ function canDrop(item: MudObject, dropper: MudObject): { canDrop: boolean; reaso
 }
 
 /**
- * Find an item by name in a list of objects.
+ * Find a container by name in a list of objects.
+ * This is a simple single-match function for containers.
  */
-function findItem(name: string, items: MudObject[]): MudObject | undefined {
+function findContainer(name: string, items: MudObject[]): MudObject | undefined {
   const lowerName = name.toLowerCase();
   return items.find((item) => item.id(lowerName));
 }
@@ -116,13 +119,36 @@ export async function execute(ctx: CommandContext): Promise<void> {
 }
 
 /**
- * Drop a single item.
+ * Drop items, with support for indexed selection and "all <type>".
+ * e.g., "drop sword 2" drops the second sword, "drop all sword" drops all swords.
  */
 async function dropItem(ctx: CommandContext, room: MudObject, itemName: string): Promise<void> {
   const { player } = ctx;
-  const item = findItem(itemName, player.inventory);
+
+  // Parse for indexed selection (e.g., "sword 2") or "all <type>"
+  const parsed = parseItemInput(itemName);
+
+  // Handle "drop all <type>" - drop all items of a specific type
+  if (parsed.isAllOfType) {
+    await dropAllOfType(ctx, room, parsed.name);
+    return;
+  }
+
+  const item = findItem(parsed.name, player.inventory, parsed.index);
 
   if (!item) {
+    // Check if item exists but index is out of range
+    if (parsed.index !== undefined) {
+      const count = countMatching(parsed.name, player.inventory);
+      if (count > 0) {
+        if (count === 1) {
+          ctx.sendLine(`You only have 1 ${parsed.name}.`);
+        } else {
+          ctx.sendLine(`You only have ${count} ${parsed.name}s.`);
+        }
+        return;
+      }
+    }
     ctx.sendLine("You're not carrying that.");
     return;
   }
@@ -199,6 +225,69 @@ async function dropGold(ctx: CommandContext, room: MudObject, amount?: number): 
 }
 
 /**
+ * Drop all items of a specific type.
+ * e.g., "drop all sword" drops all swords.
+ */
+async function dropAllOfType(ctx: CommandContext, room: MudObject, typeName: string): Promise<void> {
+  const { player } = ctx;
+  const living = player as Living;
+
+  // Get all equipped items to exclude them
+  const equipped = living.getAllEquipped ? new Set(living.getAllEquipped().values()) : new Set();
+
+  // Find all matching items
+  const matchingItems = findAllMatching(typeName, player.inventory);
+
+  // Filter to only droppable, non-equipped items
+  const droppableItems = matchingItems.filter((item) => {
+    if (equipped.has(item)) return false;
+    if (!(item instanceof Item)) return false;
+    const check = canDrop(item, player);
+    return check.canDrop;
+  });
+
+  if (droppableItems.length === 0) {
+    if (matchingItems.length === 0) {
+      ctx.sendLine(`You don't have any ${typeName}s.`);
+    } else {
+      ctx.sendLine(`You can't drop any of those.`);
+    }
+    return;
+  }
+
+  const dropped: string[] = [];
+  for (const item of droppableItems) {
+    // Unequip if needed (should be excluded, but just in case)
+    unequipIfNeeded(item, player);
+    await item.moveTo(room);
+    dropped.push(item.shortDesc);
+  }
+
+  // Output message
+  if (dropped.length === 1) {
+    ctx.sendLine(`You drop ${dropped[0]}.`);
+  } else {
+    ctx.sendLine(`You drop ${dropped.length} items:`);
+    for (const desc of dropped) {
+      ctx.sendLine(`  ${desc}`);
+    }
+  }
+
+  // Notify room
+  const playerName = player.name || 'Someone';
+  for (const observer of room.inventory) {
+    if (observer !== player && 'receive' in observer) {
+      const recv = observer as MudObject & { receive: (msg: string) => void };
+      if (dropped.length === 1) {
+        recv.receive(`${playerName} drops ${dropped[0]}.\n`);
+      } else {
+        recv.receive(`${playerName} drops several items.\n`);
+      }
+    }
+  }
+}
+
+/**
  * Drop all droppable items.
  */
 async function dropAll(ctx: CommandContext, room: MudObject): Promise<void> {
@@ -249,7 +338,8 @@ async function dropAll(ctx: CommandContext, room: MudObject): Promise<void> {
 }
 
 /**
- * Put an item in a container.
+ * Put an item in a container, with support for indexed selection.
+ * e.g., "drop sword 2 in chest" puts the second sword in the chest.
  */
 async function putInContainer(
   ctx: CommandContext,
@@ -259,10 +349,10 @@ async function putInContainer(
 ): Promise<void> {
   const { player } = ctx;
 
-  // Find the container in room or player's inventory
-  let container = findItem(containerName, room.inventory);
+  // Find the container in room or player's inventory (no indexed selection for containers)
+  let container = findContainer(containerName, room.inventory);
   if (!container) {
-    container = findItem(containerName, player.inventory);
+    container = findContainer(containerName, player.inventory);
   }
 
   if (!container) {
@@ -280,14 +370,32 @@ async function putInContainer(
     return;
   }
 
-  if (itemName.toLowerCase() === 'all') {
+  // Parse for indexed selection (e.g., "sword 2") or "all <type>"
+  const parsed = parseItemInput(itemName);
+
+  if (parsed.isAll) {
     // Put all in container
     await putAllInContainer(ctx, container);
+  } else if (parsed.isAllOfType) {
+    // Put all of a specific type in container
+    await putAllOfTypeInContainer(ctx, container, parsed.name, room);
   } else {
-    // Put single item in container
-    const item = findItem(itemName, player.inventory);
+    // Put single item (with optional index)
+    const item = findItem(parsed.name, player.inventory, parsed.index);
 
     if (!item) {
+      // Check if item exists but index is out of range
+      if (parsed.index !== undefined) {
+        const count = countMatching(parsed.name, player.inventory);
+        if (count > 0) {
+          if (count === 1) {
+            ctx.sendLine(`You only have 1 ${parsed.name}.`);
+          } else {
+            ctx.sendLine(`You only have ${count} ${parsed.name}s.`);
+          }
+          return;
+        }
+      }
       ctx.sendLine("You're not carrying that.");
       return;
     }
@@ -372,6 +480,76 @@ async function putAllInContainer(ctx: CommandContext, container: Container): Pro
         } else {
           recv.receive(`${playerName} puts several items in ${container.shortDesc}.\n`);
         }
+      }
+    }
+  }
+}
+
+/**
+ * Put all items of a specific type in a container.
+ * e.g., "drop all sword in chest" puts all swords in the chest.
+ */
+async function putAllOfTypeInContainer(
+  ctx: CommandContext,
+  container: Container,
+  typeName: string,
+  room: MudObject
+): Promise<void> {
+  const { player } = ctx;
+  const living = player as Living;
+
+  // Get all equipped items to exclude them
+  const equipped = living.getAllEquipped ? new Set(living.getAllEquipped().values()) : new Set();
+
+  // Find all matching items
+  const matchingItems = findAllMatching(typeName, player.inventory);
+
+  // Filter to items that can be put in the container
+  const itemsToPut = matchingItems.filter((item) => {
+    if (item === container) return false;
+    if (equipped.has(item)) return false;
+    if (!(item instanceof Item)) return false;
+    return container.canHold(item);
+  });
+
+  if (itemsToPut.length === 0) {
+    if (matchingItems.length === 0) {
+      ctx.sendLine(`You don't have any ${typeName}s.`);
+    } else {
+      ctx.sendLine(`You can't put any of those in there.`);
+    }
+    return;
+  }
+
+  const put: string[] = [];
+  for (const item of itemsToPut) {
+    if (!container.canHold(item)) break; // Stop if container is full
+    // Unequip if needed (should be excluded, but just in case)
+    unequipIfNeeded(item, player);
+    await item.moveTo(container);
+    await container.onPut(item, player);
+    put.push(item.shortDesc);
+  }
+
+  // Output message
+  if (put.length === 1) {
+    ctx.sendLine(`You put ${put[0]} in ${container.shortDesc}.`);
+  } else {
+    ctx.sendLine(`You put ${put.length} items in ${container.shortDesc}:`);
+    for (const desc of put) {
+      ctx.sendLine(`  ${desc}`);
+    }
+  }
+
+  // Notify room
+  const playerName = player.name || 'Someone';
+  for (const observer of room.inventory) {
+    if (observer !== player && 'receive' in observer) {
+      const recv = observer as MudObject & { receive: (msg: string) => void };
+      if (put.length === 1) {
+        recv.receive(`${playerName} puts ${put[0]} in ${container.shortDesc}.\n`);
+      } else {
+        recv.receive(`${playerName} puts several items in ${container.shortDesc}.\n`);
       }
     }
   }

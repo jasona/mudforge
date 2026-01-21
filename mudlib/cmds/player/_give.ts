@@ -2,13 +2,17 @@
  * Give command - Give items or gold to other players or NPCs.
  *
  * Usage:
- *   give <item> to <target>     - Give an item to someone
- *   give <amount> gold to <target> - Give gold coins to someone
- *   give gold to <target>       - Give all your gold to someone
+ *   give <item> to <target>            - Give an item to someone
+ *   give <item> <number> to <target>   - Give the Nth matching item (e.g., "give sword 2 to bob")
+ *   give all to <target>               - Give all non-equipped items
+ *   give all <item> to <target>        - Give all matching items (e.g., "give all sword to bob")
+ *   give <amount> gold to <target>     - Give gold coins to someone
+ *   give gold to <target>              - Give all your gold to someone
  */
 
 import type { MudObject, Living, Weapon, Armor } from '../../lib/std.js';
 import { Item } from '../../lib/std.js';
+import { parseItemInput, findItem, findAllMatching, countMatching } from '../../lib/item-utils.js';
 
 interface CommandContext {
   player: MudObject;
@@ -25,15 +29,7 @@ interface LivingWithGold extends Living {
 
 export const name = ['give'];
 export const description = 'Give items or gold to another player or NPC';
-export const usage = 'give <item> to <target> | give [amount] gold to <target>';
-
-/**
- * Find an item by name in a list of objects.
- */
-function findItem(name: string, items: MudObject[]): MudObject | undefined {
-  const lowerName = name.toLowerCase();
-  return items.find((item) => item.id(lowerName));
-}
+export const usage = 'give <item> to <target> | give all to <target> | give [amount] gold to <target>';
 
 /**
  * Find a living target by name in the room.
@@ -220,16 +216,44 @@ export async function execute(ctx: CommandContext): Promise<void> {
     return;
   }
 
-  // Giving an item
-  const item = findItem(itemStr, player.inventory);
-  if (!item) {
-    ctx.sendLine("You're not carrying that.");
-    return;
-  }
-
   // Can't give to yourself
   if (target === player) {
     ctx.sendLine("You can't give something to yourself.");
+    return;
+  }
+
+  // Parse for indexed selection (e.g., "sword 2") or "all <type>"
+  const parsed = parseItemInput(itemStr);
+
+  // Handle "give all to <target>" - give all non-equipped items
+  if (parsed.isAll) {
+    await giveAll(ctx, player, target, room);
+    return;
+  }
+
+  // Handle "give all <type> to <target>" - give all items of a specific type
+  if (parsed.isAllOfType) {
+    await giveAllOfType(ctx, player, target, room, parsed.name);
+    return;
+  }
+
+  // Give single item (with optional index)
+  const item = findItem(parsed.name, player.inventory, parsed.index);
+
+  if (!item) {
+    // Check if item exists but index is out of range
+    if (parsed.index !== undefined) {
+      const count = countMatching(parsed.name, player.inventory);
+      if (count > 0) {
+        if (count === 1) {
+          ctx.sendLine(`You only have 1 ${parsed.name}.`);
+        } else {
+          ctx.sendLine(`You only have ${count} ${parsed.name}s.`);
+        }
+        return;
+      }
+    }
+    ctx.sendLine("You're not carrying that.");
     return;
   }
 
@@ -273,6 +297,199 @@ export async function execute(ctx: CommandContext): Promise<void> {
     if (observer !== player && observer !== target && 'receive' in observer) {
       const recv = observer as MudObject & { receive: (msg: string) => void };
       recv.receive(`${playerName} gives ${item.shortDesc} to ${targetNameStr}.\n`);
+    }
+  }
+}
+
+/**
+ * Give all non-equipped, droppable items to the target.
+ */
+async function giveAll(
+  ctx: CommandContext,
+  player: MudObject,
+  target: Living,
+  room: MudObject
+): Promise<void> {
+  const living = player as Living;
+  const playerName = player.name || 'Someone';
+  const targetNameStr = target.name || 'someone';
+
+  // Get all equipped items to exclude them
+  const equipped = living.getAllEquipped ? new Set(living.getAllEquipped().values()) : new Set();
+
+  // Find all giveable items (non-equipped, droppable Items)
+  const itemsToGive: MudObject[] = [];
+  for (const item of player.inventory) {
+    if (equipped.has(item)) continue; // Skip equipped items
+    if (!(item instanceof Item)) continue; // Only items
+    if (!item.dropable) continue; // Must be droppable
+
+    // Check if this specific item can be given
+    const giveCheck = await canGive(item, player, target);
+    if (giveCheck.canGive) {
+      itemsToGive.push(item);
+    }
+  }
+
+  if (itemsToGive.length === 0) {
+    ctx.sendLine("You're not carrying anything you can give away.");
+    return;
+  }
+
+  const given: string[] = [];
+  for (const item of itemsToGive) {
+    // Unequip if needed (should already be excluded, but just in case)
+    unequipIfNeeded(item);
+
+    // Move item to target
+    await item.moveTo(target);
+
+    // Check for quest delivery
+    const giveCheck = await canGive(item, player, target);
+    if (giveCheck.isQuestDelivery) {
+      try {
+        const { getQuestDaemon } = await import('../../daemons/quest.js');
+        const questDaemon = getQuestDaemon();
+        const itemPath = item.objectPath || '';
+        const targetPath = target.objectPath || '';
+        type QuestPlayer = Parameters<typeof questDaemon.updateDeliverObjective>[0];
+        questDaemon.updateDeliverObjective(player as unknown as QuestPlayer, itemPath, targetPath);
+      } catch {
+        // Quest system error
+      }
+    }
+
+    given.push(item.shortDesc);
+  }
+
+  // Output message to player
+  if (given.length === 1) {
+    ctx.sendLine(`You give ${given[0]} to ${targetNameStr}.`);
+  } else {
+    ctx.sendLine(`You give ${given.length} items to ${targetNameStr}:`);
+    for (const desc of given) {
+      ctx.sendLine(`  ${desc}`);
+    }
+  }
+
+  // Notify target
+  if ('receive' in target) {
+    const recv = target as MudObject & { receive: (msg: string) => void };
+    if (given.length === 1) {
+      recv.receive(`${playerName} gives you ${given[0]}.\n`);
+    } else {
+      recv.receive(`${playerName} gives you ${given.length} items.\n`);
+    }
+  }
+
+  // Notify room
+  for (const observer of room.inventory) {
+    if (observer !== player && observer !== target && 'receive' in observer) {
+      const recv = observer as MudObject & { receive: (msg: string) => void };
+      if (given.length === 1) {
+        recv.receive(`${playerName} gives ${given[0]} to ${targetNameStr}.\n`);
+      } else {
+        recv.receive(`${playerName} gives several items to ${targetNameStr}.\n`);
+      }
+    }
+  }
+}
+
+/**
+ * Give all items of a specific type to the target.
+ * e.g., "give all sword to bob" gives all swords.
+ */
+async function giveAllOfType(
+  ctx: CommandContext,
+  player: MudObject,
+  target: Living,
+  room: MudObject,
+  typeName: string
+): Promise<void> {
+  const living = player as Living;
+  const playerName = player.name || 'Someone';
+  const targetNameStr = target.name || 'someone';
+
+  // Get all equipped items to exclude them
+  const equipped = living.getAllEquipped ? new Set(living.getAllEquipped().values()) : new Set();
+
+  // Find all matching items
+  const matchingItems = findAllMatching(typeName, player.inventory);
+
+  // Filter to giveable items (non-equipped, droppable)
+  const itemsToGive: MudObject[] = [];
+  for (const item of matchingItems) {
+    if (equipped.has(item)) continue;
+    if (!(item instanceof Item)) continue;
+    if (!item.dropable) continue;
+
+    const giveCheck = await canGive(item, player, target);
+    if (giveCheck.canGive) {
+      itemsToGive.push(item);
+    }
+  }
+
+  if (itemsToGive.length === 0) {
+    if (matchingItems.length === 0) {
+      ctx.sendLine(`You don't have any ${typeName}s.`);
+    } else {
+      ctx.sendLine(`You can't give any of those away.`);
+    }
+    return;
+  }
+
+  const given: string[] = [];
+  for (const item of itemsToGive) {
+    unequipIfNeeded(item);
+    await item.moveTo(target);
+
+    // Check for quest delivery
+    const giveCheck = await canGive(item, player, target);
+    if (giveCheck.isQuestDelivery) {
+      try {
+        const { getQuestDaemon } = await import('../../daemons/quest.js');
+        const questDaemon = getQuestDaemon();
+        const itemPath = item.objectPath || '';
+        const targetPath = target.objectPath || '';
+        type QuestPlayer = Parameters<typeof questDaemon.updateDeliverObjective>[0];
+        questDaemon.updateDeliverObjective(player as unknown as QuestPlayer, itemPath, targetPath);
+      } catch {
+        // Quest system error
+      }
+    }
+
+    given.push(item.shortDesc);
+  }
+
+  // Output message
+  if (given.length === 1) {
+    ctx.sendLine(`You give ${given[0]} to ${targetNameStr}.`);
+  } else {
+    ctx.sendLine(`You give ${given.length} items to ${targetNameStr}:`);
+    for (const desc of given) {
+      ctx.sendLine(`  ${desc}`);
+    }
+  }
+
+  // Notify target
+  if ('receive' in target) {
+    const recv = target as MudObject & { receive: (msg: string) => void };
+    if (given.length === 1) {
+      recv.receive(`${playerName} gives you ${given[0]}.\n`);
+    } else {
+      recv.receive(`${playerName} gives you ${given.length} items.\n`);
+    }
+  }
+
+  // Notify room
+  for (const observer of room.inventory) {
+    if (observer !== player && observer !== target && 'receive' in observer) {
+      const recv = observer as MudObject & { receive: (msg: string) => void };
+      if (given.length === 1) {
+        recv.receive(`${playerName} gives ${given[0]} to ${targetNameStr}.\n`);
+      } else {
+        recv.receive(`${playerName} gives several items to ${targetNameStr}.\n`);
+      }
     }
   }
 }

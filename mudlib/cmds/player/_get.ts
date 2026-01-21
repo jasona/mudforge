@@ -3,6 +3,7 @@
  *
  * Usage:
  *   get <item>                - Pick up an item from the room
+ *   get <item> <number>       - Pick up the Nth matching item (e.g., "get sword 2")
  *   get all                   - Pick up all takeable items from the room
  *   get gold                  - Pick up gold coins from the room
  *   get <item> from <container> - Get an item from a container
@@ -14,6 +15,13 @@ import type { MudObject } from '../../lib/std.js';
 import { Item, Container } from '../../lib/std.js';
 import { Corpse } from '../../std/corpse.js';
 import { GoldPile } from '../../std/gold-pile.js';
+import {
+  parseItemInput,
+  findItem,
+  findAllMatching,
+  countMatching,
+  isGoldKeyword,
+} from '../../lib/item-utils.js';
 
 interface CommandContext {
   player: MudObject;
@@ -50,9 +58,10 @@ function canTake(item: MudObject, taker: MudObject): { canTake: boolean; reason?
 }
 
 /**
- * Find an item by name in a list of objects.
+ * Find a container by name in a list of objects.
+ * This is a simple single-match function for containers.
  */
-function findItem(name: string, items: MudObject[]): MudObject | undefined {
+function findContainer(name: string, items: MudObject[]): MudObject | undefined {
   const lowerName = name.toLowerCase();
   return items.find((item) => item.id(lowerName));
 }
@@ -98,7 +107,8 @@ export async function execute(ctx: CommandContext): Promise<void> {
 }
 
 /**
- * Get a single item from the room.
+ * Get items from the room, with support for indexed selection and "all <type>".
+ * e.g., "get sword 2" gets the second sword, "get all sword" gets all swords.
  */
 async function getFromRoom(
   ctx: CommandContext,
@@ -108,9 +118,8 @@ async function getFromRoom(
   const { player } = ctx;
   const playerWithGold = player as PlayerWithGold;
 
-  // Check for gold pile pickup
-  const lowerName = itemName.toLowerCase();
-  if (lowerName === 'gold' || lowerName === 'coins' || lowerName === 'coin') {
+  // Check for gold pile pickup first (don't apply index parsing to gold)
+  if (isGoldKeyword(itemName)) {
     // Find gold pile in room
     const goldPile = room.inventory.find((item) => item instanceof GoldPile) as GoldPile | undefined;
     if (!goldPile) {
@@ -145,9 +154,30 @@ async function getFromRoom(
     return;
   }
 
-  const item = findItem(itemName, room.inventory);
+  // Parse the item input for indexed selection (e.g., "sword 2") or "all <type>"
+  const parsed = parseItemInput(itemName);
+
+  // Handle "get all <type>" - get all matching items of a specific type
+  if (parsed.isAllOfType) {
+    await getAllOfTypeFromRoom(ctx, room, parsed.name);
+    return;
+  }
+
+  const item = findItem(parsed.name, room.inventory, parsed.index);
 
   if (!item) {
+    // Check if item exists but index is out of range
+    if (parsed.index !== undefined) {
+      const count = countMatching(parsed.name, room.inventory);
+      if (count > 0) {
+        if (count === 1) {
+          ctx.sendLine(`There is only 1 ${parsed.name} here.`);
+        } else {
+          ctx.sendLine(`There are only ${count} ${parsed.name}s here.`);
+        }
+        return;
+      }
+    }
     ctx.sendLine("You don't see that here.");
     return;
   }
@@ -285,7 +315,68 @@ async function getAllFromRoom(ctx: CommandContext, room: MudObject): Promise<voi
 }
 
 /**
- * Get an item from a container.
+ * Get all items of a specific type from the room.
+ * e.g., "get all sword" gets all swords.
+ */
+async function getAllOfTypeFromRoom(
+  ctx: CommandContext,
+  room: MudObject,
+  typeName: string
+): Promise<void> {
+  const { player } = ctx;
+
+  // Find all matching items
+  const matchingItems = findAllMatching(typeName, room.inventory);
+
+  // Filter to only takeable items
+  const takeableItems = matchingItems.filter((item) => {
+    if (!(item instanceof Item)) return false;
+    const check = canTake(item, player);
+    return check.canTake;
+  });
+
+  if (takeableItems.length === 0) {
+    if (matchingItems.length === 0) {
+      ctx.sendLine(`You don't see any ${typeName}s here.`);
+    } else {
+      ctx.sendLine(`You can't take any of those.`);
+    }
+    return;
+  }
+
+  const taken: string[] = [];
+  for (const item of takeableItems) {
+    await item.moveTo(player);
+    taken.push(item.shortDesc);
+  }
+
+  // Output message
+  if (taken.length === 1) {
+    ctx.sendLine(`You pick up ${taken[0]}.`);
+  } else {
+    ctx.sendLine(`You pick up ${taken.length} items:`);
+    for (const desc of taken) {
+      ctx.sendLine(`  ${desc}`);
+    }
+  }
+
+  // Notify room
+  const playerName = player.name || 'Someone';
+  for (const observer of room.inventory) {
+    if (observer !== player && 'receive' in observer) {
+      const recv = observer as MudObject & { receive: (msg: string) => void };
+      if (taken.length === 1) {
+        recv.receive(`${playerName} picks up ${taken[0]}.\n`);
+      } else {
+        recv.receive(`${playerName} picks up several items.\n`);
+      }
+    }
+  }
+}
+
+/**
+ * Get an item from a container, with support for indexed selection.
+ * e.g., "get sword 2 from chest" gets the second sword from the chest.
  */
 async function getFromContainer(
   ctx: CommandContext,
@@ -295,10 +386,10 @@ async function getFromContainer(
 ): Promise<void> {
   const { player } = ctx;
 
-  // Find the container in room or player's inventory
-  let container = findItem(containerName, room.inventory);
+  // Find the container in room or player's inventory (no indexed selection for containers)
+  let container = findContainer(containerName, room.inventory);
   if (!container) {
-    container = findItem(containerName, player.inventory);
+    container = findContainer(containerName, player.inventory);
   }
 
   if (!container) {
@@ -316,8 +407,8 @@ async function getFromContainer(
     return;
   }
 
-  // Special handling for "get gold from corpse"
-  if (itemName.toLowerCase() === 'gold' || itemName.toLowerCase() === 'coins') {
+  // Special handling for "get gold from corpse" (don't apply index parsing)
+  if (isGoldKeyword(itemName)) {
     if (container instanceof Corpse) {
       const corpse = container;
       if (corpse.gold <= 0) {
@@ -343,14 +434,32 @@ async function getFromContainer(
     }
   }
 
-  if (itemName.toLowerCase() === 'all') {
+  // Parse for indexed selection (e.g., "sword 2") or "all <type>"
+  const parsed = parseItemInput(itemName);
+
+  if (parsed.isAll) {
     // Get all from container
     await getAllFromContainer(ctx, container);
+  } else if (parsed.isAllOfType) {
+    // Get all of a specific type from container
+    await getAllOfTypeFromContainer(ctx, container, parsed.name, room);
   } else {
-    // Get single item from container
-    const item = findItem(itemName, container.inventory);
+    // Get single item (with optional index)
+    const item = findItem(parsed.name, container.inventory, parsed.index);
 
     if (!item) {
+      // Check if item exists but index is out of range
+      if (parsed.index !== undefined) {
+        const count = countMatching(parsed.name, container.inventory);
+        if (count > 0) {
+          if (count === 1) {
+            ctx.sendLine(`There is only 1 ${parsed.name} in the ${container.shortDesc}.`);
+          } else {
+            ctx.sendLine(`There are only ${count} ${parsed.name}s in the ${container.shortDesc}.`);
+          }
+          return;
+        }
+      }
       ctx.sendLine(`You don't see that in the ${container.shortDesc}.`);
       return;
     }
@@ -428,6 +537,57 @@ async function getAllFromContainer(ctx: CommandContext, container: Container): P
         } else {
           recv.receive(`${playerName} empties ${container.shortDesc}.\n`);
         }
+      }
+    }
+  }
+}
+
+/**
+ * Get all items of a specific type from a container.
+ * e.g., "get all sword from chest" gets all swords from the chest.
+ */
+async function getAllOfTypeFromContainer(
+  ctx: CommandContext,
+  container: Container,
+  typeName: string,
+  room: MudObject
+): Promise<void> {
+  const { player } = ctx;
+
+  // Find all matching items in the container
+  const matchingItems = findAllMatching(typeName, container.inventory);
+
+  if (matchingItems.length === 0) {
+    ctx.sendLine(`You don't see any ${typeName}s in the ${container.shortDesc}.`);
+    return;
+  }
+
+  const taken: string[] = [];
+  for (const item of matchingItems) {
+    await item.moveTo(player);
+    await container.onGet(item, player);
+    taken.push(item.shortDesc);
+  }
+
+  // Output message
+  if (taken.length === 1) {
+    ctx.sendLine(`You get ${taken[0]} from ${container.shortDesc}.`);
+  } else {
+    ctx.sendLine(`You get from ${container.shortDesc}:`);
+    for (const desc of taken) {
+      ctx.sendLine(`  ${desc}`);
+    }
+  }
+
+  // Notify room
+  const playerName = player.name || 'Someone';
+  for (const observer of room.inventory) {
+    if (observer !== player && 'receive' in observer) {
+      const recv = observer as MudObject & { receive: (msg: string) => void };
+      if (taken.length === 1) {
+        recv.receive(`${playerName} gets ${taken[0]} from ${container.shortDesc}.\n`);
+      } else {
+        recv.receive(`${playerName} gets several items from ${container.shortDesc}.\n`);
       }
     }
   }
