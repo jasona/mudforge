@@ -692,9 +692,9 @@ export class Room extends MudObject {
               viewer as Parameters<typeof obj.getQuestIndicatorSync>[0]
             );
             if (indicator === '?') {
-              questIndicator = ' {green}?{/}';
+              questIndicator = ' {green}[?]{/}';
             } else if (indicator === '!') {
-              questIndicator = ' {yellow}!{/}';
+              questIndicator = ' {yellow}[!]{/}';
             }
           }
           desc = `{red}${desc}{/}${questIndicator}`;
