@@ -587,6 +587,24 @@ export class EfunBridge {
   }
 
   /**
+   * Load a blueprint object from disk if not already loaded.
+   * Unlike cloneObject, this returns the blueprint singleton, not a clone.
+   * Rooms and other singleton objects should use this method.
+   * @param path The object path
+   */
+  async loadBlueprint(path: string): Promise<MudObject | undefined> {
+    // First check if already loaded
+    const existing = this.registry.find(path);
+    if (existing) {
+      return existing;
+    }
+
+    // Load from disk
+    const loader = getMudlibLoader({ mudlibPath: this.config.mudlibPath });
+    return loader.loadObject(path);
+  }
+
+  /**
    * Get all loaded objects in the registry.
    * Used by daemons that need to iterate over all objects (e.g., reset daemon).
    * @returns Array of all loaded MudObjects
@@ -3190,6 +3208,7 @@ RULES:
       destruct: this.destruct.bind(this),
       loadObject: this.loadObject.bind(this),
       findObject: this.findObject.bind(this),
+      loadBlueprint: this.loadBlueprint.bind(this),
       getAllObjects: this.getAllObjects.bind(this),
 
       // Hierarchy
