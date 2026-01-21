@@ -6,8 +6,134 @@ import type {
   InputElement,
   DisplayElement,
   ElementStyle,
+  TooltipConfig,
 } from './gui-types.js';
 import { AVATARS } from '../avatars.js';
+
+// =============================================================================
+// Tooltip Support
+// =============================================================================
+
+let tooltipElement: HTMLElement | null = null;
+let tooltipTimeout: ReturnType<typeof setTimeout> | null = null;
+
+/**
+ * Get or create the global tooltip element.
+ */
+function getTooltipElement(): HTMLElement {
+  if (!tooltipElement) {
+    tooltipElement = document.createElement('div');
+    tooltipElement.className = 'gui-tooltip';
+    tooltipElement.style.cssText = `
+      position: fixed;
+      z-index: 10001;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16162a 100%);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 8px;
+      padding: 12px;
+      color: #e5e5e5;
+      font-size: 12px;
+      max-width: 300px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.15s ease;
+      line-height: 1.4;
+    `;
+    document.body.appendChild(tooltipElement);
+  }
+  return tooltipElement;
+}
+
+/**
+ * Show a tooltip near an element.
+ */
+function showTooltip(target: HTMLElement, config: TooltipConfig | string): void {
+  const tooltip = getTooltipElement();
+  const cfg = typeof config === 'string' ? { content: config } : config;
+
+  // Set content
+  if (cfg.html) {
+    tooltip.innerHTML = cfg.content;
+  } else {
+    tooltip.textContent = cfg.content;
+  }
+
+  // Apply max width
+  tooltip.style.maxWidth = cfg.maxWidth || '300px';
+
+  // Make visible to measure
+  tooltip.style.opacity = '0';
+  tooltip.style.display = 'block';
+
+  // Position the tooltip
+  const rect = target.getBoundingClientRect();
+  const tooltipRect = tooltip.getBoundingClientRect();
+  const position = cfg.position || 'auto';
+
+  let left = rect.left + (rect.width / 2) - (tooltipRect.width / 2);
+  let top = rect.top - tooltipRect.height - 8;
+
+  // Auto position: prefer top, but use bottom if not enough space
+  if (position === 'auto' || position === 'top') {
+    if (top < 8) {
+      top = rect.bottom + 8;
+    }
+  } else if (position === 'bottom') {
+    top = rect.bottom + 8;
+  } else if (position === 'left') {
+    left = rect.left - tooltipRect.width - 8;
+    top = rect.top + (rect.height / 2) - (tooltipRect.height / 2);
+  } else if (position === 'right') {
+    left = rect.right + 8;
+    top = rect.top + (rect.height / 2) - (tooltipRect.height / 2);
+  }
+
+  // Keep tooltip on screen
+  left = Math.max(8, Math.min(left, window.innerWidth - tooltipRect.width - 8));
+  top = Math.max(8, Math.min(top, window.innerHeight - tooltipRect.height - 8));
+
+  tooltip.style.left = `${left}px`;
+  tooltip.style.top = `${top}px`;
+  tooltip.style.opacity = '1';
+}
+
+/**
+ * Hide the tooltip.
+ */
+function hideTooltip(): void {
+  if (tooltipTimeout) {
+    clearTimeout(tooltipTimeout);
+    tooltipTimeout = null;
+  }
+  if (tooltipElement) {
+    tooltipElement.style.opacity = '0';
+  }
+}
+
+/**
+ * Attach tooltip behavior to an element.
+ */
+export function attachTooltip(element: HTMLElement, config: TooltipConfig | string): void {
+  element.addEventListener('mouseenter', () => {
+    if (tooltipTimeout) {
+      clearTimeout(tooltipTimeout);
+    }
+    // Small delay before showing tooltip
+    tooltipTimeout = setTimeout(() => {
+      showTooltip(element, config);
+    }, 200);
+  });
+
+  element.addEventListener('mouseleave', () => {
+    hideTooltip();
+  });
+
+  // Also hide on click (in case they click a button)
+  element.addEventListener('click', () => {
+    hideTooltip();
+  });
+}
 
 /**
  * Apply inline styles to an element.
@@ -429,6 +555,11 @@ export function renderDisplayElement(element: DisplayElement): HTMLElement {
     el.style.display = 'none';
   }
   applyStyle(el, element.style);
+
+  // Attach tooltip if specified
+  if (element.tooltip) {
+    attachTooltip(el, element.tooltip);
+  }
 
   return el;
 }
