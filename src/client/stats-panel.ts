@@ -28,6 +28,9 @@ export class StatsPanel {
   private levelText: HTMLElement | null = null;
   private goldText: HTMLElement | null = null;
   private bankText: HTMLElement | null = null;
+  private encumbranceBar: HTMLElement | null = null;
+  private encumbranceText: HTMLElement | null = null;
+  private encumbranceDetail: HTMLElement | null = null;
 
   constructor(containerId: string) {
     // Get or create container
@@ -87,6 +90,17 @@ export class StatsPanel {
           </div>
         </div>
 
+        <div class="stats-bar-group stats-encumbrance-group">
+          <div class="stats-bar-header">
+            <span class="stats-bar-label">ENC</span>
+            <span class="stats-bar-value" data-stat="enc">0%</span>
+          </div>
+          <div class="stats-bar stats-bar-enc">
+            <div class="stats-bar-fill enc-none" data-bar="enc" style="width: 0%;"></div>
+          </div>
+          <div class="stats-enc-detail" data-stat="enc-detail">None (0/0 lbs)</div>
+        </div>
+
         <div class="stats-gold-row">
           <span class="stats-gold-header"><span class="stats-gold-icon">💰</span>Gold</span>
           <span class="stats-gold-value" data-stat="gold">0</span>
@@ -111,6 +125,9 @@ export class StatsPanel {
     this.levelText = this.panel.querySelector('[data-stat="level"]');
     this.goldText = this.panel.querySelector('[data-stat="gold"]');
     this.bankText = this.panel.querySelector('[data-stat="bank"]');
+    this.encumbranceBar = this.panel.querySelector('[data-bar="enc"]');
+    this.encumbranceText = this.panel.querySelector('[data-stat="enc"]');
+    this.encumbranceDetail = this.panel.querySelector('[data-stat="enc-detail"]');
 
     // Set up event handlers
     this.setupEventHandlers();
@@ -185,6 +202,46 @@ export class StatsPanel {
     if (this.bankText) {
       this.bankText.textContent = this.formatGold(message.bankedGold);
     }
+
+    // Update encumbrance bar
+    const encPercent = message.encumbrancePercent ?? 0;
+    const encColorClass = this.getEncumbranceColorClass(encPercent);
+    if (this.encumbranceBar) {
+      // Cap display at 100% but keep actual value for calculation
+      const displayPercent = Math.min(encPercent, 100);
+      this.encumbranceBar.style.width = `${displayPercent}%`;
+      this.encumbranceBar.className = 'stats-bar-fill ' + encColorClass;
+    }
+    if (this.encumbranceText) {
+      this.encumbranceText.textContent = `${Math.round(encPercent)}%`;
+    }
+    if (this.encumbranceDetail) {
+      const levelLabel = this.getEncumbranceLevelLabel(encPercent);
+      const carried = Math.round(message.carriedWeight ?? 0);
+      const max = Math.round(message.maxCarryWeight ?? 0);
+      this.encumbranceDetail.textContent = `${levelLabel} (${carried}/${max} lbs)`;
+    }
+  }
+
+  /**
+   * Get CSS color class for encumbrance based on percentage.
+   * Thresholds: <50% none (green), 50-74% light (yellow), 75-99% medium (orange), 100%+ heavy (red)
+   */
+  private getEncumbranceColorClass(percent: number): string {
+    if (percent >= 100) return 'enc-heavy';
+    if (percent >= 75) return 'enc-medium';
+    if (percent >= 50) return 'enc-light';
+    return 'enc-none';
+  }
+
+  /**
+   * Get display label for encumbrance level based on percentage.
+   */
+  private getEncumbranceLevelLabel(percent: number): string {
+    if (percent >= 100) return 'Heavy';
+    if (percent >= 75) return 'Medium';
+    if (percent >= 50) return 'Light';
+    return 'None';
   }
 
   /**

@@ -44,6 +44,10 @@ export interface StatsMessage {
   cwd: string;
   avatar: string;
   profilePortrait?: string; // AI-generated portrait data URI
+  carriedWeight: number;
+  maxCarryWeight: number;
+  encumbrancePercent: number;
+  encumbranceLevel: 'none' | 'light' | 'medium' | 'heavy';
 }
 
 /**

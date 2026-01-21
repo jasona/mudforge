@@ -1089,11 +1089,48 @@ body {
   background: linear-gradient(90deg, #eab308, #fbbf24);
 }
 
+/* Encumbrance bar colors */
+
+.stats-bar-fill.enc-none {
+  background: linear-gradient(90deg, #22c55e, #4ade80);
+}
+
+.stats-bar-fill.enc-light {
+  background: linear-gradient(90deg, #eab308, #fbbf24);
+}
+
+.stats-bar-fill.enc-medium {
+  background: linear-gradient(90deg, #f97316, #fb923c);
+}
+
+.stats-bar-fill.enc-heavy {
+  background: linear-gradient(90deg, #dc2626, #ef4444);
+  animation: enc-pulse 1s ease-in-out infinite;
+}
+
+@keyframes enc-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.stats-enc-detail {
+  font-size: var(--font-size-xs);
+  color: var(--text-tertiary);
+  text-align: center;
+  margin-top: var(--spacing-xs);
+}
+
 /* Gold display */
 .stats-gold-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
+}
+
+.stats-gold-row:first-of-type {
+  margin-top: var(--spacing-sm);
+  padding-top: var(--spacing-sm);
+  border-top: 1px solid var(--border-subtle);
 }
 
 .stats-gold-header {

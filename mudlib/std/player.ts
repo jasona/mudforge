@@ -1072,6 +1072,10 @@ export class Player extends Living {
         cwd: this._cwd,
         avatar: this._avatar,
         profilePortrait: typeof profilePortrait === 'string' ? profilePortrait : undefined,
+        carriedWeight: this.getCarriedWeight(),
+        maxCarryWeight: this.getMaxCarryWeight(),
+        encumbrancePercent: this.getEncumbrancePercent(),
+        encumbranceLevel: this.getEncumbranceLevel(),
       });
     }
 
