@@ -14,6 +14,15 @@ import { canSeeInRoom, getDarknessMessage } from '../../std/visibility/index.js'
 import type { Living } from '../../std/living.js';
 import type { Room as RoomClass } from '../../std/room.js';
 
+// Pet type check helper (avoids circular dependency)
+function isPetWithDescription(obj: unknown): obj is { getFullDescription: () => string } {
+  return obj !== null &&
+    typeof obj === 'object' &&
+    'getFullDescription' in obj &&
+    'ownerName' in obj &&
+    'petId' in obj;
+}
+
 interface CommandContext {
   player: MudObject;
   args: string;
@@ -49,6 +58,10 @@ function findItem(name: string, items: MudObject[]): MudObject | undefined {
  * Get the description of an object, with container state if applicable.
  */
 function getObjectDescription(obj: MudObject): string {
+  // Pets have their own detailed description
+  if (isPetWithDescription(obj)) {
+    return obj.getFullDescription();
+  }
   if (obj instanceof Container) {
     return obj.getFullDescription();
   }

@@ -27,7 +27,8 @@ from a bloody stall.
 
 A narrow alley to the {green}north{/} leads to the {yellow}bakery{/}. The {yellow}tannery{/} lies to the
 {green}west{/}, its pungent smell occasionally drifting over. The town center lies to the {green}east{/}.
-To the {green}northwest{/}, you can see the glow of a {red}forge{/} and hear the ring of a hammer on steel.`;
+To the {green}northwest{/}, you can see the glow of a {red}forge{/} and hear the ring of a hammer on steel.
+To the {green}south{/}, a cheerful sign reads "{green}Whiskers & Hooves Pet Emporium{/}".`;
 
     // Map coordinates - west of center
     this.setMapCoordinates({ x: -1, y: 0, z: 0, area: '/areas/valdoria/aldric' });
@@ -42,6 +43,7 @@ To the {green}northwest{/}, you can see the glow of a {red}forge{/} and hear the
     this.addExit('north', '/areas/valdoria/aldric/bakery');
     this.addExit('west', '/areas/valdoria/aldric/tannery');
     this.addExit('northwest', '/areas/valdoria/aldric/forge');
+    this.addExit('south', '/areas/valdoria/aldric/pet_store');
 
     // Set NPCs that belong to this room - they'll respawn on reset if missing
     this.setNpcs(['/areas/valdoria/aldric/merchant']);

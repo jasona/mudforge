@@ -651,6 +651,12 @@ ${'='.repeat(bannerWidth)}
       playerWithEquipment.restoreEquipment();
     }
 
+    // Restore pets (must be done after player is in a room)
+    const playerWithPets = player as Player & { restorePets?: () => Promise<void> };
+    if (playerWithPets.restorePets) {
+      await playerWithPets.restorePets();
+    }
+
     // Call onConnect
     await player.onConnect();
 

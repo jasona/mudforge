@@ -21,7 +21,7 @@ import { createHash } from 'crypto';
 /**
  * Object image types.
  */
-export type ObjectImageType = 'player' | 'npc' | 'weapon' | 'armor' | 'container' | 'item' | 'corpse' | 'gold';
+export type ObjectImageType = 'player' | 'npc' | 'pet' | 'weapon' | 'armor' | 'container' | 'item' | 'corpse' | 'gold';
 
 /**
  * Cached portrait data.
@@ -286,8 +286,12 @@ Style requirements:
     // For corpses, use the owner name as the unique identifier instead of objectPath
     // since all corpses share the same blueprint path
     // For gold piles, use the size category as the identifier since they're created dynamically
+    // For pets, use the template type since they're dynamically created
     let cacheIdentifier: string;
-    if (type === 'corpse' && 'ownerName' in obj) {
+    if (type === 'pet' && 'templateType' in obj) {
+      const pet = obj as MudObject & { templateType: string };
+      cacheIdentifier = `pet_${pet.templateType}`;
+    } else if (type === 'corpse' && 'ownerName' in obj) {
       const corpse = obj as MudObject & { ownerName: string };
       cacheIdentifier = `corpse_${corpse.ownerName}`;
     } else if (type === 'gold' && 'amount' in obj) {
@@ -307,7 +311,7 @@ Style requirements:
     } else {
       cacheIdentifier = obj.objectPath || '';
       if (!cacheIdentifier) {
-        return type === 'npc' || type === 'player' ? getFallbackDataUri() : getFallbackItemDataUri();
+        return type === 'npc' || type === 'player' || type === 'pet' ? getFallbackDataUri() : getFallbackItemDataUri();
       }
     }
 
@@ -423,7 +427,7 @@ Style requirements:
     }
 
     // Fall back to generic image
-    return type === 'npc' || type === 'player' ? getFallbackDataUri() : getFallbackItemDataUri();
+    return type === 'npc' || type === 'player' || type === 'pet' ? getFallbackDataUri() : getFallbackItemDataUri();
   }
 
   /**
@@ -479,6 +483,22 @@ Style requirements:
 - Dramatic lighting with shadows
 - Painterly texture suitable for a game UI
 - Should look like a character portrait from a classic RPG game
+- 64x64 pixel icon style, bold and recognizable
+- The artwork must fill the entire canvas from edge to edge
+- No borders, margins, or empty space around the subject`;
+
+      case 'pet':
+        return `Create a small square portrait icon for a fantasy RPG pet/companion:
+
+${description}
+
+Style requirements:
+- Dark fantasy art style with rich, warm colors
+- Portrait composition focused on the creature's face/body
+- Friendly but noble appearance
+- Dramatic lighting with soft shadows
+- Painterly texture suitable for a game UI
+- Should look like a companion portrait from a classic RPG game
 - 64x64 pixel icon style, bold and recognizable
 - The artwork must fill the entire canvas from edge to edge
 - No borders, margins, or empty space around the subject`;
@@ -556,7 +576,7 @@ Fill entire canvas edge to edge, no borders or margins`;
    * Get the fallback image for an object type.
    */
   getFallbackImage(type: ObjectImageType): string {
-    return type === 'npc' || type === 'player' ? getFallbackDataUri() : getFallbackItemDataUri();
+    return type === 'npc' || type === 'player' || type === 'pet' ? getFallbackDataUri() : getFallbackItemDataUri();
   }
 
   /**

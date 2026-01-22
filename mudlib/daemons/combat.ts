@@ -10,6 +10,11 @@ import type { Living, Weapon, DamageType, CombatEntry, RoundResult, AttackResult
 import type { ConfigDaemon } from './config.js';
 import { getQuestDaemon } from './quest.js';
 
+// Pet type check helper (avoids circular dependency with pet.ts)
+function isPet(obj: unknown): obj is { canBeAttacked: (attacker: MudObject) => { canAttack: boolean; reason: string } } {
+  return obj !== null && typeof obj === 'object' && 'canBeAttacked' in obj && typeof (obj as Record<string, unknown>).canBeAttacked === 'function';
+}
+
 /**
  * Base round time in milliseconds.
  */
@@ -187,6 +192,15 @@ export class CombatDaemon extends MudObject {
     if (this.isNPC(attacker) && this.hasNohassle(defender)) {
       // Silently fail - NPCs don't get messages
       return false;
+    }
+
+    // Check if attacking a pet - requires PK to be enabled
+    if (isPet(defender)) {
+      const petCheck = defender.canBeAttacked(attacker);
+      if (!petCheck.canAttack) {
+        attacker.receive(`{yellow}${petCheck.reason}{/}\n`);
+        return false;
+      }
     }
 
     // Check nohassle: Builder+ with nohassle on cannot initiate combat with NPCs
