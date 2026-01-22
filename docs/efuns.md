@@ -649,3 +649,83 @@ efuns.ideOpen('/areas/town/tavern.ts', sourceCode, {
 ```
 
 Used by the `ide` and `lore edit` commands to provide visual editing.
+
+---
+
+## Giphy Efuns
+
+Functions for GIF sharing on channels. See [Giphy Integration](giphy-integration.md) for full documentation.
+
+### giphyAvailable()
+
+Check if Giphy GIF sharing is configured and available.
+
+```typescript
+if (efuns.giphyAvailable()) {
+  // Giphy is ready to use
+}
+```
+
+Returns `false` if `GIPHY_API_KEY` is not set or `giphy.enabled` config is `false`.
+
+### giphySearch(query)
+
+Search for a GIF on Giphy.
+
+```typescript
+const result = await efuns.giphySearch('funny cats');
+
+if (result.success) {
+  console.log(result.url);    // GIF URL
+  console.log(result.title);  // GIF title
+} else {
+  console.log(result.error);  // Error message
+}
+```
+
+**Parameters:**
+- `query: string` - Search terms (max 100 characters)
+
+**Returns:** `{ success: boolean; url?: string; title?: string; error?: string }`
+
+### giphyGenerateId()
+
+Generate a unique ID for caching a GIF.
+
+```typescript
+const gifId = efuns.giphyGenerateId();
+// e.g., "gif_lxyz123_abc456"
+```
+
+### giphyCacheGif(id, data)
+
+Cache a GIF for later retrieval via clickable links.
+
+```typescript
+efuns.giphyCacheGif('gif_abc123', {
+  url: 'https://media.giphy.com/...',
+  title: 'Funny Cat',
+  senderName: 'PlayerName',
+  channelName: 'OOC',
+  query: 'funny cats',
+});
+```
+
+Cache duration: 1 hour.
+
+### giphyGetCachedGif(id)
+
+Retrieve a cached GIF by ID.
+
+```typescript
+const gif = efuns.giphyGetCachedGif('gif_abc123');
+
+if (gif) {
+  console.log(gif.url);         // GIF URL
+  console.log(gif.senderName);  // Who shared it
+  console.log(gif.channelName); // Which channel
+  console.log(gif.query);       // Search query
+}
+```
+
+Returns `undefined` if ID doesn't exist or cache has expired.

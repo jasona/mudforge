@@ -899,6 +899,53 @@ declare global {
       body: string,
       labels?: string[]
     ): Promise<{ success: boolean; url?: string; issueNumber?: number; error?: string }>;
+
+    // ========== Giphy Efuns ==========
+
+    /** Check if Giphy GIF sharing is configured and available */
+    giphyAvailable(): boolean;
+
+    /**
+     * Search for a GIF on Giphy.
+     * @param query The search query
+     * @returns Search result with URL and title, or error
+     */
+    giphySearch(query: string): Promise<{
+      success: boolean;
+      url?: string;
+      title?: string;
+      error?: string;
+    }>;
+
+    /** Generate a unique ID for a GIF share */
+    giphyGenerateId(): string;
+
+    /**
+     * Cache a GIF for later retrieval via clickable link.
+     * @param id Unique GIF ID
+     * @param data GIF data including URL, sender, channel, query
+     */
+    giphyCacheGif(id: string, data: {
+      url: string;
+      title: string;
+      senderName: string;
+      channelName: string;
+      query: string;
+    }): void;
+
+    /**
+     * Retrieve a cached GIF by ID.
+     * @param id GIF ID to look up
+     * @returns Cached GIF data or undefined if not found/expired
+     */
+    giphyGetCachedGif(id: string): {
+      url: string;
+      title: string;
+      senderName: string;
+      channelName: string;
+      query: string;
+      expiresAt: number;
+    } | undefined;
   };
 }
 

@@ -16,6 +16,7 @@ export interface CommMessage {
   recipients?: string[];
   timestamp: number;
   isSender?: boolean;    // True if recipient is the one who sent this message
+  gifId?: string;        // GIF ID for clickable [View GIF] links
 }
 
 type TabType = 'all' | 'says' | 'tells' | 'channels';
@@ -35,6 +36,14 @@ interface LayoutState {
 interface Position {
   x: number;
   y: number;
+}
+
+/**
+ * Options for CommPanel constructor.
+ */
+interface CommPanelOptions {
+  /** Callback when a GIF link is clicked */
+  onGifClick?: (gifId: string) => void;
 }
 
 /**
@@ -63,7 +72,10 @@ export class CommPanel {
   // Auto-scroll
   private autoScroll: boolean = true;
 
-  constructor(containerId: string) {
+  // GIF click callback
+  private onGifClick?: (gifId: string) => void;
+
+  constructor(containerId: string, options?: CommPanelOptions) {
     // Get or create container
     const existing = document.getElementById(containerId);
     if (existing) {
@@ -108,6 +120,9 @@ export class CommPanel {
         this.tabButtons.set(tab, btn);
       }
     }
+
+    // Store options
+    this.onGifClick = options?.onGifClick;
 
     // Restore saved layout
     this.restoreLayout();
@@ -158,6 +173,20 @@ export class CommPanel {
     document.addEventListener('mouseup', this.onDragEnd.bind(this));
     document.addEventListener('touchmove', this.onTouchMove.bind(this), { passive: false });
     document.addEventListener('touchend', this.onDragEnd.bind(this));
+
+    // GIF link click handler
+    if (this.content) {
+      this.content.addEventListener('click', (e) => {
+        const target = e.target as HTMLElement;
+        if (target.classList.contains('gif-link')) {
+          const gifId = target.dataset.gifId;
+          if (gifId && this.onGifClick) {
+            this.onGifClick(gifId);
+          }
+          e.preventDefault();
+        }
+      });
+    }
   }
 
   /**
@@ -479,7 +508,12 @@ export class CommPanel {
         }
         break;
       case 'channel':
-        content = `<span class="comm-channel">[${this.escapeHtml(message.channel || 'Unknown')}]</span> <span class="comm-sender">${this.escapeHtml(message.sender)}</span>: ${this.escapeHtml(message.message)}`;
+        // Check if this message has a GIF link
+        if (message.gifId) {
+          content = `<span class="comm-channel">[${this.escapeHtml(message.channel || 'Unknown')}]</span> <span class="comm-sender">${this.escapeHtml(message.sender)}</span>: ${this.escapeHtml(message.message)} <a href="#" class="gif-link" data-gif-id="${this.escapeHtml(message.gifId)}">[View GIF]</a>`;
+        } else {
+          content = `<span class="comm-channel">[${this.escapeHtml(message.channel || 'Unknown')}]</span> <span class="comm-sender">${this.escapeHtml(message.sender)}</span>: ${this.escapeHtml(message.message)}`;
+        }
         break;
     }
 

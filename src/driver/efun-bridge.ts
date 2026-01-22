@@ -32,6 +32,7 @@ import {
   type GameConfig,
 } from './version.js';
 import { getGitHubClient } from './github-client.js';
+import { getGiphyClient, type CachedGif } from './giphy-client.js';
 
 /**
  * Pager options for the page efun.
@@ -105,6 +106,7 @@ export interface CommMessage {
   recipients?: string[]; // For group tells
   timestamp: number;
   isSender?: boolean;    // True if recipient is the one who sent this message
+  gifId?: string;        // GIF ID for clickable [View GIF] links
 }
 
 /**
@@ -3243,6 +3245,98 @@ RULES:
     return result;
   }
 
+  // ========== Giphy Efuns ==========
+
+  /**
+   * Check if Giphy GIF sharing is configured and available.
+   */
+  giphyAvailable(): boolean {
+    // Check if Giphy is enabled in config
+    const enabled = this.getMudConfig<boolean>('giphy.enabled') ?? false;
+    if (!enabled) return false;
+
+    const client = getGiphyClient();
+    return client !== null && client.isConfigured();
+  }
+
+  /**
+   * Search for a GIF on Giphy.
+   * @param query The search query
+   * @returns Search result with URL and title, or error
+   */
+  async giphySearch(query: string): Promise<{
+    success: boolean;
+    url?: string;
+    title?: string;
+    error?: string;
+  }> {
+    const client = getGiphyClient();
+    if (!client || !client.isConfigured()) {
+      return { success: false, error: 'Giphy not configured' };
+    }
+
+    // Check if enabled
+    const enabled = this.getMudConfig<boolean>('giphy.enabled') ?? false;
+    if (!enabled) {
+      return { success: false, error: 'GIF sharing is currently disabled' };
+    }
+
+    // Get player name for rate limiting
+    const playerName = this.getPlayerNameForRateLimit();
+
+    // Update rate limit from config
+    const rateLimit = this.getMudConfig<number>('giphy.playerRateLimitPerMinute') ?? 3;
+    client.setRateLimit(rateLimit);
+
+    // Update rating from config
+    const rating = this.getMudConfig<string>('giphy.rating') ?? 'pg';
+    client.setRating(rating);
+
+    return client.search(query, playerName);
+  }
+
+  /**
+   * Generate a unique ID for a GIF share.
+   */
+  giphyGenerateId(): string {
+    const client = getGiphyClient();
+    if (!client) {
+      return `gif_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 8)}`;
+    }
+    return client.generateGifId();
+  }
+
+  /**
+   * Cache a GIF for later retrieval via clickable link.
+   * @param id Unique GIF ID
+   * @param data GIF data including URL, sender, channel, query
+   */
+  giphyCacheGif(id: string, data: {
+    url: string;
+    title: string;
+    senderName: string;
+    channelName: string;
+    query: string;
+  }): void {
+    const client = getGiphyClient();
+    if (!client) return;
+
+    // Set expiration to 1 hour
+    const expiresAt = Date.now() + 3600000;
+    client.cacheGif(id, { ...data, expiresAt });
+  }
+
+  /**
+   * Retrieve a cached GIF by ID.
+   * @param id GIF ID to look up
+   * @returns Cached GIF data or undefined if not found/expired
+   */
+  giphyGetCachedGif(id: string): CachedGif | undefined {
+    const client = getGiphyClient();
+    if (!client) return undefined;
+    return client.getGifCache(id);
+  }
+
   /**
    * Get all efuns as an object for exposing to sandbox.
    */
@@ -3428,6 +3522,13 @@ RULES:
       // GitHub
       githubAvailable: this.githubAvailable.bind(this),
       githubCreateIssue: this.githubCreateIssue.bind(this),
+
+      // Giphy
+      giphyAvailable: this.giphyAvailable.bind(this),
+      giphySearch: this.giphySearch.bind(this),
+      giphyGenerateId: this.giphyGenerateId.bind(this),
+      giphyCacheGif: this.giphyCacheGif.bind(this),
+      giphyGetCachedGif: this.giphyGetCachedGif.bind(this),
     };
   }
 

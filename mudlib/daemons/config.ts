@@ -74,6 +74,30 @@ const DEFAULT_SETTINGS: Record<string, ConfigSetting> = {
     description: 'Clean up non-player-owned items during room reset',
     type: 'boolean',
   },
+  'giphy.enabled': {
+    value: true,
+    description: 'Enable Giphy GIF sharing on channels',
+    type: 'boolean',
+  },
+  'giphy.autoCloseSeconds': {
+    value: 5,
+    description: 'Seconds before GIF popup auto-closes (0 to disable)',
+    type: 'number',
+    min: 0,
+    max: 30,
+  },
+  'giphy.rating': {
+    value: 'pg',
+    description: 'Content rating filter (g, pg, pg-13, r)',
+    type: 'string',
+  },
+  'giphy.playerRateLimitPerMinute': {
+    value: 3,
+    description: 'Max GIF shares per player per minute',
+    type: 'number',
+    min: 1,
+    max: 20,
+  },
 };
 
 /**

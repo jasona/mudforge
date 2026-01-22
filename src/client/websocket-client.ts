@@ -167,6 +167,7 @@ export interface CommMessage {
   recipients?: string[];
   timestamp: number;
   isSender?: boolean;    // True if recipient is the one who sent this message
+  gifId?: string;        // GIF ID for clickable [View GIF] links
 }
 
 /**

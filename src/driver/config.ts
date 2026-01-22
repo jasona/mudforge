@@ -69,6 +69,9 @@ export interface DriverConfig {
   githubToken: string;
   githubOwner: string;
   githubRepo: string;
+
+  // Giphy (for GIF sharing on channels)
+  giphyApiKey: string;
 }
 
 const LOG_LEVELS = ['trace', 'debug', 'info', 'warn', 'error', 'fatal'] as const;
@@ -172,6 +175,9 @@ export function loadConfig(): DriverConfig {
     githubToken: process.env['GITHUB_TOKEN'] ?? '',
     githubOwner: process.env['GITHUB_OWNER'] ?? '',
     githubRepo: process.env['GITHUB_REPO'] ?? '',
+
+    // Giphy (for GIF sharing on channels)
+    giphyApiKey: process.env['GIPHY_API_KEY'] ?? '',
   };
 }
 

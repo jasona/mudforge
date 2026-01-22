@@ -110,6 +110,15 @@ The channels daemon manages global communication channels.
 | `builder` | Builders+ | Builder discussion |
 | `admin` | Admins | Admin communication |
 
+### Special Syntax
+
+| Prefix | Function | Example |
+|--------|----------|---------|
+| `:` | Channel emote | `ooc :laughs` |
+| `;` | Share GIF | `ooc ;funny cats` |
+
+The `;` prefix triggers a Giphy search and shares the result to all channel members. See [Giphy Integration](giphy-integration.md) for details.
+
 ### API
 
 ```typescript

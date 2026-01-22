@@ -103,7 +103,14 @@ class MudClient {
         });
       },
     });
-    this.commPanel = new CommPanel('comm-container');
+    this.commPanel = new CommPanel('comm-container', {
+      onGifClick: (gifId) => {
+        // Send gif command to server to re-open the GIF modal
+        if (this.wsClient.isConnected) {
+          this.wsClient.send(`gif ${gifId}`);
+        }
+      },
+    });
     this.combatPanel = new CombatPanel('combat-container');
     this.soundManager = new SoundManager();
     this.soundPanel = new SoundPanel('sound-container', this.soundManager);

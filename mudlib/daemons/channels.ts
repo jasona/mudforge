@@ -11,6 +11,7 @@ import { MudObject } from '../std/object.js';
 import { composeMessage } from '../lib/message-composer.js';
 import { canSee, getVisibleDisplayName } from '../std/visibility/index.js';
 import type { Living } from '../std/living.js';
+import { openGiphyModal } from '../lib/giphy-modal.js';
 
 /**
  * Channel access types.
@@ -419,6 +420,11 @@ export class ChannelDaemon extends MudObject {
       return this.sendEmote(player, channelName, message.slice(1).trim());
     }
 
+    // Check for Giphy syntax (message starts with ;)
+    if (message.startsWith(';')) {
+      return this.sendGiphy(player, channelName, message.slice(1).trim());
+    }
+
     // If this is an I3 channel, also send to I3 network
     if (channel.source === 'intermud' && channel.i3ChannelName) {
       this.sendToI3(channel.i3ChannelName, player.name, message);
@@ -611,6 +617,145 @@ export class ChannelDaemon extends MudObject {
     this.broadcastEmote(channelName, channel, template, player, target);
 
     return true;
+  }
+
+  /**
+   * Send a GIF to a channel using Giphy.
+   * Syntax: channel ;search query
+   */
+  async sendGiphy(player: ChannelPlayer, channelName: string, searchQuery: string): Promise<boolean> {
+    const channel = this.getChannel(channelName);
+    if (!channel) {
+      return false;
+    }
+
+    if (!searchQuery) {
+      player.receive(`{yellow}Usage: ${channelName} ;search query{/}\n`);
+      return false;
+    }
+
+    // Check if Giphy is available
+    if (typeof efuns === 'undefined' || !efuns.giphyAvailable || !efuns.giphyAvailable()) {
+      player.receive(`{yellow}GIF sharing is currently disabled.{/}\n`);
+      return false;
+    }
+
+    // Search for a GIF
+    const result = await efuns.giphySearch(searchQuery);
+
+    if (!result.success || !result.url) {
+      player.receive(`{yellow}${result.error || 'Failed to find a GIF.'}{/}\n`);
+      return false;
+    }
+
+    // Generate a unique GIF ID and cache the GIF data
+    const gifId = efuns.giphyGenerateId();
+    const senderName = player.name.charAt(0).toUpperCase() + player.name.slice(1);
+
+    efuns.giphyCacheGif(gifId, {
+      url: result.url,
+      title: result.title || searchQuery,
+      senderName,
+      channelName: channel.displayName,
+      query: searchQuery,
+    });
+
+    // Get auto-close time from config
+    const autoCloseSeconds = efuns.getMudConfig<number>('giphy.autoCloseSeconds') ?? 5;
+    const autoCloseMs = autoCloseSeconds * 1000;
+
+    // Store in history
+    this.addToHistory(channelName, {
+      channel: channelName,
+      sender: player.name,
+      message: `;${searchQuery}`,
+      timestamp: Date.now(),
+    });
+
+    // Broadcast text message and GIF modal to all channel members
+    this.broadcastGif(
+      channelName,
+      channel,
+      player,
+      senderName,
+      searchQuery,
+      result.url,
+      gifId,
+      autoCloseMs
+    );
+
+    return true;
+  }
+
+  /**
+   * Broadcast a GIF to all channel members.
+   * Sends both a text message to terminal/comm panel and a GIF modal popup.
+   */
+  private broadcastGif(
+    channelName: string,
+    channel: ChannelConfig,
+    sender: ChannelPlayer,
+    senderName: string,
+    searchQuery: string,
+    gifUrl: string,
+    gifId: string,
+    autoCloseMs: number
+  ): void {
+    // Get all connected players
+    let players: MudObject[] = [];
+    if (typeof efuns !== 'undefined' && efuns.allPlayers) {
+      players = efuns.allPlayers();
+    }
+
+    const color = channel.color ?? 'white';
+    const timestamp = Date.now();
+
+    for (const obj of players) {
+      const player = obj as ChannelPlayer;
+
+      // Skip if player can't access channel
+      if (!this.canAccess(player, channelName)) {
+        continue;
+      }
+
+      // Skip if player has channel off
+      if (!this.isChannelOn(player, channelName)) {
+        continue;
+      }
+
+      // Get visibility-aware sender name
+      const visibleName = this.getVisibleSenderName(sender, player);
+
+      // Format text message for terminal
+      const formattedMessage = `{${color}}[${channel.displayName}]{/} {bold}${visibleName}{/} shares a GIF: '{dim}${searchQuery}{/}'\n`;
+
+      // Send message to terminal
+      if (typeof player.receive === 'function') {
+        player.receive(formattedMessage);
+      }
+
+      // Send to comm panel with GIF ID for clickable link
+      if (typeof efuns !== 'undefined' && efuns.sendComm) {
+        efuns.sendComm(player, {
+          type: 'comm',
+          commType: 'channel',
+          sender: visibleName,
+          message: `shares a GIF: '${searchQuery}'`,
+          channel: channel.displayName,
+          timestamp,
+          gifId,
+        });
+      }
+
+      // Open GIF modal popup for this player
+      openGiphyModal(obj, {
+        gifUrl,
+        senderName: visibleName,
+        channelName: channel.displayName,
+        searchQuery,
+        autoCloseMs,
+      });
+    }
   }
 
   /**
