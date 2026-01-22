@@ -240,6 +240,16 @@ export class CombatDaemon extends MudObject {
     this.startCombatMusic(attacker);
     this.startCombatMusic(defender);
 
+    // Party auto-assist: trigger party members to attack the same target
+    import('./party.js')
+      .then(({ getPartyDaemon }) => {
+        const partyDaemon = getPartyDaemon();
+        partyDaemon.handleLeaderCombat(attacker as Parameters<typeof partyDaemon.handleLeaderCombat>[0], defender);
+      })
+      .catch(() => {
+        // Party daemon not available
+      });
+
     return true;
   }
 

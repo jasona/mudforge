@@ -3,6 +3,7 @@
  */
 
 import type { MudObject, Living, EquipmentSlot } from '../../lib/std.js';
+import { openInventoryModal } from '../../lib/inventory-modal.js';
 
 interface CommandContext {
   player: MudObject;
@@ -15,9 +16,14 @@ interface PlayerWithGold extends MudObject {
   gold?: number;
 }
 
+interface InventoryPlayer extends Living {
+  gold: number;
+  onGUIResponse?: (msg: unknown) => void;
+}
+
 export const name = ['inventory', 'i', 'inv'];
 export const description = 'See what you are carrying';
-export const usage = 'inventory';
+export const usage = 'inventory [text|gui]';
 
 /**
  * Get the equipment indicator for an item.
@@ -37,7 +43,10 @@ function getEquipIndicator(item: MudObject, equipped: Map<EquipmentSlot, MudObje
   return '';
 }
 
-export function execute(ctx: CommandContext): void {
+/**
+ * Show text-based inventory display.
+ */
+function showTextInventory(ctx: CommandContext): void {
   const { player } = ctx;
   const living = player as Living;
   const items = player.inventory;
@@ -74,6 +83,41 @@ export function execute(ctx: CommandContext): void {
     ctx.sendLine('');
     ctx.sendLine(`{yellow}Coin purse: ${playerWithGold.gold} gold{/}`);
   }
+}
+
+/**
+ * Try to show GUI inventory modal.
+ * @returns true if GUI was shown, false if GUI is unavailable
+ */
+async function tryShowGUIInventory(ctx: CommandContext): Promise<boolean> {
+  if (typeof efuns === 'undefined' || !efuns.guiSend) {
+    return false;
+  }
+
+  const player = ctx.player as InventoryPlayer;
+  await openInventoryModal(player);
+  return true;
+}
+
+export async function execute(ctx: CommandContext): Promise<void> {
+  const args = ctx.args.trim().toLowerCase();
+
+  // Explicit text mode
+  if (args === 'text') {
+    showTextInventory(ctx);
+    return;
+  }
+
+  // Explicit GUI mode or default
+  if (args === 'gui' || args === '') {
+    if (await tryShowGUIInventory(ctx)) {
+      return;
+    }
+    // Fall back to text if GUI unavailable
+  }
+
+  // Unknown argument or GUI fallback
+  showTextInventory(ctx);
 }
 
 export default { name, description, usage, execute };

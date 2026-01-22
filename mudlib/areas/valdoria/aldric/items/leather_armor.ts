@@ -13,11 +13,10 @@ export class LeatherArmor extends Armor {
 points. The leather has been treated and cured to provide decent
 protection while remaining flexible enough for full freedom of
 movement. Ideal for scouts and rogues who value mobility.`,
-      size: 'large', // Armor category
-      weight: 5, // Explicit: studded leather is heavier than plain
-      value: 75,
-      armor: 3,
+      size: 'large',
+      weight: 5,
       slot: 'chest',
+      itemLevel: 6, // Auto-balance: studded leather quality
     });
 
     this.addId('armor');

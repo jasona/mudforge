@@ -16,10 +16,9 @@ export class TravelersCloak extends Armor {
 to keep out wind and rain, and the hood is large enough to shadow your face.
 A bronze clasp shaped like a leaf holds it closed at the throat. The hem
 shows signs of road dust and minor repairs, marking it as well-traveled.`,
-      size: 'medium', // Cloth cloak
-      value: 45,
-      armor: 1,
+      size: 'medium',
       slot: 'cloak',
+      itemLevel: 3, // Auto-balance: basic cloth quality
     });
 
     this.addId('cloak');

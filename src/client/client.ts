@@ -20,6 +20,7 @@ import { InputHandler } from './input-handler.js';
 import { IdeEditor } from './ide-editor.js';
 import { MapPanel } from './map-panel.js';
 import { StatsPanel } from './stats-panel.js';
+import { EquipmentPanel } from './equipment-panel.js';
 import { QuestPanel } from './quest-panel.js';
 import { CommPanel } from './comm-panel.js';
 import { CombatPanel } from './combat-panel.js';
@@ -40,6 +41,7 @@ class MudClient {
   private ideEditor: IdeEditor;
   private mapPanel: MapPanel;
   private statsPanel: StatsPanel;
+  private equipmentPanel: EquipmentPanel;
   private questPanel: QuestPanel;
   private commPanel: CommPanel;
   private combatPanel: CombatPanel;
@@ -76,7 +78,22 @@ class MudClient {
         console.log('Room clicked:', roomPath);
       },
     });
-    this.statsPanel = new StatsPanel('stats-container');
+    this.statsPanel = new StatsPanel('stats-container', {
+      onAvatarClick: () => {
+        // Send request to server to open score modal
+        this.wsClient.sendGUIMessage({
+          action: 'avatar-click',
+        });
+      },
+    });
+    this.equipmentPanel = new EquipmentPanel('equipment-container', {
+      onSlotClick: () => {
+        // Send request to server to open inventory modal
+        this.wsClient.sendGUIMessage({
+          action: 'open-inventory',
+        });
+      },
+    });
     this.questPanel = new QuestPanel('quest-container', {
       onQuestClick: (questId: string) => {
         // Send request to server to open quest log GUI
@@ -151,6 +168,7 @@ class MudClient {
     // Stats events
     this.wsClient.on('stats-message', (message: StatsMessage) => {
       this.statsPanel.handleMessage(message);
+      this.equipmentPanel.handleMessage(message);
       // Track permission level and cwd for tab completion
       this.permissionLevel = message.permissionLevel ?? 0;
       this.cwd = message.cwd ?? '/';

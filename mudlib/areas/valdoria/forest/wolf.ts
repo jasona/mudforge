@@ -21,9 +21,6 @@ Its muscles ripple beneath its coat as it pads silently through the undergrowth.
 Sharp teeth glint when it snarls, and its ears are constantly swiveling,
 alert for both prey and danger. This is clearly a dangerous predator.`,
       gender: 'neutral',
-      level: 5,
-      maxHealth: 45,
-      health: 45,
       respawnTime: 180, // 3 minutes
       chatChance: 10,
       chats: [
@@ -34,10 +31,6 @@ alert for both prey and danger. This is clearly a dangerous predator.`,
         { message: 'watches you with hungry eyes', type: 'emote' },
         { message: 'raises its hackles', type: 'emote' },
       ],
-      // Combat configuration
-      baseXP: 35,
-      gold: 0,
-      goldDrop: { min: 0, max: 3 },
       lootTable: [
         { itemPath: '/items/quest/wolf_pelt', chance: 65 },
         { itemPath: '/items/quest/wolf_pelt', chance: 30 }, // Chance for second pelt
@@ -47,16 +40,17 @@ alert for both prey and danger. This is clearly a dangerous predator.`,
       wanderAreaRestricted: true,
     });
 
-    // Set base stats (wolves are fast and tough)
-    this.setBaseStats({
-      strength: 12,
-      dexterity: 14,
-      constitution: 12,
-      intelligence: 4,
-      wisdom: 10,
-      charisma: 6,
-      luck: 8,
-    });
+    // Use auto-balance for level 5 normal NPC
+    this.setLevel(5);
+
+    // Override stats for wolf flavor (fast and tough)
+    this.setBaseStat('strength', 12);
+    this.setBaseStat('dexterity', 14);
+    this.setBaseStat('constitution', 12);
+    this.setBaseStat('intelligence', 4);
+    this.setBaseStat('wisdom', 10);
+    this.setBaseStat('charisma', 6);
+    this.setBaseStat('luck', 8);
 
     // Wolves don't use mana
     this.maxMana = 0;

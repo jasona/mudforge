@@ -13,10 +13,9 @@ export class IronHelm extends Armor {
 lined with leather padding for comfort. While it somewhat limits
 peripheral vision, the protection it offers to the head is
 invaluable in combat.`,
-      size: 'large', // Metal helm (weight 3)
-      value: 60,
-      armor: 2,
+      size: 'large',
       slot: 'head',
+      itemLevel: 6, // Auto-balance: iron quality
     });
 
     this.addId('helm');

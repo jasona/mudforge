@@ -20,9 +20,6 @@ mean eyes. Its curved tusks look sharp and dangerous, and it snorts
 aggressively as it roots through the underbrush. These creatures
 are known for their bad temper and surprising ferocity when cornered.`,
       gender: 'neutral',
-      level: 4,
-      maxHealth: 35,
-      health: 35,
       respawnTime: 150,
       chatChance: 12,
       chats: [
@@ -32,24 +29,23 @@ are known for their bad temper and surprising ferocity when cornered.`,
         { message: 'grunts and snuffles', type: 'emote' },
         { message: 'shakes its bristly hide', type: 'emote' },
       ],
-      baseXP: 25,
-      gold: 0,
-      goldDrop: { min: 0, max: 2 },
       lootTable: [],
       wandering: true,
       wanderChance: 12,
       wanderAreaRestricted: true,
     });
 
-    this.setBaseStats({
-      strength: 14,
-      dexterity: 8,
-      constitution: 14,
-      intelligence: 3,
-      wisdom: 6,
-      charisma: 4,
-      luck: 8,
-    });
+    // Use auto-balance for level 4 normal NPC
+    this.setLevel(4);
+
+    // Override stats for boar flavor (strong, tough, slow)
+    this.setBaseStat('strength', 14);
+    this.setBaseStat('dexterity', 8);
+    this.setBaseStat('constitution', 14);
+    this.setBaseStat('intelligence', 3);
+    this.setBaseStat('wisdom', 6);
+    this.setBaseStat('charisma', 4);
+    this.setBaseStat('luck', 8);
 
     this.maxMana = 0;
     this.mana = 0;

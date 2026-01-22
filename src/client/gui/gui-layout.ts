@@ -3,7 +3,7 @@
  */
 
 import type { LayoutContainer } from './gui-types.js';
-import { applyStyle } from './gui-elements.js';
+import { applyStyle, attachTooltip } from './gui-elements.js';
 
 type ChildRenderer = (child: LayoutContainer | unknown) => HTMLElement;
 
@@ -31,6 +31,8 @@ export function renderLayout(
       // Tabs handle their own children, so return early
       if (layout.id) container.id = `gui-layout-${layout.id}`;
       if (layout.className) container.classList.add(layout.className);
+      // Attach tooltip if specified
+      if (layout.tooltip) attachTooltip(container, layout.tooltip);
       return container;
     case 'form':
       container = createFormLayout(layout);
@@ -49,6 +51,11 @@ export function renderLayout(
   }
   if (layout.className) {
     container.classList.add(layout.className);
+  }
+
+  // Attach tooltip if specified
+  if (layout.tooltip) {
+    attachTooltip(container, layout.tooltip);
   }
 
   return container;

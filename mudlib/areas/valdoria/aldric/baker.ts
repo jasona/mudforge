@@ -22,8 +22,6 @@ trapdoor leading to the cellar.
 She hums as she works, kneading dough with practiced ease, but you
 can tell something weighs on her mind.`,
       gender: 'female',
-      maxHealth: 50,
-      health: 50,
       chatChance: 10,
     });
 
@@ -31,6 +29,13 @@ can tell something weighs on her mind.`,
     this.addId('hilda');
     this.addId('baker hilda');
     this.addId('woman');
+
+    // Use auto-balance for level 3 normal (civilian)
+    this.setLevel(3);
+
+    // Override health - she's a civilian, not a fighter
+    this.maxHealth = 50;
+    this.health = 50;
 
     // Quest giver configuration
     this.setQuestsOffered(['aldric:rat_problem']);

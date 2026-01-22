@@ -16,11 +16,10 @@ export class IronHelmet extends Armor {
 skull, while a nose guard extends down to shield the face. Cheek guards hang
 from the sides, and the interior is padded with leather for comfort. It's not
 fancy, but it will protect your head from most blows.`,
-      size: 'large', // Metal helmet
-      weight: 4, // Explicit: heavier than typical large
-      value: 75,
-      armor: 2,
+      size: 'large',
+      weight: 4,
       slot: 'head',
+      itemLevel: 8, // Auto-balance: iron quality
     });
 
     this.addId('helmet');

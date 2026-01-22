@@ -6,7 +6,7 @@
   "main": "dist/driver/index.js",
   "scripts": {
     "build": "tsc && npm run build:client",
-    "build:client": "esbuild src/client/index.ts --bundle --outfile=dist/client/client.js --sourcemap && node -e \"require('fs').cpSync('src/client/index.html', 'dist/client/index.html')\" && node -e \"require('fs').cpSync('src/client/styles.css', 'dist/client/styles.css')\" && node -e \"require('fs').cpSync('src/client/sounds', 'dist/client/sounds', { recursive: true })\"",
+    "build:client": "esbuild src/client/index.ts --bundle --outfile=dist/client/client.js --sourcemap && node -e \"require('fs').cpSync('src/client/index.html', 'dist/client/index.html')\" && node -e \"require('fs').cpSync('src/client/styles.css', 'dist/client/styles.css')\" && node -e \"require('fs').cpSync('src/client/sounds', 'dist/client/sounds', { recursive: true })\" && node -e \"require('fs').cpSync('src/client/images', 'dist/client/images', { recursive: true })\"",
     "dev": "tsx watch --ignore=\"mudlib/**\" --ignore=\"**/mudlib/**\" --ignore=\".juggle/**\" src/driver/index.ts",
     "dev:no-watch": "tsx src/driver/index.ts",
     "start": "tsx dist/driver/index.js",

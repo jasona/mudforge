@@ -17,11 +17,10 @@ iron rings. They extend from the waist down to the ankles, with leather
 straps at the waist and knees to keep them secure. A padded cloth lining
 prevents the metal from chafing against skin. The rings are riveted for
 extra durability, a mark of quality craftsmanship.`,
-      size: 'large', // Metal leg armor
-      weight: 6, // Heavier than default large
-      value: 150,
-      armor: 3,
+      size: 'large',
+      weight: 6,
       slot: 'legs',
+      itemLevel: 12, // Auto-balance: chainmail quality
       resistances: {
         slashing: 1,
       },

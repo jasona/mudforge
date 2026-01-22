@@ -13,10 +13,10 @@ export class NewbieHelm extends Armor {
 been worn by many training recruits before you, as evidenced by
 the scuff marks and slightly stretched fit. Still, it might save
 you from a nasty bump.`,
-      size: 'medium', // Light leather cap (weight 1)
-      value: 3,
-      armor: 1,
+      size: 'medium',
       slot: 'head',
+      itemLevel: 1, // Auto-balance: newbie tier
+      value: 3, // Override: newbie items are cheap
     });
 
     this.addId('helm');

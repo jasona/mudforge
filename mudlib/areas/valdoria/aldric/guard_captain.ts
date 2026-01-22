@@ -23,8 +23,6 @@ He stands near the dungeon entrance, occasionally glancing down at
 the iron grate with a troubled expression. A rolled map protrudes
 from his belt pouch.`,
       gender: 'male',
-      maxHealth: 150,
-      health: 150,
       chatChance: 8,
     });
 
@@ -39,16 +37,17 @@ from his belt pouch.`,
     this.setQuestsOffered(['aldric:map_the_depths']);
     this.setQuestsTurnedIn(['aldric:map_the_depths']);
 
-    // Combat stats - he's a tough veteran
-    this.setBaseStats({
-      strength: 16,
-      dexterity: 14,
-      constitution: 16,
-      intelligence: 12,
-      wisdom: 14,
-      charisma: 14,
-      luck: 10,
-    });
+    // Use auto-balance for level 20 normal (veteran soldier)
+    this.setLevel(20);
+
+    // Override stats - he's a tough veteran
+    this.setBaseStat('strength', 16);
+    this.setBaseStat('dexterity', 14);
+    this.setBaseStat('constitution', 16);
+    this.setBaseStat('intelligence', 12);
+    this.setBaseStat('wisdom', 14);
+    this.setBaseStat('charisma', 14);
+    this.setBaseStat('luck', 10);
 
     this.setupChats();
     this.setupResponses();

@@ -14,10 +14,9 @@ impressive, it's sturdy enough to serve a new adventurer until they
 can afford something better. The leather grip is soft from years of
 use by countless beginners.`,
       handedness: 'one_handed',
-      weight: 2, // Explicit: lighter than typical swords
-      value: 5,
-      minDamage: 2,
-      maxDamage: 4,
+      weight: 2,
+      itemLevel: 1, // Auto-balance: newbie tier
+      value: 5, // Override: newbie items are cheap
       damageType: 'slashing',
     });
 

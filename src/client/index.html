@@ -17,62 +17,7 @@
     <div class="launcher-card">
       <!-- Fantasy Art Panel -->
       <div class="launcher-art">
-        <svg viewBox="0 0 200 400" class="fantasy-scene" preserveAspectRatio="xMidYMid slice">
-          <defs>
-            <linearGradient id="sky" x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" style="stop-color:#1a1a2e"/>
-              <stop offset="50%" style="stop-color:#16213e"/>
-              <stop offset="100%" style="stop-color:#0f3460"/>
-            </linearGradient>
-            <linearGradient id="mountain" x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" style="stop-color:#2d3561"/>
-              <stop offset="100%" style="stop-color:#1a1a2e"/>
-            </linearGradient>
-            <linearGradient id="glow" x1="50%" y1="0%" x2="50%" y2="100%">
-              <stop offset="0%" style="stop-color:#f59e0b;stop-opacity:0.8"/>
-              <stop offset="100%" style="stop-color:#dc2626;stop-opacity:0"/>
-            </linearGradient>
-            <filter id="blur" x="-50%" y="-50%" width="200%" height="200%">
-              <feGaussianBlur in="SourceGraphic" stdDeviation="3"/>
-            </filter>
-          </defs>
-          <!-- Sky -->
-          <rect width="200" height="400" fill="url(#sky)"/>
-          <!-- Stars -->
-          <circle cx="30" cy="40" r="1" fill="#fff" opacity="0.7"/>
-          <circle cx="80" cy="25" r="0.8" fill="#fff" opacity="0.5"/>
-          <circle cx="150" cy="50" r="1.2" fill="#fff" opacity="0.8"/>
-          <circle cx="170" cy="80" r="0.6" fill="#fff" opacity="0.4"/>
-          <circle cx="45" cy="90" r="0.9" fill="#fff" opacity="0.6"/>
-          <circle cx="120" cy="35" r="1" fill="#fff" opacity="0.5"/>
-          <circle cx="60" cy="70" r="0.7" fill="#fff" opacity="0.4"/>
-          <!-- Moon -->
-          <circle cx="160" cy="60" r="15" fill="#e2e8f0" opacity="0.9"/>
-          <circle cx="165" cy="55" r="15" fill="url(#sky)"/>
-          <!-- Distant mountains -->
-          <polygon points="0,200 40,140 80,180 120,120 160,160 200,130 200,250 0,250" fill="#1e293b" opacity="0.6"/>
-          <!-- Mid mountains -->
-          <polygon points="0,220 50,160 100,200 150,150 200,190 200,280 0,280" fill="url(#mountain)"/>
-          <!-- Castle silhouette on hilltop -->
-          <polygon points="85,270 85,240 92,240 92,230 100,230 100,215 110,215 110,230 118,230 118,240 125,240 125,270" fill="#0f172a"/>
-          <rect x="100" y="235" width="10" height="15" fill="#f59e0b" opacity="0.5"/>
-          <rect x="93" y="250" width="6" height="10" fill="#f59e0b" opacity="0.3"/>
-          <!-- Foreground hills -->
-          <ellipse cx="50" cy="320" rx="100" ry="60" fill="#1e293b"/>
-          <ellipse cx="180" cy="340" rx="80" ry="50" fill="#1a1a2e"/>
-          <!-- Glowing forge/portal -->
-          <ellipse cx="100" cy="300" rx="25" ry="8" fill="url(#glow)" filter="url(#blur)"/>
-          <ellipse cx="100" cy="300" rx="15" ry="5" fill="#f59e0b" opacity="0.8"/>
-          <!-- Trees silhouette -->
-          <polygon points="20,280 30,240 40,280" fill="#0f172a"/>
-          <polygon points="35,285 50,230 65,285" fill="#1e293b"/>
-          <polygon points="160,290 175,235 190,290" fill="#0f172a"/>
-          <polygon points="145,295 165,250 185,295" fill="#1e293b"/>
-          <!-- Ground -->
-          <rect x="0" y="350" width="200" height="50" fill="#0f172a"/>
-          <!-- Path -->
-          <polygon points="85,350 115,350 130,400 70,400" fill="#1e293b" opacity="0.5"/>
-        </svg>
+        <img src="images/login_background.jpg" alt="Fantasy landscape with mountains and campfire" class="launcher-art-image">
       </div>
       <!-- Login Form Panel -->
       <div class="launcher-content">
@@ -205,6 +150,7 @@
     <main id="main-content">
       <div id="left-sidebar">
         <div id="stats-container" aria-label="Player stats"></div>
+        <div id="equipment-container" aria-label="Equipment"></div>
       </div>
       <div id="terminal-container">
         <div id="terminal" role="log" aria-live="polite" aria-label="Game output"></div>

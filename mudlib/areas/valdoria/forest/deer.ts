@@ -20,9 +20,6 @@ It moves with quiet grace through the forest, pausing occasionally
 to nibble on leaves or listen for danger. Its ears swivel constantly,
 alert to every sound.`,
       gender: 'neutral',
-      level: 2,
-      maxHealth: 20,
-      health: 20,
       respawnTime: 90,
       chatChance: 15,
       chats: [
@@ -32,24 +29,23 @@ alert to every sound.`,
         { message: 'stamps a hoof softly', type: 'emote' },
         { message: 'raises its head, sniffing the air', type: 'emote' },
       ],
-      baseXP: 8,
-      gold: 0,
-      goldDrop: { min: 0, max: 0 },
       lootTable: [],
       wandering: true,
       wanderChance: 15,
       wanderAreaRestricted: true,
     });
 
-    this.setBaseStats({
-      strength: 6,
-      dexterity: 14,
-      constitution: 8,
-      intelligence: 3,
-      wisdom: 10,
-      charisma: 12,
-      luck: 10,
-    });
+    // Use auto-balance for level 2 normal NPC
+    this.setLevel(2);
+
+    // Override stats for deer flavor (graceful, timid)
+    this.setBaseStat('strength', 6);
+    this.setBaseStat('dexterity', 14);
+    this.setBaseStat('constitution', 8);
+    this.setBaseStat('intelligence', 3);
+    this.setBaseStat('wisdom', 10);
+    this.setBaseStat('charisma', 12);
+    this.setBaseStat('luck', 10);
 
     this.maxMana = 0;
     this.mana = 0;

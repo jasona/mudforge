@@ -547,6 +547,13 @@ export class EfunBridge {
   }
 
   /**
+   * Get a copy of the current execution context.
+   */
+  getContext(): EfunContext {
+    return { ...this.context };
+  }
+
+  /**
    * Clear the execution context.
    */
   clearContext(): void {

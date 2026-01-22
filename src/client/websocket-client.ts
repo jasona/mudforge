@@ -27,6 +27,27 @@ type WebSocketClientEvent =
   | 'auth-response';
 
 /**
+ * Equipment slot data for stats display.
+ */
+export interface EquipmentSlotData {
+  name: string;
+  image?: string;
+  itemType: 'weapon' | 'armor';
+  // Tooltip data
+  description?: string;
+  weight?: number;
+  value?: number;
+  // Weapon-specific
+  minDamage?: number;
+  maxDamage?: number;
+  damageType?: string;
+  handedness?: string;
+  // Armor-specific
+  armor?: number;
+  slot?: string;
+}
+
+/**
  * Stats message structure for HP/MP/XP display.
  */
 export interface StatsMessage {
@@ -44,6 +65,13 @@ export interface StatsMessage {
   cwd: string;
   avatar: string;
   profilePortrait?: string; // AI-generated portrait data URI
+  carriedWeight: number;
+  maxCarryWeight: number;
+  encumbrancePercent: number;
+  encumbranceLevel: 'none' | 'light' | 'medium' | 'heavy';
+  equipment?: {
+    [slot: string]: EquipmentSlotData | null;
+  };
 }
 
 /**

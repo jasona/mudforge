@@ -14,10 +14,8 @@ a mirror-like polish, its edge keen enough to split a hair. The pommel
 is weighted for better control, and the guard is decorated with simple
 but elegant engravings.`,
       handedness: 'one_handed',
-      size: 'large', // Quality steel sword, heavier than average
-      value: 250,
-      minDamage: 6,
-      maxDamage: 12,
+      size: 'large',
+      itemLevel: 10, // Auto-balance: quality steel
       damageType: 'slashing',
     });
 

@@ -33,44 +33,29 @@ interface CachedPortrait {
 }
 
 /**
- * Fallback SVG for when AI generation fails (for living beings).
+ * Pre-encoded fallback SVG for living beings (base64).
  * A simple dark silhouette that works for any creature type.
  */
-const FALLBACK_SVG = `<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
-  <rect width="64" height="64" fill="#1a1a2e"/>
-  <ellipse cx="32" cy="24" rx="14" ry="16" fill="#2d2d3d"/>
-  <ellipse cx="32" cy="52" rx="18" ry="16" fill="#2d2d3d"/>
-  <circle cx="26" cy="22" r="2" fill="#4a4a5a"/>
-  <circle cx="38" cy="22" r="2" fill="#4a4a5a"/>
-  <text x="32" y="58" text-anchor="middle" fill="#5a5a6a" font-size="8" font-family="sans-serif">?</text>
-</svg>`;
+const FALLBACK_SVG_BASE64 = 'PHN2ZyB2aWV3Qm94PSIwIDAgNjQgNjQiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgPHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiBmaWxsPSIjMWExYTJlIi8+CiAgPGVsbGlwc2UgY3g9IjMyIiBjeT0iMjQiIHJ4PSIxNCIgcnk9IjE2IiBmaWxsPSIjMmQyZDNkIi8+CiAgPGVsbGlwc2UgY3g9IjMyIiBjeT0iNTIiIHJ4PSIxOCIgcnk9IjE2IiBmaWxsPSIjMmQyZDNkIi8+CiAgPGNpcmNsZSBjeD0iMjYiIGN5PSIyMiIgcj0iMiIgZmlsbD0iIzRhNGE1YSIvPgogIDxjaXJjbGUgY3g9IjM4IiBjeT0iMjIiIHI9IjIiIGZpbGw9IiM0YTRhNWEiLz4KICA8dGV4dCB4PSIzMiIgeT0iNTgiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZpbGw9IiM1YTVhNmEiIGZvbnQtc2l6ZT0iOCIgZm9udC1mYW1pbHk9InNhbnMtc2VyaWYiPj88L3RleHQ+Cjwvc3ZnPg==';
 
 /**
- * Fallback SVG for items when AI generation fails.
+ * Pre-encoded fallback SVG for items (base64).
  * A simple treasure chest icon.
  */
-const FALLBACK_ITEM_SVG = `<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
-  <rect width="64" height="64" fill="#1a1a2e"/>
-  <rect x="12" y="24" width="40" height="28" rx="4" fill="#3d2d1d"/>
-  <rect x="12" y="20" width="40" height="8" rx="2" fill="#4d3d2d"/>
-  <rect x="28" y="32" width="8" height="10" rx="2" fill="#6a5a4a"/>
-  <circle cx="32" cy="36" r="2" fill="#8a7a6a"/>
-</svg>`;
+const FALLBACK_ITEM_SVG_BASE64 = 'PHN2ZyB2aWV3Qm94PSIwIDAgNjQgNjQiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgPHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiBmaWxsPSIjMWExYTJlIi8+CiAgPHJlY3QgeD0iMTIiIHk9IjI0IiB3aWR0aD0iNDAiIGhlaWdodD0iMjgiIHJ4PSI0IiBmaWxsPSIjM2QyZDFkIi8+CiAgPHJlY3QgeD0iMTIiIHk9IjIwIiB3aWR0aD0iNDAiIGhlaWdodD0iOCIgcng9IjIiIGZpbGw9IiM0ZDNkMmQiLz4KICA8cmVjdCB4PSIyOCIgeT0iMzIiIHdpZHRoPSI4IiBoZWlnaHQ9IjEwIiByeD0iMiIgZmlsbD0iIzZhNWE0YSIvPgogIDxjaXJjbGUgY3g9IjMyIiBjeT0iMzYiIHI9IjIiIGZpbGw9IiM4YTdhNmEiLz4KPC9zdmc+';
 
 /**
  * Get the fallback portrait as a data URI.
  */
 function getFallbackDataUri(): string {
-  const base64 = Buffer.from(FALLBACK_SVG).toString('base64');
-  return `data:image/svg+xml;base64,${base64}`;
+  return `data:image/svg+xml;base64,${FALLBACK_SVG_BASE64}`;
 }
 
 /**
  * Get the fallback item image as a data URI.
  */
 function getFallbackItemDataUri(): string {
-  const base64 = Buffer.from(FALLBACK_ITEM_SVG).toString('base64');
-  return `data:image/svg+xml;base64,${base64}`;
+  return `data:image/svg+xml;base64,${FALLBACK_ITEM_SVG_BASE64}`;
 }
 
 /**

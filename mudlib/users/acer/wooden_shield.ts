@@ -17,11 +17,10 @@ The face is slightly convex to deflect blows, and a large iron boss in the
 center protects your hand grip. The back has a leather-padded handle and arm
 strap. While not as durable as a metal shield, it provides solid protection
 without being overly heavy.`,
-      size: 'large', // Shield category
-      weight: 5, // Explicit: reinforced wooden shield
-      value: 40,
-      armor: 2,
+      size: 'large',
+      weight: 5,
       slot: 'shield',
+      itemLevel: 4, // Auto-balance: basic wooden quality
     });
 
     this.addId('shield');

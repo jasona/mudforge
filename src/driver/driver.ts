@@ -221,6 +221,10 @@ export class Driver {
 
     // Set up the execute command callback so mudlib can use the command system
     this.efunBridge.setExecuteCommandCallback(async (player, input, level) => {
+      // Save current context so we can restore it after command execution
+      // This is important when executeCommand is called from within another context (e.g., GUI handlers)
+      const savedContext = this.efunBridge.getContext();
+
       // Set efun context so commands can use efuns that need player context
       this.efunBridge.setContext({ thisPlayer: player, thisObject: player });
       try {
@@ -234,8 +238,12 @@ export class Driver {
         // Fall back to emotes (soul daemon)
         return await this.tryEmote(player, resolvedInput);
       } finally {
-        // Clear context after command execution
-        this.efunBridge.clearContext();
+        // Restore previous context (or clear if there wasn't one)
+        if (savedContext.thisPlayer || savedContext.thisObject) {
+          this.efunBridge.setContext(savedContext);
+        } else {
+          this.efunBridge.clearContext();
+        }
       }
     });
 

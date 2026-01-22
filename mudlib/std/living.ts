@@ -80,7 +80,14 @@ export const DEFAULT_STAT = 1;
  * Minimum and maximum stat values.
  */
 export const MIN_STAT = 1;
-export const MAX_STAT = 100;
+export const MAX_STAT = 50;
+
+// Effect magnitude caps
+export const MAX_STAT_MODIFIER = 15;      // Max ±15 from single effect
+export const MAX_COMBAT_MODIFIER = 40;    // Max ±40% from single effect
+export const MAX_DOT_MAGNITUDE = 50;      // Max damage per tick
+export const MAX_RESISTANCE = 75;         // Max 75% resistance
+export const MAX_BUFF_STACKS = 5;         // Max stacks for stackable effects
 
 /**
  * Stat short names for display.
@@ -1093,6 +1100,26 @@ export class Living extends MudObject {
   // ========== Effects (Buffs/Debuffs) ==========
 
   /**
+   * Clamp effect magnitude based on effect type.
+   * @param type The effect type
+   * @param magnitude The raw magnitude
+   * @returns The clamped magnitude
+   */
+  private clampEffectMagnitude(type: string, magnitude: number): number {
+    switch (type) {
+      case 'stat_modifier':
+        return Math.max(-MAX_STAT_MODIFIER, Math.min(MAX_STAT_MODIFIER, magnitude));
+      case 'combat_modifier':
+        return Math.max(-MAX_COMBAT_MODIFIER, Math.min(MAX_COMBAT_MODIFIER, magnitude));
+      case 'damage_over_time':
+      case 'heal_over_time':
+        return Math.max(1, Math.min(MAX_DOT_MAGNITUDE, magnitude));
+      default:
+        return magnitude;
+    }
+  }
+
+  /**
    * Add an effect to this living.
    * @param effect The effect to add
    */
@@ -1101,24 +1128,28 @@ export class Living extends MudObject {
 
     // Handle stacking
     if (existing && effect.maxStacks && existing.stacks) {
-      existing.stacks = Math.min(existing.stacks + 1, effect.maxStacks);
+      existing.stacks = Math.min(existing.stacks + 1, Math.min(effect.maxStacks, MAX_BUFF_STACKS));
       existing.duration = effect.duration; // Refresh duration
       return;
     }
 
-    // Add new effect
+    // Add new effect with clamped magnitude
     const newEffect = { ...effect };
-    if (newEffect.maxStacks && !newEffect.stacks) {
-      newEffect.stacks = 1;
+    newEffect.magnitude = this.clampEffectMagnitude(effect.type, effect.magnitude);
+    if (newEffect.maxStacks) {
+      newEffect.maxStacks = Math.min(newEffect.maxStacks, MAX_BUFF_STACKS);
+      if (!newEffect.stacks) {
+        newEffect.stacks = 1;
+      }
     }
     this._effects.set(effect.id, newEffect);
 
     // Apply stat modifiers immediately
-    if (effect.type === 'stat_modifier' && effect.stat) {
-      this.addStatModifier(effect.stat, effect.magnitude);
+    if (newEffect.type === 'stat_modifier' && newEffect.stat) {
+      this.addStatModifier(newEffect.stat, newEffect.magnitude);
     }
-    if (effect.type === 'combat_modifier' && effect.combatStat) {
-      this.addCombatStatModifier(effect.combatStat, effect.magnitude);
+    if (newEffect.type === 'combat_modifier' && newEffect.combatStat) {
+      this.addCombatStatModifier(newEffect.combatStat, newEffect.magnitude);
     }
   }
 

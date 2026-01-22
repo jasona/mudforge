@@ -17,11 +17,10 @@ overlapping iron plates. The soles are studded for traction, and the
 toe caps are solid iron to protect against crushing blows. Padding
 lines the interior for comfort during long marches. They're not quiet,
 but they'll keep your feet safe in battle.`,
-      size: 'large', // Heavy boots
-      weight: 4, // Heavier due to iron reinforcement
-      value: 85,
-      armor: 2,
+      size: 'large',
+      weight: 4,
       slot: 'feet',
+      itemLevel: 8, // Auto-balance: iron quality
       resistances: {
         bludgeoning: 1,
       },

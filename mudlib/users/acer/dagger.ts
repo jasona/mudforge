@@ -16,11 +16,9 @@ export class SteelDagger extends Weapon {
 in dark leather for a secure grip, and the crossguard is minimal to allow for
 quick, precise strikes. This weapon is light enough to be wielded in either hand.`,
       handedness: 'light',
-      size: 'medium', // Steel dagger, heavier than typical light weapons
-      value: 50,
-      minDamage: 3,
-      maxDamage: 6,
-      damageType: 'physical',
+      size: 'medium',
+      itemLevel: 5, // Auto-balance: basic steel quality
+      damageType: 'piercing',
       slot: 'main_hand',
     });
 

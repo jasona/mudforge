@@ -18,12 +18,10 @@ maintaining strength. The long hilt is wrapped in worn leather, designed to
 accommodate a two-handed grip. Wield this weapon requires considerable strength,
 but the devastating power it delivers makes the effort worthwhile.`,
       handedness: 'two_handed',
-      size: 'huge', // Massive greatsword
-      weight: 12, // Explicit: exceptionally heavy
-      value: 150,
-      minDamage: 12,
-      maxDamage: 22,
-      damageType: 'physical',
+      size: 'huge',
+      weight: 12,
+      itemLevel: 10, // Auto-balance: iron quality
+      damageType: 'slashing',
       slot: 'main_hand',
     });
 

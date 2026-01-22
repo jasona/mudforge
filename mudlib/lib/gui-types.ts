@@ -119,6 +119,18 @@ export interface ValidationRule {
 /** Layout container types */
 export type LayoutType = 'vertical' | 'horizontal' | 'grid' | 'tabs' | 'form';
 
+/** Tooltip configuration */
+export interface TooltipConfig {
+  /** Tooltip content (plain text or HTML) */
+  content: string;
+  /** Whether content is HTML (default: false) */
+  html?: boolean;
+  /** Tooltip position preference */
+  position?: 'top' | 'bottom' | 'left' | 'right' | 'auto';
+  /** Maximum width of tooltip */
+  maxWidth?: string;
+}
+
 /** Layout container definition */
 export interface LayoutContainer {
   type: LayoutType;
@@ -144,6 +156,8 @@ export interface LayoutContainer {
   tabIcon?: string;
   /** For tabs layout: default active tab (index or tabId) */
   defaultTab?: number | string;
+  /** Tooltip to show on hover */
+  tooltip?: string | TooltipConfig;
 }
 
 // =============================================================================
@@ -256,6 +270,8 @@ export interface DisplayElement {
   className?: string;
   /** Whether element is visible */
   visible?: boolean;
+  /** Tooltip to show on hover */
+  tooltip?: string | TooltipConfig;
 }
 
 // =============================================================================

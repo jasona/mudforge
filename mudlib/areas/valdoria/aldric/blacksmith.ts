@@ -35,6 +35,11 @@ Despite his intimidating appearance, his eyes are warm and friendly,
 and he speaks with surprising gentleness. The weapons and armor
 displayed around his shop are clearly works of craftsmanship.`;
     this.gender = 'male';
+
+    // Use auto-balance for level 12 normal (strong civilian)
+    this.setLevel(12);
+
+    // Override health - he's strong but not a fighter
     this.maxHealth = 120;
     this.health = 120;
 

@@ -20,12 +20,11 @@ export class RustyDagger extends Weapon {
         'The blade is chipped in several places, but it could still do some damage ' +
         'in a pinch. A faint smell of goblin lingers on the leather-wrapped hilt.',
       handedness: 'light',
-      size: 'medium', // Heavier than typical light weapons
-      value: 5,
-      minDamage: 1,
-      maxDamage: 4,
+      size: 'medium',
+      itemLevel: 1, // Auto-balance: trash tier
+      value: 5, // Override: rusty items worth less
       damageType: 'piercing',
-      attackSpeed: 0.1, // Slightly fast due to small size
+      attackSpeed: 0.1,
     });
   }
 }

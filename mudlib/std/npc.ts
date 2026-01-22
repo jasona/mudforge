@@ -5,7 +5,7 @@
  * chat messages, respond to triggers, and perform autonomous actions.
  */
 
-import { Living } from './living.js';
+import { Living, type StatName } from './living.js';
 import { MudObject } from './object.js';
 import { Room } from './room.js';
 import { Corpse } from './corpse.js';
@@ -17,6 +17,21 @@ import type { NPCAIContext, ConversationMessage } from '../lib/ai-types.js';
 
 // Re-export AI types for convenience
 export type { NPCAIContext, ConversationMessage } from '../lib/ai-types.js';
+
+/**
+ * NPC type for auto-balance multipliers.
+ */
+export type NPCType = 'normal' | 'elite' | 'boss' | 'miniboss';
+
+/**
+ * Multipliers for different NPC types.
+ */
+export const NPC_TYPE_MULTIPLIERS: Record<NPCType, { hp: number; damage: number; xp: number; gold: number }> = {
+  normal:   { hp: 1.0,  damage: 1.0,  xp: 1.0, gold: 1.0 },
+  miniboss: { hp: 1.5,  damage: 1.15, xp: 1.5, gold: 1.5 },
+  elite:    { hp: 2.0,  damage: 1.25, xp: 2.0, gold: 2.0 },
+  boss:     { hp: 3.0,  damage: 1.5,  xp: 5.0, gold: 5.0 },
+};
 
 // Quest daemon accessor functions
 function getQuestDaemonLazy() {
@@ -630,6 +645,65 @@ export class NPC extends Living {
   }
 
   /**
+   * Auto-balance NPC based on level. Sets HP, stats, XP, gold, and damage.
+   * All values can be overridden after calling this method.
+   * @param level The NPC level (1-60)
+   * @param type The NPC type for multipliers (default: 'normal')
+   */
+  setLevel(level: number, type: NPCType = 'normal'): this {
+    const mult = NPC_TYPE_MULTIPLIERS[type];
+
+    // Set level (NPCs can go up to 60)
+    this.level = Math.max(1, Math.min(60, level));
+
+    // Auto-calculate HP: 50 + level * 15
+    const baseHP = 50 + (level * 15);
+    this.maxHealth = Math.round(baseHP * mult.hp);
+    this.health = this.maxHealth;
+
+    // Auto-calculate stats: 8 + floor(level / 5)
+    const baseStat = 8 + Math.floor(level / 5);
+    const stats: StatName[] = ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma', 'luck'];
+    for (const stat of stats) {
+      this.setBaseStat(stat, baseStat);
+    }
+
+    // Auto-calculate combat config
+    const baseXP = level * 10;
+    const baseGoldMin = level * 2;
+    const baseGoldMax = level * 5;
+
+    this.setCombat({
+      level: this.level,
+      baseXP: Math.round(baseXP * mult.xp),
+      goldDrop: {
+        min: Math.round(baseGoldMin * mult.gold),
+        max: Math.round(baseGoldMax * mult.gold),
+      },
+    });
+
+    // Store type for reference
+    this.setProperty('npcType', type);
+
+    return this;
+  }
+
+  /**
+   * Get the base unarmed damage range for this NPC based on level.
+   * Used when NPC has no weapon equipped.
+   */
+  getBaseDamageRange(): { min: number; max: number } {
+    const type = (this.getProperty('npcType') as NPCType) || 'normal';
+    const mult = NPC_TYPE_MULTIPLIERS[type];
+    const minDmg = Math.max(1, Math.floor(this.level / 2));
+    const maxDmg = Math.max(2, this.level);
+    return {
+      min: Math.round(minDmg * mult.damage),
+      max: Math.round(maxDmg * mult.damage),
+    };
+  }
+
+  /**
    * Add an item to the loot table.
    */
   addLoot(itemPath: string, chance: number, minQty: number = 1, maxQty: number = 1): void {
@@ -751,8 +825,8 @@ export class NPC extends Living {
       this.doChat();
     }
 
-    // Wander
-    if (this._wandering && random(100) < this._wanderChance) {
+    // Wander (skip if in combat)
+    if (this._wandering && !this.inCombat && random(100) < this._wanderChance) {
       await this.doWander();
     }
   }
@@ -808,13 +882,63 @@ export class NPC extends Living {
       await corpse.moveTo(deathRoom);
     }
 
-    // Distribute XP to all attackers
+    // Distribute XP to all attackers (with party XP sharing support)
     for (const attacker of attackers) {
       // Check if attacker has gainExperience method (is a Player)
       if ('gainExperience' in attacker && typeof (attacker as Living & { gainExperience: (xp: number) => void }).gainExperience === 'function') {
         const xp = this.calculateXPReward(attacker.level);
-        (attacker as Living & { gainExperience: (xp: number) => void }).gainExperience(xp);
+
+        // Check if attacker is in a party for XP sharing
+        import('../daemons/party.js')
+          .then(({ getPartyDaemon }) => {
+            try {
+              const partyDaemon = getPartyDaemon();
+              type PartyPlayer = Parameters<typeof partyDaemon.getPlayerParty>[0];
+              const party = partyDaemon.getPlayerParty(attacker as PartyPlayer);
+
+              if (party) {
+                // Distribute XP via party daemon (splits among members in room)
+                partyDaemon.awardPartyXP(party.id, xp, this.name, deathRoom);
+                // Record the kill for the attacker who landed the killing blow
+                partyDaemon.recordKill(attacker as PartyPlayer, this.name);
+              } else {
+                // Solo player - direct award
+                (attacker as Living & { gainExperience: (xp: number) => void }).gainExperience(xp);
+              }
+            } catch {
+              // Party daemon not available - award directly
+              (attacker as Living & { gainExperience: (xp: number) => void }).gainExperience(xp);
+            }
+          })
+          .catch(() => {
+            // Party daemon import failed - award directly
+            (attacker as Living & { gainExperience: (xp: number) => void }).gainExperience(xp);
+          });
       }
+    }
+
+    // Handle party auto-split for gold
+    let goldWasAutoSplit = false;
+    if (goldAmount > 0 && attackers.length > 0) {
+      const primaryAttacker = attackers[0];
+      import('../daemons/party.js')
+        .then(({ getPartyDaemon }) => {
+          try {
+            const partyDaemon = getPartyDaemon();
+            type PartyPlayer = Parameters<typeof partyDaemon.handleAutoSplit>[0];
+            goldWasAutoSplit = partyDaemon.handleAutoSplit(
+              primaryAttacker as PartyPlayer,
+              corpse,
+              goldAmount,
+              deathRoom
+            );
+          } catch {
+            // Party daemon not available
+          }
+        })
+        .catch(() => {
+          // Party daemon import failed
+        });
     }
 
     // Notify room about death and loot
@@ -824,11 +948,12 @@ export class NPC extends Living {
       const name = typeof efuns !== 'undefined' ? efuns.capitalize(this.name) : this.name;
       broadcast(`{red}${name} has been slain!{/}\n`);
 
-      // Announce corpse
-      if (corpse.inventory.length > 0 || goldAmount > 0) {
+      // Announce corpse (check if gold is still on corpse - may have been auto-split)
+      const corpseGold = corpse.gold || 0;
+      if (corpse.inventory.length > 0 || corpseGold > 0) {
         const lootDesc: string[] = [];
-        if (goldAmount > 0) {
-          lootDesc.push(`${goldAmount} gold`);
+        if (corpseGold > 0) {
+          lootDesc.push(`${corpseGold} gold`);
         }
         if (corpse.inventory.length > 0) {
           lootDesc.push(`${corpse.inventory.length} item${corpse.inventory.length > 1 ? 's' : ''}`);

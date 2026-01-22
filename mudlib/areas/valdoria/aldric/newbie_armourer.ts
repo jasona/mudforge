@@ -47,10 +47,15 @@ He watches over the training hall's equipment with a practiced eye,
 always ready to help new adventurers get started on their journey.
 A hand-painted sign near him reads: "FREE GEAR FOR NEW ADVENTURERS!"`,
       gender: 'male',
-      maxHealth: 100,
-      health: 100,
       chatChance: 8,
     });
+
+    // Use auto-balance for level 10 normal (veteran civilian)
+    this.setLevel(10);
+
+    // Override health - he's a tough veteran but not a fighter
+    this.maxHealth = 100;
+    this.health = 100;
 
     this.addId('gareth');
     this.addId('old gareth');
