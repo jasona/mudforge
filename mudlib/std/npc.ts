@@ -882,13 +882,63 @@ export class NPC extends Living {
       await corpse.moveTo(deathRoom);
     }
 
-    // Distribute XP to all attackers
+    // Distribute XP to all attackers (with party XP sharing support)
     for (const attacker of attackers) {
       // Check if attacker has gainExperience method (is a Player)
       if ('gainExperience' in attacker && typeof (attacker as Living & { gainExperience: (xp: number) => void }).gainExperience === 'function') {
         const xp = this.calculateXPReward(attacker.level);
-        (attacker as Living & { gainExperience: (xp: number) => void }).gainExperience(xp);
+
+        // Check if attacker is in a party for XP sharing
+        import('../daemons/party.js')
+          .then(({ getPartyDaemon }) => {
+            try {
+              const partyDaemon = getPartyDaemon();
+              type PartyPlayer = Parameters<typeof partyDaemon.getPlayerParty>[0];
+              const party = partyDaemon.getPlayerParty(attacker as PartyPlayer);
+
+              if (party) {
+                // Distribute XP via party daemon (splits among members in room)
+                partyDaemon.awardPartyXP(party.id, xp, this.name, deathRoom);
+                // Record the kill for the attacker who landed the killing blow
+                partyDaemon.recordKill(attacker as PartyPlayer, this.name);
+              } else {
+                // Solo player - direct award
+                (attacker as Living & { gainExperience: (xp: number) => void }).gainExperience(xp);
+              }
+            } catch {
+              // Party daemon not available - award directly
+              (attacker as Living & { gainExperience: (xp: number) => void }).gainExperience(xp);
+            }
+          })
+          .catch(() => {
+            // Party daemon import failed - award directly
+            (attacker as Living & { gainExperience: (xp: number) => void }).gainExperience(xp);
+          });
       }
+    }
+
+    // Handle party auto-split for gold
+    let goldWasAutoSplit = false;
+    if (goldAmount > 0 && attackers.length > 0) {
+      const primaryAttacker = attackers[0];
+      import('../daemons/party.js')
+        .then(({ getPartyDaemon }) => {
+          try {
+            const partyDaemon = getPartyDaemon();
+            type PartyPlayer = Parameters<typeof partyDaemon.handleAutoSplit>[0];
+            goldWasAutoSplit = partyDaemon.handleAutoSplit(
+              primaryAttacker as PartyPlayer,
+              corpse,
+              goldAmount,
+              deathRoom
+            );
+          } catch {
+            // Party daemon not available
+          }
+        })
+        .catch(() => {
+          // Party daemon import failed
+        });
     }
 
     // Notify room about death and loot
@@ -898,11 +948,12 @@ export class NPC extends Living {
       const name = typeof efuns !== 'undefined' ? efuns.capitalize(this.name) : this.name;
       broadcast(`{red}${name} has been slain!{/}\n`);
 
-      // Announce corpse
-      if (corpse.inventory.length > 0 || goldAmount > 0) {
+      // Announce corpse (check if gold is still on corpse - may have been auto-split)
+      const corpseGold = corpse.gold || 0;
+      if (corpse.inventory.length > 0 || corpseGold > 0) {
         const lootDesc: string[] = [];
-        if (goldAmount > 0) {
-          lootDesc.push(`${goldAmount} gold`);
+        if (corpseGold > 0) {
+          lootDesc.push(`${corpseGold} gold`);
         }
         if (corpse.inventory.length > 0) {
           lootDesc.push(`${corpse.inventory.length} item${corpse.inventory.length > 1 ? 's' : ''}`);

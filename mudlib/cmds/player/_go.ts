@@ -232,6 +232,22 @@ export async function execute(ctx: CommandContext): Promise<boolean> {
     void playerWithMap.sendMapUpdate(room);
   }
 
+  // Handle party follow - move following members
+  import('../../daemons/party.js')
+    .then(({ getPartyDaemon }) => {
+      const partyDaemon = getPartyDaemon();
+      type PartyPlayer = Parameters<typeof partyDaemon.handleLeaderMovement>[0];
+      void partyDaemon.handleLeaderMovement(
+        player as unknown as PartyPlayer,
+        room,
+        destination,
+        direction
+      );
+    })
+    .catch(() => {
+      // Party daemon not available
+    });
+
   // Broadcast enter message to new room
   const enterRoom = destination as BroadcastableRoom;
   if (enterRoom.broadcast) {

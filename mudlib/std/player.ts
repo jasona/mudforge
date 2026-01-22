@@ -2152,6 +2152,15 @@ export class Player extends Living {
         efuns.snoopTargetDisconnected(this);
       }
     }
+
+    // Notify party system about disconnect
+    import('../daemons/party.js')
+      .then(({ getPartyDaemon }) => {
+        getPartyDaemon().handlePlayerDisconnect(this);
+      })
+      .catch(() => {
+        // Party daemon not available
+      });
   }
 
   /**

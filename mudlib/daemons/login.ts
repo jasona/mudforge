@@ -534,6 +534,15 @@ ${'='.repeat(bannerWidth)}
         // Send quest panel update
         getQuestDaemon().sendQuestPanelUpdate(player as unknown as QuestPlayer);
 
+        // Notify party system about reconnect
+        import('./party.js')
+          .then(({ getPartyDaemon }) => {
+            getPartyDaemon().handlePlayerReconnect(player);
+          })
+          .catch(() => {
+            // Party daemon not available
+          });
+
         // Update session state and clean up
         session.state = 'playing';
         this._sessions.delete(session.connection);
