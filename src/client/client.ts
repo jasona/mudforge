@@ -76,7 +76,14 @@ class MudClient {
         console.log('Room clicked:', roomPath);
       },
     });
-    this.statsPanel = new StatsPanel('stats-container');
+    this.statsPanel = new StatsPanel('stats-container', {
+      onAvatarClick: () => {
+        // Send request to server to open score modal
+        this.wsClient.sendGUIMessage({
+          action: 'avatar-click',
+        });
+      },
+    });
     this.questPanel = new QuestPanel('quest-container', {
       onQuestClick: (questId: string) => {
         // Send request to server to open quest log GUI

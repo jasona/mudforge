@@ -9,6 +9,14 @@ import type { StatsMessage } from './websocket-client.js';
 import { getAvatarSvg } from './avatars.js';
 
 /**
+ * Options for StatsPanel.
+ */
+export interface StatsPanelOptions {
+  /** Callback when avatar is clicked */
+  onAvatarClick?: () => void;
+}
+
+/**
  * StatsPanel class.
  */
 export class StatsPanel {
@@ -16,6 +24,7 @@ export class StatsPanel {
   private panel: HTMLElement;
   private isVisible: boolean = true;
   private isCollapsed: boolean = false;
+  private options: StatsPanelOptions;
 
   // Bar elements for updates
   private avatarContainer: HTMLElement | null = null;
@@ -32,7 +41,8 @@ export class StatsPanel {
   private encumbranceText: HTMLElement | null = null;
   private encumbranceDetail: HTMLElement | null = null;
 
-  constructor(containerId: string) {
+  constructor(containerId: string, options: StatsPanelOptions = {}) {
+    this.options = options;
     // Get or create container
     const existing = document.getElementById(containerId);
     if (existing) {
@@ -142,6 +152,15 @@ export class StatsPanel {
       e.stopPropagation();
       this.toggle();
     });
+
+    // Avatar click handler - opens score modal
+    if (this.avatarContainer && this.options.onAvatarClick) {
+      this.avatarContainer.style.cursor = 'pointer';
+      this.avatarContainer.title = 'Click to view character sheet';
+      this.avatarContainer.addEventListener('click', () => {
+        this.options.onAvatarClick?.();
+      });
+    }
   }
 
   /**

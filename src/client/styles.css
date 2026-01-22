@@ -1008,6 +1008,12 @@ body {
   object-fit: cover;
 }
 
+.stats-avatar:hover {
+  border-color: var(--accent-primary);
+  transform: scale(1.05);
+  transition: all 0.15s ease;
+}
+
 /* Stat bars */
 .stats-bar-group {
   display: flex;

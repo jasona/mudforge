@@ -2168,6 +2168,14 @@ export class Player extends Living {
       return;
     }
 
+    // Handle avatar click - open score modal (character sheet)
+    if (message.action === 'avatar-click') {
+      // Dynamically import to avoid circular dependencies
+      const { openScoreModal } = await import('../lib/score-modal.js');
+      openScoreModal(this as unknown as Parameters<typeof openScoreModal>[0]);
+      return;
+    }
+
     // No default handling for other actions
   }
 
