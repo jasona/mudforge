@@ -1,0 +1,208 @@
+/**
+ * Pet Store - A shop selling loyal animal companions.
+ */
+
+import { Room, MudObject } from '../../../lib/std.js';
+
+/**
+ * The Pet Store room.
+ */
+export class PetStore extends Room {
+  constructor() {
+    super();
+    this.shortDesc = '{bold}{green}Whiskers & Hooves Pet Emporium{/}';
+    this.longDesc = `You step into a cozy shop filled with the sounds of animals and the earthy
+smell of hay and feed. {YELLOW}Wooden cages{/} line the walls, housing a variety of
+creatures from small {cyan}songbirds{/} to playful {yellow}puppies{/}.
+
+A large {green}stable area{/} in the back houses bigger animals - you can see the
+heads of several {brown}horses{/} and {gray}mules{/} peering over their stall doors with
+curious eyes. Bales of golden hay are stacked neatly in the corner.
+
+Near the counter, a {magenta}mystical display case{/} glows with a soft ethereal light,
+containing what appears to be a small floating chest that hovers in place,
+occasionally bobbing up and down as if breathing.
+
+A {yellow}friendly shopkeeper{/} tends to the animals, occasionally offering treats to
+the more eager ones. A wooden sign hangs behind the counter:
+
+{cyan}"Every companion comes with our satisfaction guarantee!
+ Say 'list' to see our available friends."{/}
+
+The bustling {yellow}market{/} lies to the {green}north{/}.`;
+
+    // Map coordinates - south of market
+    this.setMapCoordinates({ x: -1, y: -1, z: 0, area: '/areas/valdoria/aldric' });
+    this.setTerrain('town');
+    this.setMapIcon('P');
+
+    this.setupRoom();
+  }
+
+  private setupRoom(): void {
+    this.addExit('north', '/areas/valdoria/aldric/market');
+
+    // Set NPCs that belong to this room
+    this.setNpcs(['/areas/valdoria/aldric/pet_keeper']);
+
+    this.addAction('look', this.cmdLook.bind(this));
+    this.addAction('pet', this.cmdPet.bind(this));
+  }
+
+  override async onCreate(): Promise<void> {
+    await super.onCreate();
+
+    // Spawn NPCs defined via setNpcs()
+    await this.spawnMissingNpcs();
+
+    console.log('[PetStore] The pet store has been initialized.');
+  }
+
+  override async onEnter(obj: MudObject, from?: MudObject): Promise<void> {
+    const receiver = obj as MudObject & { receive?: (msg: string) => void };
+    if (typeof receiver.receive === 'function') {
+      receiver.receive('\nA chorus of animal sounds greets you as you enter the pet shop.\n');
+    }
+    this.broadcast(`${obj.shortDesc} enters the pet shop.`, { exclude: [obj] });
+  }
+
+  override async onLeave(obj: MudObject, to?: MudObject): Promise<void> {
+    this.broadcast(`${obj.shortDesc} leaves the pet shop.`, { exclude: [obj] });
+  }
+
+  private cmdLook(args: string): boolean {
+    const player = this.findPlayerInRoom();
+    if (!player) return false;
+
+    if (!args) {
+      this.look(player);
+      return true;
+    }
+
+    const target = args.toLowerCase();
+    const receiver = player as MudObject & { receive?: (msg: string) => void };
+
+    if (target === 'cages' || target === 'birds' || target === 'puppies') {
+      if (typeof receiver.receive === 'function') {
+        receiver.receive(
+          '\nThe wooden cages contain a variety of small animals:\n' +
+          '- Colorful songbirds that chirp melodiously\n' +
+          '- A few fluffy kittens batting at each other playfully\n' +
+          '- Several energetic puppies wagging their tails hopefully\n' +
+          '- A wise-looking owl that watches you with knowing eyes\n' +
+          'These are display animals - for sale companions, say "list".\n'
+        );
+      }
+      return true;
+    }
+
+    if (target === 'stable' || target === 'stables' || target === 'horses' || target === 'mules') {
+      if (typeof receiver.receive === 'function') {
+        receiver.receive(
+          '\nThe stable area is clean and well-maintained. You see:\n' +
+          '- A magnificent bay horse with a shiny coat\n' +
+          '- Two sturdy mules, perfect for carrying heavy loads\n' +
+          '- A spirited white pony that seems full of energy\n' +
+          'All the animals look healthy and well-cared for.\n'
+        );
+      }
+      return true;
+    }
+
+    if (target === 'display' || target === 'mystical' || target === 'floating chest' || target === 'chest') {
+      if (typeof receiver.receive === 'function') {
+        receiver.receive(
+          '\nThe mystical display case contains a curious sight - a small\n' +
+          'wooden chest that floats in mid-air! Arcane runes glow softly\n' +
+          'on its surface. A small placard reads:\n' +
+          '"Enchanted Floating Chest - Perfect for the discerning adventurer\n' +
+          'who needs to carry more than their arms allow!"\n'
+        );
+      }
+      return true;
+    }
+
+    if (target === 'sign') {
+      if (typeof receiver.receive === 'function') {
+        receiver.receive(
+          '\nThe wooden sign reads:\n' +
+          '"WHISKERS & HOOVES PET EMPORIUM\n' +
+          ' Est. Year 847 - Third Generation Family Business\n' +
+          ' All companions trained and ready for adventure!\n' +
+          ' Say \'list\' to see available companions."\n'
+        );
+      }
+      return true;
+    }
+
+    // Check inventory for NPCs
+    for (const obj of this.inventory) {
+      if (obj.id(target)) {
+        if (typeof receiver.receive === 'function') {
+          receiver.receive(`\n${obj.longDesc}\n`);
+        }
+        return true;
+      }
+    }
+
+    if (typeof receiver.receive === 'function') {
+      receiver.receive("\nYou don't see that here.\n");
+    }
+    return true;
+  }
+
+  private cmdPet(args: string): boolean {
+    const player = this.findPlayerInRoom();
+    if (!player) return false;
+
+    const target = args.toLowerCase();
+    const receiver = player as MudObject & { receive?: (msg: string) => void };
+
+    if (target === 'puppy' || target === 'dog') {
+      if (typeof receiver.receive === 'function') {
+        receiver.receive(
+          '\nYou reach into a cage and pet one of the puppies. It licks\n' +
+          'your hand excitedly and wags its tail so hard its whole body wiggles!\n'
+        );
+      }
+      return true;
+    }
+
+    if (target === 'kitten' || target === 'cat') {
+      if (typeof receiver.receive === 'function') {
+        receiver.receive(
+          '\nYou pet one of the fluffy kittens. It purrs contentedly and\n' +
+          'rubs its head against your hand.\n'
+        );
+      }
+      return true;
+    }
+
+    if (target === 'horse') {
+      if (typeof receiver.receive === 'function') {
+        receiver.receive(
+          '\nYou approach the bay horse and gently stroke its nose. The horse\n' +
+          'snorts softly and nuzzles your shoulder, looking for treats.\n'
+        );
+      }
+      return true;
+    }
+
+    if (typeof receiver.receive === 'function') {
+      receiver.receive('\nYou can pet the puppy, kitten, or horse on display.\n');
+    }
+    return true;
+  }
+
+  private findPlayerInRoom(): MudObject | undefined {
+    for (const obj of this.inventory) {
+      const player = obj as MudObject & { isConnected?: () => boolean };
+      if (typeof player.isConnected === 'function') {
+        return obj;
+      }
+    }
+    return this.inventory[0];
+  }
+}
+
+export default PetStore;

@@ -16,6 +16,7 @@ import { MudlibLoader, getMudlibLoader, resetMudlibLoader } from './mudlib-loade
 import { initializeClaudeClient } from './claude-client.js';
 import { initializeGeminiClient } from './gemini-client.js';
 import { initializeGitHubClient } from './github-client.js';
+import { initializeGiphyClient } from './giphy-client.js';
 import { CommandManager, getCommandManager, resetCommandManager } from './command-manager.js';
 import { getPermissions } from './permissions.js';
 import { getFileStore } from './persistence/file-store.js';
@@ -174,6 +175,14 @@ export class Driver {
         repo: this.config.githubRepo,
       });
       this.logger.info('GitHub client initialized (bug reports)');
+    }
+
+    // Initialize Giphy client if configured (for GIF sharing on channels)
+    if (this.config.giphyApiKey) {
+      initializeGiphyClient({
+        apiKey: this.config.giphyApiKey,
+      });
+      this.logger.info('Giphy client initialized (GIF sharing)');
     }
 
     // Set up the bind player callback so login daemon can bind players

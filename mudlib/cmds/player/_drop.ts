@@ -16,6 +16,29 @@ import { Item, Container } from '../../lib/std.js';
 import { GoldPile } from '../../std/gold-pile.js';
 import { parseItemInput, findItem, findAllMatching, countMatching } from '../../lib/item-utils.js';
 
+// Pet interface for type checking (avoids circular dependency)
+interface PetLike {
+  canHold(item: MudObject): boolean;
+  getCannotHoldReason(item: MudObject): string | null;
+  getDisplayShortDesc(): string;
+  inventory: MudObject[];
+  inCombat: boolean;
+  itemCount: number;
+  maxItems: number;
+  currentWeight: number;
+  maxWeight: number;
+}
+
+// Helper to check if object is a Pet
+function isPet(obj: unknown): obj is PetLike {
+  return obj !== null &&
+    typeof obj === 'object' &&
+    'canHold' in obj &&
+    'getDisplayShortDesc' in obj &&
+    'petId' in obj &&
+    'ownerName' in obj;
+}
+
 interface PlayerWithGold extends MudObject {
   gold?: number;
   spendGold?(amount: number): boolean;
@@ -360,6 +383,12 @@ async function putInContainer(
     return;
   }
 
+  // Check if it's a Pet (Pets can hold items but aren't Containers)
+  if (isPet(container)) {
+    await putInPet(ctx, container as PetLike, itemName, room);
+    return;
+  }
+
   if (!(container instanceof Container)) {
     ctx.sendLine("That's not a container.");
     return;
@@ -551,6 +580,152 @@ async function putAllOfTypeInContainer(
       } else {
         recv.receive(`${playerName} puts several items in ${container.shortDesc}.\n`);
       }
+    }
+  }
+}
+
+/**
+ * Put items in a pet's inventory.
+ * Anyone can give items to a pet (ownership not required for putting).
+ */
+async function putInPet(
+  ctx: CommandContext,
+  pet: PetLike,
+  itemName: string,
+  room: MudObject
+): Promise<void> {
+  const { player } = ctx;
+  const petDesc = pet.getDisplayShortDesc();
+  const living = player as Living;
+
+  // Parse for indexed selection (e.g., "sword 2") or "all"
+  const parsed = parseItemInput(itemName);
+
+  if (parsed.isAll) {
+    // Put all items in pet
+    const equipped = living.getAllEquipped ? new Set(living.getAllEquipped().values()) : new Set();
+    const itemsToPut = player.inventory.filter((item) => {
+      if (equipped.has(item)) return false;
+      if (!(item instanceof Item)) return false;
+      return pet.canHold(item);
+    });
+
+    if (itemsToPut.length === 0) {
+      ctx.sendLine("You don't have anything you can give to the pet.");
+      return;
+    }
+
+    const put: string[] = [];
+    for (const item of itemsToPut) {
+      if (!pet.canHold(item)) break;
+      await item.moveTo(pet);
+      put.push(item.shortDesc);
+    }
+
+    if (put.length === 1) {
+      ctx.sendLine(`You give ${put[0]} to ${petDesc}.`);
+    } else {
+      ctx.sendLine(`You give ${put.length} items to ${petDesc}:`);
+      for (const desc of put) {
+        ctx.sendLine(`  ${desc}`);
+      }
+    }
+
+    // Notify room
+    const playerName = player.name || 'Someone';
+    for (const observer of room.inventory) {
+      if (observer !== player && observer !== pet && 'receive' in observer) {
+        const recv = observer as MudObject & { receive: (msg: string) => void };
+        recv.receive(`${playerName} gives items to ${petDesc}.\n`);
+      }
+    }
+    return;
+  }
+
+  if (parsed.isAllOfType) {
+    // Put all of a specific type in pet
+    const equipped = living.getAllEquipped ? new Set(living.getAllEquipped().values()) : new Set();
+    const matchingItems = findAllMatching(parsed.name, player.inventory);
+    const itemsToPut = matchingItems.filter((item) => {
+      if (equipped.has(item)) return false;
+      if (!(item instanceof Item)) return false;
+      return pet.canHold(item);
+    });
+
+    if (itemsToPut.length === 0) {
+      if (matchingItems.length === 0) {
+        ctx.sendLine(`You don't have any ${parsed.name}s.`);
+      } else {
+        ctx.sendLine(`You can't give any of those to the pet.`);
+      }
+      return;
+    }
+
+    const put: string[] = [];
+    for (const item of itemsToPut) {
+      if (!pet.canHold(item)) break;
+      unequipIfNeeded(item, player);
+      await item.moveTo(pet);
+      put.push(item.shortDesc);
+    }
+
+    if (put.length === 1) {
+      ctx.sendLine(`You give ${put[0]} to ${petDesc}.`);
+    } else {
+      ctx.sendLine(`You give ${put.length} items to ${petDesc}:`);
+      for (const desc of put) {
+        ctx.sendLine(`  ${desc}`);
+      }
+    }
+
+    // Notify room
+    const playerName = player.name || 'Someone';
+    for (const observer of room.inventory) {
+      if (observer !== player && observer !== pet && 'receive' in observer) {
+        const recv = observer as MudObject & { receive: (msg: string) => void };
+        recv.receive(`${playerName} gives items to ${petDesc}.\n`);
+      }
+    }
+    return;
+  }
+
+  // Put single item
+  const item = findItem(parsed.name, player.inventory, parsed.index);
+
+  if (!item) {
+    if (parsed.index !== undefined) {
+      const count = countMatching(parsed.name, player.inventory);
+      if (count > 0) {
+        if (count === 1) {
+          ctx.sendLine(`You only have 1 ${parsed.name}.`);
+        } else {
+          ctx.sendLine(`You only have ${count} ${parsed.name}s.`);
+        }
+        return;
+      }
+    }
+    ctx.sendLine("You're not carrying that.");
+    return;
+  }
+
+  if (!pet.canHold(item)) {
+    const reason = pet.getCannotHoldReason(item);
+    ctx.sendLine(reason || `${petDesc} can't carry that.`);
+    return;
+  }
+
+  // Unequip if needed
+  unequipIfNeeded(item, player);
+
+  await item.moveTo(pet);
+  ctx.sendLine(`You give ${item.shortDesc} to ${petDesc}.`);
+
+  // Notify room
+  const playerName = player.name || 'Someone';
+  for (const observer of room.inventory) {
+    if (observer !== player && observer !== pet && 'receive' in observer) {
+      const recv = observer as MudObject & { receive: (msg: string) => void };
+      recv.receive(`${playerName} gives ${item.shortDesc} to ${petDesc}.\n`);
     }
   }
 }

@@ -15,6 +15,23 @@ import type { MudObject, Living } from '../../lib/std.js';
 import { Item, Container } from '../../lib/std.js';
 import { Corpse } from '../../std/corpse.js';
 import { GoldPile } from '../../std/gold-pile.js';
+
+// Pet interface for type checking (avoids circular dependency)
+interface PetLike {
+  canAccessInventory(who: MudObject): boolean;
+  getDisplayShortDesc(): string;
+  inventory: MudObject[];
+}
+
+// Helper to check if object is a Pet
+function isPet(obj: unknown): obj is PetLike {
+  return obj !== null &&
+    typeof obj === 'object' &&
+    'canAccessInventory' in obj &&
+    'getDisplayShortDesc' in obj &&
+    'petId' in obj &&
+    'ownerName' in obj;
+}
 import {
   parseItemInput,
   findItem,
@@ -436,6 +453,17 @@ async function getFromContainer(
   }
 
   if (!(container instanceof Container)) {
+    // Check if it's a Pet (Pets are not Containers but can hold items)
+    if (isPet(container)) {
+      if (!container.canAccessInventory(player)) {
+        const petDesc = container.getDisplayShortDesc();
+        ctx.sendLine(`${petDesc} won't let you take that.`);
+        return;
+      }
+      // Pet found and accessible - continue to get item
+      await getFromPet(ctx, container as PetLike, itemName, room);
+      return;
+    }
     ctx.sendLine("That's not a container.");
     return;
   }
@@ -627,6 +655,125 @@ async function getAllOfTypeFromContainer(
       } else {
         recv.receive(`${playerName} gets several items from ${container.shortDesc}.\n`);
       }
+    }
+  }
+}
+
+/**
+ * Get items from a pet's inventory.
+ */
+async function getFromPet(
+  ctx: CommandContext,
+  pet: PetLike,
+  itemName: string,
+  room: MudObject
+): Promise<void> {
+  const { player } = ctx;
+  const petDesc = pet.getDisplayShortDesc();
+
+  // Handle "get all from pet"
+  const parsed = parseItemInput(itemName);
+
+  if (parsed.isAll) {
+    // Get all from pet
+    const items = [...pet.inventory];
+    if (items.length === 0) {
+      ctx.sendLine(`${petDesc} isn't carrying anything.`);
+      return;
+    }
+
+    const taken: string[] = [];
+    for (const item of items) {
+      await item.moveTo(player);
+      taken.push(item.shortDesc);
+    }
+
+    if (taken.length === 1) {
+      ctx.sendLine(`You take ${taken[0]} from ${petDesc}.`);
+    } else {
+      ctx.sendLine(`You take from ${petDesc}:`);
+      for (const desc of taken) {
+        ctx.sendLine(`  ${desc}`);
+      }
+    }
+
+    // Notify room
+    const playerName = player.name || 'Someone';
+    for (const observer of room.inventory) {
+      if (observer !== player && observer !== pet && 'receive' in observer) {
+        const recv = observer as MudObject & { receive: (msg: string) => void };
+        if (taken.length === 1) {
+          recv.receive(`${playerName} takes ${taken[0]} from ${petDesc}.\n`);
+        } else {
+          recv.receive(`${playerName} takes several items from ${petDesc}.\n`);
+        }
+      }
+    }
+    return;
+  }
+
+  if (parsed.isAllOfType) {
+    // Get all of a specific type from pet
+    const matchingItems = findAllMatching(parsed.name, pet.inventory);
+    if (matchingItems.length === 0) {
+      ctx.sendLine(`You don't see any ${parsed.name}s on ${petDesc}.`);
+      return;
+    }
+
+    const taken: string[] = [];
+    for (const item of matchingItems) {
+      await item.moveTo(player);
+      taken.push(item.shortDesc);
+    }
+
+    if (taken.length === 1) {
+      ctx.sendLine(`You take ${taken[0]} from ${petDesc}.`);
+    } else {
+      ctx.sendLine(`You take from ${petDesc}:`);
+      for (const desc of taken) {
+        ctx.sendLine(`  ${desc}`);
+      }
+    }
+
+    // Notify room
+    const playerName = player.name || 'Someone';
+    for (const observer of room.inventory) {
+      if (observer !== player && observer !== pet && 'receive' in observer) {
+        const recv = observer as MudObject & { receive: (msg: string) => void };
+        recv.receive(`${playerName} takes items from ${petDesc}.\n`);
+      }
+    }
+    return;
+  }
+
+  // Get single item (with optional index)
+  const item = findItem(parsed.name, pet.inventory, parsed.index);
+
+  if (!item) {
+    if (parsed.index !== undefined) {
+      const count = countMatching(parsed.name, pet.inventory);
+      if (count > 0) {
+        if (count === 1) {
+          ctx.sendLine(`${petDesc} is only carrying 1 ${parsed.name}.`);
+        } else {
+          ctx.sendLine(`${petDesc} is only carrying ${count} ${parsed.name}s.`);
+        }
+        return;
+      }
+    }
+    ctx.sendLine(`You don't see that on ${petDesc}.`);
+    return;
+  }
+
+  await item.moveTo(player);
+  ctx.sendLine(`You take ${item.shortDesc} from ${petDesc}.`);
+
+  // Notify room
+  const playerName = player.name || 'Someone';
+  for (const observer of room.inventory) {
+    if (observer !== player && observer !== pet && 'receive' in observer) {
+      const recv = observer as MudObject & { receive: (msg: string) => void };
+      recv.receive(`${playerName} takes ${item.shortDesc} from ${petDesc}.\n`);
     }
   }
 }

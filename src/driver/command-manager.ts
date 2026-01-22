@@ -296,10 +296,20 @@ export class CommandManager {
     const trimmed = input.trim();
     if (!trimmed) return false;
 
-    // Parse verb and args
+    // Parse verb and args - normal parsing first (split on space)
     const spaceIndex = trimmed.indexOf(' ');
-    const verb = spaceIndex > 0 ? trimmed.substring(0, spaceIndex) : trimmed;
-    const args = spaceIndex > 0 ? trimmed.substring(spaceIndex + 1).trim() : '';
+    let verb = spaceIndex > 0 ? trimmed.substring(0, spaceIndex) : trimmed;
+    let args = spaceIndex > 0 ? trimmed.substring(spaceIndex + 1).trim() : '';
+
+    // Special handling for single-character command prefixes (e.g., 'hello -> say hello)
+    // Only apply if normal verb doesn't match a command and first char is a registered command
+    if (!this.commands.has(verb.toLowerCase())) {
+      const firstChar = trimmed[0];
+      if (firstChar && this.commands.has(firstChar) && trimmed.length > 1) {
+        verb = firstChar;
+        args = trimmed.substring(1).trim();
+      }
+    }
 
     // Find the command
     const loaded = this.commands.get(verb.toLowerCase());

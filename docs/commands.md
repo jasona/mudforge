@@ -54,7 +54,11 @@ Send an out-of-character message to the OOC channel.
 
 ```
 ooc Anyone want to group up?
+ooc :laughs                  # Channel emote
+ooc ;funny cats              # Share a GIF (requires GIPHY_API_KEY)
 ```
+
+The `;` prefix searches Giphy and shares the first result as a popup to all channel members. See [Giphy Integration](giphy-integration.md) for details.
 
 #### tell
 Send a private message to another player.
@@ -88,6 +92,17 @@ channels              # List all channels and status
 channels join ooc     # Join the OOC channel
 channels leave ooc    # Leave the OOC channel
 ```
+
+#### gif
+Re-open a previously shared GIF modal.
+
+```
+gif <id>              # Re-open GIF popup by its ID
+```
+
+Primarily used via the `[View GIF]` clickable links in the comm panel. When someone shares a GIF on a channel, you can click `[View GIF]` to see it again. GIF cache expires after 1 hour.
+
+See [Giphy Integration](giphy-integration.md) for details on GIF sharing.
 
 ### Item Interaction
 

@@ -37,6 +37,8 @@ export class Armor extends Item {
   private _wearer: Living | null = null;
   private _resistances: Map<DamageType, number> = new Map();
   private _itemLevel: number = 1;
+  private _toDodge: number = 0; // Dodge bonus/penalty from armor weight
+  private _toBlock: number = 0; // Block bonus for shields
 
   constructor() {
     super();
@@ -98,6 +100,35 @@ export class Armor extends Item {
   }
 
   /**
+   * Get dodge bonus/penalty from this armor.
+   * Light armor gives positive values, heavy armor may give negative.
+   */
+  get toDodge(): number {
+    return this._toDodge;
+  }
+
+  /**
+   * Set dodge bonus/penalty.
+   */
+  set toDodge(value: number) {
+    this._toDodge = value;
+  }
+
+  /**
+   * Get block bonus for shields.
+   */
+  get toBlock(): number {
+    return this._toBlock;
+  }
+
+  /**
+   * Set block bonus.
+   */
+  set toBlock(value: number) {
+    this._toBlock = value;
+  }
+
+  /**
    * Get the actual equipment slot this armor uses.
    * Shield uses off_hand, other armor uses its designated slot.
    */
@@ -141,8 +172,9 @@ export class Armor extends Item {
   }
 
   /**
-   * Auto-balance armor based on item level and slot. Sets armor value and gold value.
+   * Auto-balance armor based on item level and slot. Sets armor value, dodge/block, and gold value.
    * Slot affects armor distribution (chest = 100%, head = 60%, etc.).
+   * Size affects dodge: small = light armor (+dodge), large = heavy armor (no dodge bonus).
    * All values can be overridden after calling this method.
    * @param level The item level (1-50)
    */
@@ -155,6 +187,25 @@ export class Armor extends Item {
     // Apply slot multiplier
     const slotMult = SLOT_ARMOR_MULTIPLIER[this._slot] || 1.0;
     this._armor = Math.max(1, Math.round(baseArmor * slotMult));
+
+    // Dodge bonus based on armor size (weight class)
+    // Light armor (small/medium) grants dodge; heavy armor (large+) doesn't
+    // toDodge formula: +1 per 10 levels for light armor, +1 per 15 for medium, 0 for heavy
+    if (this.size === 'small' || this.size === 'tiny') {
+      // Light armor: +1 dodge per 10 levels (max +5)
+      this._toDodge = Math.floor(level / 10);
+    } else if (this.size === 'medium') {
+      // Medium armor: +1 dodge per 15 levels (max +3)
+      this._toDodge = Math.floor(level / 15);
+    } else {
+      // Heavy armor (large/huge): no dodge bonus
+      this._toDodge = 0;
+    }
+
+    // Shields get block bonus: +2 per 10 levels
+    if (this._slot === 'shield') {
+      this._toBlock = Math.max(5, Math.floor(level / 5) + 3);
+    }
 
     // Value formula: level * 10, adjusted by slot
     const valueMultiplier = this._slot === 'chest' ? 1.5 :
@@ -238,6 +289,14 @@ export class Armor extends Item {
     const equipSlot = this.getEquipmentSlot();
     wearer.equipToSlot(equipSlot, this);
 
+    // Apply combat stat modifiers
+    if (this._toDodge !== 0) {
+      wearer.addCombatStatModifier('toDodge', this._toDodge);
+    }
+    if (this._toBlock !== 0) {
+      wearer.addCombatStatModifier('toBlock', this._toBlock);
+    }
+
     this.onWear(wearer);
     return { success: true, message: `You wear ${this.shortDesc}.` };
   }
@@ -253,6 +312,14 @@ export class Armor extends Item {
 
     const previousWearer = this._wearer;
     const desc = this.shortDesc;
+
+    // Remove combat stat modifiers
+    if (this._toDodge !== 0) {
+      previousWearer.addCombatStatModifier('toDodge', -this._toDodge);
+    }
+    if (this._toBlock !== 0) {
+      previousWearer.addCombatStatModifier('toBlock', -this._toBlock);
+    }
 
     // Unregister from living's equipment system
     const equipSlot = this.getEquipmentSlot();
@@ -337,6 +404,8 @@ export class Armor extends Item {
     slot?: ArmorSlot;
     resistances?: Partial<Record<DamageType, number>>;
     itemLevel?: number;
+    toDodge?: number;
+    toBlock?: number;
   }): void {
     // Set slot first (needed for itemLevel calculation)
     if (options.slot) this.slot = options.slot;
@@ -358,6 +427,9 @@ export class Armor extends Item {
         this.setResistance(type as DamageType, value);
       }
     }
+    // Explicit combat stats override itemLevel
+    if (options.toDodge !== undefined) this.toDodge = options.toDodge;
+    if (options.toBlock !== undefined) this.toBlock = options.toBlock;
   }
 }
 

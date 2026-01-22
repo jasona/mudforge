@@ -4,6 +4,8 @@
  * Handles ANSI escape sequences for colors and formatting.
  */
 
+import { convertEmoticons, isEmojiConversionEnabled } from './emoji-converter.js';
+
 /**
  * ANSI escape sequence parser state.
  */
@@ -179,7 +181,13 @@ export class Terminal {
       result += this.wrapWithStyles(textPart, currentState);
     }
 
-    return result || escaped;
+    // Apply emoji conversion if enabled (after HTML escaping)
+    let finalResult = result || escaped;
+    if (isEmojiConversionEnabled()) {
+      finalResult = convertEmoticons(finalResult);
+    }
+
+    return finalResult;
   }
 
   /**

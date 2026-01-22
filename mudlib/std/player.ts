@@ -31,6 +31,18 @@ import type { PlayerGuildData } from './guild/types.js';
 import type { QuestPlayer } from './quest/types.js';
 import type { RaceId } from './race/types.js';
 
+// Pet save data type (defined here to avoid circular dependency with pet.ts)
+export interface PetSaveData {
+  petId: string;
+  templateType: string;
+  petName: string | null;
+  ownerName: string;
+  health: number;
+  maxHealth: number;
+  inventory: string[];
+  sentAway: boolean;
+}
+
 /**
  * Equipment slot data for stats display.
  */
@@ -163,6 +175,7 @@ export interface PlayerSaveData {
   avatar?: string; // Avatar portrait ID
   staffVanished?: boolean; // Staff visibility toggle
   race?: RaceId; // Player race
+  pets?: PetSaveData[]; // Pet save data
 }
 
 /**
@@ -219,6 +232,9 @@ export class Player extends Living {
 
   // Race
   private _race: RaceId = 'human';
+
+  // Pending pet data (stored during restore, applied after entering room)
+  private _pendingPetData: PetSaveData[] | null = null;
 
   constructor() {
     super();
@@ -1653,7 +1669,23 @@ export class Player extends Living {
       avatar: this._avatar,
       staffVanished: this._staffVanished,
       race: this._race,
+      pets: this._getPetSaveData(),
     };
+  }
+
+  /**
+   * Get pet save data from the pet daemon.
+   */
+  private _getPetSaveData(): PetSaveData[] | undefined {
+    try {
+      // Dynamically import to avoid circular dependencies
+      const { getPetDaemon } = require('../daemons/pet.js');
+      const petDaemon = getPetDaemon();
+      const petData = petDaemon.getPlayerPetSaveData(this.name);
+      return petData.length > 0 ? petData : undefined;
+    } catch {
+      return undefined;
+    }
   }
 
   /**
@@ -1767,8 +1799,37 @@ export class Player extends Living {
       this._applyGuildPassivesDeferred();
     }
 
+    // Store pet data for deferred restoration (after player enters room)
+    if (data.pets && data.pets.length > 0) {
+      this._pendingPetData = data.pets;
+    }
+
     // Note: Location and inventory need to be handled by the driver
     // after loading, as they require object references
+  }
+
+  /**
+   * Restore pets after player has entered a room.
+   * Called by the login daemon after player enters the starting room.
+   */
+  async restorePets(): Promise<void> {
+    if (!this._pendingPetData || this._pendingPetData.length === 0) {
+      return;
+    }
+
+    try {
+      const { getPetDaemon } = await import('../daemons/pet.js');
+      const petDaemon = getPetDaemon();
+
+      for (const petData of this._pendingPetData) {
+        await petDaemon.restorePet(this, petData);
+      }
+    } catch (error) {
+      console.error('[Player] Error restoring pets:', error);
+    }
+
+    // Clear pending data
+    this._pendingPetData = null;
   }
 
   /**

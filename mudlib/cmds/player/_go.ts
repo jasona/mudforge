@@ -248,6 +248,16 @@ export async function execute(ctx: CommandContext): Promise<boolean> {
       // Party daemon not available
     });
 
+  // Handle pet follow - move following pets
+  import('../../daemons/pet.js')
+    .then(({ getPetDaemon }) => {
+      const petDaemon = getPetDaemon();
+      void petDaemon.handleOwnerMovement(player, room, destination, direction);
+    })
+    .catch(() => {
+      // Pet daemon not available
+    });
+
   // Broadcast enter message to new room
   const enterRoom = destination as BroadcastableRoom;
   if (enterRoom.broadcast) {

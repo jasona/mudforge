@@ -10,6 +10,11 @@ import type { Living, Weapon, DamageType, CombatEntry, RoundResult, AttackResult
 import type { ConfigDaemon } from './config.js';
 import { getQuestDaemon } from './quest.js';
 
+// Pet type check helper (avoids circular dependency with pet.ts)
+function isPet(obj: unknown): obj is { canBeAttacked: (attacker: MudObject) => { canAttack: boolean; reason: string } } {
+  return obj !== null && typeof obj === 'object' && 'canBeAttacked' in obj && typeof (obj as Record<string, unknown>).canBeAttacked === 'function';
+}
+
 /**
  * Base round time in milliseconds.
  */
@@ -189,6 +194,15 @@ export class CombatDaemon extends MudObject {
       return false;
     }
 
+    // Check if attacking a pet - requires PK to be enabled
+    if (isPet(defender)) {
+      const petCheck = defender.canBeAttacked(attacker);
+      if (!petCheck.canAttack) {
+        attacker.receive(`{yellow}${petCheck.reason}{/}\n`);
+        return false;
+      }
+    }
+
     // Check nohassle: Builder+ with nohassle on cannot initiate combat with NPCs
     if (this.hasNohassle(attacker) && this.isNPC(defender)) {
       attacker.receive("{yellow}You have nohassle enabled. Use 'nohassle off' to fight NPCs.{/}\n");
@@ -197,6 +211,19 @@ export class CombatDaemon extends MudObject {
 
     // Start combat state on both sides
     attacker.startCombat(defender);
+
+    // NPC retaliation: if defender is an NPC and not already attacking back, they retaliate
+    // This is done via callOut to avoid recursive initiateCombat during this call
+    if (this.isNPC(defender) && !this._combats.has(this.combatKey(defender, attacker))) {
+      if (typeof efuns !== 'undefined' && efuns.callOut) {
+        efuns.callOut(() => {
+          // Double-check they're still alive and in the same room
+          if (defender.alive && attacker.alive && defender.environment === attacker.environment) {
+            this.initiateCombat(defender, attacker);
+          }
+        }, 100); // Small delay to avoid recursion issues
+      }
+    }
 
     // Create combat entry
     const now = Date.now();
@@ -633,7 +660,10 @@ export class CombatDaemon extends MudObject {
   /**
    * Calculate hit chance.
    * Formula: 75 + toHit + (ATK_DEX - 10) * 2 + (ATK_LUCK / 10)
-   *          - toDodge - (DEF_DEX - 10) * 2
+   *          - toDodge - (DEF_DEX - 10) * 2 + levelBonus
+   *
+   * Level bonus: +1% per attacker level above defender, -1% per defender level above attacker
+   * Capped at ±10%
    */
   calculateHitChance(attacker: Living, defender: Living): number {
     const toHit = attacker.getCombatStat('toHit');
@@ -642,12 +672,17 @@ export class CombatDaemon extends MudObject {
     const defDex = defender.getStat('dexterity');
     const atkLuck = attacker.getStat('luck');
 
+    // Level difference bonus/penalty (capped at ±10)
+    const levelDiff = attacker.level - defender.level;
+    const levelBonus = Math.max(-10, Math.min(10, levelDiff));
+
     const hitChance = 75
       + toHit
       + (atkDex - 10) * 2
       + (atkLuck / 10)
       - toDodge
-      - (defDex - 10) * 2;
+      - (defDex - 10) * 2
+      + levelBonus;
 
     // Clamp between 5% and 95%
     return Math.max(5, Math.min(95, hitChance));
@@ -680,9 +715,13 @@ export class CombatDaemon extends MudObject {
    * Formula: toBlock + (STR / 10)
    */
   calculateBlockChance(defender: Living): number {
-    // Check if defender has a shield equipped
+    // Check if defender has a shield equipped (shields are in off_hand slot)
     const offHand = defender.getEquipped('off_hand');
-    const hasShield = offHand && 'slot' in offHand && (offHand as { slot: string }).slot === 'off_hand';
+    // Check if the equipped item is a shield (has isShield property or slot === 'shield')
+    const hasShield = offHand && (
+      ('isShield' in offHand && (offHand as { isShield: boolean }).isShield) ||
+      ('slot' in offHand && (offHand as { slot: string }).slot === 'shield')
+    );
 
     if (!hasShield) {
       return 0;
@@ -726,13 +765,29 @@ export class CombatDaemon extends MudObject {
         baseDamage += Math.floor((attacker.getStat('intelligence') - 10) / 2);
       }
     } else {
-      // Unarmed damage (1d4 + STR bonus)
-      baseDamage = Math.floor(Math.random() * 4) + 1;
-      baseDamage += Math.floor((attacker.getStat('strength') - 10) / 2);
+      // Check if NPC with level-based damage
+      const npcAttacker = attacker as Living & { getBaseDamageRange?: () => { min: number; max: number } };
+      if (typeof npcAttacker.getBaseDamageRange === 'function') {
+        // NPC uses level-based damage range
+        const range = npcAttacker.getBaseDamageRange();
+        const min = range.min || 1;
+        const max = range.max || 2;
+        baseDamage = min + Math.floor(Math.random() * (max - min + 1));
+        baseDamage += Math.floor((attacker.getStat('strength') - 10) / 2);
+      } else {
+        // Player unarmed damage (1d4 + STR bonus)
+        baseDamage = Math.floor(Math.random() * 4) + 1;
+        baseDamage += Math.floor((attacker.getStat('strength') - 10) / 2);
+      }
     }
 
     // Add combat stat damage bonus
     baseDamage += attacker.getCombatStat('damageBonus');
+
+    // Safeguard against NaN
+    if (isNaN(baseDamage)) {
+      baseDamage = 1;
+    }
 
     return Math.max(1, baseDamage);
   }
@@ -753,7 +808,7 @@ export class CombatDaemon extends MudObject {
     const wornArmor = defender.getWornArmor();
 
     for (const piece of wornArmor) {
-      armor += piece.armorClass;
+      armor += piece.armor || 0;
 
       // Check resistances
       if (piece.resistances && piece.resistances[damageType]) {

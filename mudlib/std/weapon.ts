@@ -59,6 +59,7 @@ export class Weapon extends Item {
   private _attackSpeed: number = 0; // -0.5 (slow) to +0.5 (fast), 0 is normal
   private _specialAttackChance: number = 0; // 0-100 percentage per round
   private _specialAttack: SpecialAttackCallback | null = null;
+  private _toHit: number = 0; // Accuracy bonus from weapon quality
 
   // Auto-balance item level
   private _itemLevel: number = 1;
@@ -219,6 +220,21 @@ export class Weapon extends Item {
     this._attackSpeed = Math.max(-0.5, Math.min(0.5, value));
   }
 
+  /**
+   * Get accuracy (toHit) bonus from weapon quality.
+   * Higher quality weapons are more accurate.
+   */
+  get toHit(): number {
+    return this._toHit;
+  }
+
+  /**
+   * Set accuracy (toHit) bonus.
+   */
+  set toHit(value: number) {
+    this._toHit = value;
+  }
+
   // ========== Special Attacks ==========
 
   /**
@@ -289,7 +305,7 @@ export class Weapon extends Item {
   }
 
   /**
-   * Auto-balance weapon based on item level. Sets damage and value.
+   * Auto-balance weapon based on item level. Sets damage, accuracy, and value.
    * Handedness affects damage (two-handed +50%, light -25%).
    * All values can be overridden after calling this method.
    * @param level The item level (1-50)
@@ -312,6 +328,9 @@ export class Weapon extends Item {
 
     this._minDamage = Math.max(1, minDmg);
     this._maxDamage = Math.max(this._minDamage + 1, maxDmg);
+
+    // toHit formula: +1 per 5 levels (level 5 = +1, level 50 = +10)
+    this._toHit = Math.floor(level / 5);
 
     // Value formula: level * 15
     this._value = level * 15;
@@ -414,6 +433,11 @@ export class Weapon extends Item {
     const occupiesBoth = this._handedness === 'two_handed';
     wielder.equipToSlot(this._slot, this, occupiesBoth);
 
+    // Apply toHit combat modifier from weapon quality
+    if (this._toHit !== 0) {
+      wielder.addCombatStatModifier('toHit', this._toHit);
+    }
+
     this.onWield(wielder);
     return { success: true, message: `You wield ${this.shortDesc}.` };
   }
@@ -429,6 +453,11 @@ export class Weapon extends Item {
 
     const previousWielder = this._wielder;
     const desc = this.shortDesc;
+
+    // Remove toHit combat modifier
+    if (this._toHit !== 0) {
+      previousWielder.addCombatStatModifier('toHit', -this._toHit);
+    }
 
     // Unregister from living's equipment system
     previousWielder.unequipFromSlot(this._slot);
@@ -518,6 +547,7 @@ export class Weapon extends Item {
     attackSpeed?: number;
     specialAttackChance?: number;
     itemLevel?: number;
+    toHit?: number;
   }): void {
     // Set handedness first (it may adjust size)
     if (options.handedness) this.handedness = options.handedness;
@@ -543,6 +573,8 @@ export class Weapon extends Item {
     }
     if (options.attackSpeed !== undefined) this.attackSpeed = options.attackSpeed;
     if (options.specialAttackChance !== undefined) this.specialAttackChance = options.specialAttackChance;
+    // Explicit toHit overrides itemLevel
+    if (options.toHit !== undefined) this.toHit = options.toHit;
   }
 }
 

@@ -26,6 +26,11 @@ export function detectObjectType(obj: MudObject): ObjectImageType {
     return 'player';
   }
 
+  // Check for Pet (has petId and templateType - before NPC since Pet extends NPC)
+  if ('petId' in obj && 'templateType' in obj) {
+    return 'pet';
+  }
+
   // Check for NPC (has isAggressiveTo method)
   if ('isAggressiveTo' in obj && !('permissionLevel' in obj)) {
     return 'npc';
@@ -227,6 +232,96 @@ function buildNpcLayout(obj: MudObject): LayoutContainer {
     id: 'look-description',
     content: obj.longDesc,
     style: { color: '#ddd', fontSize: '13px', lineHeight: '1.5' },
+  } as DisplayElement);
+
+  return {
+    type: 'vertical',
+    gap: '4px',
+    children,
+  };
+}
+
+/**
+ * Build pet-specific modal layout.
+ */
+function buildPetLayout(obj: MudObject): LayoutContainer {
+  const pet = obj as MudObject & {
+    name: string;
+    petName: string | null;
+    ownerName: string | null;
+    templateType: string;
+    level: number;
+    health: number;
+    maxHealth: number;
+    healthPercent: number;
+    itemCount: number;
+    maxItems: number;
+    maxWeight: number;
+    currentWeight: number;
+    getDisplayShortDesc: () => string;
+  };
+
+  const displayName = pet.petName
+    ? `${pet.petName} the ${pet.name}`
+    : capitalizeFirst(pet.name || pet.templateType.replace(/_/g, ' '));
+  const healthPercent = pet.healthPercent ?? 100;
+
+  const children: Array<LayoutContainer | DisplayElement> = [];
+
+  // Name
+  children.push({
+    type: 'heading',
+    id: 'look-name',
+    content: displayName,
+    level: 3,
+    style: { color: '#4ade80', margin: '0 0 4px 0', textAlign: 'center' },
+  } as DisplayElement);
+
+  // Owner info
+  if (pet.ownerName) {
+    children.push({
+      type: 'text',
+      id: 'look-owner',
+      content: `Owned by ${pet.ownerName}`,
+      style: { color: '#888', fontSize: '14px', textAlign: 'center', marginBottom: '8px' },
+    } as DisplayElement);
+  }
+
+  // Stats grid
+  const stats: Array<{ label: string; value: string; color?: string }> = [];
+
+  // Health
+  if (healthPercent < 100) {
+    stats.push({
+      label: 'Health',
+      value: `${Math.round(healthPercent)}%`,
+      color: healthPercent > 50 ? '#4ade80' : healthPercent > 25 ? '#fbbf24' : '#f87171',
+    });
+  } else {
+    stats.push({ label: 'Health', value: 'Healthy', color: '#4ade80' });
+  }
+
+  // Carrying capacity
+  stats.push({
+    label: 'Carrying',
+    value: `${pet.itemCount}/${pet.maxItems} items`,
+    color: pet.itemCount >= pet.maxItems ? '#f87171' : '#ddd',
+  });
+
+  stats.push({
+    label: 'Weight',
+    value: `${pet.currentWeight}/${pet.maxWeight} lbs`,
+    color: pet.currentWeight >= pet.maxWeight ? '#f87171' : '#ddd',
+  });
+
+  children.push(buildStatsGrid(stats));
+
+  // Description
+  children.push({
+    type: 'paragraph',
+    id: 'look-description',
+    content: obj.longDesc,
+    style: { color: '#ddd', fontSize: '13px', lineHeight: '1.5', marginTop: '12px' },
   } as DisplayElement);
 
   return {
@@ -705,6 +800,8 @@ function buildContentLayout(obj: MudObject, type: ObjectImageType): LayoutContai
       return buildPlayerLayout(obj);
     case 'npc':
       return buildNpcLayout(obj);
+    case 'pet':
+      return buildPetLayout(obj);
     case 'weapon':
       return buildWeaponLayout(obj);
     case 'armor':
