@@ -95,7 +95,7 @@ async function tryShowGUIInventory(ctx: CommandContext): Promise<boolean> {
   }
 
   const player = ctx.player as InventoryPlayer;
-  await openInventoryModal(player);
+  await openInventoryModal(player, 1); // Open to Backpack tab
   return true;
 }
 

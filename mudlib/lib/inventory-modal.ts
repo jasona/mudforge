@@ -1033,12 +1033,13 @@ async function refreshInventoryModal(player: InventoryPlayer, defaultTab: number
  * Open the inventory modal for a player.
  *
  * @param player The player to display the inventory for
+ * @param defaultTab Which tab to show (0=Equipment, 1=Backpack). Defaults to 0.
  */
-export async function openInventoryModal(player: InventoryPlayer): Promise<void> {
+export async function openInventoryModal(player: InventoryPlayer, defaultTab: number = 0): Promise<void> {
   // Set up response handler for button actions (only on initial open)
   setupResponseHandler(player);
 
-  await buildAndSendModal(player);
+  await buildAndSendModal(player, defaultTab);
 }
 
 export default { openInventoryModal };
