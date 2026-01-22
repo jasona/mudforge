@@ -32,6 +32,27 @@ import type { QuestPlayer } from './quest/types.js';
 import type { RaceId } from './race/types.js';
 
 /**
+ * Equipment slot data for stats display.
+ */
+export interface EquipmentSlotData {
+  name: string;
+  image?: string;
+  itemType: 'weapon' | 'armor';
+  // Tooltip data
+  description?: string;
+  weight?: number;
+  value?: number;
+  // Weapon-specific
+  minDamage?: number;
+  maxDamage?: number;
+  damageType?: string;
+  handedness?: string;
+  // Armor-specific
+  armor?: number;
+  slot?: string;
+}
+
+/**
  * STATS protocol message for HP/MP/XP display.
  */
 export interface StatsMessage {
@@ -47,6 +68,9 @@ export interface StatsMessage {
   bankedGold: number;
   permissionLevel: number;
   cwd: string;
+  equipment?: {
+    [slot: string]: EquipmentSlotData | null;
+  };
 }
 
 /**
@@ -1062,6 +1086,56 @@ export class Player extends Living {
     // Send stats update to client (for graphical display)
     if (this._connection?.sendStats) {
       const profilePortrait = this.getProperty('profilePortrait');
+
+      // Build equipment data from getAllEquipped()
+      const equipmentData: Record<string, EquipmentSlotData | null> = {};
+      const equipped = this.getAllEquipped();
+      const slots = ['head', 'chest', 'hands', 'legs', 'feet', 'cloak', 'main_hand', 'off_hand'];
+      for (const slot of slots) {
+        const item = equipped.get(slot as 'head' | 'chest' | 'hands' | 'legs' | 'feet' | 'cloak' | 'main_hand' | 'off_hand');
+        if (item) {
+          const isWeapon = 'wield' in item;
+          const itemType = isWeapon ? 'weapon' : 'armor';
+          const cachedImage = item.getProperty('cachedImage');
+
+          // Build slot data with tooltip info
+          const slotData: EquipmentSlotData = {
+            name: item.shortDesc,
+            image: typeof cachedImage === 'string' ? cachedImage : undefined,
+            itemType: itemType as 'weapon' | 'armor',
+            description: item.longDesc,
+            weight: 'weight' in item ? (item as unknown as { weight: number }).weight : undefined,
+            value: 'value' in item ? (item as unknown as { value: number }).value : undefined,
+          };
+
+          // Add weapon-specific data
+          if (isWeapon) {
+            const weapon = item as unknown as {
+              minDamage: number;
+              maxDamage: number;
+              damageType: string;
+              handedness: string;
+            };
+            slotData.minDamage = weapon.minDamage;
+            slotData.maxDamage = weapon.maxDamage;
+            slotData.damageType = weapon.damageType;
+            slotData.handedness = weapon.handedness;
+          } else {
+            // Armor-specific data
+            const armor = item as unknown as {
+              armor: number;
+              slot: string;
+            };
+            slotData.armor = armor.armor;
+            slotData.slot = armor.slot;
+          }
+
+          equipmentData[slot] = slotData;
+        } else {
+          equipmentData[slot] = null;
+        }
+      }
+
       this._connection.sendStats({
         type: 'update',
         hp: this.health,
@@ -1081,6 +1155,7 @@ export class Player extends Living {
         maxCarryWeight: this.getMaxCarryWeight(),
         encumbrancePercent: this.getEncumbrancePercent(),
         encumbranceLevel: this.getEncumbranceLevel(),
+        equipment: equipmentData,
       });
     }
 
@@ -2173,6 +2248,14 @@ export class Player extends Living {
       // Dynamically import to avoid circular dependencies
       const { openScoreModal } = await import('../lib/score-modal.js');
       openScoreModal(this as unknown as Parameters<typeof openScoreModal>[0]);
+      return;
+    }
+
+    // Handle equipment panel click - open inventory modal
+    if (message.action === 'open-inventory') {
+      // Dynamically import to avoid circular dependencies
+      const { openInventoryModal } = await import('../lib/inventory-modal.js');
+      await openInventoryModal(this as unknown as Parameters<typeof openInventoryModal>[0]);
       return;
     }
 

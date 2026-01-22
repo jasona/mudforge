@@ -18,6 +18,27 @@ export interface MapMessage {
 }
 
 /**
+ * Equipment slot data for stats display.
+ */
+export interface EquipmentSlotData {
+  name: string;
+  image?: string;
+  itemType: 'weapon' | 'armor';
+  // Tooltip data
+  description?: string;
+  weight?: number;
+  value?: number;
+  // Weapon-specific
+  minDamage?: number;
+  maxDamage?: number;
+  damageType?: string;
+  handedness?: string;
+  // Armor-specific
+  armor?: number;
+  slot?: string;
+}
+
+/**
  * STATS protocol message type for HP/MP/XP display.
  */
 export interface StatsMessage {
@@ -33,6 +54,9 @@ export interface StatsMessage {
   bankedGold: number;
   permissionLevel: number;
   cwd: string;
+  equipment?: {
+    [slot: string]: EquipmentSlotData | null;
+  };
 }
 
 /**
