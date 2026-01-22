@@ -5,6 +5,8 @@
  * Can be dragged to reposition, and position is saved to localStorage.
  */
 
+import { convertEmoticons, isEmojiConversionEnabled } from './emoji-converter.js';
+
 export type CommType = 'say' | 'tell' | 'channel';
 
 export interface CommMessage {
@@ -487,32 +489,32 @@ export class CommPanel {
     switch (message.commType) {
       case 'say':
         if (message.isSender) {
-          content = `<span class="comm-sender">You</span> say: ${this.escapeHtml(message.message)}`;
+          content = `<span class="comm-sender">You</span> say: ${this.formatContent(message.message)}`;
         } else {
-          content = `<span class="comm-sender">${this.escapeHtml(message.sender)}</span> says: ${this.escapeHtml(message.message)}`;
+          content = `<span class="comm-sender">${this.escapeHtml(message.sender)}</span> says: ${this.formatContent(message.message)}`;
         }
         break;
       case 'tell':
         if (message.isSender) {
           // You sent this tell
           const recipientList = message.recipients?.join(', ') || 'someone';
-          content = `<span class="comm-sender">You</span> tell ${this.escapeHtml(recipientList)}: ${this.escapeHtml(message.message)}`;
+          content = `<span class="comm-sender">You</span> tell ${this.escapeHtml(recipientList)}: ${this.formatContent(message.message)}`;
         } else {
           // You received this tell
           if (message.recipients && message.recipients.length > 1) {
             const others = message.recipients.filter(r => r !== message.sender).join(', ');
-            content = `<span class="comm-sender">${this.escapeHtml(message.sender)}</span> tells you (and ${this.escapeHtml(others)}): ${this.escapeHtml(message.message)}`;
+            content = `<span class="comm-sender">${this.escapeHtml(message.sender)}</span> tells you (and ${this.escapeHtml(others)}): ${this.formatContent(message.message)}`;
           } else {
-            content = `<span class="comm-sender">${this.escapeHtml(message.sender)}</span> tells you: ${this.escapeHtml(message.message)}`;
+            content = `<span class="comm-sender">${this.escapeHtml(message.sender)}</span> tells you: ${this.formatContent(message.message)}`;
           }
         }
         break;
       case 'channel':
         // Check if this message has a GIF link
         if (message.gifId) {
-          content = `<span class="comm-channel">[${this.escapeHtml(message.channel || 'Unknown')}]</span> <span class="comm-sender">${this.escapeHtml(message.sender)}</span>: ${this.escapeHtml(message.message)} <a href="#" class="gif-link" data-gif-id="${this.escapeHtml(message.gifId)}">[View GIF]</a>`;
+          content = `<span class="comm-channel">[${this.escapeHtml(message.channel || 'Unknown')}]</span> <span class="comm-sender">${this.escapeHtml(message.sender)}</span>: ${this.formatContent(message.message)} <a href="#" class="gif-link" data-gif-id="${this.escapeHtml(message.gifId)}">[View GIF]</a>`;
         } else {
-          content = `<span class="comm-channel">[${this.escapeHtml(message.channel || 'Unknown')}]</span> <span class="comm-sender">${this.escapeHtml(message.sender)}</span>: ${this.escapeHtml(message.message)}`;
+          content = `<span class="comm-channel">[${this.escapeHtml(message.channel || 'Unknown')}]</span> <span class="comm-sender">${this.escapeHtml(message.sender)}</span>: ${this.formatContent(message.message)}`;
         }
         break;
     }
@@ -542,6 +544,17 @@ export class CommPanel {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+  }
+
+  /**
+   * Format message content with HTML escaping and emoji conversion.
+   */
+  private formatContent(text: string): string {
+    let result = this.escapeHtml(text);
+    if (isEmojiConversionEnabled()) {
+      result = convertEmoticons(result);
+    }
+    return result;
   }
 
   /**
