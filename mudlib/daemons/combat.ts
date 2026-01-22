@@ -808,7 +808,7 @@ export class CombatDaemon extends MudObject {
     const wornArmor = defender.getWornArmor();
 
     for (const piece of wornArmor) {
-      armor += piece.armorClass;
+      armor += piece.armor || 0;
 
       // Check resistances
       if (piece.resistances && piece.resistances[damageType]) {
