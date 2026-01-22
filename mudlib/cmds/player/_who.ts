@@ -1,13 +1,14 @@
 /**
- * Who command - Display all connected players with an artful presentation.
+ * Who command - Display all connected players.
  *
- * Shows an ASCII art header, list of players with their display names
- * and level/title, and a footer with the total player count.
+ * By default, opens a GUI modal showing player cards with avatars,
+ * names, levels, races, and classes. Use --text for ASCII art output.
  */
 
 import type { MudObject } from '../../lib/std.js';
 import { canSee } from '../../std/visibility/index.js';
 import type { Living } from '../../std/living.js';
+import { openWhoModal } from '../../lib/who-modal.js';
 
 interface CommandContext {
   player: MudObject;
@@ -97,9 +98,19 @@ function boxLine(content: string): string {
 
 export const name = ['who', 'players'];
 export const description = 'Show all connected players';
-export const usage = 'who';
+export const usage = 'who [--text]';
 
 export async function execute(ctx: CommandContext): Promise<void> {
+  // Check for --text flag to use text output
+  if (!ctx.args.includes('--text')) {
+    // Default to GUI modal
+    if (typeof efuns !== 'undefined' && efuns.guiSend) {
+      openWhoModal(ctx.player as Living);
+      return;
+    }
+  }
+
+  // Text-based output (--text flag or no GUI support)
   // Get game configuration
   const game = efuns.gameConfig();
 
