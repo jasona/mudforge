@@ -694,12 +694,13 @@ export class NPC extends Living {
    */
   getBaseDamageRange(): { min: number; max: number } {
     const type = (this.getProperty('npcType') as NPCType) || 'normal';
-    const mult = NPC_TYPE_MULTIPLIERS[type];
-    const minDmg = Math.max(1, Math.floor(this.level / 2));
-    const maxDmg = Math.max(2, this.level);
+    const mult = NPC_TYPE_MULTIPLIERS[type] || NPC_TYPE_MULTIPLIERS.normal;
+    const level = this.level || 1;
+    const minDmg = Math.max(1, Math.floor(level / 2));
+    const maxDmg = Math.max(2, level);
     return {
-      min: Math.round(minDmg * mult.damage),
-      max: Math.round(maxDmg * mult.damage),
+      min: Math.round(minDmg * mult.damage) || 1,
+      max: Math.round(maxDmg * mult.damage) || 2,
     };
   }
 
@@ -812,13 +813,30 @@ export class NPC extends Living {
 
   /**
    * Heartbeat handler.
-   * Processes chat, wandering, and other periodic behaviors.
+   * Processes chat, wandering, aggression, and other periodic behaviors.
    */
   override async heartbeat(): Promise<void> {
     if (!this.alive) return;
 
     const random = typeof efuns !== 'undefined' ? efuns.random : (max: number) =>
       Math.floor(Math.random() * max);
+
+    // Aggression check: if not in combat and aggressive, look for targets
+    if (!this.inCombat && this._aggressiveTo) {
+      const room = this.environment;
+      if (room && 'getLivings' in room) {
+        const getLivings = (room as MudObject & { getLivings: () => Living[] }).getLivings;
+        const livings = getLivings.call(room);
+        for (const target of livings) {
+          if (target !== this && target.alive && this.isAggressiveTo(target)) {
+            // Attack this target
+            const combatDaemon = getCombatDaemon();
+            combatDaemon.initiateCombat(this, target);
+            break; // Only attack one target per heartbeat
+          }
+        }
+      }
+    }
 
     // Chat
     if (this._chats.length > 0 && random(100) < this._chatChance) {
