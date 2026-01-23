@@ -13,9 +13,66 @@ import type {
 } from './gui-types.js';
 import { MudObject } from '../std/object.js';
 import { getPortraitDaemon, type ObjectImageType } from '../daemons/portrait.js';
+import type { QualityTier, GeneratedItemData } from '../std/loot/types.js';
 
 // Import type checking - we'll do runtime checks instead of instanceof
 // to avoid circular dependency issues
+
+/**
+ * Strip MUD color codes from a string.
+ * Removes patterns like {red}, {bold}, {/}, {bold}{green}, etc.
+ */
+function stripColorCodes(str: string): string {
+  return str.replace(/\{[^}]*\}/g, '');
+}
+
+/**
+ * Quality tier to CSS color mapping.
+ */
+const QUALITY_COLORS: Record<QualityTier, string> = {
+  common: '#ffffff',     // White
+  uncommon: '#4ade80',   // Green
+  rare: '#60a5fa',       // Blue
+  epic: '#c084fc',       // Purple
+  legendary: '#fb923c',  // Orange
+  unique: '#fbbf24',     // Gold/Yellow
+};
+
+/**
+ * Get the quality color for a generated item, or a default color.
+ */
+function getQualityColor(obj: MudObject, defaultColor: string): string {
+  const itemWithGenData = obj as MudObject & {
+    getGeneratedItemData?: () => GeneratedItemData;
+  };
+
+  if (itemWithGenData.getGeneratedItemData) {
+    const genData = itemWithGenData.getGeneratedItemData();
+    if (genData && genData.quality) {
+      return QUALITY_COLORS[genData.quality] || defaultColor;
+    }
+  }
+
+  return defaultColor;
+}
+
+/**
+ * Get quality badge text for a generated item.
+ */
+function getQualityBadge(obj: MudObject): string | null {
+  const itemWithGenData = obj as MudObject & {
+    getGeneratedItemData?: () => GeneratedItemData;
+  };
+
+  if (itemWithGenData.getGeneratedItemData) {
+    const genData = itemWithGenData.getGeneratedItemData();
+    if (genData && genData.quality) {
+      return genData.quality.charAt(0).toUpperCase() + genData.quality.slice(1);
+    }
+  }
+
+  return null;
+}
 
 /**
  * Detect the type of a MudObject for modal display.
@@ -94,8 +151,8 @@ function getDisplayName(obj: MudObject): string {
     const name = (obj as MudObject & { name: string }).name;
     return capitalizeFirst(name);
   }
-  // For other objects, strip article and capitalize
-  return capitalizeFirst(stripArticle(obj.shortDesc));
+  // For other objects, strip color codes, strip article, and capitalize
+  return capitalizeFirst(stripArticle(stripColorCodes(obj.shortDesc)));
 }
 
 /**
@@ -346,16 +403,37 @@ function buildWeaponLayout(obj: MudObject): LayoutContainer {
   };
 
   const name = getDisplayName(obj);
+  const nameColor = getQualityColor(obj, '#60a5fa');
+  const qualityBadge = getQualityBadge(obj);
   const children: Array<LayoutContainer | DisplayElement> = [];
 
-  // Name
+  // Name with quality color
   children.push({
     type: 'heading',
     id: 'look-name',
     content: name,
     level: 3,
-    style: { color: '#60a5fa', margin: '0 0 8px 0', textAlign: 'center' },
+    style: { color: nameColor, margin: '0 0 4px 0', textAlign: 'center' },
   } as DisplayElement);
+
+  // Quality badge for generated items
+  if (qualityBadge) {
+    children.push({
+      type: 'text',
+      id: 'look-quality',
+      content: qualityBadge,
+      style: {
+        color: nameColor,
+        fontSize: '12px',
+        textAlign: 'center',
+        marginBottom: '8px',
+        padding: '2px 8px',
+        backgroundColor: `${nameColor}22`,
+        borderRadius: '4px',
+        display: 'inline-block',
+      },
+    } as DisplayElement);
+  }
 
   // Stats grid
   const stats: Array<{ label: string; value: string; color?: string }> = [
@@ -420,16 +498,37 @@ function buildArmorLayout(obj: MudObject): LayoutContainer {
   };
 
   const name = getDisplayName(obj);
+  const nameColor = getQualityColor(obj, '#a78bfa');
+  const qualityBadge = getQualityBadge(obj);
   const children: Array<LayoutContainer | DisplayElement> = [];
 
-  // Name
+  // Name with quality color
   children.push({
     type: 'heading',
     id: 'look-name',
     content: name,
     level: 3,
-    style: { color: '#a78bfa', margin: '0 0 8px 0', textAlign: 'center' },
+    style: { color: nameColor, margin: '0 0 4px 0', textAlign: 'center' },
   } as DisplayElement);
+
+  // Quality badge for generated items
+  if (qualityBadge) {
+    children.push({
+      type: 'text',
+      id: 'look-quality',
+      content: qualityBadge,
+      style: {
+        color: nameColor,
+        fontSize: '12px',
+        textAlign: 'center',
+        marginBottom: '8px',
+        padding: '2px 8px',
+        backgroundColor: `${nameColor}22`,
+        borderRadius: '4px',
+        display: 'inline-block',
+      },
+    } as DisplayElement);
+  }
 
   // Stats grid
   const stats: Array<{ label: string; value: string; color?: string }> = [
@@ -716,16 +815,37 @@ function buildItemLayout(obj: MudObject): LayoutContainer {
   };
 
   const name = getDisplayName(obj);
+  const nameColor = getQualityColor(obj, '#e5e5e5');
+  const qualityBadge = getQualityBadge(obj);
   const children: Array<LayoutContainer | DisplayElement> = [];
 
-  // Name
+  // Name with quality color
   children.push({
     type: 'heading',
     id: 'look-name',
     content: name,
     level: 3,
-    style: { color: '#e5e5e5', margin: '0 0 8px 0', textAlign: 'center' },
+    style: { color: nameColor, margin: '0 0 4px 0', textAlign: 'center' },
   } as DisplayElement);
+
+  // Quality badge for generated items
+  if (qualityBadge) {
+    children.push({
+      type: 'text',
+      id: 'look-quality',
+      content: qualityBadge,
+      style: {
+        color: nameColor,
+        fontSize: '12px',
+        textAlign: 'center',
+        marginBottom: '8px',
+        padding: '2px 8px',
+        backgroundColor: `${nameColor}22`,
+        borderRadius: '4px',
+        display: 'inline-block',
+      },
+    } as DisplayElement);
+  }
 
   // Stats grid (only if there are stats to show)
   const stats: Array<{ label: string; value: string; color?: string }> = [];
@@ -917,7 +1037,7 @@ export async function openLookModal(
             type: 'image',
             id: 'look-image',
             src: initialImage,
-            alt: target.shortDesc,
+            alt: stripColorCodes(target.shortDesc),
             style: {
               width: '128px',
               height: '128px',

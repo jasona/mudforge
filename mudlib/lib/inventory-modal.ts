@@ -23,6 +23,7 @@ import { detectObjectType } from './look-modal.js';
 import type { MudObject } from '../std/object.js';
 import type { Weapon } from '../std/weapon.js';
 import type { Armor } from '../std/armor.js';
+import type { QualityTier, GeneratedItemData } from '../std/loot/types.js';
 
 /**
  * Interface for inventory modal player data.
@@ -54,9 +55,42 @@ function truncate(str: string, maxLength: number): string {
 }
 
 /**
- * Get the item type color based on item class.
+ * Strip MUD color codes from a string.
+ * Removes patterns like {red}, {bold}, {/}, {bold}{green}, etc.
+ */
+function stripColorCodes(str: string): string {
+  return str.replace(/\{[^}]*\}/g, '');
+}
+
+/**
+ * Quality tier to CSS color mapping.
+ */
+const QUALITY_COLORS: Record<QualityTier, string> = {
+  common: '#ffffff',     // White
+  uncommon: '#4ade80',   // Green
+  rare: '#60a5fa',       // Blue
+  epic: '#c084fc',       // Purple
+  legendary: '#fb923c',  // Orange
+  unique: '#fbbf24',     // Gold/Yellow
+};
+
+/**
+ * Get the item display color, using quality tier for generated items.
  */
 function getItemTypeColor(item: MudObject): string {
+  // Check if this is a generated item with quality data
+  const itemWithGenData = item as MudObject & {
+    getGeneratedItemData?: () => GeneratedItemData;
+  };
+
+  if (itemWithGenData.getGeneratedItemData) {
+    const genData = itemWithGenData.getGeneratedItemData();
+    if (genData && genData.quality) {
+      return QUALITY_COLORS[genData.quality] || '#ddd';
+    }
+  }
+
+  // Fall back to type-based colors for non-generated items
   const type = detectObjectType(item);
   if (type === 'weapon') return '#ef4444'; // Weapons - red
   if (type === 'armor') return '#60a5fa'; // Armor - blue
@@ -113,6 +147,44 @@ function formatHandedness(handedness: string): string {
 }
 
 /**
+ * Get quality color for tooltip display.
+ */
+function getTooltipQualityColor(item: MudObject, defaultColor: string): string {
+  const itemWithGenData = item as MudObject & {
+    getGeneratedItemData?: () => GeneratedItemData;
+  };
+
+  if (itemWithGenData.getGeneratedItemData) {
+    const genData = itemWithGenData.getGeneratedItemData();
+    if (genData && genData.quality) {
+      return QUALITY_COLORS[genData.quality] || defaultColor;
+    }
+  }
+
+  return defaultColor;
+}
+
+/**
+ * Get quality badge HTML for tooltips.
+ */
+function getQualityBadge(item: MudObject): string {
+  const itemWithGenData = item as MudObject & {
+    getGeneratedItemData?: () => GeneratedItemData;
+  };
+
+  if (itemWithGenData.getGeneratedItemData) {
+    const genData = itemWithGenData.getGeneratedItemData();
+    if (genData && genData.quality) {
+      const color = QUALITY_COLORS[genData.quality];
+      const qualityName = genData.quality.charAt(0).toUpperCase() + genData.quality.slice(1);
+      return `<div style="display:inline-block;padding:2px 6px;border-radius:4px;background:${color}22;color:${color};font-size:10px;font-weight:bold;margin-bottom:4px;">${qualityName}</div>`;
+    }
+  }
+
+  return '';
+}
+
+/**
  * Build tooltip HTML content for a weapon.
  */
 function buildWeaponTooltip(item: MudObject): string {
@@ -127,8 +199,12 @@ function buildWeaponTooltip(item: MudObject): string {
     longDesc: string;
   };
 
+  const nameColor = getTooltipQualityColor(item, '#ef4444');
+  const qualityBadge = getQualityBadge(item);
+
   const lines: string[] = [
-    `<div style="font-weight:bold;color:#ef4444;font-size:14px;margin-bottom:8px;">${capitalizeFirst(item.shortDesc)}</div>`,
+    `<div style="font-weight:bold;color:${nameColor};font-size:14px;margin-bottom:4px;">${capitalizeFirst(stripColorCodes(item.shortDesc))}</div>`,
+    qualityBadge,
     `<div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="color:#888;">Damage:</span><span style="color:#f87171;">${weapon.minDamage} - ${weapon.maxDamage}</span></div>`,
     `<div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="color:#888;">Type:</span><span style="color:#ddd;">${capitalizeFirst(weapon.damageType || 'physical')}</span></div>`,
     `<div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="color:#888;">Hands:</span><span style="color:#ddd;">${formatHandedness(weapon.handedness)}</span></div>`,
@@ -159,8 +235,12 @@ function buildArmorTooltip(item: MudObject): string {
     getResistances?: () => Map<string, number>;
   };
 
+  const nameColor = getTooltipQualityColor(item, '#60a5fa');
+  const qualityBadge = getQualityBadge(item);
+
   const lines: string[] = [
-    `<div style="font-weight:bold;color:#60a5fa;font-size:14px;margin-bottom:8px;">${capitalizeFirst(item.shortDesc)}</div>`,
+    `<div style="font-weight:bold;color:${nameColor};font-size:14px;margin-bottom:4px;">${capitalizeFirst(stripColorCodes(item.shortDesc))}</div>`,
+    qualityBadge,
     `<div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="color:#888;">Armor:</span><span style="color:#4ade80;">${armor.armor}</span></div>`,
     `<div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="color:#888;">Slot:</span><span style="color:#ddd;">${capitalizeFirst(armor.slot || 'body')}</span></div>`,
   ];
@@ -201,8 +281,12 @@ function buildItemTooltip(item: MudObject): string {
     longDesc: string;
   };
 
+  const nameColor = getTooltipQualityColor(item, '#e5e5e5');
+  const qualityBadge = getQualityBadge(item);
+
   const lines: string[] = [
-    `<div style="font-weight:bold;color:#e5e5e5;font-size:14px;margin-bottom:8px;">${capitalizeFirst(item.shortDesc)}</div>`,
+    `<div style="font-weight:bold;color:${nameColor};font-size:14px;margin-bottom:4px;">${capitalizeFirst(stripColorCodes(item.shortDesc))}</div>`,
+    qualityBadge,
   ];
 
   if (genericItem.weight !== undefined && genericItem.weight > 0) {
@@ -282,7 +366,7 @@ function buildEquipmentSlot(
       type: 'image',
       id: `slot-img-${slot}`,
       src: itemImage,
-      alt: item.shortDesc,
+      alt: stripColorCodes(item.shortDesc),
       style: {
         width: '48px',
         height: '48px',
@@ -309,7 +393,7 @@ function buildEquipmentSlot(
   children.push({
     type: 'text',
     id: `slot-name-${slot}`,
-    content: hasItem ? truncate(item.shortDesc, 12) : 'Empty',
+    content: hasItem ? truncate(stripColorCodes(item.shortDesc), 12) : 'Empty',
     style: {
       color: hasItem ? '#ddd' : '#555',
       fontSize: '10px',
@@ -463,7 +547,7 @@ function buildItemCard(
       type: 'image',
       id: `item-img-${itemIndex}`,
       src: itemImage,
-      alt: item.shortDesc,
+      alt: stripColorCodes(item.shortDesc),
       style: {
         width: '48px',
         height: '48px',
@@ -476,7 +560,7 @@ function buildItemCard(
     {
       type: 'text',
       id: `item-name-${itemIndex}`,
-      content: truncate(item.shortDesc, 18),
+      content: truncate(stripColorCodes(item.shortDesc), 18),
       style: {
         color: typeColor,
         fontSize: '12px',

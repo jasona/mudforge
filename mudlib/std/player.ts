@@ -30,6 +30,7 @@ import type { GUIMessage, GUIClientMessage } from '../lib/gui-types.js';
 import type { PlayerGuildData } from './guild/types.js';
 import type { QuestPlayer } from './quest/types.js';
 import type { RaceId } from './race/types.js';
+import type { GeneratedItemData } from './loot/types.js';
 
 // Pet save data type (defined here to avoid circular dependency with pet.ts)
 export interface PetSaveData {
@@ -176,6 +177,7 @@ export interface PlayerSaveData {
   staffVanished?: boolean; // Staff visibility toggle
   race?: RaceId; // Player race
   pets?: PetSaveData[]; // Pet save data
+  generatedItems?: GeneratedItemData[]; // Random loot generator items
 }
 
 /**
@@ -1618,11 +1620,57 @@ export class Player extends Living {
   }
 
   /**
+   * Check if an item is a generated item (from random loot system).
+   */
+  private _isGeneratedItem(item: MudObject): boolean {
+    // Check for the generated item marker
+    const genData = item.getProperty('_generatedItemData');
+    return genData !== null && genData !== undefined;
+  }
+
+  /**
+   * Get generated item data from an item.
+   */
+  private _getGeneratedItemData(item: MudObject): GeneratedItemData | null {
+    return item.getProperty<GeneratedItemData>('_generatedItemData') || null;
+  }
+
+  /**
    * Serialize player state for saving.
    */
   save(): PlayerSaveData {
     // Filter inventory to only include savable items
     const savableInventory = this.inventory.filter((item) => this._isItemSavable(item));
+
+    // Separate generated items from regular items
+    const regularItems: MudObject[] = [];
+    const generatedItems: GeneratedItemData[] = [];
+
+    for (const item of savableInventory) {
+      if (this._isGeneratedItem(item)) {
+        const genData = this._getGeneratedItemData(item);
+        if (genData) {
+          generatedItems.push(genData);
+          // Use a special path marker for generated items
+          regularItems.push(item);
+        }
+      } else {
+        regularItems.push(item);
+      }
+    }
+
+    // Build inventory paths - use /generated/ prefix for generated items
+    const inventoryPaths: string[] = [];
+    for (const item of regularItems) {
+      if (this._isGeneratedItem(item)) {
+        const genData = this._getGeneratedItemData(item);
+        // Use a marker path that includes the generated item index
+        const genIndex = generatedItems.indexOf(genData!);
+        inventoryPaths.push(`/generated/${genData?.generatedType}/${genIndex}`);
+      } else {
+        inventoryPaths.push(item.objectPath);
+      }
+    }
 
     // Build equipment data - map equipped items to their index in savable inventory
     const equipment: EquipmentSaveData[] = [];
@@ -1631,7 +1679,7 @@ export class Player extends Living {
     for (const [slot, item] of equipped) {
       // Only save equipment if the item is savable
       if (this._isItemSavable(item)) {
-        const index = savableInventory.indexOf(item);
+        const index = regularItems.indexOf(item);
         if (index >= 0) {
           equipment.push({ slot, inventoryIndex: index });
         }
@@ -1650,7 +1698,7 @@ export class Player extends Living {
       maxMana: this.maxMana,
       stats: this.getBaseStats(),
       location: this.environment?.objectPath || '/areas/valdoria/aldric/center',
-      inventory: savableInventory.map((item) => item.objectPath),
+      inventory: inventoryPaths,
       equipment: equipment.length > 0 ? equipment : undefined,
       properties: this._serializeProperties(),
       createdAt: this._createdAt || Date.now(),
@@ -1670,6 +1718,7 @@ export class Player extends Living {
       staffVanished: this._staffVanished,
       race: this._race,
       pets: this._getPetSaveData(),
+      generatedItems: generatedItems.length > 0 ? generatedItems : undefined,
     };
   }
 

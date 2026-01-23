@@ -14,6 +14,7 @@ import type { NPCCombatConfig, LootEntry, GoldDrop } from './combat/types.js';
 import type { QuestId, QuestDefinition, PlayerQuestState, QuestPlayer } from './quest/types.js';
 import { getQuestDaemon } from '../daemons/quest.js';
 import type { NPCAIContext, ConversationMessage } from '../lib/ai-types.js';
+import type { NPCRandomLootConfig } from './loot/types.js';
 
 // Re-export AI types for convenience
 export type { NPCAIContext, ConversationMessage } from '../lib/ai-types.js';
@@ -94,6 +95,9 @@ export class NPC extends Living {
 
   // Sound to play when someone looks at this NPC
   private _lookSound: string | null = null;
+
+  // Random loot configuration
+  private _randomLootConfig: NPCRandomLootConfig | null = null;
 
   constructor() {
     super();
@@ -645,6 +649,73 @@ export class NPC extends Living {
   }
 
   /**
+   * Configure random loot generation for this NPC.
+   * When enabled, this NPC will drop randomly generated items instead of
+   * (or in addition to) static loot table items.
+   *
+   * @param config Random loot configuration, or null to disable
+   *
+   * @example
+   * ```typescript
+   * this.setRandomLoot({
+   *   enabled: true,
+   *   itemLevel: 20,
+   *   maxQuality: 'epic',
+   *   dropChance: 80,
+   *   maxDrops: 2,
+   *   allowedTypes: ['weapon', 'armor'],
+   * });
+   * ```
+   */
+  setRandomLoot(config: NPCRandomLootConfig | null): void {
+    this._randomLootConfig = config;
+
+    // If enabled, register with the loot daemon
+    if (config?.enabled && this.objectPath) {
+      import('../daemons/loot.js')
+        .then(({ getLootDaemon }) => {
+          try {
+            const lootDaemon = getLootDaemon();
+            lootDaemon.registerNPC(this.objectPath!, config);
+          } catch {
+            // Loot daemon may not be initialized yet
+          }
+        })
+        .catch(() => {
+          // Ignore import errors
+        });
+    } else if (!config?.enabled && this.objectPath) {
+      // Unregister if disabling
+      import('../daemons/loot.js')
+        .then(({ getLootDaemon }) => {
+          try {
+            const lootDaemon = getLootDaemon();
+            lootDaemon.unregisterNPC(this.objectPath!);
+          } catch {
+            // Loot daemon may not be initialized yet
+          }
+        })
+        .catch(() => {
+          // Ignore import errors
+        });
+    }
+  }
+
+  /**
+   * Get the random loot configuration.
+   */
+  getRandomLootConfig(): NPCRandomLootConfig | null {
+    return this._randomLootConfig;
+  }
+
+  /**
+   * Check if this NPC has random loot enabled.
+   */
+  hasRandomLoot(): boolean {
+    return this._randomLootConfig?.enabled ?? false;
+  }
+
+  /**
    * Auto-balance NPC based on level. Sets HP, stats, XP, gold, and damage.
    * All values can be overridden after calling this method.
    * @param level The NPC level (1-60)
@@ -772,8 +843,26 @@ export class NPC extends Living {
    * @returns Array of item paths that dropped
    */
   async generateLoot(corpse: Corpse): Promise<string[]> {
-    const lootTable = this._combatConfig?.lootTable || [];
     const droppedItems: string[] = [];
+
+    // Generate random loot if enabled
+    if (this._randomLootConfig?.enabled) {
+      try {
+        const { getLootDaemon } = await import('../daemons/loot.js');
+        const lootDaemon = getLootDaemon();
+        const randomItems = await lootDaemon.generateNPCLoot(this, corpse);
+
+        // Track generated items by their type
+        for (const item of randomItems) {
+          droppedItems.push(`/generated/${item.shortDesc || 'item'}`);
+        }
+      } catch {
+        // Loot daemon not available, fall through to static loot
+      }
+    }
+
+    // Also generate static loot table items (they stack with random loot)
+    const lootTable = this._combatConfig?.lootTable || [];
 
     for (const entry of lootTable) {
       const roll = typeof efuns !== 'undefined'
