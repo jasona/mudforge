@@ -49,7 +49,11 @@ salt and fish mingles with the market's aromas.`;
     this.addExit('southwest', '/areas/valdoria/harbor/dock');
 
     // Set NPCs that belong to this room - they'll respawn on reset if missing
-    this.setNpcs(['/areas/valdoria/aldric/merchant']);
+    this.setNpcs([
+      '/areas/valdoria/aldric/merchant',
+      '/areas/valdoria/aldric/food_vendor',
+      '/areas/valdoria/aldric/alchemist',
+    ]);
 
     this.addAction('look', this.cmdLook.bind(this));
     this.addAction('browse', this.cmdBrowse.bind(this));

@@ -42,6 +42,7 @@ interface Living extends MudObject {
   exitMessage?: string;
   enterMessage?: string;
   composeMovementMessage?(template: string, direction: string): string;
+  posture?: string;
 }
 
 interface BroadcastOptions {
@@ -118,6 +119,13 @@ export async function execute(ctx: CommandContext): Promise<boolean> {
 
   if (!room) {
     ctx.sendLine("You can't go anywhere from here.");
+    return false;
+  }
+
+  // Check if player is sitting - must stand first
+  const living = player as Living;
+  if (living.posture === 'sitting') {
+    ctx.sendLine("You need to stand up first.");
     return false;
   }
 

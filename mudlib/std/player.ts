@@ -6,12 +6,19 @@
  * beyond regular Living beings.
  */
 
-import { Living, type Stats, type StatName, MAX_STAT } from './living.js';
+import { Living, type Stats, type StatName, MAX_STAT, POSTURE_REGEN_MULTIPLIERS, CAMPFIRE_WARMTH_BONUS } from './living.js';
 
 /**
  * Maximum player level cap.
  */
 export const MAX_PLAYER_LEVEL = 50;
+
+/**
+ * Regeneration constants.
+ */
+export const BASE_HP_REGEN_RATE = 0.5;  // HP per heartbeat (2 sec)
+export const BASE_MP_REGEN_RATE = 0.3;  // MP per heartbeat
+export const REGEN_SCALE_BASE_STAT = 10; // Base stat for scaling
 import { MudObject } from './object.js';
 import { Item } from './item.js';
 import { colorize, stripColors, wordWrap } from '../lib/colors.js';
@@ -237,6 +244,10 @@ export class Player extends Living {
 
   // Pending pet data (stored during restore, applied after entering room)
   private _pendingPetData: PetSaveData[] | null = null;
+
+  // Regeneration accumulators (for fractional healing per heartbeat)
+  private _hpRegenAccumulator: number = 0;
+  private _mpRegenAccumulator: number = 0;
 
   constructor() {
     super();
@@ -1096,10 +1107,66 @@ export class Player extends Living {
   }
 
   /**
+   * Process HP and MP regeneration based on posture and campfire proximity.
+   * Called each heartbeat (every 2 seconds).
+   */
+  private processRegeneration(): void {
+    // Don't regenerate if dead or ghost
+    if (!this.alive || this._isGhost) return;
+
+    // Calculate stat modifiers
+    const conModifier = this.getStat('constitution') / REGEN_SCALE_BASE_STAT;
+    const wisModifier = this.getStat('wisdom') / REGEN_SCALE_BASE_STAT;
+
+    // Get posture multiplier
+    const postureMultiplier = POSTURE_REGEN_MULTIPLIERS[this.posture];
+
+    // Check for campfire warmth bonus
+    let campfireMultiplier = 1.0;
+    if (this.isNearCampfire()) {
+      // Campfire only provides bonus when sitting or sleeping
+      if (this.posture === 'sleeping') {
+        campfireMultiplier = CAMPFIRE_WARMTH_BONUS;
+      } else if (this.posture === 'sitting') {
+        campfireMultiplier = 1 + (CAMPFIRE_WARMTH_BONUS - 1) * 0.5; // Half bonus (1.25x)
+      }
+    }
+
+    // Calculate HP regeneration (disabled in combat)
+    if (!this.inCombat && this.health < this.maxHealth) {
+      const hpRegen = BASE_HP_REGEN_RATE * conModifier * postureMultiplier * campfireMultiplier;
+      this._hpRegenAccumulator += hpRegen;
+
+      // Apply whole HP points
+      if (this._hpRegenAccumulator >= 1) {
+        const wholeHp = Math.floor(this._hpRegenAccumulator);
+        this.heal(wholeHp);
+        this._hpRegenAccumulator -= wholeHp;
+      }
+    }
+
+    // Calculate MP regeneration (always active, even in combat)
+    if (this.mana < this.maxMana) {
+      const mpRegen = BASE_MP_REGEN_RATE * wisModifier * postureMultiplier * campfireMultiplier;
+      this._mpRegenAccumulator += mpRegen;
+
+      // Apply whole MP points
+      if (this._mpRegenAccumulator >= 1) {
+        const wholeMp = Math.floor(this._mpRegenAccumulator);
+        this.restoreMana(wholeMp);
+        this._mpRegenAccumulator -= wholeMp;
+      }
+    }
+  }
+
+  /**
    * Called each heartbeat. Sends stats to client and shows vitals monitor if enabled.
    */
   override heartbeat(): void {
     super.heartbeat();
+
+    // Process regeneration
+    this.processRegeneration();
 
     // Send stats update to client (for graphical display)
     if (this._connection?.sendStats) {

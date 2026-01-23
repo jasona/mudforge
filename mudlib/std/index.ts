@@ -18,11 +18,16 @@ export { Container } from './container.js';
 export { Bag } from './bag.js';
 
 // Living beings
-export { Living, ENCUMBRANCE_THRESHOLDS, ENCUMBRANCE_PENALTIES } from './living.js';
-export type { EncumbranceLevel } from './living.js';
-export { Player } from './player.js';
+export { Living, ENCUMBRANCE_THRESHOLDS, ENCUMBRANCE_PENALTIES, POSTURE_REGEN_MULTIPLIERS, CAMPFIRE_WARMTH_BONUS } from './living.js';
+export type { EncumbranceLevel, PostureState } from './living.js';
+export { Player, BASE_HP_REGEN_RATE, BASE_MP_REGEN_RATE, REGEN_SCALE_BASE_STAT } from './player.js';
 export { NPC } from './npc.js';
 export { Merchant } from './merchant.js';
+
+// Consumables
+export { Consumable, Effects } from './consumable.js';
+export type { ConsumableType, ConsumableConfig, RegenEffect, StatBuff } from './consumable.js';
+export { Campfire, DEFAULT_FUEL_DURATION, LOW_FUEL_WARNING } from './campfire.js';
 
 // Equipment
 export { Weapon } from './weapon.js';
