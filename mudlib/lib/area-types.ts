@@ -9,6 +9,11 @@ import type { TerrainType } from './terrain.js';
 import type { NPCAIContext } from './ai-types.js';
 
 /**
+ * NPC type for auto-balance multipliers.
+ */
+export type NPCType = 'normal' | 'elite' | 'boss' | 'miniboss';
+
+/**
  * Area lifecycle status.
  */
 export type AreaStatus = 'draft' | 'review' | 'published';
@@ -168,7 +173,10 @@ export interface DraftNPC {
   /** NPC level affecting stats */
   level: number;
 
-  /** Maximum health */
+  /** NPC type for auto-balance multipliers (default: 'normal') */
+  npcType?: NPCType;
+
+  /** Maximum health (auto-calculated if not set and level is provided) */
   maxHealth: number;
 
   /** Starting health (defaults to maxHealth) */
@@ -227,6 +235,44 @@ export type ItemType =
   | 'misc';
 
 /**
+ * Weapon-specific properties for DraftItem.
+ */
+export interface WeaponProperties {
+  /** Item level for auto-balance (1-50) */
+  itemLevel?: number;
+  /** Minimum damage (overrides itemLevel calculation) */
+  minDamage?: number;
+  /** Maximum damage (overrides itemLevel calculation) */
+  maxDamage?: number;
+  /** Damage type: slashing, piercing, bludgeoning, fire, ice, lightning, poison, holy, dark */
+  damageType?: string;
+  /** Handedness: one_handed, two_handed, light */
+  handedness?: string;
+  /** Attack speed modifier (-0.5 to +0.5) */
+  attackSpeed?: number;
+  /** Accuracy bonus (overrides itemLevel calculation) */
+  toHit?: number;
+}
+
+/**
+ * Armor-specific properties for DraftItem.
+ */
+export interface ArmorProperties {
+  /** Item level for auto-balance (1-50) */
+  itemLevel?: number;
+  /** Armor value (overrides itemLevel calculation) */
+  armor?: number;
+  /** Armor slot: head, chest, hands, legs, feet, cloak, shield */
+  slot?: string;
+  /** Armor size: tiny, small, medium, large, huge (affects dodge bonus) */
+  size?: string;
+  /** Dodge bonus/penalty (overrides itemLevel calculation) */
+  toDodge?: number;
+  /** Block bonus for shields (overrides itemLevel calculation) */
+  toBlock?: number;
+}
+
+/**
  * An item within a draft area.
  */
 export interface DraftItem {
@@ -254,7 +300,11 @@ export interface DraftItem {
   /** Item value in gold */
   value?: number;
 
-  /** Type-specific properties */
+  /**
+   * Type-specific properties.
+   * - For weapons: WeaponProperties (itemLevel, minDamage, maxDamage, damageType, handedness, attackSpeed, toHit)
+   * - For armor: ArmorProperties (itemLevel, armor, slot, size, toDodge, toBlock)
+   */
   properties?: Record<string, unknown>;
 
   /** Unix timestamp of last modification (for incremental publishing) */
