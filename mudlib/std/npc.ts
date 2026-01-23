@@ -10,7 +10,8 @@ import { MudObject } from './object.js';
 import { Room } from './room.js';
 import { Corpse } from './corpse.js';
 import { getCombatDaemon } from '../daemons/combat.js';
-import type { NPCCombatConfig, LootEntry, GoldDrop } from './combat/types.js';
+import type { NPCCombatConfig, LootEntry, GoldDrop, NaturalAttack } from './combat/types.js';
+import { NATURAL_ATTACKS } from './combat/types.js';
 import type { QuestId, QuestDefinition, PlayerQuestState, QuestPlayer } from './quest/types.js';
 import { getQuestDaemon } from '../daemons/quest.js';
 import type { NPCAIContext, ConversationMessage } from '../lib/ai-types.js';
@@ -98,6 +99,9 @@ export class NPC extends Living {
 
   // Random loot configuration
   private _randomLootConfig: NPCRandomLootConfig | null = null;
+
+  // Natural attacks for this NPC (bite, claw, etc.)
+  private _naturalAttacks: NaturalAttack[] = [];
 
   constructor() {
     super();
@@ -715,6 +719,91 @@ export class NPC extends Living {
     return this._randomLootConfig?.enabled ?? false;
   }
 
+  // ========== Natural Attacks ==========
+
+  /**
+   * Set the natural attacks for this NPC.
+   * Accepts an array of attack names (resolved from NATURAL_ATTACKS) or NaturalAttack objects.
+   *
+   * @param attacks Array of attack names (e.g., ['bite', 'claw']) or NaturalAttack objects
+   *
+   * @example
+   * ```typescript
+   * // Using predefined attack names
+   * this.setNaturalAttacks(['bite', 'claw']);
+   *
+   * // Using custom attack objects
+   * this.setNaturalAttacks([
+   *   { name: 'venomous fangs', damageType: 'piercing', hitVerb: 'bites', missVerb: 'snaps at', damageBonus: 2 },
+   * ]);
+   * ```
+   */
+  setNaturalAttacks(attacks: (string | NaturalAttack)[]): void {
+    this._naturalAttacks = [];
+    for (const attack of attacks) {
+      this.addNaturalAttack(attack);
+    }
+  }
+
+  /**
+   * Add a single natural attack to this NPC.
+   *
+   * @param attack Attack name (e.g., 'bite') or NaturalAttack object
+   */
+  addNaturalAttack(attack: string | NaturalAttack): void {
+    if (typeof attack === 'string') {
+      const predefined = NATURAL_ATTACKS[attack];
+      if (predefined) {
+        this._naturalAttacks.push({ ...predefined });
+      } else {
+        console.warn(`[NPC] Unknown natural attack type: ${attack}`);
+      }
+    } else {
+      this._naturalAttacks.push(attack);
+    }
+  }
+
+  /**
+   * Get a random natural attack from this NPC's attack list.
+   * Uses weighted random selection if weights are specified.
+   *
+   * @returns A natural attack, or null if none configured
+   */
+  getNaturalAttack(): NaturalAttack | null {
+    if (this._naturalAttacks.length === 0) {
+      return null;
+    }
+
+    // Calculate total weight
+    let totalWeight = 0;
+    for (const attack of this._naturalAttacks) {
+      totalWeight += attack.weight ?? 1;
+    }
+
+    // Pick a random weighted attack
+    const random = typeof efuns !== 'undefined'
+      ? efuns.random(totalWeight)
+      : Math.floor(Math.random() * totalWeight);
+
+    let cumulative = 0;
+    for (const attack of this._naturalAttacks) {
+      cumulative += attack.weight ?? 1;
+      if (random < cumulative) {
+        return attack;
+      }
+    }
+
+    // Fallback to first attack
+    return this._naturalAttacks[0];
+  }
+
+  /**
+   * Get all natural attacks configured for this NPC.
+   */
+  getNaturalAttacks(): NaturalAttack[] {
+    return [...this._naturalAttacks];
+  }
+
   /**
    * Auto-balance NPC based on level. Sets HP, stats, XP, gold, and damage.
    * All values can be overridden after calling this method.
@@ -1165,6 +1254,8 @@ export class NPC extends Living {
     gold?: number;
     goldDrop?: GoldDrop;
     lootTable?: LootEntry[];
+    // Natural attacks for creature-appropriate combat messages
+    naturalAttacks?: (string | NaturalAttack)[];
     // Sound options
     lookSound?: string;
   }): void {
@@ -1195,6 +1286,11 @@ export class NPC extends Living {
 
     // Sound configuration
     if (options.lookSound !== undefined) this._lookSound = options.lookSound;
+
+    // Natural attacks configuration
+    if (options.naturalAttacks) {
+      this.setNaturalAttacks(options.naturalAttacks);
+    }
 
     // Combat configuration
     if (options.baseXP !== undefined || options.gold !== undefined ||
