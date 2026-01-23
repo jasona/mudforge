@@ -32,7 +32,7 @@ the more eager ones. A wooden sign hangs behind the counter:
 The bustling {yellow}market{/} lies to the {green}north{/}.`;
 
     // Map coordinates - south of market
-    this.setMapCoordinates({ x: -1, y: -1, z: 0, area: '/areas/valdoria/aldric' });
+    this.setMapCoordinates({ x: -1, y: 1, z: 0, area: '/areas/valdoria/aldric' });
     this.setTerrain('town');
     this.setMapIcon('P');
 

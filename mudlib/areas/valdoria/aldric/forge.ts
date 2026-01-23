@@ -19,10 +19,10 @@ near the furnace, its surface scarred from countless hammer blows. Tools
 of the trade hang from hooks: tongs, hammers, files, and quenching
 buckets.
 
-A doorway to the {green}south{/} leads back to the market square.`;
+A doorway to the {green}southeast{/} leads back to the market square.`;
 
-    // Map coordinates
-    this.setMapCoordinates({ x: -2, y: 0, z: 0, area: '/areas/valdoria/aldric' });
+    // Map coordinates - northwest of market
+    this.setMapCoordinates({ x: -2, y: -1, z: 0, area: '/areas/valdoria/aldric' });
     this.setTerrain('town');
     this.setMapIcon('F');
 
@@ -30,7 +30,7 @@ A doorway to the {green}south{/} leads back to the market square.`;
   }
 
   private setupRoom(): void {
-    this.addExit('south', '/areas/valdoria/aldric/market');
+    this.addExit('southeast', '/areas/valdoria/aldric/market');
 
     // Set NPCs that belong to this room
     this.setNpcs(['/areas/valdoria/aldric/blacksmith']);
