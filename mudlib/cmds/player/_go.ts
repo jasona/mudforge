@@ -215,13 +215,13 @@ export async function execute(ctx: CommandContext): Promise<boolean> {
   }
 
   // Get player's name for messages
-  const living = player as Living & { name?: string };
-  const playerName = living.name || 'someone';
+  const livingWithName = player as Living & { name?: string };
+  const playerName = livingWithName.name || 'someone';
 
   // Broadcast exit message to current room
   const exitRoom = room as BroadcastableRoom;
   if (exitRoom.broadcast) {
-    const exitTemplate = living.exitMessage || DEFAULT_EXIT_MESSAGE;
+    const exitTemplate = livingWithName.exitMessage || DEFAULT_EXIT_MESSAGE;
     const exitMsg = composeMessage(exitTemplate, playerName, direction);
     exitRoom.broadcast(exitMsg, { exclude: [player] });
   }
@@ -269,7 +269,7 @@ export async function execute(ctx: CommandContext): Promise<boolean> {
   // Broadcast enter message to new room
   const enterRoom = destination as BroadcastableRoom;
   if (enterRoom.broadcast) {
-    const enterTemplate = living.enterMessage || DEFAULT_ENTER_MESSAGE;
+    const enterTemplate = livingWithName.enterMessage || DEFAULT_ENTER_MESSAGE;
     const oppositeDir = getOppositeDirection(direction);
     const enterMsg = composeMessage(enterTemplate, playerName, oppositeDir);
     enterRoom.broadcast(enterMsg, { exclude: [player] });

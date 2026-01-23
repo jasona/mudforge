@@ -24,6 +24,7 @@ type WebSocketClientEvent =
   | 'comm-message'
   | 'combat-message'
   | 'sound-message'
+  | 'giphy-message'
   | 'auth-response';
 
 /**
@@ -209,6 +210,18 @@ export interface SoundMessage {
   sound: string;
   volume?: number;
   id?: string;
+}
+
+/**
+ * Giphy message for floating GIF display.
+ */
+export interface GiphyMessage {
+  type: 'show' | 'hide';
+  gifUrl?: string;
+  senderName?: string;
+  channelName?: string;
+  searchQuery?: string;
+  autoCloseMs?: number;
 }
 
 /**
@@ -422,6 +435,14 @@ export class WebSocketClient {
             this.emit('sound-message', soundMessage);
           } catch (error) {
             console.error('Failed to parse SOUND message:', error);
+          }
+        } else if (line.startsWith('\x00[GIPHY]')) {
+          const jsonStr = line.slice(8); // Remove \x00[GIPHY] prefix
+          try {
+            const giphyMessage = JSON.parse(jsonStr) as GiphyMessage;
+            this.emit('giphy-message', giphyMessage);
+          } catch (error) {
+            console.error('Failed to parse GIPHY message:', error);
           }
         } else {
           this.emit('message', line);
