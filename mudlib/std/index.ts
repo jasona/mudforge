@@ -35,6 +35,12 @@ export * from './equipment.js';
 export { Corpse } from './corpse.js';
 export * from './combat/index.js';
 
+// Vehicles
+export { Vehicle } from './vehicle.js';
+export type { VehicleType } from './vehicle.js';
+export { Ferry } from './ferry.js';
+export type { FerryStop, FerrySchedule, FerryState } from './ferry.js';
+
 // Visibility
 export * from './visibility/index.js';
 

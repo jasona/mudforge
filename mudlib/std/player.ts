@@ -1483,6 +1483,23 @@ export class Player extends Living {
     this._race = value;
   }
 
+  // ========== Vehicle Integration ==========
+
+  /**
+   * Check if the player is aboard a boat-type vehicle.
+   * Used to bypass water terrain restrictions.
+   * @returns true if player is aboard a boat or ferry
+   */
+  hasBoat(): boolean {
+    // Check if player's environment is a boat-type vehicle
+    if (this.environment && 'vehicleType' in this.environment) {
+      const vehicle = this.environment as { vehicleType?: string };
+      const vehicleType = vehicle.vehicleType;
+      return vehicleType === 'boat' || vehicleType === 'ferry' || vehicleType === 'ship';
+    }
+    return false;
+  }
+
   // ========== Staff Vanish (Visibility) ==========
 
   /**

@@ -287,7 +287,7 @@ function buildNpcLayout(obj: MudObject): LayoutContainer {
   children.push({
     type: 'paragraph',
     id: 'look-description',
-    content: obj.longDesc,
+    content: stripColorCodes(obj.longDesc),
     style: { color: '#ddd', fontSize: '13px', lineHeight: '1.5' },
   } as DisplayElement);
 
@@ -377,7 +377,7 @@ function buildPetLayout(obj: MudObject): LayoutContainer {
   children.push({
     type: 'paragraph',
     id: 'look-description',
-    content: obj.longDesc,
+    content: stripColorCodes(obj.longDesc),
     style: { color: '#ddd', fontSize: '13px', lineHeight: '1.5', marginTop: '12px' },
   } as DisplayElement);
 
@@ -459,7 +459,7 @@ function buildWeaponLayout(obj: MudObject): LayoutContainer {
   children.push({
     type: 'paragraph',
     id: 'look-description',
-    content: obj.longDesc,
+    content: stripColorCodes(obj.longDesc),
     style: { color: '#ddd', fontSize: '13px', lineHeight: '1.5', marginTop: '12px' },
   } as DisplayElement);
 
@@ -563,7 +563,7 @@ function buildArmorLayout(obj: MudObject): LayoutContainer {
   children.push({
     type: 'paragraph',
     id: 'look-description',
-    content: obj.longDesc,
+    content: stripColorCodes(obj.longDesc),
     style: { color: '#ddd', fontSize: '13px', lineHeight: '1.5', marginTop: '12px' },
   } as DisplayElement);
 
@@ -660,7 +660,7 @@ function buildContainerLayout(obj: MudObject): LayoutContainer {
   children.push({
     type: 'paragraph',
     id: 'look-description',
-    content: obj.longDesc,
+    content: stripColorCodes(obj.longDesc),
     style: { color: '#ddd', fontSize: '13px', lineHeight: '1.5', marginTop: '12px' },
   } as DisplayElement);
 
@@ -751,7 +751,7 @@ function buildCorpseLayout(obj: MudObject): LayoutContainer {
   children.push({
     type: 'paragraph',
     id: 'look-description',
-    content: obj.longDesc,
+    content: stripColorCodes(obj.longDesc),
     style: { color: '#ddd', fontSize: '13px', lineHeight: '1.5', marginTop: '12px' },
   } as DisplayElement);
 
@@ -794,7 +794,7 @@ function buildGoldLayout(obj: MudObject): LayoutContainer {
   children.push({
     type: 'paragraph',
     id: 'look-description',
-    content: obj.longDesc,
+    content: stripColorCodes(obj.longDesc),
     style: { color: '#ddd', fontSize: '13px', lineHeight: '1.5' },
   } as DisplayElement);
 
@@ -866,7 +866,7 @@ function buildItemLayout(obj: MudObject): LayoutContainer {
   children.push({
     type: 'paragraph',
     id: 'look-description',
-    content: obj.longDesc,
+    content: stripColorCodes(obj.longDesc),
     style: { color: '#ddd', fontSize: '13px', lineHeight: '1.5', marginTop: stats.length > 0 ? '12px' : '0' },
   } as DisplayElement);
 
