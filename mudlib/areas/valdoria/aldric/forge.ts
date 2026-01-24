@@ -3,6 +3,7 @@
  */
 
 import { Room, MudObject } from '../../../lib/std.js';
+import { markRoomAsStation } from '../../../std/profession/station.js';
 
 export class Forge extends Room {
   constructor() {
@@ -19,12 +20,17 @@ near the furnace, its surface scarred from countless hammer blows. Tools
 of the trade hang from hooks: tongs, hammers, files, and quenching
 buckets.
 
+{dim}This forge can be used for blacksmithing and smelting.{/}
+
 A doorway to the {green}southeast{/} leads back to the market square.`;
 
     // Map coordinates - northwest of market
     this.setMapCoordinates({ x: -2, y: -1, z: 0, area: '/areas/valdoria/aldric' });
     this.setTerrain('town');
     this.setMapIcon('F');
+
+    // Mark this room as a forge crafting station (Tier 2 - Quality)
+    markRoomAsStation(this, 'forge', 2);
 
     this.setupRoom();
   }
