@@ -9,6 +9,38 @@ import type { Weapon, DamageType } from '../weapon.js';
 import type { StatName } from '../living.js';
 
 /**
+ * Natural attack for NPCs (bite, claw, gore, etc.)
+ */
+export interface NaturalAttack {
+  /** Name of the natural weapon (e.g., "fangs", "claws", "tusks") */
+  name: string;
+  /** Type of damage dealt */
+  damageType: DamageType;
+  /** Verb used when attack hits (e.g., "bites", "claws", "gores") */
+  hitVerb: string;
+  /** Verb used when attack misses (e.g., "snaps at", "swipes at", "charges") */
+  missVerb: string;
+  /** Optional bonus damage for this attack type */
+  damageBonus?: number;
+  /** Weight for random selection (default 1) */
+  weight?: number;
+}
+
+/**
+ * Predefined natural attack templates.
+ */
+export const NATURAL_ATTACKS: Record<string, NaturalAttack> = {
+  bite: { name: 'fangs', damageType: 'piercing', hitVerb: 'bites', missVerb: 'snaps at' },
+  claw: { name: 'claws', damageType: 'slashing', hitVerb: 'claws', missVerb: 'swipes at' },
+  gore: { name: 'tusks', damageType: 'piercing', hitVerb: 'gores', missVerb: 'charges' },
+  sting: { name: 'stinger', damageType: 'piercing', hitVerb: 'stings', missVerb: 'jabs at' },
+  slam: { name: 'body', damageType: 'bludgeoning', hitVerb: 'slams into', missVerb: 'lunges at' },
+  peck: { name: 'beak', damageType: 'piercing', hitVerb: 'pecks', missVerb: 'snaps at' },
+  tail: { name: 'tail', damageType: 'bludgeoning', hitVerb: 'lashes', missVerb: 'swings its tail at' },
+  fists: { name: 'fists', damageType: 'bludgeoning', hitVerb: 'punches', missVerb: 'swings at' },
+};
+
+/**
  * Combat stats that can be modified by equipment, buffs, etc.
  */
 export interface CombatStats {
@@ -51,6 +83,8 @@ export interface AttackResult {
   defender: Living;
   /** Weapon used (null for unarmed) */
   weapon: Weapon | null;
+  /** Natural attack used (for NPCs without weapons) */
+  naturalAttack?: NaturalAttack;
 
   /** Whether the attack hit */
   hit: boolean;
@@ -115,6 +149,22 @@ export interface CombatEntry {
 }
 
 /**
+ * Threat table entry for NPC aggro management.
+ */
+export interface ThreatEntry {
+  /** Living's objectId who generated the threat */
+  sourceId: string;
+  /** Current threat value */
+  threat: number;
+  /** Timestamp for decay calculation */
+  lastUpdated: number;
+  /** Whether this target is being taunted (forced targeting) */
+  isTaunted: boolean;
+  /** When the taunt effect expires (0 = not taunted) */
+  tauntExpires: number;
+}
+
+/**
  * Buff/Debuff effect types.
  */
 export type EffectType =
@@ -131,7 +181,9 @@ export type EffectType =
   | 'stealth' // Thief hide/sneak (visibility reduction)
   | 'invisibility' // Mage invisibility (true invisible)
   | 'see_invisible' // Detection buff (see invisible entities)
-  | 'detect_hidden'; // Perception buff (detect hidden/sneaking)
+  | 'detect_hidden' // Perception buff (detect hidden/sneaking)
+  | 'threat_modifier' // Modifies threat generation (e.g., +50% threat)
+  | 'taunt'; // Forces NPC target selection
 
 /**
  * Effect category for display grouping.

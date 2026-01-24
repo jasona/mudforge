@@ -31,6 +31,9 @@ forest edge, and {green}south{/} deeper into the shadowy woods.`;
     this.addExit('west', '/areas/valdoria/forest/clearing');
     this.addExit('south', '/areas/valdoria/forest/fern_glade');
     this.addExit('east', '/areas/valdoria/forest/hunters_camp');
+
+    // Path to cliff area
+    this.addExit('northeast', '/areas/valdoria/forest/cliff_base');
   }
 
   override async onCreate(): Promise<void> {

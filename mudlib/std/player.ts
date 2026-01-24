@@ -6,12 +6,19 @@
  * beyond regular Living beings.
  */
 
-import { Living, type Stats, type StatName, MAX_STAT } from './living.js';
+import { Living, type Stats, type StatName, MAX_STAT, POSTURE_REGEN_MULTIPLIERS, CAMPFIRE_WARMTH_BONUS } from './living.js';
 
 /**
  * Maximum player level cap.
  */
 export const MAX_PLAYER_LEVEL = 50;
+
+/**
+ * Regeneration constants.
+ */
+export const BASE_HP_REGEN_RATE = 0.5;  // HP per heartbeat (2 sec)
+export const BASE_MP_REGEN_RATE = 0.3;  // MP per heartbeat
+export const REGEN_SCALE_BASE_STAT = 10; // Base stat for scaling
 import { MudObject } from './object.js';
 import { Item } from './item.js';
 import { colorize, stripColors, wordWrap } from '../lib/colors.js';
@@ -30,6 +37,7 @@ import type { GUIMessage, GUIClientMessage } from '../lib/gui-types.js';
 import type { PlayerGuildData } from './guild/types.js';
 import type { QuestPlayer } from './quest/types.js';
 import type { RaceId } from './race/types.js';
+import type { GeneratedItemData } from './loot/types.js';
 
 // Pet save data type (defined here to avoid circular dependency with pet.ts)
 export interface PetSaveData {
@@ -176,6 +184,7 @@ export interface PlayerSaveData {
   staffVanished?: boolean; // Staff visibility toggle
   race?: RaceId; // Player race
   pets?: PetSaveData[]; // Pet save data
+  generatedItems?: GeneratedItemData[]; // Random loot generator items
 }
 
 /**
@@ -235,6 +244,10 @@ export class Player extends Living {
 
   // Pending pet data (stored during restore, applied after entering room)
   private _pendingPetData: PetSaveData[] | null = null;
+
+  // Regeneration accumulators (for fractional healing per heartbeat)
+  private _hpRegenAccumulator: number = 0;
+  private _mpRegenAccumulator: number = 0;
 
   constructor() {
     super();
@@ -1094,10 +1107,66 @@ export class Player extends Living {
   }
 
   /**
+   * Process HP and MP regeneration based on posture and campfire proximity.
+   * Called each heartbeat (every 2 seconds).
+   */
+  private processRegeneration(): void {
+    // Don't regenerate if dead or ghost
+    if (!this.alive || this._isGhost) return;
+
+    // Calculate stat modifiers
+    const conModifier = this.getStat('constitution') / REGEN_SCALE_BASE_STAT;
+    const wisModifier = this.getStat('wisdom') / REGEN_SCALE_BASE_STAT;
+
+    // Get posture multiplier
+    const postureMultiplier = POSTURE_REGEN_MULTIPLIERS[this.posture];
+
+    // Check for campfire warmth bonus
+    let campfireMultiplier = 1.0;
+    if (this.isNearCampfire()) {
+      // Campfire only provides bonus when sitting or sleeping
+      if (this.posture === 'sleeping') {
+        campfireMultiplier = CAMPFIRE_WARMTH_BONUS;
+      } else if (this.posture === 'sitting') {
+        campfireMultiplier = 1 + (CAMPFIRE_WARMTH_BONUS - 1) * 0.5; // Half bonus (1.25x)
+      }
+    }
+
+    // Calculate HP regeneration (disabled in combat)
+    if (!this.inCombat && this.health < this.maxHealth) {
+      const hpRegen = BASE_HP_REGEN_RATE * conModifier * postureMultiplier * campfireMultiplier;
+      this._hpRegenAccumulator += hpRegen;
+
+      // Apply whole HP points
+      if (this._hpRegenAccumulator >= 1) {
+        const wholeHp = Math.floor(this._hpRegenAccumulator);
+        this.heal(wholeHp);
+        this._hpRegenAccumulator -= wholeHp;
+      }
+    }
+
+    // Calculate MP regeneration (always active, even in combat)
+    if (this.mana < this.maxMana) {
+      const mpRegen = BASE_MP_REGEN_RATE * wisModifier * postureMultiplier * campfireMultiplier;
+      this._mpRegenAccumulator += mpRegen;
+
+      // Apply whole MP points
+      if (this._mpRegenAccumulator >= 1) {
+        const wholeMp = Math.floor(this._mpRegenAccumulator);
+        this.restoreMana(wholeMp);
+        this._mpRegenAccumulator -= wholeMp;
+      }
+    }
+  }
+
+  /**
    * Called each heartbeat. Sends stats to client and shows vitals monitor if enabled.
    */
   override heartbeat(): void {
     super.heartbeat();
+
+    // Process regeneration
+    this.processRegeneration();
 
     // Send stats update to client (for graphical display)
     if (this._connection?.sendStats) {
@@ -1481,6 +1550,23 @@ export class Player extends Living {
     this._race = value;
   }
 
+  // ========== Vehicle Integration ==========
+
+  /**
+   * Check if the player is aboard a boat-type vehicle.
+   * Used to bypass water terrain restrictions.
+   * @returns true if player is aboard a boat or ferry
+   */
+  hasBoat(): boolean {
+    // Check if player's environment is a boat-type vehicle
+    if (this.environment && 'vehicleType' in this.environment) {
+      const vehicle = this.environment as { vehicleType?: string };
+      const vehicleType = vehicle.vehicleType;
+      return vehicleType === 'boat' || vehicleType === 'ferry' || vehicleType === 'ship';
+    }
+    return false;
+  }
+
   // ========== Staff Vanish (Visibility) ==========
 
   /**
@@ -1618,11 +1704,57 @@ export class Player extends Living {
   }
 
   /**
+   * Check if an item is a generated item (from random loot system).
+   */
+  private _isGeneratedItem(item: MudObject): boolean {
+    // Check for the generated item marker
+    const genData = item.getProperty('_generatedItemData');
+    return genData !== null && genData !== undefined;
+  }
+
+  /**
+   * Get generated item data from an item.
+   */
+  private _getGeneratedItemData(item: MudObject): GeneratedItemData | null {
+    return item.getProperty<GeneratedItemData>('_generatedItemData') || null;
+  }
+
+  /**
    * Serialize player state for saving.
    */
   save(): PlayerSaveData {
     // Filter inventory to only include savable items
     const savableInventory = this.inventory.filter((item) => this._isItemSavable(item));
+
+    // Separate generated items from regular items
+    const regularItems: MudObject[] = [];
+    const generatedItems: GeneratedItemData[] = [];
+
+    for (const item of savableInventory) {
+      if (this._isGeneratedItem(item)) {
+        const genData = this._getGeneratedItemData(item);
+        if (genData) {
+          generatedItems.push(genData);
+          // Use a special path marker for generated items
+          regularItems.push(item);
+        }
+      } else {
+        regularItems.push(item);
+      }
+    }
+
+    // Build inventory paths - use /generated/ prefix for generated items
+    const inventoryPaths: string[] = [];
+    for (const item of regularItems) {
+      if (this._isGeneratedItem(item)) {
+        const genData = this._getGeneratedItemData(item);
+        // Use a marker path that includes the generated item index
+        const genIndex = generatedItems.indexOf(genData!);
+        inventoryPaths.push(`/generated/${genData?.generatedType}/${genIndex}`);
+      } else {
+        inventoryPaths.push(item.objectPath);
+      }
+    }
 
     // Build equipment data - map equipped items to their index in savable inventory
     const equipment: EquipmentSaveData[] = [];
@@ -1631,7 +1763,7 @@ export class Player extends Living {
     for (const [slot, item] of equipped) {
       // Only save equipment if the item is savable
       if (this._isItemSavable(item)) {
-        const index = savableInventory.indexOf(item);
+        const index = regularItems.indexOf(item);
         if (index >= 0) {
           equipment.push({ slot, inventoryIndex: index });
         }
@@ -1650,7 +1782,7 @@ export class Player extends Living {
       maxMana: this.maxMana,
       stats: this.getBaseStats(),
       location: this.environment?.objectPath || '/areas/valdoria/aldric/center',
-      inventory: savableInventory.map((item) => item.objectPath),
+      inventory: inventoryPaths,
       equipment: equipment.length > 0 ? equipment : undefined,
       properties: this._serializeProperties(),
       createdAt: this._createdAt || Date.now(),
@@ -1670,6 +1802,7 @@ export class Player extends Living {
       staffVanished: this._staffVanished,
       race: this._race,
       pets: this._getPetSaveData(),
+      generatedItems: generatedItems.length > 0 ? generatedItems : undefined,
     };
   }
 

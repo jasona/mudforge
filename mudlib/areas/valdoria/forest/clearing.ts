@@ -3,6 +3,7 @@
  */
 
 import { Room, MudObject } from '../../../lib/std.js';
+import { ResourceNode } from '../../../std/profession/resource-node.js';
 
 export class Clearing extends Room {
   constructor() {
@@ -15,6 +16,8 @@ gently in the breeze, and butterflies dance from bloom to bloom.
 A large {dim}flat rock{/} in the center makes a natural resting spot.
 The grass around it is trampled, suggesting animals frequently
 gather here. {red}Claw marks{/} on nearby trees hint at larger predators.
+
+{green}Patches of silverleaf and peacebloom grow around the edges of the clearing.{/}
 
 Paths lead in all directions: {green}south{/} into darker woods,
 {green}north{/} toward the forest entrance, and {green}east{/}/{green}west{/}
@@ -54,6 +57,15 @@ along game trails.`;
         }
       }
     }
+
+    // Add herb patches for gathering
+    const silverleaf = new ResourceNode();
+    silverleaf.initFromDefinition('silverleaf_patch');
+    await silverleaf.moveTo(this);
+
+    const peacebloom = new ResourceNode();
+    peacebloom.initFromDefinition('peacebloom_cluster');
+    await peacebloom.moveTo(this);
   }
 }
 

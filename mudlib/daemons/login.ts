@@ -11,9 +11,11 @@ import type { PlayerSaveData } from '../std/player.js';
 import { getChannelDaemon } from './channels.js';
 import { getQuestDaemon } from './quest.js';
 import { getRaceDaemon } from './race.js';
+import { getLootDaemon } from './loot.js';
 import type { RaceId } from '../std/race/types.js';
 import { isValidRaceId } from '../std/race/definitions.js';
 import type { QuestPlayer } from '../std/quest/types.js';
+import type { GeneratedItemData } from '../std/loot/types.js';
 import { scrypt, randomBytes, timingSafeEqual } from 'crypto';
 import { promisify } from 'util';
 import * as dns from 'dns';
@@ -79,6 +81,8 @@ interface PlayerSaveData {
     properties: Record<string, unknown>;
   };
   savedAt: number;
+  inventory?: string[];
+  generatedItems?: GeneratedItemData[];
 }
 
 /**
@@ -631,9 +635,25 @@ ${'='.repeat(bannerWidth)}
 
     // Restore inventory items (clone each saved item and move to player)
     if (session.savedData?.inventory && Array.isArray(session.savedData.inventory)) {
+      const lootDaemon = getLootDaemon();
       for (const itemPath of session.savedData.inventory) {
         try {
-          if (typeof efuns !== 'undefined' && efuns.cloneObject) {
+          // Check if this is a generated item (uses /generated/ path prefix)
+          if (itemPath.startsWith('/generated/')) {
+            // Parse path: /generated/{type}/{index}
+            const parts = itemPath.split('/');
+            const genIndex = parseInt(parts[3], 10);
+            const generatedItems = session.savedData.generatedItems;
+
+            if (generatedItems && genIndex >= 0 && genIndex < generatedItems.length) {
+              const genData = generatedItems[genIndex];
+              const item = await lootDaemon.recreateItem(genData);
+              if (item) {
+                await item.moveTo(player);
+              }
+            }
+          } else if (typeof efuns !== 'undefined' && efuns.cloneObject) {
+            // Regular item - clone from path
             const item = await efuns.cloneObject(itemPath);
             if (item) {
               await item.moveTo(player);

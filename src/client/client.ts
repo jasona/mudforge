@@ -15,6 +15,7 @@ import {
   CommMessage,
   CombatMessage,
   SoundMessage,
+  GiphyMessage,
 } from './websocket-client.js';
 import { InputHandler } from './input-handler.js';
 import { IdeEditor } from './ide-editor.js';
@@ -24,6 +25,7 @@ import { EquipmentPanel } from './equipment-panel.js';
 import { QuestPanel } from './quest-panel.js';
 import { CommPanel } from './comm-panel.js';
 import { CombatPanel } from './combat-panel.js';
+import { GiphyPanel } from './giphy-panel.js';
 import { SoundManager } from './sound-manager.js';
 import { SoundPanel } from './sound-panel.js';
 import { GUIModal } from './gui/gui-modal.js';
@@ -45,6 +47,7 @@ class MudClient {
   private questPanel: QuestPanel;
   private commPanel: CommPanel;
   private combatPanel: CombatPanel;
+  private giphyPanel: GiphyPanel;
   private soundManager: SoundManager;
   private soundPanel: SoundPanel;
   private guiModal: GUIModal;
@@ -112,6 +115,7 @@ class MudClient {
       },
     });
     this.combatPanel = new CombatPanel('combat-container');
+    this.giphyPanel = new GiphyPanel('giphy-container');
     this.soundManager = new SoundManager();
     this.soundPanel = new SoundPanel('sound-container', this.soundManager);
     this.guiModal = new GUIModal((message: GUIClientMessage) => {
@@ -204,6 +208,11 @@ class MudClient {
     // Sound panel events
     this.wsClient.on('sound-message', (message: SoundMessage) => {
       this.soundPanel.handleSoundMessage(message);
+    });
+
+    // Giphy panel events
+    this.wsClient.on('giphy-message', (message: GiphyMessage) => {
+      this.giphyPanel.handleMessage(message);
     });
 
     // Completion events

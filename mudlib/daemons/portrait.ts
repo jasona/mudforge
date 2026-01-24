@@ -16,7 +16,29 @@
 
 import { MudObject } from '../std/object.js';
 import type { Living } from '../std/living.js';
+import type { GeneratedItemData } from '../std/loot/types.js';
 import { createHash } from 'crypto';
+
+/**
+ * Interface for objects with generated item data.
+ */
+interface GeneratedItem extends MudObject {
+  getGeneratedItemData(): GeneratedItemData;
+}
+
+/**
+ * Check if an object is a generated item.
+ */
+function isGeneratedItem(obj: MudObject): obj is GeneratedItem {
+  return 'getGeneratedItemData' in obj && typeof (obj as GeneratedItem).getGeneratedItemData === 'function';
+}
+
+/**
+ * Strip MUD color codes from a string for use in prompts.
+ */
+function stripColorCodes(str: string): string {
+  return str.replace(/\{[^}]*\}/g, '');
+}
 
 /**
  * Object image types.
@@ -308,6 +330,10 @@ Style requirements:
       else if (amount < 5000) sizeCategory = 'huge';
       else sizeCategory = 'hoard';
       cacheIdentifier = `gold_${sizeCategory}`;
+    } else if (isGeneratedItem(obj)) {
+      // Generated items use their seed as a unique identifier
+      const genData = obj.getGeneratedItemData();
+      cacheIdentifier = `generated_${genData.generatedType}_${genData.seed}`;
     } else {
       cacheIdentifier = obj.objectPath || '';
       if (!cacheIdentifier) {
@@ -411,8 +437,28 @@ Style requirements:
     cacheKey: string,
     extraContext?: Record<string, unknown>
   ): Promise<string> {
-    const description = obj.longDesc || obj.shortDesc || 'a mysterious object';
-    const prompt = this.buildObjectPrompt(description, type, extraContext);
+    // Strip color codes from description for cleaner AI prompts
+    const rawDescription = obj.longDesc || obj.shortDesc || 'a mysterious object';
+    const description = stripColorCodes(rawDescription);
+
+    // For generated items, enhance the context with quality and item data
+    let enhancedContext = extraContext || {};
+    if (isGeneratedItem(obj)) {
+      const genData = obj.getGeneratedItemData();
+      enhancedContext = {
+        ...enhancedContext,
+        quality: genData.quality,
+        itemName: stripColorCodes(genData.baseName),
+        generatedType: genData.generatedType,
+        weaponType: genData.weaponType,
+        armorType: genData.armorType,
+        armorSlot: genData.armorSlot,
+        baubleType: genData.baubleType,
+        damageType: genData.damageType,
+      };
+    }
+
+    const prompt = this.buildObjectPrompt(description, type, enhancedContext);
 
     const imageResult = await this.callAiImageGeneration(prompt);
     if (imageResult) {
@@ -503,27 +549,58 @@ Style requirements:
 - The artwork must fill the entire canvas from edge to edge
 - No borders, margins, or empty space around the subject`;
 
-      case 'weapon':
+      case 'weapon': {
         const damageType = extraContext?.damageType as string | undefined;
+        const quality = extraContext?.quality as string | undefined;
+        const weaponType = extraContext?.weaponType as string | undefined;
+
+        // Quality-specific style hints
+        let qualityStyle = '';
+        if (quality === 'legendary' || quality === 'unique') {
+          qualityStyle = '\n- Glowing magical aura, legendary artifact appearance';
+        } else if (quality === 'epic') {
+          qualityStyle = '\n- Subtle magical glow, masterwork craftsmanship';
+        } else if (quality === 'rare') {
+          qualityStyle = '\n- Fine craftsmanship, hint of magical properties';
+        }
+
         return `Create a fantasy RPG weapon icon:
 ${description}
 
-Style: Dark fantasy, painterly, dramatic lighting
+Style: Dark fantasy, painterly, dramatic lighting${qualityStyle}
+${weaponType ? `Weapon type: ${weaponType}` : ''}
 ${damageType ? `Damage type: ${damageType}` : ''}
 Square composition, item icon style on a dark background
 No text, clean iconic design
 Fill entire canvas edge to edge, no borders or margins`;
+      }
 
-      case 'armor':
+      case 'armor': {
         const slot = extraContext?.slot as string | undefined;
+        const armorSlot = extraContext?.armorSlot as string | undefined;
+        const armorQuality = extraContext?.quality as string | undefined;
+        const armorType = extraContext?.armorType as string | undefined;
+
+        // Quality-specific style hints
+        let armorQualityStyle = '';
+        if (armorQuality === 'legendary' || armorQuality === 'unique') {
+          armorQualityStyle = '\n- Glowing magical enchantments, legendary artifact appearance';
+        } else if (armorQuality === 'epic') {
+          armorQualityStyle = '\n- Subtle magical glow, masterwork craftsmanship';
+        } else if (armorQuality === 'rare') {
+          armorQualityStyle = '\n- Fine craftsmanship, hint of magical properties';
+        }
+
         return `Create a fantasy RPG armor piece icon:
 ${description}
 
-Style: Dark fantasy, painterly, dramatic lighting
-${slot ? `Slot: ${slot}` : ''}
+Style: Dark fantasy, painterly, dramatic lighting${armorQualityStyle}
+${armorType ? `Armor type: ${armorType}` : ''}
+${slot || armorSlot ? `Slot: ${slot || armorSlot}` : ''}
 Square composition, item icon style on a dark background
 No text, clean iconic design
 Fill entire canvas edge to edge, no borders or margins`;
+      }
 
       case 'container':
         const state = extraContext?.isOpen ? 'open' : 'closed';
@@ -561,14 +638,29 @@ No text, clean iconic design
 Fill entire canvas edge to edge, no borders or margins`;
 
       case 'item':
-      default:
+      default: {
+        const itemQuality = extraContext?.quality as string | undefined;
+        const baubleType = extraContext?.baubleType as string | undefined;
+
+        // Quality-specific style hints for items/baubles
+        let itemQualityStyle = '';
+        if (itemQuality === 'legendary' || itemQuality === 'unique') {
+          itemQualityStyle = '\n- Glowing magical aura, legendary artifact appearance';
+        } else if (itemQuality === 'epic') {
+          itemQualityStyle = '\n- Subtle magical glow, precious craftsmanship';
+        } else if (itemQuality === 'rare') {
+          itemQualityStyle = '\n- Fine craftsmanship, hint of magical properties';
+        }
+
         return `Create a fantasy RPG item icon:
 ${description}
 
-Style: Dark fantasy, painterly, dramatic lighting
+Style: Dark fantasy, painterly, dramatic lighting${itemQualityStyle}
+${baubleType ? `Item type: ${baubleType}` : ''}
 Square composition, item icon style on a dark background
 No text, clean iconic design
 Fill entire canvas edge to edge, no borders or margins`;
+      }
     }
   }
 

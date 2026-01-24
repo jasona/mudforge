@@ -311,6 +311,88 @@ export class Room extends MudObject {
   }
 
   /**
+   * Add a skill-gated exit that requires a profession skill level to pass.
+   * @param direction The direction name
+   * @param destination The destination room path or room object
+   * @param options Skill gate options
+   */
+  addSkillGatedExit(
+    direction: string,
+    destination: string | MudObject,
+    options: {
+      profession: string;
+      level: number;
+      failMessage: string;
+      cost?: number;
+      failDamage?: number;
+      description?: string;
+    }
+  ): void {
+    const canPass = async (who: MudObject): Promise<boolean> => {
+      try {
+        const { getProfessionDaemon } = await import('../daemons/profession.js');
+        const daemon = getProfessionDaemon();
+
+        // Check skill level
+        const skill = daemon.getPlayerSkill(who as any, options.profession as any);
+        if (skill.level < options.level) {
+          const receiver = who as MudObject & { receive?: (msg: string) => void };
+          if (typeof receiver.receive === 'function') {
+            receiver.receive(`{red}${options.failMessage}{/}\n`);
+          }
+
+          // Apply fail damage if configured
+          if (options.failDamage) {
+            const living = who as MudObject & { takeDamage?: (amount: number, type: string) => void };
+            if (typeof living.takeDamage === 'function') {
+              living.takeDamage(options.failDamage, 'physical');
+              receiver.receive?.(`{red}You take ${options.failDamage} damage!{/}\n`);
+            }
+          }
+
+          return false;
+        }
+
+        // Check resource cost
+        if (options.cost) {
+          const living = who as MudObject & { mana?: number; health?: number };
+          if (options.profession === 'flying') {
+            // Flying uses mana
+            if ((living.mana || 0) < options.cost) {
+              const receiver = who as MudObject & { receive?: (msg: string) => void };
+              receiver.receive?.(`{red}You don't have enough mana to fly (need ${options.cost}).{/}\n`);
+              return false;
+            }
+            living.mana = (living.mana || 0) - options.cost;
+          } else {
+            // Swimming/climbing use health as stamina proxy
+            if ((living.health || 0) <= options.cost) {
+              const receiver = who as MudObject & { receive?: (msg: string) => void };
+              receiver.receive?.(`{red}You're too exhausted (need ${options.cost} stamina).{/}\n`);
+              return false;
+            }
+            living.health = (living.health || 0) - options.cost;
+          }
+        }
+
+        // Award XP for successful use
+        const { PROFESSION_DEFINITIONS } = await import('./profession/definitions.js');
+        const profession = PROFESSION_DEFINITIONS[options.profession as keyof typeof PROFESSION_DEFINITIONS];
+        if (profession) {
+          daemon.awardXP(who as any, options.profession as any, profession.baseXPPerUse);
+        }
+
+        return true;
+      } catch (error) {
+        console.error('[Room] Error checking skill gate:', error);
+        return false;
+      }
+    };
+
+    this.addConditionalExit(direction, destination, canPass, options.description);
+  }
+
+  /**
    * Add a one-way exit (no automatic reverse exit).
    * Use this for portals, falls, trap doors, etc.
    * @param direction The direction name

@@ -1823,6 +1823,20 @@ function buildNPCEditor(npc: DraftNPC | undefined, area: AreaDefinition): Layout
                 style: { width: '100px' },
               } as InputElement,
               {
+                type: 'select',
+                id: 'npc-type',
+                name: 'npcType',
+                label: 'Type',
+                value: npc?.npcType ?? 'normal',
+                options: [
+                  { value: 'normal', label: 'Normal' },
+                  { value: 'miniboss', label: 'Miniboss (1.5x)' },
+                  { value: 'elite', label: 'Elite (2x)' },
+                  { value: 'boss', label: 'Boss (3x)' },
+                ],
+                style: { width: '140px' },
+              } as InputElement,
+              {
                 type: 'number',
                 id: 'npc-health',
                 name: 'npcMaxHealth',
@@ -1833,6 +1847,11 @@ function buildNPCEditor(npc: DraftNPC | undefined, area: AreaDefinition): Layout
               } as InputElement,
             ],
           },
+          {
+            type: 'html',
+            id: 'npc-stats-hint',
+            content: '<span style="color: #888; font-size: 11px;">Auto-balance: HP=(50+lvl×15)×type. Leave Max Health blank or set to auto-calc value to use formula.</span>',
+          } as DisplayElement,
           // Spawn Rooms section
           ...(area.rooms.length > 0 ? [
             {
@@ -1907,6 +1926,93 @@ function buildNPCEditor(npc: DraftNPC | undefined, area: AreaDefinition): Layout
                 value: npc?.respawnTime ?? 0,
                 min: 0,
                 style: { width: '120px' },
+              } as InputElement,
+            ],
+          },
+          // Combat Config section (override auto-balance)
+          {
+            type: 'heading',
+            id: 'npc-combat-header',
+            content: 'Combat Config (Optional Overrides)',
+            level: 5,
+            style: { color: '#f5f5f5', margin: '12px 0 4px 0' },
+          } as DisplayElement,
+          {
+            type: 'html',
+            id: 'npc-combat-hint',
+            content: '<span style="color: #888; font-size: 11px;">Leave blank to use auto-balance. Formulas: HP=(50+lvl×15)×type, Dmg=lvl/2-lvl×type, XP=lvl×10×type, Gold=lvl×2-5×type</span>',
+          } as DisplayElement,
+          // Damage row
+          {
+            type: 'horizontal',
+            gap: '12px',
+            children: [
+              {
+                type: 'number',
+                id: 'npc-damage-min',
+                name: 'npcDamageMin',
+                label: 'Damage Min',
+                value: npc?.combatConfig?.damage?.min ?? undefined,
+                min: 0,
+                placeholder: 'auto',
+                style: { width: '100px' },
+              } as InputElement,
+              {
+                type: 'number',
+                id: 'npc-damage-max',
+                name: 'npcDamageMax',
+                label: 'Damage Max',
+                value: npc?.combatConfig?.damage?.max ?? undefined,
+                min: 0,
+                placeholder: 'auto',
+                style: { width: '100px' },
+              } as InputElement,
+              {
+                type: 'number',
+                id: 'npc-armor',
+                name: 'npcArmor',
+                label: 'Armor',
+                value: npc?.combatConfig?.armor ?? undefined,
+                min: 0,
+                placeholder: 'auto',
+                style: { width: '80px' },
+              } as InputElement,
+            ],
+          },
+          // Gold and XP row
+          {
+            type: 'horizontal',
+            gap: '12px',
+            children: [
+              {
+                type: 'number',
+                id: 'npc-gold-min',
+                name: 'npcGoldMin',
+                label: 'Gold Min',
+                value: npc?.combatConfig?.goldDrop?.min ?? undefined,
+                min: 0,
+                placeholder: 'auto',
+                style: { width: '100px' },
+              } as InputElement,
+              {
+                type: 'number',
+                id: 'npc-gold-max',
+                name: 'npcGoldMax',
+                label: 'Gold Max',
+                value: npc?.combatConfig?.goldDrop?.max ?? undefined,
+                min: 0,
+                placeholder: 'auto',
+                style: { width: '100px' },
+              } as InputElement,
+              {
+                type: 'number',
+                id: 'npc-base-xp',
+                name: 'npcBaseXP',
+                label: 'Base XP',
+                value: npc?.combatConfig?.baseXP ?? undefined,
+                min: 0,
+                placeholder: 'auto',
+                style: { width: '100px' },
               } as InputElement,
             ],
           },
@@ -2290,6 +2396,27 @@ function buildItemEditor(item: DraftItem | undefined, area: AreaDefinition): Lay
                 children: [
                   {
                     type: 'number',
+                    id: 'weapon-item-level',
+                    name: 'weaponItemLevel',
+                    label: 'Item Level',
+                    value: (item?.properties?.itemLevel as number) ?? 0,
+                    min: 0,
+                    max: 50,
+                    style: { width: '100px' },
+                  } as InputElement,
+                  {
+                    type: 'html',
+                    id: 'weapon-item-level-hint',
+                    content: '<span style="color: #888; font-size: 11px;">Set 1-50 for auto-balance: Dmg=(2+lvl×0.5)-(4+lvl), two-handed×1.5, light×0.75</span>',
+                  } as DisplayElement,
+                ],
+              },
+              {
+                type: 'horizontal',
+                gap: '12px',
+                children: [
+                  {
+                    type: 'number',
                     id: 'weapon-min-damage',
                     name: 'weaponMinDamage',
                     label: 'Min Damage',
@@ -2305,6 +2432,14 @@ function buildItemEditor(item: DraftItem | undefined, area: AreaDefinition): Lay
                     value: (item?.properties?.maxDamage as number) ?? 3,
                     min: 0,
                     style: { width: '100px' },
+                  } as InputElement,
+                  {
+                    type: 'number',
+                    id: 'weapon-to-hit',
+                    name: 'weaponToHit',
+                    label: 'To Hit',
+                    value: (item?.properties?.toHit as number) ?? 0,
+                    style: { width: '80px' },
                   } as InputElement,
                   {
                     type: 'number',
@@ -2384,12 +2519,33 @@ function buildItemEditor(item: DraftItem | undefined, area: AreaDefinition): Lay
                 children: [
                   {
                     type: 'number',
+                    id: 'armor-item-level',
+                    name: 'armorItemLevel',
+                    label: 'Item Level',
+                    value: (item?.properties?.itemLevel as number) ?? 0,
+                    min: 0,
+                    max: 50,
+                    style: { width: '100px' },
+                  } as InputElement,
+                  {
+                    type: 'html',
+                    id: 'armor-item-level-hint',
+                    content: '<span style="color: #888; font-size: 11px;">Set 1-50 for auto-balance: Armor=(1+lvl/3)×slot (chest=1.0, legs=0.75, head/shield=0.6)</span>',
+                  } as DisplayElement,
+                ],
+              },
+              {
+                type: 'horizontal',
+                gap: '12px',
+                children: [
+                  {
+                    type: 'number',
                     id: 'armor-value',
                     name: 'armorValue',
                     label: 'Armor Value',
                     value: (item?.properties?.armor as number) ?? 1,
                     min: 0,
-                    style: { width: '120px' },
+                    style: { width: '100px' },
                   } as InputElement,
                   {
                     type: 'select',
@@ -2406,8 +2562,51 @@ function buildItemEditor(item: DraftItem | undefined, area: AreaDefinition): Lay
                       { value: 'cloak', label: 'Cloak' },
                       { value: 'shield', label: 'Shield' },
                     ],
-                    style: { width: '140px' },
+                    style: { width: '120px' },
                   } as InputElement,
+                  {
+                    type: 'select',
+                    id: 'armor-size',
+                    name: 'armorSize',
+                    label: 'Size',
+                    value: (item?.properties?.size as string) ?? 'medium',
+                    options: [
+                      { value: 'tiny', label: 'Tiny (Light)' },
+                      { value: 'small', label: 'Small (Light)' },
+                      { value: 'medium', label: 'Medium' },
+                      { value: 'large', label: 'Large (Heavy)' },
+                      { value: 'huge', label: 'Huge (Heavy)' },
+                    ],
+                    style: { width: '130px' },
+                  } as InputElement,
+                ],
+              },
+              {
+                type: 'horizontal',
+                gap: '12px',
+                children: [
+                  {
+                    type: 'number',
+                    id: 'armor-to-dodge',
+                    name: 'armorToDodge',
+                    label: 'To Dodge',
+                    value: (item?.properties?.toDodge as number) ?? 0,
+                    style: { width: '100px' },
+                  } as InputElement,
+                  {
+                    type: 'number',
+                    id: 'armor-to-block',
+                    name: 'armorToBlock',
+                    label: 'To Block',
+                    value: (item?.properties?.toBlock as number) ?? 0,
+                    style: { width: '100px' },
+                  } as InputElement,
+                  {
+                    type: 'paragraph',
+                    id: 'armor-combat-hint',
+                    content: 'Dodge for light armor, Block for shields',
+                    style: { color: '#666', fontSize: '11px', margin: 'auto 0' },
+                  } as DisplayElement,
                 ],
               },
             ],
@@ -3355,10 +3554,18 @@ function updateNPCEditorOnly(
     npcShortDesc: npc.shortDesc,
     npcLongDesc: npc.longDesc,
     npcLevel: npc.level,
+    npcType: npc.npcType ?? 'normal',
     npcMaxHealth: npc.maxHealth,
     npcKeywords: (npc.keywords ?? []).join(', '),
     npcWandering: npc.wandering ?? false,
     npcRespawnTime: npc.respawnTime ?? 0,
+    // Combat config (override) fields
+    npcDamageMin: npc.combatConfig?.damage?.min ?? undefined,
+    npcDamageMax: npc.combatConfig?.damage?.max ?? undefined,
+    npcGoldMin: npc.combatConfig?.goldDrop?.min ?? undefined,
+    npcGoldMax: npc.combatConfig?.goldDrop?.max ?? undefined,
+    npcBaseXP: npc.combatConfig?.baseXP ?? undefined,
+    npcArmor: npc.combatConfig?.armor ?? undefined,
   };
 
   // Add room checkbox values
@@ -3441,14 +3648,20 @@ function updateItemEditorOnly(
     itemWeight: item.weight ?? 1,
     itemKeywords: (item.keywords ?? []).join(', '),
     // Weapon properties
+    weaponItemLevel: (props.itemLevel as number) ?? undefined,
     weaponMinDamage: (props.minDamage as number) ?? 1,
     weaponMaxDamage: (props.maxDamage as number) ?? 3,
     weaponDamageType: (props.damageType as string) ?? 'slashing',
     weaponHandedness: (props.handedness as string) ?? 'one_handed',
     weaponAttackSpeed: (props.attackSpeed as number) ?? 0,
+    weaponToHit: (props.toHit as number) ?? undefined,
     // Armor properties
+    armorItemLevel: (props.itemLevel as number) ?? undefined,
     armorValue: (props.armor as number) ?? 1,
     armorSlot: (props.slot as string) ?? 'chest',
+    armorSize: (props.size as string) ?? 'medium',
+    armorToDodge: (props.toDodge as number) ?? undefined,
+    armorToBlock: (props.toBlock as number) ?? undefined,
   };
 
   // Add room checkbox values
@@ -3777,17 +3990,58 @@ async function handleEditorResponse(
           }
         }
 
+        // Build combatConfig from form data (only include if any values are set)
+        const damageMin = data.npcDamageMin as number | undefined;
+        const damageMax = data.npcDamageMax as number | undefined;
+        const goldMin = data.npcGoldMin as number | undefined;
+        const goldMax = data.npcGoldMax as number | undefined;
+        const baseXP = data.npcBaseXP as number | undefined;
+        const npcArmor = data.npcArmor as number | undefined;
+
+        let combatConfig: {
+          baseXP: number;
+          damage?: { min: number; max: number };
+          goldDrop?: { min: number; max: number };
+          armor?: number;
+        } | undefined;
+
+        // Only create combatConfig if at least one value is set
+        if (damageMin !== undefined || damageMax !== undefined ||
+            goldMin !== undefined || goldMax !== undefined ||
+            baseXP !== undefined || npcArmor !== undefined) {
+          combatConfig = {
+            baseXP: baseXP ?? 0,
+          };
+          if (damageMin !== undefined || damageMax !== undefined) {
+            combatConfig.damage = {
+              min: damageMin ?? 1,
+              max: damageMax ?? damageMin ?? 1,
+            };
+          }
+          if (goldMin !== undefined || goldMax !== undefined) {
+            combatConfig.goldDrop = {
+              min: goldMin ?? 0,
+              max: goldMax ?? goldMin ?? 0,
+            };
+          }
+          if (npcArmor !== undefined) {
+            combatConfig.armor = npcArmor;
+          }
+        }
+
         areaDaemon.updateNPC(state.areaId, npcId, {
           name: data.npcName as string,
           shortDesc: data.npcShortDesc as string,
           longDesc: data.npcLongDesc as string,
           gender: data.npcGender as 'male' | 'female' | 'neutral',
           level: data.npcLevel as number,
+          npcType: (data.npcType as 'normal' | 'elite' | 'boss' | 'miniboss') ?? 'normal',
           maxHealth: data.npcMaxHealth as number,
           keywords,
           wandering: data.npcWandering as boolean,
           respawnTime: data.npcRespawnTime as number,
           items,
+          combatConfig,
         });
 
         await areaDaemon.save();
@@ -3876,16 +4130,22 @@ async function handleEditorResponse(
 
         if (itemType === 'weapon') {
           properties = {
+            itemLevel: data.weaponItemLevel as number | undefined,
             minDamage: data.weaponMinDamage as number,
             maxDamage: data.weaponMaxDamage as number,
             damageType: data.weaponDamageType as string,
             handedness: data.weaponHandedness as string,
             attackSpeed: data.weaponAttackSpeed as number,
+            toHit: data.weaponToHit as number | undefined,
           };
         } else if (itemType === 'armor') {
           properties = {
+            itemLevel: data.armorItemLevel as number | undefined,
             armor: data.armorValue as number,
             slot: data.armorSlot as string,
+            size: data.armorSize as string | undefined,
+            toDodge: data.armorToDodge as number | undefined,
+            toBlock: data.armorToBlock as number | undefined,
           };
         }
 

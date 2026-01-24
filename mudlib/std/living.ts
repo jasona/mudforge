@@ -25,6 +25,25 @@ import {
 export type EncumbranceLevel = 'none' | 'light' | 'medium' | 'heavy';
 
 /**
+ * Posture states for resting/healing.
+ */
+export type PostureState = 'standing' | 'sitting' | 'sleeping';
+
+/**
+ * Regeneration multipliers for each posture.
+ */
+export const POSTURE_REGEN_MULTIPLIERS: Record<PostureState, number> = {
+  standing: 1.0,
+  sitting: 1.5,
+  sleeping: 2.5,
+};
+
+/**
+ * Campfire warmth bonus multiplier when resting near a lit campfire.
+ */
+export const CAMPFIRE_WARMTH_BONUS = 1.5;
+
+/**
  * Encumbrance thresholds (percentage of max carry weight).
  */
 export const ENCUMBRANCE_THRESHOLDS = {
@@ -188,6 +207,9 @@ export class Living extends MudObject {
   private _inCombat: boolean = false;
   private _combatTarget: Living | null = null;
   private _attackers: Set<Living> = new Set();
+
+  // Posture state
+  private _posture: PostureState = 'standing';
 
   constructor() {
     super();
@@ -1402,6 +1424,61 @@ export class Living extends MudObject {
       }
     }
     return total;
+  }
+
+  // ========== Posture ==========
+
+  /**
+   * Get current posture state.
+   */
+  get posture(): PostureState {
+    return this._posture;
+  }
+
+  /**
+   * Set posture state (standing, sitting, sleeping).
+   * Cannot change posture while in combat.
+   * @param state The new posture state
+   * @returns Object with success flag and optional reason for failure
+   */
+  setPosture(state: PostureState): { success: boolean; reason?: string } {
+    // Cannot change posture while in combat
+    if (this._inCombat && state !== 'standing') {
+      return { success: false, reason: "You can't do that while in combat!" };
+    }
+
+    // Already in this posture
+    if (this._posture === state) {
+      return { success: false, reason: `You are already ${state}.` };
+    }
+
+    // Transition rules: sleeping can only go to sitting, not directly to standing
+    if (this._posture === 'sleeping' && state === 'standing') {
+      return { success: false, reason: 'You need to wake up before standing.' };
+    }
+
+    this._posture = state;
+    return { success: true };
+  }
+
+  /**
+   * Check if the living is near a lit campfire in the same room.
+   * @returns true if there's a lit campfire in the room inventory
+   */
+  isNearCampfire(): boolean {
+    const env = this.environment;
+    if (!env) return false;
+
+    for (const obj of env.inventory) {
+      // Check for campfire objects with isLit property
+      if ('isCampfire' in obj && 'isLit' in obj) {
+        const campfire = obj as { isCampfire: boolean; isLit: boolean };
+        if (campfire.isCampfire && campfire.isLit) {
+          return true;
+        }
+      }
+    }
+    return false;
   }
 
   /**

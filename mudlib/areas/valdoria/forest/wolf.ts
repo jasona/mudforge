@@ -35,6 +35,7 @@ alert for both prey and danger. This is clearly a dangerous predator.`,
         { itemPath: '/items/quest/wolf_pelt', chance: 65 },
         { itemPath: '/items/quest/wolf_pelt', chance: 30 }, // Chance for second pelt
       ],
+      naturalAttacks: ['bite', 'claw'],
       wandering: true,
       wanderChance: 10,
       wanderAreaRestricted: true,

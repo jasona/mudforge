@@ -950,6 +950,16 @@ export default ${className};
       combatConfigStr = `    this.combatConfig = { ${parts.join(', ')} };`;
     }
 
+    // Determine NPC type for setLevel call
+    const npcType = npc.npcType || 'normal';
+
+    // Check if maxHealth was manually overridden (different from auto-calculated value)
+    // Auto-calc formula: (50 + level * 15) * multiplier
+    const multipliers: Record<string, number> = { normal: 1.0, miniboss: 1.5, elite: 2.0, boss: 3.0 };
+    const mult = multipliers[npcType] || 1.0;
+    const autoMaxHealth = Math.round((50 + npc.level * 15) * mult);
+    const healthOverridden = npc.maxHealth !== autoMaxHealth;
+
     return `/**
  * ${npc.name}
  *
@@ -965,10 +975,8 @@ export class ${className} extends NPC {
     this.name = '${this.escapeString(npc.name)}';
     this.shortDesc = '${this.escapeString(npc.shortDesc)}';
     this.longDesc = \`${npc.longDesc.replace(/`/g, '\\`')}\`;
-    this.level = ${npc.level};
-    this.maxHealth = ${npc.maxHealth};
-    this.health = ${npc.health ?? npc.maxHealth};
-${npc.gender ? `    this.gender = '${npc.gender}';\n` : ''}${npc.keywords && npc.keywords.length > 0 ? `    this.keywords = [${npc.keywords.map(k => `'${k}'`).join(', ')}];\n` : ''}${npc.chatChance !== undefined ? `    this.chatChance = ${npc.chatChance};\n` : ''}${chatLines.length > 0 ? `    this.chats = [\n${chatLines.join('\n')}\n    ];\n` : ''}${responseLines.length > 0 ? `    this.responses = [\n${responseLines.join('\n')}\n    ];\n` : ''}${combatConfigStr ? `${combatConfigStr}\n` : ''}${npc.wandering !== undefined ? `    this.wandering = ${npc.wandering};\n` : ''}${npc.respawnTime !== undefined ? `    this.respawnTime = ${npc.respawnTime};\n` : ''}${npc.questsOffered && npc.questsOffered.length > 0 ? `    this.questsOffered = [${npc.questsOffered.map(q => `'${q}'`).join(', ')}];\n` : ''}${npc.questsTurnedIn && npc.questsTurnedIn.length > 0 ? `    this.questsTurnedIn = [${npc.questsTurnedIn.map(q => `'${q}'`).join(', ')}];\n` : ''}${npc.items && npc.items.length > 0 ? `    this.setSpawnItems([${npc.items.map(i => i.startsWith('/') ? `'${i}'` : `'${areaPath}/${i}'`).join(', ')}]);\n` : ''}  }
+    this.setLevel(${npc.level}, '${npcType}');
+${healthOverridden ? `    // Override auto-calculated health\n    this.maxHealth = ${npc.maxHealth};\n    this.health = ${npc.health ?? npc.maxHealth};\n` : ''}${npc.gender ? `    this.gender = '${npc.gender}';\n` : ''}${npc.keywords && npc.keywords.length > 0 ? `    this.keywords = [${npc.keywords.map(k => `'${k}'`).join(', ')}];\n` : ''}${npc.chatChance !== undefined ? `    this.chatChance = ${npc.chatChance};\n` : ''}${chatLines.length > 0 ? `    this.chats = [\n${chatLines.join('\n')}\n    ];\n` : ''}${responseLines.length > 0 ? `    this.responses = [\n${responseLines.join('\n')}\n    ];\n` : ''}${combatConfigStr ? `${combatConfigStr}\n` : ''}${npc.wandering !== undefined ? `    this.wandering = ${npc.wandering};\n` : ''}${npc.respawnTime !== undefined ? `    this.respawnTime = ${npc.respawnTime};\n` : ''}${npc.questsOffered && npc.questsOffered.length > 0 ? `    this.questsOffered = [${npc.questsOffered.map(q => `'${q}'`).join(', ')}];\n` : ''}${npc.questsTurnedIn && npc.questsTurnedIn.length > 0 ? `    this.questsTurnedIn = [${npc.questsTurnedIn.map(q => `'${q}'`).join(', ')}];\n` : ''}${npc.items && npc.items.length > 0 ? `    this.setSpawnItems([${npc.items.map(i => i.startsWith('/') ? `'${i}'` : `'${areaPath}/${i}'`).join(', ')}]);\n` : ''}  }
 }
 
 export default ${className};
@@ -991,11 +999,30 @@ export default ${className};
       case 'weapon':
         baseClass = 'Weapon';
         imports = "import { Weapon } from '../../../lib/std.js';";
-        // Always set weapon properties with defaults
-        typeSpecificCode += `    this.minDamage = ${props.minDamage ?? 1};\n`;
-        typeSpecificCode += `    this.maxDamage = ${props.maxDamage ?? 3};\n`;
+        // Set handedness and damageType first
         typeSpecificCode += `    this.damageType = '${props.damageType ?? 'slashing'}';\n`;
         typeSpecificCode += `    this.handedness = '${props.handedness ?? 'one_handed'}';\n`;
+        // Use setItemLevel for auto-balance if itemLevel is set
+        if (props.itemLevel !== undefined) {
+          typeSpecificCode += `    this.setItemLevel(${props.itemLevel});\n`;
+          // Allow explicit overrides
+          if (props.minDamage !== undefined) {
+            typeSpecificCode += `    this.minDamage = ${props.minDamage}; // Override\n`;
+          }
+          if (props.maxDamage !== undefined) {
+            typeSpecificCode += `    this.maxDamage = ${props.maxDamage}; // Override\n`;
+          }
+          if (props.toHit !== undefined) {
+            typeSpecificCode += `    this.toHit = ${props.toHit}; // Override\n`;
+          }
+        } else {
+          // Manual damage values
+          typeSpecificCode += `    this.minDamage = ${props.minDamage ?? 1};\n`;
+          typeSpecificCode += `    this.maxDamage = ${props.maxDamage ?? 3};\n`;
+          if (props.toHit !== undefined && props.toHit !== 0) {
+            typeSpecificCode += `    this.toHit = ${props.toHit};\n`;
+          }
+        }
         if (props.attackSpeed !== undefined && props.attackSpeed !== 0) {
           typeSpecificCode += `    this.attackSpeed = ${props.attackSpeed};\n`;
         }
@@ -1004,9 +1031,34 @@ export default ${className};
       case 'armor':
         baseClass = 'Armor';
         imports = "import { Armor } from '../../../lib/std.js';";
-        // Always set armor properties with defaults
-        typeSpecificCode += `    this.armor = ${props.armor ?? 1};\n`;
+        // Set slot and size first
         typeSpecificCode += `    this.slot = '${props.slot ?? 'chest'}';\n`;
+        if (props.size) {
+          typeSpecificCode += `    this.size = '${props.size}';\n`;
+        }
+        // Use setItemLevel for auto-balance if itemLevel is set
+        if (props.itemLevel !== undefined) {
+          typeSpecificCode += `    this.setItemLevel(${props.itemLevel});\n`;
+          // Allow explicit overrides
+          if (props.armor !== undefined) {
+            typeSpecificCode += `    this.armor = ${props.armor}; // Override\n`;
+          }
+          if (props.toDodge !== undefined) {
+            typeSpecificCode += `    this.toDodge = ${props.toDodge}; // Override\n`;
+          }
+          if (props.toBlock !== undefined) {
+            typeSpecificCode += `    this.toBlock = ${props.toBlock}; // Override\n`;
+          }
+        } else {
+          // Manual armor value
+          typeSpecificCode += `    this.armor = ${props.armor ?? 1};\n`;
+          if (props.toDodge !== undefined && props.toDodge !== 0) {
+            typeSpecificCode += `    this.toDodge = ${props.toDodge};\n`;
+          }
+          if (props.toBlock !== undefined && props.toBlock !== 0) {
+            typeSpecificCode += `    this.toBlock = ${props.toBlock};\n`;
+          }
+        }
         break;
 
       case 'container':

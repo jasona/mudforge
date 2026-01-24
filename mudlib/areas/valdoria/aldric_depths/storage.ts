@@ -4,6 +4,7 @@
 
 import { Room, MudObject } from '../../../lib/std.js';
 import { LightLevel } from '../../../std/visibility/types.js';
+import { ResourceNode } from '../../../std/profession/resource-node.js';
 
 /**
  * The Storage Chamber.
@@ -19,6 +20,8 @@ above. This was once a storage area for the dungeon - {yellow}wooden crates{/} a
 {dim}Stone shelves{/} line the walls, still holding clay pots and glass bottles,
 their contents long since dried or evaporated. Cobwebs hang in thick sheets
 from the rafters, and the air is thick with the smell of decay.
+
+{cyan}Copper ore{/} glints in the exposed rock walls where the mortar has crumbled away.
 
 A set of {cyan}heavy chains{/} hangs from the ceiling in the center of the room,
 swaying slightly despite the still air. This chamber may have served a more
@@ -46,6 +49,18 @@ the cellblock lies to the {green}south{/}.`;
   }
 
   override async onCreate(): Promise<void> {
+    await super.onCreate();
+
+    // Add copper vein for mining
+    const copperVein = new ResourceNode();
+    copperVein.initFromDefinition('copper_vein');
+    await copperVein.moveTo(this);
+
+    // Add coal seam
+    const coalSeam = new ResourceNode();
+    coalSeam.initFromDefinition('coal_seam');
+    await coalSeam.moveTo(this);
+
     console.log('[StorageChamber] The storage chamber has been initialized.');
   }
 

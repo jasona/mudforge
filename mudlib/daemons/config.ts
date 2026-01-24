@@ -81,10 +81,10 @@ const DEFAULT_SETTINGS: Record<string, ConfigSetting> = {
   },
   'giphy.autoCloseSeconds': {
     value: 5,
-    description: 'Seconds before GIF popup auto-closes (0 to disable)',
+    description: 'Seconds before GIF panel auto-closes (0 to disable, max 300 = 5 min)',
     type: 'number',
     min: 0,
-    max: 30,
+    max: 300,
   },
   'giphy.rating': {
     value: 'pg',
