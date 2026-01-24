@@ -23,6 +23,14 @@ function isPet(obj: unknown): obj is { canBeAttacked: (attacker: MudObject) => {
 const BASE_ROUND_TIME = 3000;
 
 /**
+ * Capitalize the first letter of a name.
+ */
+function capitalizeName(name: string | undefined): string {
+  if (!name) return 'Someone';
+  return name.charAt(0).toUpperCase() + name.slice(1);
+}
+
+/**
  * Minimum and maximum round times.
  */
 const MIN_ROUND_TIME = 1000;
@@ -250,14 +258,14 @@ export class CombatDaemon extends MudObject {
     this._combats.set(key, entry);
 
     // Notify both parties
-    attacker.receive(`{red}You attack ${defender.name}!{/}\n`);
-    defender.receive(`{red}${attacker.name} attacks you!{/}\n`);
+    attacker.receive(`{red}You attack ${capitalizeName(defender.name)}!{/}\n`);
+    defender.receive(`{red}${capitalizeName(attacker.name)} attacks you!{/}\n`);
 
     // Notify room
     const room = attacker.environment;
     if (room && 'broadcast' in room) {
       (room as MudObject & { broadcast: (msg: string, opts?: { exclude?: MudObject[] }) => void })
-        .broadcast(`{red}${attacker.name} attacks ${defender.name}!{/}\n`, {
+        .broadcast(`{red}${capitalizeName(attacker.name)} attacks ${capitalizeName(defender.name)}!{/}\n`, {
           exclude: [attacker, defender],
         });
     }
@@ -903,8 +911,8 @@ export class CombatDaemon extends MudObject {
    * Set messages for a hit.
    */
   setHitMessages(result: AttackResult): void {
-    const attackerName = result.attacker.name;
-    const defenderName = result.defender.name;
+    const attackerName = capitalizeName(result.attacker.name);
+    const defenderName = capitalizeName(result.defender.name);
 
     // Determine weapon name and hit verb based on weapon or natural attack
     let weaponName: string;
@@ -948,8 +956,8 @@ export class CombatDaemon extends MudObject {
    * Set messages for a miss.
    */
   setMissMessages(result: AttackResult): void {
-    const attackerName = result.attacker.name;
-    const defenderName = result.defender.name;
+    const attackerName = capitalizeName(result.attacker.name);
+    const defenderName = capitalizeName(result.defender.name);
 
     // Determine weapon name and miss verb based on weapon or natural attack
     let weaponName: string;
@@ -1033,11 +1041,11 @@ export class CombatDaemon extends MudObject {
     // Send appropriate message
     switch (reason) {
       case 'separated':
-        attacker.receive(`{yellow}Combat with ${defender.name} ended - target left.{/}\n`);
+        attacker.receive(`{yellow}Combat with ${capitalizeName(defender.name)} ended - target left.{/}\n`);
         break;
       case 'fled':
-        attacker.receive(`{yellow}Combat with ${defender.name} ended - you fled.{/}\n`);
-        defender.receive(`{yellow}${attacker.name} fled from combat!{/}\n`);
+        attacker.receive(`{yellow}Combat with ${capitalizeName(defender.name)} ended - you fled.{/}\n`);
+        defender.receive(`{yellow}${capitalizeName(attacker.name)} fled from combat!{/}\n`);
         break;
     }
   }
@@ -1090,14 +1098,14 @@ export class CombatDaemon extends MudObject {
    */
   handleDeath(victim: Living, killer: Living): void {
     // Notify both parties
-    victim.receive(`{red}{bold}You have been slain by ${killer.name}!{/}\n`);
-    killer.receive(`{green}You have slain ${victim.name}!{/}\n`);
+    victim.receive(`{red}{bold}You have been slain by ${capitalizeName(killer.name)}!{/}\n`);
+    killer.receive(`{green}You have slain ${capitalizeName(victim.name)}!{/}\n`);
 
     // Notify room
     const room = killer.environment;
     if (room && 'broadcast' in room) {
       (room as MudObject & { broadcast: (msg: string, opts?: { exclude?: MudObject[] }) => void })
-        .broadcast(`{red}${victim.name} has been slain by ${killer.name}!{/}\n`, {
+        .broadcast(`{red}${capitalizeName(victim.name)} has been slain by ${capitalizeName(killer.name)}!{/}\n`, {
           exclude: [victim, killer],
         });
     }
@@ -1206,7 +1214,7 @@ export class CombatDaemon extends MudObject {
     // Notify room
     if ('broadcast' in room) {
       (room as MudObject & { broadcast: (msg: string, opts?: { exclude?: MudObject[] }) => void })
-        .broadcast(`{yellow}${living.name} panics and flees ${fleeDirection}!{/}\n`, {
+        .broadcast(`{yellow}${capitalizeName(living.name)} panics and flees ${fleeDirection}!{/}\n`, {
           exclude: [living],
         });
     }
@@ -1270,7 +1278,7 @@ export class CombatDaemon extends MudObject {
     // Notify room
     if ('broadcast' in room) {
       (room as MudObject & { broadcast: (msg: string, opts?: { exclude?: MudObject[] }) => void })
-        .broadcast(`{yellow}${attacker.name} flees ${fleeDirection}!{/}\n`, {
+        .broadcast(`{yellow}${capitalizeName(attacker.name)} flees ${fleeDirection}!{/}\n`, {
           exclude: [attacker],
         });
     }
