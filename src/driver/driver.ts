@@ -336,6 +336,9 @@ export class Driver {
         await this.checkDiscordPersistedConfig();
       }
 
+      // Initialize Bot system if previously enabled
+      await this.checkBotsPersistedConfig();
+
       // Enable file deletion cleanup for mudlib objects
       // Note: File modifications still require manual 'update' command - only deletions are automatic
       if (this.config.hotReload) {
@@ -786,6 +789,45 @@ export class Driver {
   }
 
   /**
+   * Check persisted config for Bot system settings.
+   * This handles the case where bots were enabled via in-game command.
+   */
+  private async checkBotsPersistedConfig(): Promise<void> {
+    try {
+      // Read the persisted config file
+      const configPath = join(this.config.mudlibPath, 'data', 'config', 'settings.json');
+      const fs = await import('fs/promises');
+
+      const content = await fs.readFile(configPath, 'utf-8');
+      const settings = JSON.parse(content) as Record<string, unknown>;
+
+      const enabled = settings['bots.enabled'];
+
+      if (enabled) {
+        this.logger.info('Bot system was previously enabled, initializing...');
+
+        // Load the bots daemon
+        const botsObj = await this.mudlibLoader.loadObject('/daemons/bots');
+
+        if (botsObj) {
+          const botsDaemon = botsObj as MudObject & {
+            loadPersonalities(): Promise<void>;
+            enable(): Promise<{ success: boolean; error?: string }>;
+          };
+
+          // Load personalities first, then explicitly enable
+          // (Don't rely on initialize() checking ConfigDaemon since it may not be loaded yet)
+          await botsDaemon.loadPersonalities();
+          await botsDaemon.enable();
+          this.logger.info('Bot system initialized and enabled');
+        }
+      }
+    } catch {
+      // Config file doesn't exist or bots not enabled - that's fine
+    }
+  }
+
+  /**
    * Preload objects from the preload list.
    */
   private async preloadObjects(paths: string[]): Promise<void> {
@@ -1217,6 +1259,7 @@ export class Driver {
 
   /**
    * Get all connected players (not including login daemon sessions).
+   * Also includes active bots from the bot daemon.
    */
   getAllPlayers(): MudObject[] {
     const players: MudObject[] = [];
@@ -1226,6 +1269,16 @@ export class Driver {
         players.push(handler);
       }
     }
+
+    // Also include active bots from the bot daemon
+    const botDaemon = this.registry.find('/daemons/bots') as {
+      getActiveBots?: () => MudObject[];
+    } | undefined;
+    if (botDaemon?.getActiveBots) {
+      const bots = botDaemon.getActiveBots();
+      players.push(...bots);
+    }
+
     return players;
   }
 
