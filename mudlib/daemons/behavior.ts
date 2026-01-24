@@ -17,6 +17,7 @@ import {
 import { buildCombatContext, evaluateActions, getBestAction } from '../std/behavior/evaluator.js';
 import { getGuildDaemon } from './guild.js';
 import { getCombatDaemon } from './combat.js';
+import { capitalizeName } from '../lib/text-utils.js';
 
 /**
  * Behavior Daemon class.
@@ -131,28 +132,28 @@ export class BehaviorDaemon extends MudObject {
       if (room && 'broadcast' in room) {
         const broadcast = (room as MudObject & { broadcast: (msg: string, opts?: { exclude?: MudObject[] }) => void }).broadcast.bind(room);
 
-        // Build a third-person message for the room
-        const npcName = npc.shortDesc || npc.name || 'someone';
-        const targetName = target ? (target.name || target.shortDesc || 'someone') : null;
+        // Build a third-person message for the room (capitalize names)
+        const npcName = capitalizeName(npc.shortDesc || npc.name);
+        const targetName = target ? capitalizeName(target.name || target.shortDesc) : null;
         const skillDef = guildDaemon.getSkill(action.skillId);
         const skillName = skillDef?.name || action.skillId;
 
-        // Create room message based on skill type
+        // Create room message based on skill type (with newlines for visibility)
         let roomMessage: string;
         if (result.healing) {
           if (target && target !== npc) {
-            roomMessage = `{cyan}${npcName} casts ${skillName} on ${targetName}, healing them!{/}`;
+            roomMessage = `\n{cyan}${npcName} casts ${skillName} on ${targetName}, healing them!{/}\n`;
           } else {
-            roomMessage = `{cyan}${npcName} casts ${skillName}, healing themselves!{/}`;
+            roomMessage = `\n{cyan}${npcName} casts ${skillName}, healing themselves!{/}\n`;
           }
         } else if (result.damage) {
-          roomMessage = `{red}${npcName} casts ${skillName} on ${targetName}!{/}`;
+          roomMessage = `\n{red}${npcName} casts ${skillName} on ${targetName}!{/}\n`;
         } else {
           // Buff or other skill
           if (target && target !== npc) {
-            roomMessage = `{yellow}${npcName} casts ${skillName} on ${targetName}.{/}`;
+            roomMessage = `\n{yellow}${npcName} casts ${skillName} on ${targetName}.{/}\n`;
           } else {
-            roomMessage = `{yellow}${npcName} casts ${skillName}.{/}`;
+            roomMessage = `\n{yellow}${npcName} casts ${skillName}.{/}\n`;
           }
         }
 
@@ -161,7 +162,8 @@ export class BehaviorDaemon extends MudObject {
         // Also send a message to the target if it's a healing spell
         if (result.healing && target && target !== npc && 'receive' in target) {
           const targetWithReceive = target as Living & { receive: (msg: string) => void };
-          targetWithReceive.receive(`{green}${npcName} heals you for ${Math.round(result.healing)} HP!{/}\n`);
+          // npcName is already capitalized above
+          targetWithReceive.receive(`\n{green}${npcName} heals you for ${Math.round(result.healing)} HP!{/}\n`);
         }
       }
 

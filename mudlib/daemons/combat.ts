@@ -11,6 +11,7 @@ import type { NaturalAttack } from '../std/combat/types.js';
 import type { ConfigDaemon } from './config.js';
 import { getQuestDaemon } from './quest.js';
 import { getAggroDaemon } from './aggro.js';
+import { capitalizeName } from '../lib/text-utils.js';
 
 // Pet type check helper (avoids circular dependency with pet.ts)
 function isPet(obj: unknown): obj is { canBeAttacked: (attacker: MudObject) => { canAttack: boolean; reason: string } } {
@@ -21,14 +22,6 @@ function isPet(obj: unknown): obj is { canBeAttacked: (attacker: MudObject) => {
  * Base round time in milliseconds.
  */
 const BASE_ROUND_TIME = 3000;
-
-/**
- * Capitalize the first letter of a name.
- */
-function capitalizeName(name: string | undefined): string {
-  if (!name) return 'Someone';
-  return name.charAt(0).toUpperCase() + name.slice(1);
-}
 
 /**
  * Minimum and maximum round times.
