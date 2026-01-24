@@ -659,6 +659,14 @@ declare global {
     // ========== Stats Efuns ==========
 
     /**
+     * Shutdown the server (hard restart).
+     * Should only be called from privileged code (senior+ commands).
+     * @param reason Optional reason for shutdown
+     * @returns Object with success status
+     */
+    shutdown(reason?: string): { success: boolean; error?: string };
+
+    /**
      * Get server uptime.
      * Available to all players.
      * @returns Object containing uptime in seconds and formatted string

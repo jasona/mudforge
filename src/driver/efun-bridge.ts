@@ -2751,6 +2751,25 @@ export class EfunBridge {
   }
 
   /**
+   * Shutdown the server (hard restart).
+   * Should only be called from privileged code (senior+ commands).
+   *
+   * @param reason Optional reason for shutdown
+   * @returns Object with success status
+   */
+  shutdown(reason?: string): { success: boolean; error?: string } {
+    console.log(`[EfunBridge] Server shutdown requested: ${reason || 'no reason given'}`);
+
+    // Schedule immediate shutdown to allow response to be sent
+    setTimeout(() => {
+      console.log('[EfunBridge] Server shutting down...');
+      process.exit(0);
+    }, 100);
+
+    return { success: true };
+  }
+
+  /**
    * Get server uptime.
    * Available to all players.
    *
@@ -3496,6 +3515,7 @@ RULES:
       setMudConfig: this.setMudConfig.bind(this),
 
       // Stats
+      shutdown: this.shutdown.bind(this),
       getUptime: this.getUptime.bind(this),
       getDriverStats: this.getDriverStats.bind(this),
       getObjectStats: this.getObjectStats.bind(this),
