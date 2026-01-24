@@ -823,19 +823,35 @@ export class GuildDaemon extends MudObject {
 
     const buffTarget = skill.target === 'self' ? player : (target ?? player);
 
-    // Create effect
+    // Determine effect type and description
+    let effectType: string;
+    let description: string;
     const statName = effect.combatStatModifier || effect.statModifier || 'stat';
+
+    if (effect.effectType === 'threat_modifier') {
+      effectType = 'threat_modifier';
+      description = `+${Math.round(magnitude)}% threat`;
+    } else if (effect.statModifier) {
+      effectType = 'stat_modifier';
+      description = `+${Math.round(magnitude)} ${statName}`;
+    } else {
+      effectType = 'combat_modifier';
+      description = `+${Math.round(magnitude)} ${statName}`;
+    }
+
+    // Create effect
     const effectData = {
       id: `skill_${skill.id}`,
       name: skill.name,
-      type: effect.statModifier ? 'stat_modifier' : 'combat_modifier',
+      type: effectType,
+      effectType: effect.effectType, // Preserve for threat_modifier detection
       duration,
       magnitude,
       stat: effect.statModifier,
       combatStat: effect.combatStatModifier,
       source: player,
       category: 'buff' as const,
-      description: `+${Math.round(magnitude)} ${statName}`,
+      description,
     };
 
     buffTarget.addEffect(effectData);
@@ -844,9 +860,14 @@ export class GuildDaemon extends MudObject {
     const targetMsg = buffTarget === player ? 'yourself' : buffTarget.name;
     const durationSec = Math.round(duration / 1000);
 
+    // Custom message for threat modifier
+    const effectMsg = effect.effectType === 'threat_modifier'
+      ? `(+${Math.round(magnitude)}% threat for ${durationSec}s)`
+      : `(+${Math.round(magnitude)} for ${durationSec}s)`;
+
     return {
       success: true,
-      message: `You ${verb} ${skill.name} on ${targetMsg}! (+${Math.round(magnitude)} for ${durationSec}s)`,
+      message: `You ${verb} ${skill.name} on ${targetMsg}! ${effectMsg}`,
       effectApplied: skill.name,
     };
   }
@@ -867,6 +888,11 @@ export class GuildDaemon extends MudObject {
     const effect = skill.effect;
     const magnitude = effect.baseMagnitude + (effect.magnitudePerLevel * (skillLevel - 1));
     const duration = effect.duration ?? 30000; // Default 30 seconds
+
+    // Special handling for taunt
+    if (effect.effectType === 'taunt') {
+      return this.executeTauntSkill(player, skill, skillLevel, target, magnitude, duration);
+    }
 
     // Create negative effect
     const effectMagnitude = effect.tickInterval ? magnitude : -magnitude; // Negative for stat reduction
@@ -900,6 +926,55 @@ export class GuildDaemon extends MudObject {
     return {
       success: true,
       message: `You ${verb} ${skill.name} on ${target.name}! (${durationSec}s)`,
+      effectApplied: skill.name,
+    };
+  }
+
+  /**
+   * Execute a taunt skill on an NPC.
+   */
+  private executeTauntSkill(
+    player: GuildPlayer,
+    skill: SkillDefinition,
+    _skillLevel: number,
+    target: Living,
+    magnitude: number,
+    duration: number
+  ): UseSkillResult {
+    // Check if target is an NPC with threat table
+    const npc = target as Living & {
+      addThreat?: (source: Living, amount: number) => void;
+      applyTaunt?: (source: Living, duration: number) => void;
+    };
+
+    if (typeof npc.addThreat !== 'function' || typeof npc.applyTaunt !== 'function') {
+      return {
+        success: false,
+        message: `${target.name} cannot be taunted.`,
+      };
+    }
+
+    // Add threat
+    npc.addThreat(player, magnitude);
+
+    // Apply forced targeting
+    npc.applyTaunt(player, duration);
+
+    const verb = skill.useVerb ?? 'taunt';
+    const durationSec = Math.round(duration / 1000);
+
+    // Notify the room
+    const room = player.environment;
+    if (room && 'broadcast' in room) {
+      (room as { broadcast: (msg: string, opts?: { exclude?: unknown[] }) => void })
+        .broadcast(`{yellow}${player.name} taunts ${target.name}!{/}\n`, {
+          exclude: [player],
+        });
+    }
+
+    return {
+      success: true,
+      message: `You ${verb} ${target.name}, forcing them to focus on you for ${durationSec} seconds!`,
       effectApplied: skill.name,
     };
   }

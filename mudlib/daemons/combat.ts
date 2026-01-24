@@ -10,6 +10,7 @@ import type { Living, Weapon, DamageType, CombatEntry, RoundResult, AttackResult
 import type { NaturalAttack } from '../std/combat/types.js';
 import type { ConfigDaemon } from './config.js';
 import { getQuestDaemon } from './quest.js';
+import { getAggroDaemon } from './aggro.js';
 
 // Pet type check helper (avoids circular dependency with pet.ts)
 function isPet(obj: unknown): obj is { canBeAttacked: (attacker: MudObject) => { canAttack: boolean; reason: string } } {
@@ -666,6 +667,15 @@ export class CombatDaemon extends MudObject {
       } else {
         defender.damage(result.finalDamage);
       }
+
+      // Generate threat on the NPC defender
+      if (this.isNPC(defender)) {
+        const npc = defender as Living & { addThreat?: (source: Living, amount: number) => void };
+        if (typeof npc.addThreat === 'function') {
+          const threat = this.calculateThreat(attacker, 'damage', result.finalDamage, result.damageType);
+          npc.addThreat(attacker, threat);
+        }
+      }
     }
 
     // Set messages
@@ -817,6 +827,56 @@ export class CombatDaemon extends MudObject {
   }
 
   /**
+   * Check if damage type is magical.
+   */
+  isMagicalDamage(type: DamageType): boolean {
+    return ['fire', 'cold', 'lightning', 'arcane', 'holy', 'necrotic', 'poison'].includes(type);
+  }
+
+  /**
+   * Calculate threat generated from an action.
+   * @param source The attacker generating threat
+   * @param actionType Type of action (damage, healing, etc.)
+   * @param amount Base amount (damage dealt, healing done, etc.)
+   * @param damageType Optional damage type for multiplier
+   * @returns Calculated threat value
+   */
+  calculateThreat(source: Living, actionType: 'damage' | 'healing', amount: number, damageType?: DamageType): number {
+    let threat = amount;
+
+    // Magic damage generates 30% more threat (mages get targeted)
+    if (actionType === 'damage' && damageType && this.isMagicalDamage(damageType)) {
+      threat *= 1.3;
+    }
+
+    // Healing generates half threat (split among nearby NPCs)
+    if (actionType === 'healing') {
+      threat *= 0.5;
+    }
+
+    // Apply threat modifier effects (e.g., Defensive Stance)
+    const effects = source.getActiveEffects?.() ?? [];
+    for (const effect of effects) {
+      if (effect.type === 'threat_modifier' || (effect as { effectType?: string }).effectType === 'threat_modifier') {
+        // Magnitude is a percentage modifier (e.g., 30 = +30%)
+        threat *= (1 + effect.magnitude / 100);
+      }
+    }
+
+    // Stealth/invisibility reduces threat by 30%
+    const stealthEffect = effects.find(e =>
+      e.type === 'stealth' || e.type === 'invisibility' ||
+      (e as { effectType?: string }).effectType === 'stealth' ||
+      (e as { effectType?: string }).effectType === 'invisibility'
+    );
+    if (stealthEffect) {
+      threat *= 0.7;
+    }
+
+    return Math.floor(threat);
+  }
+
+  /**
    * Apply armor and resistances.
    */
   applyDefenses(defender: Living, damage: number, damageType: DamageType): number {
@@ -963,6 +1023,13 @@ export class CombatDaemon extends MudObject {
     // Clear combat target panel
     this.sendCombatTargetUpdate(attacker, null);
 
+    // Record grudge when combat ends due to separation (player left or fled)
+    // Check both directions: player attacked NPC, or NPC attacked player
+    if (reason === 'fled' || reason === 'separated') {
+      this.recordGrudge(attacker, defender, reason === 'fled');
+      this.recordGrudge(defender, attacker, reason === 'fled');
+    }
+
     // Send appropriate message
     switch (reason) {
       case 'separated':
@@ -972,6 +1039,48 @@ export class CombatDaemon extends MudObject {
         attacker.receive(`{yellow}Combat with ${defender.name} ended - you fled.{/}\n`);
         defender.receive(`{yellow}${attacker.name} fled from combat!{/}\n`);
         break;
+    }
+  }
+
+  /**
+   * Record a grudge if the NPC has threat against the player.
+   * @param npcCandidate Potential NPC
+   * @param playerCandidate Potential player
+   * @param fled Whether the player fled (vs just walked away)
+   */
+  private recordGrudge(npcCandidate: Living, playerCandidate: Living, fled: boolean): void {
+    // Only record if npcCandidate is NPC and playerCandidate is player
+    if (!this.isNPC(npcCandidate) || !this.isPlayer(playerCandidate)) {
+      return;
+    }
+
+    const npc = npcCandidate as Living & {
+      getThreat?: (source: Living) => number;
+      objectPath?: string;
+    };
+
+    if (typeof npc.getThreat !== 'function' || !npc.objectPath) {
+      return;
+    }
+
+    const threat = npc.getThreat(playerCandidate);
+    if (threat <= 0) {
+      return;
+    }
+
+    try {
+      const aggroDaemon = getAggroDaemon();
+      const intensity = aggroDaemon.calculateIntensity(threat, fled);
+      aggroDaemon.addGrudge({
+        npcPath: npc.objectPath,
+        playerName: playerCandidate.name?.toLowerCase() || 'unknown',
+        totalDamage: threat,
+        fleeCount: fled ? 1 : 0,
+        lastSeen: Date.now(),
+        intensity,
+      });
+    } catch {
+      // Aggro daemon may not be available
     }
   }
 

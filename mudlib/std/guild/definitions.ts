@@ -16,8 +16,8 @@ export const FIGHTER_GUILD: GuildDefinition = {
   statRequirements: { strength: 10, constitution: 8 },
   skillTree: [
     { guildLevel: 1, skills: ['fighter:bash', 'fighter:toughness'] },
-    { guildLevel: 3, skills: ['fighter:parry'] },
-    { guildLevel: 5, skills: ['fighter:power_attack'] },
+    { guildLevel: 3, skills: ['fighter:parry', 'fighter:defensive_stance'] },
+    { guildLevel: 5, skills: ['fighter:power_attack', 'fighter:taunt'] },
     { guildLevel: 7, skills: ['fighter:shield_wall'] },
     { guildLevel: 10, skills: ['fighter:cleave'] },
     { guildLevel: 13, skills: ['fighter:battle_cry'] },
@@ -90,6 +90,50 @@ export const FIGHTER_SKILLS: SkillDefinition[] = [
       combatStatModifier: 'toDodge',
       duration: 20000,
     },
+  },
+  {
+    id: 'fighter:defensive_stance',
+    name: 'Defensive Stance',
+    description: 'Enter a defensive stance that generates 30-80% more threat, making enemies focus on you.',
+    type: 'buff',
+    target: 'self',
+    guild: 'fighter',
+    guildLevelRequired: 3,
+    manaCost: 15,
+    cooldown: 60000,
+    maxLevel: 50,
+    learnCost: 250,
+    advanceCostPerLevel: 45,
+    effect: {
+      baseMagnitude: 30,       // +30% threat at level 1
+      magnitudePerLevel: 1,    // +1% per level (up to +80% at level 50)
+      duration: 120000,        // 2 minutes
+      effectType: 'threat_modifier',
+    },
+    useVerb: 'adopt',
+    useMessage: 'You adopt a defensive stance, drawing enemy attention!',
+  },
+  {
+    id: 'fighter:taunt',
+    name: 'Taunt',
+    description: 'Force an enemy to attack you for 6 seconds. Essential for protecting squishier party members.',
+    type: 'debuff',
+    target: 'single',
+    guild: 'fighter',
+    guildLevelRequired: 5,
+    manaCost: 20,
+    cooldown: 15000,
+    maxLevel: 50,
+    learnCost: 400,
+    advanceCostPerLevel: 50,
+    effect: {
+      baseMagnitude: 100,      // Base threat added
+      magnitudePerLevel: 5,    // +5 threat per level
+      duration: 6000,          // 6 second forced targeting
+      effectType: 'taunt',
+    },
+    useVerb: 'taunt',
+    useMessage: 'You taunt $T, forcing them to focus on you!',
   },
   {
     id: 'fighter:power_attack',

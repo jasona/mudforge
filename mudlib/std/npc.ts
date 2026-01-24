@@ -10,8 +10,9 @@ import { MudObject } from './object.js';
 import { Room } from './room.js';
 import { Corpse } from './corpse.js';
 import { getCombatDaemon } from '../daemons/combat.js';
-import type { NPCCombatConfig, LootEntry, GoldDrop, NaturalAttack } from './combat/types.js';
+import type { NPCCombatConfig, LootEntry, GoldDrop, NaturalAttack, ThreatEntry } from './combat/types.js';
 import { NATURAL_ATTACKS } from './combat/types.js';
+import { getAggroDaemon } from '../daemons/aggro.js';
 import type { QuestId, QuestDefinition, PlayerQuestState, QuestPlayer } from './quest/types.js';
 import { getQuestDaemon } from '../daemons/quest.js';
 import type { NPCAIContext, ConversationMessage } from '../lib/ai-types.js';
@@ -102,6 +103,14 @@ export class NPC extends Living {
 
   // Natural attacks for this NPC (bite, claw, etc.)
   private _naturalAttacks: NaturalAttack[] = [];
+
+  // Threat table for aggro management
+  private _threatTable: Map<string, ThreatEntry> = new Map();
+
+  // Threat decay rates (percentage per second)
+  private static readonly THREAT_DECAY_IN_COMBAT = 0.01; // 1% per second
+  private static readonly THREAT_DECAY_OUT_OF_COMBAT = 0.05; // 5% per second
+  private static readonly THREAT_MINIMUM = 1; // Below this, entry is removed
 
   constructor() {
     super();
@@ -804,6 +813,176 @@ export class NPC extends Living {
     return [...this._naturalAttacks];
   }
 
+  // ========== Threat Management ==========
+
+  /**
+   * Add threat from a source.
+   * @param source The living being generating threat
+   * @param amount The amount of threat to add
+   */
+  addThreat(source: Living, amount: number): void {
+    if (amount <= 0) return;
+
+    const sourceId = source.objectId;
+    const now = Date.now();
+    const existing = this._threatTable.get(sourceId);
+
+    if (existing) {
+      existing.threat += amount;
+      existing.lastUpdated = now;
+    } else {
+      this._threatTable.set(sourceId, {
+        sourceId,
+        threat: amount,
+        lastUpdated: now,
+        isTaunted: false,
+        tauntExpires: 0,
+      });
+    }
+  }
+
+  /**
+   * Get current threat level for a source.
+   * @param source The living being to check
+   * @returns Current threat value, or 0 if not on threat table
+   */
+  getThreat(source: Living): number {
+    const entry = this._threatTable.get(source.objectId);
+    return entry?.threat ?? 0;
+  }
+
+  /**
+   * Clear threat from a specific source or all sources.
+   * @param source Optional source to clear; if omitted, clears all threat
+   */
+  clearThreat(source?: Living): void {
+    if (source) {
+      this._threatTable.delete(source.objectId);
+    } else {
+      this._threatTable.clear();
+    }
+  }
+
+  /**
+   * Get the target with highest threat that is valid (alive, in room).
+   * Applies time-based decay before checking.
+   * @returns The highest threat target, or null if none valid
+   */
+  getHighestThreatTarget(): Living | null {
+    if (this._threatTable.size === 0) return null;
+
+    const room = this.environment;
+    if (!room) return null;
+
+    const now = Date.now();
+    const decayRate = this.inCombat
+      ? NPC.THREAT_DECAY_IN_COMBAT
+      : NPC.THREAT_DECAY_OUT_OF_COMBAT;
+
+    let highestThreat = 0;
+    let highestTarget: Living | null = null;
+    let tauntedTarget: Living | null = null;
+    const toRemove: string[] = [];
+
+    for (const [sourceId, entry] of this._threatTable) {
+      // Apply decay
+      const secondsElapsed = (now - entry.lastUpdated) / 1000;
+      const decayMultiplier = Math.pow(1 - decayRate, secondsElapsed);
+      entry.threat *= decayMultiplier;
+      entry.lastUpdated = now;
+
+      // Check if taunt expired
+      if (entry.isTaunted && entry.tauntExpires > 0 && now > entry.tauntExpires) {
+        entry.isTaunted = false;
+        entry.tauntExpires = 0;
+      }
+
+      // Remove if threat too low
+      if (entry.threat < NPC.THREAT_MINIMUM) {
+        toRemove.push(sourceId);
+        continue;
+      }
+
+      // Find the source living
+      const source = this.findLivingById(sourceId, room);
+      if (!source || !source.alive) {
+        toRemove.push(sourceId);
+        continue;
+      }
+
+      // Track taunted target (takes priority)
+      if (entry.isTaunted) {
+        tauntedTarget = source;
+      }
+
+      // Track highest threat
+      if (entry.threat > highestThreat) {
+        highestThreat = entry.threat;
+        highestTarget = source;
+      }
+    }
+
+    // Cleanup expired entries
+    for (const id of toRemove) {
+      this._threatTable.delete(id);
+    }
+
+    // Taunted target takes priority
+    return tauntedTarget ?? highestTarget;
+  }
+
+  /**
+   * Apply a taunt effect, forcing this NPC to target the source.
+   * @param source The taunter
+   * @param duration Duration in milliseconds
+   */
+  applyTaunt(source: Living, duration: number): void {
+    const sourceId = source.objectId;
+    const now = Date.now();
+    const entry = this._threatTable.get(sourceId);
+
+    if (entry) {
+      entry.isTaunted = true;
+      entry.tauntExpires = now + duration;
+    } else {
+      // Add to threat table if not present
+      this._threatTable.set(sourceId, {
+        sourceId,
+        threat: 1, // Minimal threat, but taunted
+        lastUpdated: now,
+        isTaunted: true,
+        tauntExpires: now + duration,
+      });
+    }
+  }
+
+  /**
+   * Get the full threat table (for debugging/display).
+   */
+  getThreatTable(): Map<string, ThreatEntry> {
+    return new Map(this._threatTable);
+  }
+
+  /**
+   * Check if a specific source is currently taunting this NPC.
+   */
+  isTauntedBy(source: Living): boolean {
+    const entry = this._threatTable.get(source.objectId);
+    if (!entry) return false;
+    if (!entry.isTaunted) return false;
+    return Date.now() < entry.tauntExpires;
+  }
+
+  /**
+   * Find a living by objectId in the current room.
+   */
+  private findLivingById(objectId: string, room: MudObject): Living | null {
+    if (!('getLivings' in room)) return null;
+    const getLivings = (room as MudObject & { getLivings: () => Living[] }).getLivings;
+    const livings = getLivings.call(room);
+    return livings.find(l => l.objectId === objectId) ?? null;
+  }
+
   /**
    * Auto-balance NPC based on level. Sets HP, stats, XP, gold, and damage.
    * All values can be overridden after calling this method.
@@ -999,18 +1178,26 @@ export class NPC extends Living {
     const random = typeof efuns !== 'undefined' ? efuns.random : (max: number) =>
       Math.floor(Math.random() * max);
 
-    // Aggression check: if not in combat and aggressive, look for targets
-    if (!this.inCombat && this._aggressiveTo) {
-      const room = this.environment;
-      if (room && 'getLivings' in room) {
-        const getLivings = (room as MudObject & { getLivings: () => Living[] }).getLivings;
-        const livings = getLivings.call(room);
-        for (const target of livings) {
-          if (target !== this && target.alive && this.isAggressiveTo(target)) {
-            // Attack this target
-            const combatDaemon = getCombatDaemon();
-            combatDaemon.initiateCombat(this, target);
-            break; // Only attack one target per heartbeat
+    // Aggression check: if not in combat, look for targets (threat-based first)
+    if (!this.inCombat) {
+      const combatDaemon = getCombatDaemon();
+
+      // First priority: check threat table for remembered targets
+      const threatTarget = this.getHighestThreatTarget();
+      if (threatTarget && threatTarget.alive) {
+        combatDaemon.initiateCombat(this, threatTarget);
+      } else if (this._aggressiveTo) {
+        // Second priority: normal aggression check
+        const room = this.environment;
+        if (room && 'getLivings' in room) {
+          const getLivings = (room as MudObject & { getLivings: () => Living[] }).getLivings;
+          const livings = getLivings.call(room);
+          for (const target of livings) {
+            if (target !== this && target.alive && this.isAggressiveTo(target)) {
+              // Attack this target
+              combatDaemon.initiateCombat(this, target);
+              break; // Only attack one target per heartbeat
+            }
           }
         }
       }
@@ -1032,11 +1219,28 @@ export class NPC extends Living {
   /**
    * Called when a living being enters the room this NPC is in.
    * Override in subclasses to react to newcomers.
+   * Loads grudges for players this NPC remembers (even if not normally aggressive).
    * @param who The living being that entered
    * @param from The room they came from (if any)
    */
   onEnter(who: Living, from?: Room): void | Promise<void> {
-    // Default: do nothing
+    // Always check for grudges - NPCs remember players who attacked them
+    try {
+      const aggroDaemon = getAggroDaemon();
+      const playerName = who.name?.toLowerCase();
+      const npcPath = this.objectPath;
+
+      if (playerName && npcPath) {
+        const grudges = aggroDaemon.getGrudges(npcPath, playerName);
+        for (const grudge of grudges) {
+          // Add threat from grudge - this will cause the NPC to attack
+          // even if it's not normally aggressive
+          this.addThreat(who, grudge.intensity);
+        }
+      }
+    } catch {
+      // Aggro daemon may not be initialized yet
+    }
   }
 
   /**
