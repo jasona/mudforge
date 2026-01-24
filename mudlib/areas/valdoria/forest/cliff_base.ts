@@ -20,7 +20,7 @@ cliff face, offering a possible route for skilled climbers.
 The forest trail continues to the {green}west{/}.`;
 
     this.setMapCoordinates({ x: 3, y: 1, z: 0, area: '/areas/valdoria/forest' });
-    this.setTerrain('rocky');
+    this.setTerrain('mountain');
     this.setMapIcon('^');
 
     this.setupRoom();

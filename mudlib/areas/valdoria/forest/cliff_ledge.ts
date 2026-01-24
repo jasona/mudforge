@@ -21,7 +21,7 @@ The ledge continues upward to the {green}north{/} for skilled climbers.
 You can carefully descend {green}down{/} to the cliff base.`;
 
     this.setMapCoordinates({ x: 3, y: 1, z: 1, area: '/areas/valdoria/forest' });
-    this.setTerrain('rocky');
+    this.setTerrain('mountain');
     this.setMapIcon('^');
 
     this.setupRoom();
