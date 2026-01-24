@@ -22,6 +22,7 @@ import { constants } from 'fs';
 import { getI3Client } from '../network/i3-client.js';
 import { getI2Client } from '../network/i2-client.js';
 import { getGrapevineClient, type GrapevineEvent } from '../network/grapevine-client.js';
+import { getDiscordClient } from '../network/discord-client.js';
 import type { LPCValue } from '../network/lpc-codec.js';
 import type { I2Message } from '../network/i2-codec.js';
 import {
@@ -258,6 +259,7 @@ type I3PacketCallback = (packet: LPCValue[]) => void;
  */
 type I2MessageCallback = (message: I2Message, rinfo: { address: string; port: number }) => void;
 type GrapevineMessageCallback = (event: GrapevineEvent) => void;
+type DiscordMessageCallback = (author: string, content: string) => void;
 
 /**
  * Snoop session data stored in driver.
@@ -457,6 +459,7 @@ export class EfunBridge {
   private i3PacketCallback: I3PacketCallback | null = null;
   private i2MessageCallback: I2MessageCallback | null = null;
   private grapevineMessageCallback: GrapevineMessageCallback | null = null;
+  private discordMessageCallback: DiscordMessageCallback | null = null;
 
   /** Snoop sessions: snooperId -> session data */
   private snoopSessions: Map<string, SnoopSession> = new Map();
@@ -2748,6 +2751,27 @@ export class EfunBridge {
   }
 
   /**
+   * Get server uptime.
+   * Available to all players.
+   *
+   * @returns Object containing uptime in seconds and formatted string
+   */
+  getUptime(): { seconds: number; formatted: string } {
+    const uptimeSeconds = process.uptime();
+    const days = Math.floor(uptimeSeconds / 86400);
+    const hours = Math.floor((uptimeSeconds % 86400) / 3600);
+    const minutes = Math.floor((uptimeSeconds % 3600) / 60);
+    const seconds = Math.floor(uptimeSeconds % 60);
+    const formatted = days > 0
+      ? `${days}d ${hours}h ${minutes}m ${seconds}s`
+      : hours > 0
+        ? `${hours}h ${minutes}m ${seconds}s`
+        : `${minutes}m ${seconds}s`;
+
+    return { seconds: uptimeSeconds, formatted };
+  }
+
+  /**
    * Get driver statistics including memory, objects, scheduler, and performance metrics.
    * Requires senior builder permission (level 2) or higher.
    *
@@ -3472,6 +3496,7 @@ RULES:
       setMudConfig: this.setMudConfig.bind(this),
 
       // Stats
+      getUptime: this.getUptime.bind(this),
       getDriverStats: this.getDriverStats.bind(this),
       getObjectStats: this.getObjectStats.bind(this),
       getMemoryStats: this.getMemoryStats.bind(this),
@@ -3513,6 +3538,15 @@ RULES:
       grapevineUnsubscribe: this.grapevineUnsubscribe.bind(this),
       grapevineSend: this.grapevineSend.bind(this),
       grapevineOnMessage: this.grapevineOnMessage.bind(this),
+
+      // Discord
+      discordIsConnected: this.discordIsConnected.bind(this),
+      discordGetState: this.discordGetState.bind(this),
+      discordGetConfig: this.discordGetConfig.bind(this),
+      discordConnect: this.discordConnect.bind(this),
+      discordDisconnect: this.discordDisconnect.bind(this),
+      discordSend: this.discordSend.bind(this),
+      discordOnMessage: this.discordOnMessage.bind(this),
 
       // Version
       driverVersion: this.driverVersion.bind(this),
@@ -3923,6 +3957,89 @@ RULES:
     console.log(`[EfunBridge] handleGrapevineMessage: ${event.event}, hasCallback: ${!!this.grapevineMessageCallback}`);
     if (this.grapevineMessageCallback) {
       this.grapevineMessageCallback(event);
+    }
+  }
+
+  // ========== Discord Efuns ==========
+
+  /**
+   * Check if Discord is connected.
+   */
+  discordIsConnected(): boolean {
+    const client = getDiscordClient();
+    return client?.isConnected ?? false;
+  }
+
+  /**
+   * Get Discord connection state.
+   */
+  discordGetState(): string {
+    const client = getDiscordClient();
+    return client?.state ?? 'disconnected';
+  }
+
+  /**
+   * Get Discord configuration.
+   */
+  discordGetConfig(): { guildId: string; channelId: string } | null {
+    const client = getDiscordClient();
+    return client?.getConfig() ?? null;
+  }
+
+  /**
+   * Connect to Discord with the given configuration.
+   */
+  async discordConnect(config: {
+    token: string;
+    guildId: string;
+    channelId: string;
+  }): Promise<boolean> {
+    const client = getDiscordClient();
+    if (!client) {
+      return false;
+    }
+    return client.connect(config);
+  }
+
+  /**
+   * Disconnect from Discord.
+   */
+  async discordDisconnect(): Promise<void> {
+    const client = getDiscordClient();
+    if (client) {
+      await client.disconnect();
+    }
+  }
+
+  /**
+   * Send a message to Discord.
+   */
+  async discordSend(playerName: string, message: string): Promise<boolean> {
+    const client = getDiscordClient();
+    if (!client) {
+      return false;
+    }
+    return client.sendMessage(playerName, message);
+  }
+
+  /**
+   * Register a callback to receive Discord messages.
+   */
+  discordOnMessage(callback: (author: string, content: string) => void): void {
+    this.discordMessageCallback = callback;
+    // Also register with the client directly
+    const client = getDiscordClient();
+    if (client) {
+      client.onMessage(callback);
+    }
+  }
+
+  /**
+   * Internal method called when Discord message is received.
+   */
+  handleDiscordMessage(author: string, content: string): void {
+    if (this.discordMessageCallback) {
+      this.discordMessageCallback(author, content);
     }
   }
 
