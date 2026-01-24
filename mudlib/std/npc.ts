@@ -17,9 +17,15 @@ import type { QuestId, QuestDefinition, PlayerQuestState, QuestPlayer } from './
 import { getQuestDaemon } from '../daemons/quest.js';
 import type { NPCAIContext, ConversationMessage } from '../lib/ai-types.js';
 import type { NPCRandomLootConfig } from './loot/types.js';
+import type { BehaviorConfig, BehaviorMode, CombatRole } from './behavior/types.js';
+import { BEHAVIOR_DEFAULTS, GUILD_ROLE_MAP } from './behavior/types.js';
+import type { GuildId } from './guild/types.js';
 
 // Re-export AI types for convenience
 export type { NPCAIContext, ConversationMessage } from '../lib/ai-types.js';
+
+// Re-export behavior types for convenience
+export type { BehaviorConfig, BehaviorMode, CombatRole } from './behavior/types.js';
 
 /**
  * NPC type for auto-balance multipliers.
@@ -111,6 +117,9 @@ export class NPC extends Living {
   private static readonly THREAT_DECAY_IN_COMBAT = 0.01; // 1% per second
   private static readonly THREAT_DECAY_OUT_OF_COMBAT = 0.05; // 5% per second
   private static readonly THREAT_MINIMUM = 1; // Below this, entry is removed
+
+  // Behavior/AI configuration
+  private _behaviorConfig: BehaviorConfig | null = null;
 
   constructor() {
     super();
@@ -983,6 +992,156 @@ export class NPC extends Living {
     return livings.find(l => l.objectId === objectId) ?? null;
   }
 
+  // ========== Behavior/AI System ==========
+
+  /**
+   * Configure AI behavior for this NPC.
+   * Enables intelligent combat decisions based on role and guild.
+   *
+   * @param options Behavior configuration options
+   *
+   * @example
+   * ```typescript
+   * // Cleric healer NPC
+   * this.setBehavior({
+   *   mode: 'defensive',
+   *   role: 'healer',
+   *   guild: 'cleric',
+   *   healSelfThreshold: 60,
+   *   healAllyThreshold: 50,
+   * });
+   *
+   * // Fighter tank NPC
+   * this.setBehavior({
+   *   mode: 'aggressive',
+   *   role: 'tank',
+   *   guild: 'fighter',
+   * });
+   * ```
+   */
+  setBehavior(options: Partial<BehaviorConfig> & { mode: BehaviorMode; role?: CombatRole }): void {
+    // Infer role from guild if not specified
+    const guild = options.guild;
+    let role = options.role;
+    if (!role && guild) {
+      role = GUILD_ROLE_MAP[guild] || 'generic';
+    }
+
+    this._behaviorConfig = {
+      mode: options.mode,
+      role: role || 'generic',
+      guild: options.guild,
+      wimpyThreshold: options.wimpyThreshold ?? BEHAVIOR_DEFAULTS.wimpyThreshold,
+      healSelfThreshold: options.healSelfThreshold ?? BEHAVIOR_DEFAULTS.healSelfThreshold,
+      healAllyThreshold: options.healAllyThreshold ?? BEHAVIOR_DEFAULTS.healAllyThreshold,
+      criticalAllyThreshold: options.criticalAllyThreshold ?? BEHAVIOR_DEFAULTS.criticalAllyThreshold,
+      criticalSelfThreshold: options.criticalSelfThreshold ?? BEHAVIOR_DEFAULTS.criticalSelfThreshold,
+      willTaunt: options.willTaunt ?? BEHAVIOR_DEFAULTS.willTaunt,
+      willHealAllies: options.willHealAllies ?? BEHAVIOR_DEFAULTS.willHealAllies,
+      willBuffAllies: options.willBuffAllies ?? BEHAVIOR_DEFAULTS.willBuffAllies,
+      willDebuffEnemies: options.willDebuffEnemies ?? BEHAVIOR_DEFAULTS.willDebuffEnemies,
+    };
+  }
+
+  /**
+   * Get the current behavior configuration.
+   */
+  getBehaviorConfig(): BehaviorConfig | null {
+    return this._behaviorConfig;
+  }
+
+  /**
+   * Clear behavior configuration (disable AI behavior).
+   */
+  clearBehavior(): void {
+    this._behaviorConfig = null;
+  }
+
+  /**
+   * Learn specific skills for this NPC.
+   * NPCs don't need to meet prerequisites or pay costs.
+   *
+   * @param skillIds Array of skill IDs to learn (e.g., ['fighter:bash', 'fighter:taunt'])
+   * @param level Skill level to set (default 1)
+   */
+  learnSkills(skillIds: string[], level: number = 1): void {
+    // Get or create guild data
+    let guildData = this.getProperty('guildData') as {
+      guilds: Array<{ guildId: GuildId; guildLevel: number; guildXP: number; joinedAt: number }>;
+      skills: Array<{ skillId: string; level: number; xpInvested: number }>;
+      cooldowns: Array<{ skillId: string; expiresAt: number }>;
+    } | undefined;
+
+    if (!guildData) {
+      guildData = {
+        guilds: [],
+        skills: [],
+        cooldowns: [],
+      };
+    }
+
+    for (const skillId of skillIds) {
+      // Check if already learned
+      const existingIdx = guildData.skills.findIndex(s => s.skillId === skillId);
+      if (existingIdx >= 0) {
+        // Update level if higher
+        if (level > guildData.skills[existingIdx].level) {
+          guildData.skills[existingIdx].level = level;
+        }
+      } else {
+        // Add new skill
+        guildData.skills.push({
+          skillId,
+          level,
+          xpInvested: 0,
+        });
+      }
+
+      // Auto-add guild membership if needed
+      const guildId = skillId.split(':')[0] as GuildId;
+      if (guildId && !guildData.guilds.some(g => g.guildId === guildId)) {
+        guildData.guilds.push({
+          guildId,
+          guildLevel: 20, // NPCs get max guild level
+          guildXP: 0,
+          joinedAt: Date.now(),
+        });
+      }
+    }
+
+    this.setProperty('guildData', guildData);
+  }
+
+  /**
+   * Learn default skills for the configured guild based on NPC level.
+   * Automatically learns skills the NPC's level qualifies for.
+   */
+  learnDefaultGuildSkills(): void {
+    if (!this._behaviorConfig?.guild) return;
+
+    const guild = this._behaviorConfig.guild;
+    const npcLevel = this.level;
+
+    // Map NPC level to guild level (rough approximation)
+    // Guild level 1 at NPC level 1, guild level 20 at NPC level 60
+    const guildLevel = Math.min(20, Math.max(1, Math.floor((npcLevel / 60) * 20) + 1));
+
+    // Get skills available at this guild level
+    import('./guild/definitions.js')
+      .then(({ getSkillsForGuild }) => {
+        const allGuildSkills = getSkillsForGuild(guild);
+        const availableSkills = allGuildSkills.filter(s => s.guildLevelRequired <= guildLevel);
+        const skillIds = availableSkills.map(s => s.id);
+
+        // Learn with skill level based on NPC level (1-50)
+        const skillLevel = Math.min(50, Math.max(1, Math.floor(npcLevel / 2)));
+        this.learnSkills(skillIds, skillLevel);
+      })
+      .catch(() => {
+        // Guild definitions not available
+      });
+  }
+
   /**
    * Auto-balance NPC based on level. Sets HP, stats, XP, gold, and damage.
    * All values can be overridden after calling this method.
@@ -1201,6 +1360,20 @@ export class NPC extends Living {
           }
         }
       }
+    }
+
+    // Behavior AI: execute intelligent actions when in combat with behavior configured
+    if (this.inCombat && this._behaviorConfig) {
+      import('../daemons/behavior.js')
+        .then(({ getBehaviorDaemon }) => {
+          const behaviorDaemon = getBehaviorDaemon();
+          behaviorDaemon.executeAction(this).catch(() => {
+            // Behavior execution failed silently
+          });
+        })
+        .catch(() => {
+          // Behavior daemon not available
+        });
     }
 
     // Chat
