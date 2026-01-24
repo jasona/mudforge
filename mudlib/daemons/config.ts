@@ -98,6 +98,21 @@ const DEFAULT_SETTINGS: Record<string, ConfigSetting> = {
     min: 1,
     max: 20,
   },
+  'discord.enabled': {
+    value: false,
+    description: 'Enable Discord channel bridge',
+    type: 'boolean',
+  },
+  'discord.guildId': {
+    value: '',
+    description: 'Discord server (guild) ID',
+    type: 'string',
+  },
+  'discord.channelId': {
+    value: '',
+    description: 'Discord channel ID to bridge',
+    type: 'string',
+  },
 };
 
 /**

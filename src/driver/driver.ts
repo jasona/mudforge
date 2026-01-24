@@ -27,6 +27,7 @@ import { resetScriptRunner } from '../isolation/script-runner.js';
 import { createI3Client, destroyI3Client } from '../network/i3-client.js';
 import { createI2Client, destroyI2Client } from '../network/i2-client.js';
 import { createGrapevineClient, destroyGrapevineClient } from '../network/grapevine-client.js';
+import { createDiscordClient, destroyDiscordClient } from '../network/discord-client.js';
 import pino, { type Logger } from 'pino';
 import type { MudObject } from './types.js';
 import type { Connection } from '../network/connection.js';
@@ -327,6 +328,14 @@ export class Driver {
         await this.initializeGrapevine();
       }
 
+      // Initialize Discord if enabled (check both env var and persisted config)
+      if (this.config.discordEnabled) {
+        await this.initializeDiscord();
+      } else {
+        // Check if Discord was previously enabled via in-game command
+        await this.checkDiscordPersistedConfig();
+      }
+
       // Enable file deletion cleanup for mudlib objects
       // Note: File modifications still require manual 'update' command - only deletions are automatic
       if (this.config.hotReload) {
@@ -376,6 +385,12 @@ export class Driver {
       if (this.config.grapevineEnabled) {
         destroyGrapevineClient();
         this.logger.info('Grapevine client disconnected');
+      }
+
+      // Disconnect Discord if enabled
+      if (this.config.discordEnabled) {
+        destroyDiscordClient();
+        this.logger.info('Discord client disconnected');
       }
 
       // Stop file watcher
@@ -687,6 +702,86 @@ export class Driver {
     } catch (error) {
       this.logger.error({ error }, 'Failed to initialize Grapevine');
       // Don't throw - Grapevine failure shouldn't prevent driver from starting
+    }
+  }
+
+  /**
+   * Initialize Discord channel bridge.
+   */
+  private async initializeDiscord(): Promise<void> {
+    this.logger.info('Initializing Discord...');
+
+    try {
+      // Load the discord daemon first
+      const discordObj = await this.mudlibLoader.loadObject('/daemons/discord');
+
+      if (!discordObj) {
+        this.logger.error('Failed to load discord daemon');
+        return;
+      }
+
+      // Cast to the daemon interface for type safety
+      const discordDaemon = discordObj as MudObject & {
+        initialize(config: {
+          token: string;
+          guildId: string;
+          channelId: string;
+        }): Promise<void>;
+      };
+
+      // Create the Discord client
+      createDiscordClient();
+
+      // Initialize the daemon with config
+      await discordDaemon.initialize({
+        token: this.config.discordBotToken,
+        guildId: this.config.discordGuildId,
+        channelId: this.config.discordChannelId,
+      });
+
+      this.logger.info('Discord client initialized');
+    } catch (error) {
+      this.logger.error({ error }, 'Failed to initialize Discord');
+      // Don't throw - Discord failure shouldn't prevent driver from starting
+    }
+  }
+
+  /**
+   * Check persisted config for Discord settings.
+   * This handles the case where Discord was enabled via in-game command.
+   */
+  private async checkDiscordPersistedConfig(): Promise<void> {
+    try {
+      // Read the persisted config file
+      const configPath = join(this.config.mudlibPath, 'data', 'config', 'settings.json');
+      const fs = await import('fs/promises');
+
+      this.logger.info({ configPath }, 'Checking Discord persisted config');
+
+      const content = await fs.readFile(configPath, 'utf-8');
+      const settings = JSON.parse(content) as Record<string, unknown>;
+
+      const enabled = settings['discord.enabled'];
+      const guildId = settings['discord.guildId'] as string | undefined;
+      const channelId = settings['discord.channelId'] as string | undefined;
+      const hasToken = !!this.config.discordBotToken;
+
+      this.logger.info({ enabled, guildId, channelId, hasToken }, 'Discord persisted settings');
+
+      if (enabled && guildId && channelId && hasToken) {
+        this.logger.info('Discord was previously enabled, auto-connecting...');
+
+        // Override config with persisted values
+        this.config.discordEnabled = true;
+        this.config.discordGuildId = guildId;
+        this.config.discordChannelId = channelId;
+
+        await this.initializeDiscord();
+      } else {
+        this.logger.info('Discord auto-connect skipped (missing config or token)');
+      }
+    } catch (error) {
+      this.logger.info({ error }, 'Could not check Discord persisted config');
     }
   }
 
