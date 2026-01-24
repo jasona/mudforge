@@ -38,25 +38,69 @@ export function buildCombatContext(npc: NPC, config: BehaviorConfig): CombatCont
   }
 
   // Categorize as enemies or allies
-  // For now: enemies = anyone on NPC's threat table, allies = party members
+  // Enemies = anyone on NPC's threat table
+  // Allies = party members OR mercenary owner
   const enemies: Living[] = [];
   const allies: Living[] = [];
 
   const threatTable = npc.getThreatTable();
 
+  // Check if this NPC is a mercenary with an owner
+  const mercenaryOwner = (config as BehaviorConfig & { mercenaryOwner?: string }).mercenaryOwner;
+
+  // Find the owner Living if this is a mercenary
+  let ownerLiving: Living | null = null;
+  if (mercenaryOwner) {
+    for (const living of livingsInRoom) {
+      const livingName = (living as Living & { name?: string }).name;
+      if (livingName && livingName.toLowerCase() === mercenaryOwner.toLowerCase()) {
+        ownerLiving = living;
+        break;
+      }
+    }
+  }
+
+  // Get owner's enemies (for mercenaries to help their owner)
+  const ownerEnemyIds = new Set<string>();
+  if (ownerLiving) {
+    // If owner is in combat, their target is our enemy
+    if (ownerLiving.combatTarget) {
+      ownerEnemyIds.add(ownerLiving.combatTarget.objectId);
+    }
+    // Also check who is targeting the owner
+    for (const living of livingsInRoom) {
+      if (living.combatTarget === ownerLiving) {
+        ownerEnemyIds.add(living.objectId);
+      }
+    }
+  }
+
   for (const living of livingsInRoom) {
     if (!living.alive) continue;
 
-    // Check if this living is on our threat table
-    if (threatTable.has(living.objectId)) {
+    // Check if this living is on our threat table OR is an enemy of our owner
+    const isEnemy = threatTable.has(living.objectId) || ownerEnemyIds.has(living.objectId);
+
+    if (isEnemy) {
       enemies.push(living);
     } else {
+      let isAlly = false;
+
       // Check if in same party (allies)
       const npcParty = npc.getProperty?.('partyId') as string | undefined;
       const livingParty = (living as Living & { getProperty?: (key: string) => unknown })
         .getProperty?.('partyId') as string | undefined;
 
       if (npcParty && livingParty && npcParty === livingParty) {
+        isAlly = true;
+      }
+
+      // Check if this is the mercenary's owner
+      if (living === ownerLiving) {
+        isAlly = true;
+      }
+
+      if (isAlly) {
         allies.push(living);
       }
     }

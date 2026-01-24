@@ -51,6 +51,26 @@ export interface PetSaveData {
   sentAway: boolean;
 }
 
+// Mercenary save data type (defined here to avoid circular dependency with mercenary.ts)
+export interface MercenarySaveData {
+  mercId: string;
+  type: 'fighter' | 'mage' | 'thief' | 'cleric';
+  mercName: string | null;
+  ownerName: string;
+  level: number;
+  health: number;
+  maxHealth: number;
+  mana: number;
+  maxMana: number;
+  hiredAt: number;
+  behaviorConfig: {
+    mode: 'aggressive' | 'defensive' | 'wimpy';
+    role: 'tank' | 'healer' | 'dps_melee' | 'dps_ranged' | 'generic';
+    guild: 'fighter' | 'mage' | 'thief' | 'cleric';
+  };
+  skills: Array<{ id: string; level: number }>;
+}
+
 /**
  * Equipment slot data for stats display.
  */
@@ -184,6 +204,7 @@ export interface PlayerSaveData {
   staffVanished?: boolean; // Staff visibility toggle
   race?: RaceId; // Player race
   pets?: PetSaveData[]; // Pet save data
+  mercenaries?: MercenarySaveData[]; // Mercenary save data
   generatedItems?: GeneratedItemData[]; // Random loot generator items
 }
 
@@ -244,6 +265,9 @@ export class Player extends Living {
 
   // Pending pet data (stored during restore, applied after entering room)
   private _pendingPetData: PetSaveData[] | null = null;
+
+  // Pending mercenary data (stored during restore, applied after entering room)
+  private _pendingMercenaryData: MercenarySaveData[] | null = null;
 
   // Regeneration accumulators (for fractional healing per heartbeat)
   private _hpRegenAccumulator: number = 0;
@@ -1802,6 +1826,7 @@ export class Player extends Living {
       staffVanished: this._staffVanished,
       race: this._race,
       pets: this._getPetSaveData(),
+      mercenaries: this._getMercenarySaveData(),
       generatedItems: generatedItems.length > 0 ? generatedItems : undefined,
     };
   }
@@ -1816,6 +1841,21 @@ export class Player extends Living {
       const petDaemon = getPetDaemon();
       const petData = petDaemon.getPlayerPetSaveData(this.name);
       return petData.length > 0 ? petData : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
+  /**
+   * Get mercenary save data from the mercenary daemon.
+   */
+  private _getMercenarySaveData(): MercenarySaveData[] | undefined {
+    try {
+      // Dynamically import to avoid circular dependencies
+      const { getMercenaryDaemon } = require('../daemons/mercenary.js');
+      const mercDaemon = getMercenaryDaemon();
+      const mercData = mercDaemon.getPlayerMercenarySaveData(this.name);
+      return mercData.length > 0 ? mercData : undefined;
     } catch {
       return undefined;
     }
@@ -1937,6 +1977,11 @@ export class Player extends Living {
       this._pendingPetData = data.pets;
     }
 
+    // Store mercenary data for deferred restoration (after player enters room)
+    if (data.mercenaries && data.mercenaries.length > 0) {
+      this._pendingMercenaryData = data.mercenaries;
+    }
+
     // Note: Location and inventory need to be handled by the driver
     // after loading, as they require object references
   }
@@ -1963,6 +2008,30 @@ export class Player extends Living {
 
     // Clear pending data
     this._pendingPetData = null;
+  }
+
+  /**
+   * Restore mercenaries after player has entered a room.
+   * Called by the login daemon after player enters the starting room.
+   */
+  async restoreMercenaries(): Promise<void> {
+    if (!this._pendingMercenaryData || this._pendingMercenaryData.length === 0) {
+      return;
+    }
+
+    try {
+      const { getMercenaryDaemon } = await import('../daemons/mercenary.js');
+      const mercDaemon = getMercenaryDaemon();
+
+      for (const mercData of this._pendingMercenaryData) {
+        await mercDaemon.restoreMercenary(this, mercData);
+      }
+    } catch (error) {
+      console.error('[Player] Error restoring mercenaries:', error);
+    }
+
+    // Clear pending data
+    this._pendingMercenaryData = null;
   }
 
   /**

@@ -266,6 +266,16 @@ export async function execute(ctx: CommandContext): Promise<boolean> {
       // Pet daemon not available
     });
 
+  // Handle mercenary follow - move following mercenaries
+  import('../../daemons/mercenary.js')
+    .then(({ getMercenaryDaemon }) => {
+      const mercDaemon = getMercenaryDaemon();
+      void mercDaemon.handleOwnerMovement(player, room, destination, direction);
+    })
+    .catch(() => {
+      // Mercenary daemon not available
+    });
+
   // Broadcast enter message to new room
   const enterRoom = destination as BroadcastableRoom;
   if (enterRoom.broadcast) {

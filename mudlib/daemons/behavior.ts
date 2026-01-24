@@ -126,8 +126,44 @@ export class BehaviorDaemon extends MudObject {
     const result = guildDaemon.useSkill(npc as never, action.skillId, target);
 
     if (result.success) {
-      // Broadcast skill use message
-      npc.receive(result.message + '\n');
+      // Broadcast skill use to the room
+      const room = npc.environment as Room | null;
+      if (room && 'broadcast' in room) {
+        const broadcast = (room as MudObject & { broadcast: (msg: string, opts?: { exclude?: MudObject[] }) => void }).broadcast.bind(room);
+
+        // Build a third-person message for the room
+        const npcName = npc.shortDesc || npc.name || 'someone';
+        const targetName = target ? (target.name || target.shortDesc || 'someone') : null;
+        const skillDef = guildDaemon.getSkill(action.skillId);
+        const skillName = skillDef?.name || action.skillId;
+
+        // Create room message based on skill type
+        let roomMessage: string;
+        if (result.healing) {
+          if (target && target !== npc) {
+            roomMessage = `{cyan}${npcName} casts ${skillName} on ${targetName}, healing them!{/}`;
+          } else {
+            roomMessage = `{cyan}${npcName} casts ${skillName}, healing themselves!{/}`;
+          }
+        } else if (result.damage) {
+          roomMessage = `{red}${npcName} casts ${skillName} on ${targetName}!{/}`;
+        } else {
+          // Buff or other skill
+          if (target && target !== npc) {
+            roomMessage = `{yellow}${npcName} casts ${skillName} on ${targetName}.{/}`;
+          } else {
+            roomMessage = `{yellow}${npcName} casts ${skillName}.{/}`;
+          }
+        }
+
+        broadcast(roomMessage);
+
+        // Also send a message to the target if it's a healing spell
+        if (result.healing && target && target !== npc && 'receive' in target) {
+          const targetWithReceive = target as Living & { receive: (msg: string) => void };
+          targetWithReceive.receive(`{green}${npcName} heals you for ${Math.round(result.healing)} HP!{/}\n`);
+        }
+      }
 
       return {
         executed: true,

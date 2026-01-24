@@ -27,7 +27,8 @@ To the {green}north{/}, the imposing walls of the {bold}castle{/} rise above the
 leads toward the merchant district, while {green}southward{/} lies the town gates and the
 wilderness beyond. A sturdy building to the {green}northeast{/} bears the sign of a crossed
 sword and shield - the {cyan}training hall{/}. To the {green}southeast{/}, the solid stone walls of
-the {yellow}Bank of Aldric{/} promise security for your hard-earned gold.
+the {yellow}Bank of Aldric{/} promise security for your hard-earned gold. A dim {red}pub{/} called
+{red}The Rusty Blade{/} lies to the {green}southwest{/}, where mercenaries gather.
 
 Around the square, guild halls beckon adventurers: the {red}Fighter Guild{/} arena
 ({green}fighter{/}), the {blue}Mage Guild{/} tower ({green}mage{/}), the {dim}Thief Guild{/} den ({green}thief{/}),
@@ -55,6 +56,7 @@ anyone who will listen.`;
     this.addExit('south', '/areas/valdoria/aldric/gates');
     this.addExit('northeast', '/areas/valdoria/aldric/training_hall');
     this.addExit('southeast', '/areas/valdoria/aldric/bank');
+    this.addExit('southwest', '/areas/valdoria/aldric/pub');
 
     // Guild hall exits
     this.addExit('fighter', '/areas/guilds/fighter/guild_hall');
