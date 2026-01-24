@@ -34,6 +34,8 @@ import {
 } from './version.js';
 import { getGitHubClient } from './github-client.js';
 import { getGiphyClient, type CachedGif } from './giphy-client.js';
+import { getShadowRegistry, type ShadowRegistry } from './shadow-registry.js';
+import type { Shadow, AddShadowResult } from './shadow-types.js';
 
 /**
  * Pager options for the page efun.
@@ -466,6 +468,9 @@ export class EfunBridge {
   /** Reverse lookup: targetId -> set of snooperIds */
   private snoopTargets: Map<string, Set<string>> = new Map();
 
+  /** Shadow registry for object overlays */
+  private shadowRegistry: ShadowRegistry;
+
   constructor(config: Partial<EfunBridgeConfig> = {}) {
     this.config = {
       mudlibPath: config.mudlibPath ?? './mudlib',
@@ -473,6 +478,25 @@ export class EfunBridge {
     this.registry = getRegistry();
     this.scheduler = getScheduler();
     this.permissions = getPermissions();
+    this.shadowRegistry = getShadowRegistry();
+  }
+
+  // ========== Shadow Wrapper Helpers ==========
+
+  /**
+   * Wrap a single object with shadow proxy if it has shadows.
+   * Returns null/undefined unchanged.
+   */
+  private wrapObject<T extends MudObject | null | undefined>(obj: T): T {
+    if (!obj) return obj;
+    return this.shadowRegistry.wrapWithProxy(obj) as T;
+  }
+
+  /**
+   * Wrap an array of objects with shadow proxies.
+   */
+  private wrapObjects(objs: MudObject[]): MudObject[] {
+    return objs.map((obj) => this.shadowRegistry.wrapWithProxy(obj));
   }
 
   /**
@@ -574,7 +598,8 @@ export class EfunBridge {
    */
   async cloneObject(path: string): Promise<MudObject | undefined> {
     const loader = getMudlibLoader({ mudlibPath: this.config.mudlibPath });
-    return loader.cloneObject(path);
+    const clone = await loader.cloneObject(path);
+    return this.wrapObject(clone);
   }
 
   /**
@@ -590,7 +615,7 @@ export class EfunBridge {
    * @param path The object path
    */
   loadObject(path: string): MudObject | undefined {
-    return this.registry.find(path);
+    return this.wrapObject(this.registry.find(path));
   }
 
   /**
@@ -598,7 +623,7 @@ export class EfunBridge {
    * @param pathOrId The object path or clone ID
    */
   findObject(pathOrId: string): MudObject | undefined {
-    return this.registry.find(pathOrId);
+    return this.wrapObject(this.registry.find(pathOrId));
   }
 
   /**
@@ -611,12 +636,13 @@ export class EfunBridge {
     // First check if already loaded
     const existing = this.registry.find(path);
     if (existing) {
-      return existing;
+      return this.wrapObject(existing);
     }
 
     // Load from disk
     const loader = getMudlibLoader({ mudlibPath: this.config.mudlibPath });
-    return loader.loadObject(path);
+    const obj = await loader.loadObject(path);
+    return this.wrapObject(obj);
   }
 
   /**
@@ -625,7 +651,7 @@ export class EfunBridge {
    * @returns Array of all loaded MudObjects
    */
   getAllObjects(): MudObject[] {
-    return Array.from(this.registry.getAllObjects());
+    return this.wrapObjects(Array.from(this.registry.getAllObjects()));
   }
 
   // ========== Hierarchy Efuns ==========
@@ -635,7 +661,9 @@ export class EfunBridge {
    * @param object The container object
    */
   allInventory(object: MudObject): MudObject[] {
-    return [...object.inventory];
+    // Get original object if this is a proxy
+    const original = this.shadowRegistry.getOriginal(object);
+    return this.wrapObjects([...original.inventory]);
   }
 
   /**
@@ -643,7 +671,9 @@ export class EfunBridge {
    * @param object The object
    */
   environment(object: MudObject): MudObject | null {
-    return object.environment;
+    // Get original object if this is a proxy
+    const original = this.shadowRegistry.getOriginal(object);
+    return this.wrapObject(original.environment);
   }
 
   /**
@@ -661,14 +691,14 @@ export class EfunBridge {
    * Get the current "this object" from context.
    */
   thisObject(): MudObject | null {
-    return this.context.thisObject;
+    return this.wrapObject(this.context.thisObject);
   }
 
   /**
    * Get the current "this player" from context.
    */
   thisPlayer(): MudObject | null {
-    return this.context.thisPlayer;
+    return this.wrapObject(this.context.thisPlayer);
   }
 
   /**
@@ -676,7 +706,7 @@ export class EfunBridge {
    */
   allPlayers(): MudObject[] {
     if (this.allPlayersCallback) {
-      return this.allPlayersCallback();
+      return this.wrapObjects(this.allPlayersCallback());
     }
     return [];
   }
@@ -3380,6 +3410,110 @@ RULES:
     return client.getGifCache(id);
   }
 
+  // ========== Shadow Efuns ==========
+
+  /**
+   * Add a shadow to a target object.
+   * The shadow can override properties and methods of the target.
+   * @param target The object to shadow
+   * @param shadow The shadow to attach
+   * @returns Result indicating success or failure
+   */
+  async addShadow(target: MudObject, shadow: Shadow): Promise<AddShadowResult> {
+    return this.shadowRegistry.addShadow(target, shadow);
+  }
+
+  /**
+   * Remove a shadow from a target object.
+   * @param target The object to unshadow
+   * @param shadowOrId The shadow instance or shadowId to remove
+   * @returns true if shadow was removed
+   */
+  async removeShadow(target: MudObject, shadowOrId: Shadow | string): Promise<boolean> {
+    return this.shadowRegistry.removeShadow(target, shadowOrId);
+  }
+
+  /**
+   * Get all shadows attached to an object.
+   * @param target The object to check
+   * @returns Array of shadows (sorted by priority, highest first)
+   */
+  getShadows(target: MudObject): Shadow[] {
+    const objectId = this.shadowRegistry.getOriginal(target).objectId;
+    return this.shadowRegistry.getShadows(objectId);
+  }
+
+  /**
+   * Find a specific shadow by type on an object.
+   * @param target The object to check
+   * @param shadowType The shadow type to find
+   * @returns The shadow if found
+   */
+  findShadow(target: MudObject, shadowType: string): Shadow | undefined {
+    const objectId = this.shadowRegistry.getOriginal(target).objectId;
+    return this.shadowRegistry.findShadow(objectId, shadowType);
+  }
+
+  /**
+   * Check if an object has any shadows.
+   * @param target The object to check
+   */
+  hasShadows(target: MudObject): boolean {
+    const objectId = this.shadowRegistry.getOriginal(target).objectId;
+    return this.shadowRegistry.hasShadows(objectId);
+  }
+
+  /**
+   * Clear all shadows from an object.
+   * @param target The object to clear shadows from
+   */
+  async clearShadows(target: MudObject): Promise<void> {
+    return this.shadowRegistry.clearShadows(target);
+  }
+
+  /**
+   * Get the original unwrapped object from a shadow proxy.
+   * If the object is not a proxy, returns it unchanged.
+   * @param objectOrProxy The object or proxy
+   * @returns The original unwrapped object
+   */
+  getOriginalObject(objectOrProxy: MudObject): MudObject {
+    return this.shadowRegistry.getOriginal(objectOrProxy);
+  }
+
+  /**
+   * Wrap an object with its shadow proxy if it has shadows.
+   * Use this when accessing objects from collections (like inventory)
+   * that bypass the normal efun wrapping.
+   * @param object The object to potentially wrap
+   * @returns The wrapped proxy or original object
+   */
+  wrapShadowedObject(object: MudObject): MudObject {
+    return this.wrapObject(object);
+  }
+
+  /**
+   * Wrap an array of objects with their shadow proxies.
+   * Use this when accessing objects from collections that bypass efun wrapping.
+   * @param objects The objects to potentially wrap
+   * @returns Array of wrapped proxies or original objects
+   */
+  wrapShadowedObjects(objects: MudObject[]): MudObject[] {
+    return this.wrapObjects(objects);
+  }
+
+  /**
+   * Get shadow system statistics.
+   */
+  getShadowStats(): {
+    totalShadowedObjects: number;
+    totalShadows: number;
+    cachedProxies: number;
+    shadowsByType: Record<string, number>;
+  } {
+    return this.shadowRegistry.getStats();
+  }
+
   /**
    * Get all efuns as an object for exposing to sandbox.
    */
@@ -3583,6 +3717,18 @@ RULES:
       giphyGenerateId: this.giphyGenerateId.bind(this),
       giphyCacheGif: this.giphyCacheGif.bind(this),
       giphyGetCachedGif: this.giphyGetCachedGif.bind(this),
+
+      // Shadow
+      addShadow: this.addShadow.bind(this),
+      removeShadow: this.removeShadow.bind(this),
+      getShadows: this.getShadows.bind(this),
+      findShadow: this.findShadow.bind(this),
+      hasShadows: this.hasShadows.bind(this),
+      clearShadows: this.clearShadows.bind(this),
+      getOriginalObject: this.getOriginalObject.bind(this),
+      wrapShadowedObject: this.wrapShadowedObject.bind(this),
+      wrapShadowedObjects: this.wrapShadowedObjects.bind(this),
+      getShadowStats: this.getShadowStats.bind(this),
     };
   }
 

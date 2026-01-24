@@ -2159,6 +2159,11 @@ export class Player extends Living {
     const combatDaemon = getCombatDaemon();
     combatDaemon.endAllCombats(this);
 
+    // Clear all shadows (transformations, disguises, etc.)
+    if (typeof efuns !== 'undefined' && efuns.clearShadows) {
+      await efuns.clearShadows(this);
+    }
+
     // Remember death location
     this._deathLocation = this.environment;
     this._corpseLocation = this.environment;

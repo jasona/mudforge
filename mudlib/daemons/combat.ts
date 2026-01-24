@@ -563,11 +563,12 @@ export class CombatDaemon extends MudObject {
     const hitRoll = Math.random() * 100;
     const hit = hitRoll < hitChance;
 
-    // Get natural attack if weapon is null and attacker is an NPC
+    // Get natural attack if weapon is null
+    // Check any attacker (NPC or player with transformation) that has getNaturalAttack
     let naturalAttack: NaturalAttack | undefined;
     let damageType: DamageType = weapon?.damageType || 'bludgeoning';
 
-    if (!weapon && this.isNPC(attacker)) {
+    if (!weapon) {
       const attackerWithNatural = attacker as Living & { getNaturalAttack?: () => NaturalAttack | null };
       if (typeof attackerWithNatural.getNaturalAttack === 'function') {
         const natAtk = attackerWithNatural.getNaturalAttack();
