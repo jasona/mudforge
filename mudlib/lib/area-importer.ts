@@ -468,6 +468,7 @@ const STANDARD_NPC_PATTERNS = [
   /this\.aiContext\s*=/,
   /this\.aiEnabled\s*=/,
   /this\.setAIContext\s*\(/,
+  /this\.setBehavior\s*\(/,
   /super\s*\(\)/,
   // Merchant patterns
   /this\.setMerchant\s*\(/,
