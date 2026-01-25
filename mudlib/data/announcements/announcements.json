@@ -1,0 +1,12 @@
+{
+  "announcements": [
+    {
+      "id": "1",
+      "title": "Welcome!",
+      "content": "# Welcome!\n\nWe are so glad you made it!\n\n## Features\n- Use **bold** and *italic* for emphasis\n- Create lists and headings\n- Keep it concise and informative\n\n---\n*Posted by the game team*\n",
+      "author": "Acer",
+      "createdAt": 1769317373402
+    }
+  ],
+  "nextId": 2
+}
