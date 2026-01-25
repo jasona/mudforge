@@ -4651,7 +4651,8 @@ async function handleEditorResponse(
 
   if (response.action === 'closed') {
     editorStates.delete(player.name);
-    delete player.onGUIResponse;
+    // Return to area listing
+    openAreaSelector(player, areaDaemon);
     return;
   }
 
@@ -5536,10 +5537,11 @@ async function handleEditorResponse(
 
     // Save (global save button)
     if (customAction === 'save') {
-      closeModal(player, 'area-editor');
       await areaDaemon.save();
       player.receive('{green}Changes saved.{/}\n');
-      player.receive('{dim}Use "areas gui" to continue editing.{/}\n');
+      editorStates.delete(player.name);
+      // Return to area listing
+      openAreaSelector(player, areaDaemon);
       return;
     }
   }
