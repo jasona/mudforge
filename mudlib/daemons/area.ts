@@ -937,9 +937,20 @@ export class AreaDaemon extends MudObject {
       ? '\n    // Preserved custom code\n' + constructorTail.map(c => c.split('\n').map(l => '    ' + l.trim()).join('\n')).join('\n') + '\n'
       : '';
 
-    // Build methods section
-    const methodsSection = customMethods.length > 0
-      ? '\n\n  // Preserved custom methods\n' + customMethods.map(m => '  ' + m.split('\n').join('\n  ')).join('\n\n')
+    // Build methods section - filter out methods that would duplicate generated ones
+    const generatedMethodNames = ['setupRoom'];
+    const filteredCustomMethods = customMethods.filter(m => {
+      // Check if this method matches a generated method name
+      const methodNameMatch = m.match(/(?:private|public|protected)?\s*(?:async\s+)?(\w+)\s*\(/);
+      if (methodNameMatch) {
+        const methodName = methodNameMatch[1];
+        return !generatedMethodNames.includes(methodName);
+      }
+      return true;
+    });
+
+    const methodsSection = filteredCustomMethods.length > 0
+      ? '\n\n  // Preserved custom methods\n' + filteredCustomMethods.map(m => '  ' + m.split('\n').join('\n  ')).join('\n\n')
       : '';
 
     return `/**
@@ -1148,7 +1159,7 @@ export class ${className} extends ${baseClass} {${propertiesSection}
 ${subclass === 'npc' ? `    this.name = '${this.escapeString(npc.name)}';\n` : ''}    this.shortDesc = '${this.escapeString(npc.shortDesc)}';
     this.longDesc = \`${npc.longDesc.replace(/`/g, '\\`')}\`;
     this.setLevel(${npc.level}, '${npcType}');
-${healthOverridden ? `    // Override auto-calculated health\n    this.maxHealth = ${npc.maxHealth};\n    this.health = ${npc.health ?? npc.maxHealth};\n` : ''}${npc.gender ? `    this.gender = '${npc.gender}';\n` : ''}${npc.keywords && npc.keywords.length > 0 ? `    this.keywords = [${npc.keywords.map(k => `'${k}'`).join(', ')}];\n` : ''}${npc.chatChance !== undefined ? `    this.chatChance = ${npc.chatChance};\n` : ''}${chatLines.length > 0 ? `    this.chats = [\n${chatLines.join('\n')}\n    ];\n` : ''}${responseLines.length > 0 ? `    this.responses = [\n${responseLines.join('\n')}\n    ];\n` : ''}${combatConfigStr ? `${combatConfigStr}\n` : ''}${npc.wandering !== undefined ? `    this.wandering = ${npc.wandering};\n` : ''}${npc.respawnTime !== undefined ? `    this.respawnTime = ${npc.respawnTime};\n` : ''}${npc.questsOffered && npc.questsOffered.length > 0 ? `    this.questsOffered = [${npc.questsOffered.map(q => `'${q}'`).join(', ')}];\n` : ''}${npc.questsTurnedIn && npc.questsTurnedIn.length > 0 ? `    this.questsTurnedIn = [${npc.questsTurnedIn.map(q => `'${q}'`).join(', ')}];\n` : ''}${npc.items && npc.items.length > 0 ? `    this.setSpawnItems([${npc.items.map(i => i.startsWith('/') ? `'${i}'` : `'${areaPath}/${i}'`).join(', ')}]);\n` : ''}${subclassSpecificCode}${constructorTailSection}  }${methodsSection}
+${healthOverridden ? `    // Override auto-calculated health\n    this.maxHealth = ${npc.maxHealth};\n    this.health = ${npc.health ?? npc.maxHealth};\n` : ''}${npc.gender ? `    this.gender = '${npc.gender}';\n` : ''}${npc.keywords && npc.keywords.length > 0 ? `    this.keywords = [${npc.keywords.map(k => `'${k}'`).join(', ')}];\n` : ''}${npc.chatChance !== undefined ? `    this.chatChance = ${npc.chatChance};\n` : ''}${chatLines.length > 0 ? `    this.chats = [\n${chatLines.join('\n')}\n    ];\n` : ''}${responseLines.length > 0 ? `    this.responses = [\n${responseLines.join('\n')}\n    ];\n` : ''}${combatConfigStr ? `${combatConfigStr}\n` : ''}${npc.wandering !== undefined ? `    this.wandering = ${npc.wandering};\n` : ''}${npc.respawnTime !== undefined ? `    this.respawnTime = ${npc.respawnTime};\n` : ''}${npc.questsOffered && npc.questsOffered.length > 0 ? `    this.setQuestsOffered([${npc.questsOffered.map(q => `'${q}'`).join(', ')}]);\n` : ''}${npc.questsTurnedIn && npc.questsTurnedIn.length > 0 ? `    this.setQuestsTurnedIn([${npc.questsTurnedIn.map(q => `'${q}'`).join(', ')}]);\n` : ''}${npc.items && npc.items.length > 0 ? `    this.setSpawnItems([${npc.items.map(i => i.startsWith('/') ? `'${i}'` : `'${areaPath}/${i}'`).join(', ')}]);\n` : ''}${subclassSpecificCode}${constructorTailSection}  }${methodsSection}
 }
 
 export default ${className};

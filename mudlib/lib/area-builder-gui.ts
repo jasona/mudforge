@@ -1234,6 +1234,190 @@ function renderAreaGrid(
       window.guiAction('exit-click', { roomId, direction });
     }
   };
+
+  // Room drag state
+  let roomDragState = null;
+  let ghostElement = null;
+  const DRAG_THRESHOLD = 5;
+
+  window.handleRoomMouseDown = function(roomId, x, y, floor, event) {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    roomDragState = {
+      roomId,
+      origX: parseInt(x),
+      origY: parseInt(y),
+      floor: parseInt(floor),
+      startMouseX: event.clientX,
+      startMouseY: event.clientY,
+      isDragging: false
+    };
+    document.addEventListener('mousemove', handleRoomDragMove);
+    document.addEventListener('mouseup', handleRoomDragEnd);
+  };
+
+  function handleRoomDragMove(event) {
+    if (!roomDragState) return;
+
+    const dx = event.clientX - roomDragState.startMouseX;
+    const dy = event.clientY - roomDragState.startMouseY;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+
+    if (!roomDragState.isDragging && distance > DRAG_THRESHOLD) {
+      roomDragState.isDragging = true;
+      createDragGhost(roomDragState.roomId, roomDragState.origX, roomDragState.origY);
+      // Mark original cell as being dragged
+      const originalCell = document.querySelector('[data-room-id="' + roomDragState.roomId + '"]');
+      if (originalCell) {
+        originalCell.classList.add('being-dragged');
+      }
+    }
+
+    if (roomDragState.isDragging && ghostElement) {
+      updateGhostPosition(event.clientX, event.clientY);
+      highlightDropTarget(event.clientX, event.clientY);
+    }
+  }
+
+  function handleRoomDragEnd(event) {
+    document.removeEventListener('mousemove', handleRoomDragMove);
+    document.removeEventListener('mouseup', handleRoomDragEnd);
+
+    if (!roomDragState) return;
+
+    if (roomDragState.isDragging) {
+      // Complete the drag
+      const dropTarget = getDropTargetCell(event.clientX, event.clientY);
+      if (dropTarget && dropTarget.isEmpty) {
+        // Send move action to server
+        if (window.guiAction) {
+          window.guiAction('room-drag-move', {
+            roomId: roomDragState.roomId,
+            fromX: roomDragState.origX,
+            fromY: roomDragState.origY,
+            toX: dropTarget.x,
+            toY: dropTarget.y,
+            z: roomDragState.floor
+          });
+        }
+      }
+      cleanupDrag();
+    } else {
+      // Was a click, not a drag - let the click handler deal with it
+      cleanupDrag();
+    }
+
+    roomDragState = null;
+  }
+
+  function createDragGhost(roomId, x, y) {
+    const svg = document.querySelector('.area-grid-svg');
+    if (!svg) return;
+
+    const originalCell = document.querySelector('[data-room-id="' + roomId + '"]');
+    if (!originalCell) return;
+
+    // Get cell dimensions from original
+    const width = parseFloat(originalCell.getAttribute('width'));
+    const height = parseFloat(originalCell.getAttribute('height'));
+    const fill = originalCell.getAttribute('fill');
+    const rx = originalCell.getAttribute('rx') || '4';
+    const ry = originalCell.getAttribute('ry') || '4';
+
+    // Create ghost group
+    ghostElement = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    ghostElement.classList.add('room-drag-ghost');
+
+    const ghostRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    ghostRect.setAttribute('width', width);
+    ghostRect.setAttribute('height', height);
+    ghostRect.setAttribute('rx', rx);
+    ghostRect.setAttribute('ry', ry);
+    ghostRect.setAttribute('fill', fill);
+
+    ghostElement.appendChild(ghostRect);
+    svg.appendChild(ghostElement);
+  }
+
+  function updateGhostPosition(clientX, clientY) {
+    if (!ghostElement) return;
+
+    const svg = document.querySelector('.area-grid-svg');
+    if (!svg) return;
+
+    const svgRect = svg.getBoundingClientRect();
+    const viewBox = svg.viewBox.baseVal;
+
+    // Convert client coords to SVG coords
+    const scaleX = viewBox.width / svgRect.width;
+    const scaleY = viewBox.height / svgRect.height;
+
+    const svgX = (clientX - svgRect.left) * scaleX + viewBox.x;
+    const svgY = (clientY - svgRect.top) * scaleY + viewBox.y;
+
+    // Get cell size from a grid cell
+    const sampleCell = document.querySelector('.grid-cell');
+    if (!sampleCell) return;
+
+    const cellWidth = parseFloat(sampleCell.getAttribute('width'));
+    const cellHeight = parseFloat(sampleCell.getAttribute('height'));
+
+    // Center ghost on cursor
+    ghostElement.setAttribute('transform', 'translate(' + (svgX - cellWidth/2) + ',' + (svgY - cellHeight/2) + ')');
+  }
+
+  function getDropTargetCell(clientX, clientY) {
+    // Use elementsFromPoint to find the grid cell under the cursor
+    // The ghost has pointer-events: none so it won't block this
+    const elements = document.elementsFromPoint(clientX, clientY);
+
+    // Find the grid cell in the element stack
+    for (let i = 0; i < elements.length; i++) {
+      const el = elements[i];
+      if (el.classList && el.classList.contains('grid-cell') && el.hasAttribute('data-x')) {
+        const gridX = parseInt(el.getAttribute('data-x'));
+        const gridY = parseInt(el.getAttribute('data-y'));
+        const hasRoom = el.hasAttribute('data-room-id');
+
+        return {
+          x: gridX,
+          y: gridY,
+          isEmpty: !hasRoom,
+          element: el
+        };
+      }
+    }
+
+    return null;
+  }
+
+  function highlightDropTarget(clientX, clientY) {
+    // Remove previous highlight
+    document.querySelectorAll('.drop-target-valid, .drop-target-hover').forEach(function(el) {
+      el.classList.remove('drop-target-valid', 'drop-target-hover');
+    });
+
+    const dropTarget = getDropTargetCell(clientX, clientY);
+    if (dropTarget && dropTarget.isEmpty && dropTarget.element) {
+      dropTarget.element.classList.add('drop-target-valid', 'drop-target-hover');
+    }
+  }
+
+  function cleanupDrag() {
+    // Remove ghost
+    if (ghostElement && ghostElement.parentNode) {
+      ghostElement.parentNode.removeChild(ghostElement);
+    }
+    ghostElement = null;
+
+    // Remove drag classes
+    document.querySelectorAll('.being-dragged').forEach(function(el) {
+      el.classList.remove('being-dragged');
+    });
+    document.querySelectorAll('.drop-target-valid, .drop-target-hover').forEach(function(el) {
+      el.classList.remove('drop-target-valid', 'drop-target-hover');
+    });
+  }
 })();
 </script>`;
 
@@ -1295,6 +1479,10 @@ function renderGridCells(
           fill="${fillColor}"
           stroke="${strokeColor}"
           stroke-width="${strokeWidth}"
+          data-x="${x}"
+          data-y="${y}"
+          ${room ? `data-room-id="${room.id}"` : ''}
+          ${room ? `onmousedown="handleRoomMouseDown('${room.id}', ${x}, ${y}, ${floor}, event)"` : ''}
           onclick="handleCellClick(${x}, ${y}, ${floor})"
           ondblclick="handleCellDblClick(${x}, ${y}, ${floor})"
           oncontextmenu="handleCellRightClick(event, ${x}, ${y}, ${floor})"
@@ -4565,6 +4753,26 @@ async function handleEditorResponse(
           const message = error instanceof Error ? error.message : 'Unknown error';
           player.receive(`{red}Failed to add room: ${message}{/}\n`);
         }
+      }
+      return;
+    }
+
+    // Room Drag Move - move a room to a new position via drag-and-drop
+    if (customAction === 'room-drag-move') {
+      const roomId = data.roomId as string;
+      const toX = data.toX as number;
+      const toY = data.toY as number;
+      const z = data.z as number;
+
+      try {
+        areaDaemon.updateRoom(state.areaId, roomId, { x: toX, y: toY, z: z });
+        state.selectedRoomId = roomId;
+        updateGridOnly(player, areaDaemon, state);
+        player.receive(`{green}Room moved to (${toX}, ${toY}).{/}\n`);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        player.receive(`{red}Failed to move room: ${message}{/}\n`);
+        updateGridOnly(player, areaDaemon, state);
       }
       return;
     }

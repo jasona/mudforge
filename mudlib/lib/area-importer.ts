@@ -642,19 +642,78 @@ function extractCustomCodeBlocks(
             break;
         }
 
-        // Collect non-standard lines
+        // Collect non-standard lines, tracking nesting depth to avoid
+        // capturing lines inside multi-line constructs like setMerchant({...})
+        // or template literals like longDesc = `...`
         const customLines: string[] = [];
+        let parenDepth = 0;
+        let braceDepth = 0;
+        let bracketDepth = 0;
+        let inTemplateLiteral = false;
+        let inMultiLineConstruct = false;
+
         for (const line of lines) {
           const trimmedLine = line.trim();
           if (!trimmedLine || trimmedLine === '') continue;
 
+          // Count delimiters in this line (simple counting, doesn't handle strings perfectly)
+          // Also track template literal backticks
+          let i = 0;
+          while (i < trimmedLine.length) {
+            const char = trimmedLine[i];
+            // Skip escaped characters
+            if (char === '\\' && i + 1 < trimmedLine.length) {
+              i += 2;
+              continue;
+            }
+            if (char === '`') {
+              inTemplateLiteral = !inTemplateLiteral;
+            } else if (!inTemplateLiteral) {
+              // Only count delimiters outside template literals
+              if (char === '(') parenDepth++;
+              else if (char === ')') parenDepth--;
+              else if (char === '{') braceDepth++;
+              else if (char === '}') braceDepth--;
+              else if (char === '[') bracketDepth++;
+              else if (char === ']') bracketDepth--;
+            }
+            i++;
+          }
+
           // Check if this line matches any standard pattern
           const isStandard = standardPatterns.some(pattern => pattern.test(trimmedLine));
 
-          // Also check for simple comments that are just formatting
-          const isSimpleComment = /^\/\/\s*(Exits|NPCs|Items|Custom actions)?\s*$/.test(trimmedLine);
+          // If we match a standard pattern, check if it starts a multi-line construct
+          if (isStandard) {
+            // If we have unclosed parens/braces/brackets or are in a template literal, we're in a multi-line construct
+            if (parenDepth > 0 || braceDepth > 0 || bracketDepth > 0 || inTemplateLiteral) {
+              inMultiLineConstruct = true;
+            }
+            continue;
+          }
 
-          if (!isStandard && !isSimpleComment) {
+          // Skip lines that are inside a multi-line standard construct
+          if (inMultiLineConstruct) {
+            // Check if construct is closed
+            if (parenDepth <= 0 && braceDepth <= 0 && bracketDepth <= 0 && !inTemplateLiteral) {
+              inMultiLineConstruct = false;
+              parenDepth = 0;
+              braceDepth = 0;
+              bracketDepth = 0;
+            }
+            continue;
+          }
+
+          // Also check for simple comments that are just formatting
+          const isSimpleComment = /^\/\/\s*(Exits|NPCs|Items|Custom actions|Preserved custom|Shop inventory)?\s*$/.test(trimmedLine);
+
+          // Skip lines that look like object property assignments (inside object literals)
+          const isObjectProperty = /^\w+\s*:\s*.+[,}]?\s*$/.test(trimmedLine) && !trimmedLine.startsWith('this.');
+
+          // Skip closing braces/brackets that are leftovers
+          const isClosingDelimiter = /^[}\])\s,;]*$/.test(trimmedLine);
+
+          if (!isSimpleComment && !isObjectProperty && !isClosingDelimiter) {
             customLines.push(line);
           }
         }
@@ -673,6 +732,7 @@ function extractCustomCodeBlocks(
       }
     } else {
       // Non-constructor methods - preserve completely
+      // The generator will filter out methods that would duplicate generated ones
       blocks.push({
         type: 'method',
         name: method.name,
