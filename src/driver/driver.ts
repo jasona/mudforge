@@ -1047,12 +1047,14 @@ export class Driver {
       // Determine the directory to search and the filename prefix
       let searchDir = cwd;
       let filePrefix = prefix;
+      let pathPrefix = ''; // Track the path prefix to prepend to completions
 
       // If prefix contains a path separator, split it
       const lastSlash = prefix.lastIndexOf('/');
       if (lastSlash >= 0) {
         const pathPart = prefix.substring(0, lastSlash + 1);
         filePrefix = prefix.substring(lastSlash + 1);
+        pathPrefix = pathPart; // Store the path prefix for completions
 
         // Handle absolute vs relative paths
         if (pathPart.startsWith('/')) {
@@ -1083,15 +1085,15 @@ export class Driver {
               : searchDir + '/' + entry;
             const stat = await this.efunBridge.fileStat(entryPath);
 
-            // Add trailing slash for directories
+            // Add trailing slash for directories, prepend path prefix
             if (stat.isDirectory) {
-              completions.push(entry + '/');
+              completions.push(pathPrefix + entry + '/');
             } else {
-              completions.push(entry);
+              completions.push(pathPrefix + entry);
             }
           } catch {
             // Skip entries we can't stat
-            completions.push(entry);
+            completions.push(pathPrefix + entry);
           }
         }
       }
