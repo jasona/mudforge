@@ -158,6 +158,26 @@ export class AreaDaemon extends MudObject {
   }
 
   /**
+   * Unpublish an area - changes status back to draft.
+   * Note: This does NOT delete the published files from disk.
+   * The files remain and can be manually deleted or will be overwritten on next publish.
+   */
+  unpublishArea(areaId: string): boolean {
+    const area = this._areas.get(areaId);
+    if (!area) return false;
+
+    if (area.status !== 'published') {
+      return false; // Already unpublished
+    }
+
+    area.status = 'draft';
+    area.publishedAt = undefined;
+    this._dirty = true;
+    console.log(`[AreaDaemon] Unpublished area ${areaId}`);
+    return true;
+  }
+
+  /**
    * Get all areas.
    */
   getAllAreas(): AreaDefinition[] {

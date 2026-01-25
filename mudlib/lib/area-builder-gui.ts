@@ -403,6 +403,16 @@ function buildAreaListEntry(area: AreaListEntry): LayoutContainer {
             customAction: `edit:${area.id}`,
             variant: 'secondary',
           } as InputElement,
+          // Show Unpublish button only for published areas owned by this user
+          ...(area.status === 'published' && area.isOwner ? [{
+            type: 'button',
+            id: `btn-unpublish-${area.id}`,
+            name: `btn-unpublish-${area.id}`,
+            label: 'Unpublish',
+            action: 'custom',
+            customAction: `unpublish:${area.id}`,
+            variant: 'secondary',
+          } as InputElement] : []),
           {
             type: 'button',
             id: `btn-delete-${area.id}`,
@@ -4034,6 +4044,19 @@ function handleAreaSelectorResponse(
         openAreaEditor(player, areaDaemon, areaId);
       } else {
         player.receive(`{red}Area not found: ${areaId}{/}\n`);
+      }
+      return;
+    }
+
+    if (customAction?.startsWith('unpublish:')) {
+      const areaId = customAction.replace('unpublish:', '');
+      const success = areaDaemon.unpublishArea(areaId);
+      if (success) {
+        player.receive(`{yellow}Area "${areaId}" unpublished. You can now delete it or re-publish later.{/}\n`);
+        // Refresh the area selector
+        openAreaSelector(player, areaDaemon);
+      } else {
+        player.receive(`{red}Failed to unpublish area.{/}\n`);
       }
       return;
     }
