@@ -14,7 +14,7 @@ interface CommandContext {
   sendLine(message: string): void;
 }
 
-export const name = ['whereami', 'where'];
+export const name = 'whereami';
 export const description = 'Show the current room path (builder only)';
 export const usage = 'whereami';
 
