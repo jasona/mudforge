@@ -30,6 +30,10 @@ export class Terminal {
   private autoScroll: boolean;
   private scrollPending: boolean;
 
+  // Render queue for batching DOM operations
+  private pendingLines: Array<{ text: string; className?: string }> = [];
+  private renderScheduled: boolean = false;
+
   constructor(element: HTMLElement, maxLines: number = 1000) {
     this.element = element;
     this.maxLines = maxLines;
@@ -49,23 +53,74 @@ export class Terminal {
 
   /**
    * Add a line of output.
+   * Lines are queued and rendered in batches for performance.
    */
   addLine(text: string, className?: string): void {
-    // Handle both actual newlines and literal \n strings
-    // First replace literal \n with actual newlines, then split
-    const normalizedText = text.replace(/\\n/g, '\n');
-    const lines = normalizedText.split(/\r?\n/);
-    for (const lineText of lines) {
-      const line = document.createElement('div');
-      line.className = 'line' + (className ? ` ${className}` : '');
+    // Queue the line instead of immediate render
+    this.pendingLines.push({ text, className });
+    this.scheduleRender();
+  }
 
-      // Parse ANSI escape sequences
-      line.innerHTML = this.parseAnsi(lineText);
+  /**
+   * Schedule a batched render on next animation frame.
+   */
+  private scheduleRender(): void {
+    if (this.renderScheduled) return;
+    this.renderScheduled = true;
 
-      this.element.appendChild(line);
+    requestAnimationFrame(() => {
+      this.flushPendingLines();
+    });
+  }
+
+  /**
+   * Flush all pending lines to DOM in a single batch.
+   */
+  private flushPendingLines(): void {
+    this.renderScheduled = false;
+
+    if (this.pendingLines.length === 0) return;
+
+    // Use DocumentFragment for batched DOM insertion
+    const fragment = document.createDocumentFragment();
+
+    for (const { text, className } of this.pendingLines) {
+      // Handle both actual newlines and literal \n strings
+      const normalizedText = text.replace(/\\n/g, '\n');
+      const lines = normalizedText.split(/\r?\n/);
+
+      for (const lineText of lines) {
+        const line = document.createElement('div');
+        line.className = 'line' + (className ? ` ${className}` : '');
+        line.innerHTML = this.parseAnsi(lineText);
+        fragment.appendChild(line);
+      }
     }
+
+    // Single DOM mutation
+    this.element.appendChild(fragment);
+
+    // Clear the queue
+    this.pendingLines = [];
+
+    // Trim and scroll once after batch
     this.trimLines();
-    this.scrollToBottom();
+    this.scrollToBottomImmediate();
+  }
+
+  /**
+   * Immediate scroll without the requestAnimationFrame delay.
+   * Used internally after batch rendering.
+   */
+  private scrollToBottomImmediate(): void {
+    if (this.autoScroll) {
+      this.scrollPending = true;
+      this.element.scrollTop = this.element.scrollHeight;
+      // Short delay to prevent scroll event from incorrectly detecting user scroll
+      setTimeout(() => {
+        this.scrollPending = false;
+      }, 16); // ~1 frame
+    }
   }
 
   /**

@@ -202,7 +202,7 @@ body {
   font-size: var(--font-size-sm);
   white-space: pre-wrap;
   word-wrap: break-word;
-  scroll-behavior: smooth;
+  scroll-behavior: auto;
 }
 
 #terminal::-webkit-scrollbar {
