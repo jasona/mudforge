@@ -1019,19 +1019,88 @@ function extractChats(content: string): NPCChat[] {
 
 /**
  * Extract addResponse calls.
+ * Handles multi-line addResponse calls and various quote styles.
  */
 function extractResponses(content: string): NPCResponse[] {
   const responses: NPCResponse[] = [];
 
-  // Match: this.addResponse(/pattern/i, 'response', 'type')
-  // or: this.addResponse(/pattern/i, (speaker) => `response`, 'type')
-  const responseRegex = /addResponse\s*\(\s*\/([^/]+)\/\w*\s*,\s*(?:['"`]([^'"`]+)['"`]|\([^)]*\)\s*=>\s*(?:['"`]([^'"`]+)['"`]|`([^`]+)`))\s*,\s*['"`](\w+)['"`]\s*\)/g;
-  let match;
-  while ((match = responseRegex.exec(content)) !== null) {
-    const pattern = match[1];
-    const response = match[2] || match[3] || match[4] || '';
-    const type = match[5] as 'say' | 'emote';
-    responses.push({ pattern, response, type });
+  // Find all addResponse calls - use a simpler pattern to find the start
+  // Then parse each one more carefully
+  const addResponseStarts = [...content.matchAll(/addResponse\s*\(\s*\//g)];
+
+  for (const startMatch of addResponseStarts) {
+    const startIdx = startMatch.index!;
+    // Find the end of this addResponse call by counting parentheses
+    let depth = 0;
+    let endIdx = startIdx;
+    let foundOpen = false;
+
+    for (let i = startIdx; i < content.length; i++) {
+      const char = content[i];
+      if (char === '(') {
+        depth++;
+        foundOpen = true;
+      } else if (char === ')') {
+        depth--;
+        if (foundOpen && depth === 0) {
+          endIdx = i + 1;
+          break;
+        }
+      }
+    }
+
+    const callStr = content.slice(startIdx, endIdx);
+
+    // Extract the regex pattern
+    const patternMatch = callStr.match(/addResponse\s*\(\s*\/([^/]+)\/\w*/);
+    if (!patternMatch) continue;
+    const pattern = patternMatch[1];
+
+    // Extract the response type (last string argument before closing paren)
+    const typeMatch = callStr.match(/,\s*['"`](\w+)['"`]\s*\)\s*$/);
+    if (!typeMatch) continue;
+    const type = typeMatch[1] as 'say' | 'emote';
+
+    // Extract the response string - everything between pattern and type
+    // Remove the pattern part and type part to isolate the response
+    const afterPattern = callStr.slice(patternMatch[0].length);
+    const beforeType = afterPattern.slice(0, afterPattern.lastIndexOf(typeMatch[0]));
+
+    // Extract string from the response part
+    let response = '';
+    // Try double quotes first
+    const dqMatch = beforeType.match(/,\s*"((?:[^"\\]|\\.)*)"/s);
+    if (dqMatch) {
+      response = dqMatch[1].replace(/\\"/g, '"').replace(/\\n/g, '\n');
+    } else {
+      // Try single quotes
+      const sqMatch = beforeType.match(/,\s*'((?:[^'\\]|\\.)*)'/s);
+      if (sqMatch) {
+        response = sqMatch[1].replace(/\\'/g, "'").replace(/\\n/g, '\n');
+      } else {
+        // Try backticks (template literal)
+        const btMatch = beforeType.match(/,\s*`([^`]*)`/s);
+        if (btMatch) {
+          response = btMatch[1];
+        } else {
+          // Try arrow function with template literal
+          const arrowMatch = beforeType.match(/,\s*\([^)]*\)\s*=>\s*`([^`]*)`/s);
+          if (arrowMatch) {
+            response = arrowMatch[1];
+          } else {
+            // Try arrow function with string
+            const arrowStrMatch = beforeType.match(/,\s*\([^)]*\)\s*=>\s*["']([^"']*)["']/s);
+            if (arrowStrMatch) {
+              response = arrowStrMatch[1];
+            }
+          }
+        }
+      }
+    }
+
+    if (response) {
+      responses.push({ pattern, response, type });
+    }
   }
 
   return responses;
@@ -1118,11 +1187,16 @@ function extractMerchantConfig(content: string): MerchantConfig | null {
     shopGold: 1000,
   };
 
-  // Extract string properties
-  const shopNameMatch = configStr.match(/shopName\s*:\s*['"`]([^'"`]+)['"`]/);
+  // Extract string properties - handle embedded quotes properly
+  // Match the opening quote and capture until the matching closing quote
+  const shopNameMatch = configStr.match(/shopName\s*:\s*"([^"]*)"/) ||
+                        configStr.match(/shopName\s*:\s*'([^']*)'/) ||
+                        configStr.match(/shopName\s*:\s*`([^`]*)`/);
   if (shopNameMatch) config.shopName = shopNameMatch[1];
 
-  const shopDescMatch = configStr.match(/shopDescription\s*:\s*['"`]([^'"`]+)['"`]/);
+  const shopDescMatch = configStr.match(/shopDescription\s*:\s*"([^"]*)"/) ||
+                        configStr.match(/shopDescription\s*:\s*'([^']*)'/) ||
+                        configStr.match(/shopDescription\s*:\s*`([^`]*)`/);
   if (shopDescMatch) config.shopDescription = shopDescMatch[1];
 
   // Extract number properties
