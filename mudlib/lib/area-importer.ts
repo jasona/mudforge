@@ -605,6 +605,70 @@ function extractMethods(content: string): Array<{ name: string; code: string; is
 }
 
 /**
+ * Extract a complete multi-line function call like setNPC({...}) or setBehavior({...}).
+ * Returns the full call including parentheses, or null if not found.
+ */
+function extractMultiLineCall(content: string, methodName: string): string | null {
+  const regex = new RegExp(`this\\.${methodName}\\s*\\(`);
+  const match = regex.exec(content);
+  if (!match) return null;
+
+  const startIndex = match.index;
+  const parenStart = content.indexOf('(', startIndex);
+  if (parenStart < 0) return null;
+
+  // Find matching closing paren
+  let depth = 0;
+  let inString = false;
+  let stringChar = '';
+  let inTemplateLiteral = false;
+
+  for (let i = parenStart; i < content.length; i++) {
+    const char = content[i];
+    const prevChar = i > 0 ? content[i - 1] : '';
+
+    // Handle escape sequences
+    if (prevChar === '\\') continue;
+
+    // Handle template literals
+    if (char === '`' && !inString) {
+      inTemplateLiteral = !inTemplateLiteral;
+      continue;
+    }
+
+    // Handle strings
+    if ((char === '"' || char === "'") && !inTemplateLiteral) {
+      if (!inString) {
+        inString = true;
+        stringChar = char;
+      } else if (char === stringChar) {
+        inString = false;
+      }
+      continue;
+    }
+
+    // Only count parens outside strings
+    if (!inString && !inTemplateLiteral) {
+      if (char === '(') depth++;
+      else if (char === ')') {
+        depth--;
+        if (depth === 0) {
+          // Found the closing paren, include trailing semicolon if present
+          let endIndex = i + 1;
+          const afterParen = content.substring(i + 1, i + 3).trim();
+          if (afterParen.startsWith(';')) {
+            endIndex = content.indexOf(';', i + 1) + 1;
+          }
+          return content.substring(startIndex, endIndex);
+        }
+      }
+    }
+  }
+
+  return null;
+}
+
+/**
  * Extract custom code blocks from file content.
  * Returns blocks that can be re-injected during publishing.
  */
@@ -614,6 +678,23 @@ function extractCustomCodeBlocks(
 ): CustomCodeBlock[] {
   const blocks: CustomCodeBlock[] = [];
   let position = 0;
+
+  // 0. Extract interface declarations (before the class)
+  const classMatch = content.match(/export\s+class\s+\w+/);
+  if (classMatch) {
+    const beforeClass = content.substring(0, classMatch.index);
+    // Match interface declarations
+    const interfaceRegex = /interface\s+(\w+)(?:\s+extends\s+[\w\s,<>]+)?\s*\{[\s\S]*?\n\}/g;
+    let interfaceMatch;
+    while ((interfaceMatch = interfaceRegex.exec(beforeClass)) !== null) {
+      blocks.push({
+        type: 'interface',
+        name: interfaceMatch[1],
+        code: interfaceMatch[0].trim(),
+        position: position++,
+      });
+    }
+  }
 
   // 1. Extract non-standard imports
   const importRegex = /^import\s+.*?from\s+['"][^'"]+['"];?\s*$/gm;
@@ -627,6 +708,29 @@ function extractCustomCodeBlocks(
         type: 'import',
         name: importLine.match(/from\s+['"]([^'"]+)['"]/)?.[1] ?? 'unknown',
         code: importLine.trim(),
+        position: position++,
+      });
+    }
+  }
+
+  // 1.5. Extract setNPC and setBehavior calls for NPCs
+  if (entityType === 'npc') {
+    const setNPCCall = extractMultiLineCall(content, 'setNPC');
+    if (setNPCCall) {
+      blocks.push({
+        type: 'setNPC',
+        name: 'setNPC',
+        code: setNPCCall.trim(),
+        position: position++,
+      });
+    }
+
+    const setBehaviorCall = extractMultiLineCall(content, 'setBehavior');
+    if (setBehaviorCall) {
+      blocks.push({
+        type: 'setBehavior',
+        name: 'setBehavior',
+        code: setBehaviorCall.trim(),
         position: position++,
       });
     }

@@ -42,7 +42,7 @@ export type AreaMood =
  */
 export interface CustomCodeBlock {
   /** Type of code block */
-  type: 'import' | 'property' | 'constructor-tail' | 'method';
+  type: 'import' | 'property' | 'constructor-tail' | 'method' | 'interface' | 'setNPC' | 'setBehavior';
 
   /** Name identifier (method name, property name, import module) */
   name?: string;

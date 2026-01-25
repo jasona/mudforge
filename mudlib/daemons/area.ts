@@ -1172,12 +1172,20 @@ export default ${className};
     const customProperties = blocks.filter(b => b.type === 'property').map(b => b.code);
     const constructorTail = blocks.filter(b => b.type === 'constructor-tail').map(b => b.code);
     const customMethods = blocks.filter(b => b.type === 'method').sort((a, b) => (a.position ?? 0) - (b.position ?? 0)).map(b => b.code);
+    const interfaceBlocks = blocks.filter(b => b.type === 'interface').map(b => b.code);
+    const setNPCBlock = blocks.find(b => b.type === 'setNPC');
+    const setBehaviorBlock = blocks.find(b => b.type === 'setBehavior');
 
     // Build imports section
     const importsSection = [
       baseImport,
       ...customImports,
     ].join('\n');
+
+    // Build interface section (before the class)
+    const interfaceSection = interfaceBlocks.length > 0
+      ? interfaceBlocks.join('\n\n') + '\n\n'
+      : '';
 
     // Build properties section (if any)
     const propertiesSection = customProperties.length > 0
@@ -1189,10 +1197,32 @@ export default ${className};
       ? '\n    // Preserved custom code\n' + constructorTail.map(c => c.split('\n').map(l => '    ' + l.trim()).join('\n')).join('\n') + '\n'
       : '';
 
+    // Build setBehavior section if preserved
+    const setBehaviorSection = setBehaviorBlock
+      ? '\n    ' + setBehaviorBlock.code.split('\n').join('\n    ')
+      : '';
+
     // Build methods section
     const methodsSection = customMethods.length > 0
       ? '\n\n  // Preserved custom methods\n' + customMethods.map(m => '  ' + m.split('\n').join('\n  ')).join('\n\n')
       : '';
+
+    // If setNPCBlock exists, this NPC was originally defined using setNPC({...})
+    // In that case, use the preserved block instead of individual property assignments
+    let constructorBody: string;
+    if (setNPCBlock) {
+      // Use preserved setNPC() call
+      constructorBody = `
+    ${setNPCBlock.code}
+${setBehaviorSection}${subclassSpecificCode}${constructorTailSection}`;
+    } else {
+      // Generate individual property assignments
+      constructorBody = `
+${subclass === 'npc' ? `    this.name = '${this.escapeString(npc.name)}';\n` : ''}    this.shortDesc = '${this.escapeString(npc.shortDesc)}';
+    this.longDesc = \`${npc.longDesc.replace(/`/g, '\\`')}\`;
+    this.setLevel(${npc.level}, '${npcType}');
+${healthOverridden ? `    // Override auto-calculated health\n    this.maxHealth = ${npc.maxHealth};\n    this.health = ${npc.health ?? npc.maxHealth};\n` : ''}${npc.gender ? `    this.gender = '${npc.gender}';\n` : ''}${npc.keywords && npc.keywords.length > 0 ? npc.keywords.map(k => `    this.addId('${this.escapeString(k)}');`).join('\n') + '\n' : ''}${npc.chatChance !== undefined ? `    this.chatChance = ${npc.chatChance};\n` : ''}${chatLines.length > 0 ? `    this.chats = [\n${chatLines.join('\n')}\n    ];\n` : ''}${responseLines.length > 0 ? `    this.responses = [\n${responseLines.join('\n')}\n    ];\n` : ''}${combatConfigStr ? `${combatConfigStr}\n` : ''}${npc.wandering !== undefined ? `    this.wandering = ${npc.wandering};\n` : ''}${npc.respawnTime !== undefined ? `    this.respawnTime = ${npc.respawnTime};\n` : ''}${npc.questsOffered && npc.questsOffered.length > 0 ? `    this.setQuestsOffered([${npc.questsOffered.map(q => `'${q}'`).join(', ')}]);\n` : ''}${npc.questsTurnedIn && npc.questsTurnedIn.length > 0 ? `    this.setQuestsTurnedIn([${npc.questsTurnedIn.map(q => `'${q}'`).join(', ')}]);\n` : ''}${npc.items && npc.items.length > 0 ? `    this.setSpawnItems([${npc.items.map(i => i.startsWith('/') ? `'${i}'` : `'${areaPath}/${i}'`).join(', ')}]);\n` : ''}${subclassSpecificCode}${setBehaviorSection}${constructorTailSection}`;
+    }
 
     return `/**
  * ${npc.name}
@@ -1203,13 +1233,9 @@ export default ${className};
 
 ${importsSection}
 
-export class ${className} extends ${baseClass} {${propertiesSection}
+${interfaceSection}export class ${className} extends ${baseClass} {${propertiesSection}
   constructor() {
-    super();
-${subclass === 'npc' ? `    this.name = '${this.escapeString(npc.name)}';\n` : ''}    this.shortDesc = '${this.escapeString(npc.shortDesc)}';
-    this.longDesc = \`${npc.longDesc.replace(/`/g, '\\`')}\`;
-    this.setLevel(${npc.level}, '${npcType}');
-${healthOverridden ? `    // Override auto-calculated health\n    this.maxHealth = ${npc.maxHealth};\n    this.health = ${npc.health ?? npc.maxHealth};\n` : ''}${npc.gender ? `    this.gender = '${npc.gender}';\n` : ''}${npc.keywords && npc.keywords.length > 0 ? npc.keywords.map(k => `    this.addId('${this.escapeString(k)}');`).join('\n') + '\n' : ''}${npc.chatChance !== undefined ? `    this.chatChance = ${npc.chatChance};\n` : ''}${chatLines.length > 0 ? `    this.chats = [\n${chatLines.join('\n')}\n    ];\n` : ''}${responseLines.length > 0 ? `    this.responses = [\n${responseLines.join('\n')}\n    ];\n` : ''}${combatConfigStr ? `${combatConfigStr}\n` : ''}${npc.wandering !== undefined ? `    this.wandering = ${npc.wandering};\n` : ''}${npc.respawnTime !== undefined ? `    this.respawnTime = ${npc.respawnTime};\n` : ''}${npc.questsOffered && npc.questsOffered.length > 0 ? `    this.setQuestsOffered([${npc.questsOffered.map(q => `'${q}'`).join(', ')}]);\n` : ''}${npc.questsTurnedIn && npc.questsTurnedIn.length > 0 ? `    this.setQuestsTurnedIn([${npc.questsTurnedIn.map(q => `'${q}'`).join(', ')}]);\n` : ''}${npc.items && npc.items.length > 0 ? `    this.setSpawnItems([${npc.items.map(i => i.startsWith('/') ? `'${i}'` : `'${areaPath}/${i}'`).join(', ')}]);\n` : ''}${subclassSpecificCode}${constructorTailSection}  }${methodsSection}
+    super();${constructorBody}  }${methodsSection}
 }
 
 export default ${className};
