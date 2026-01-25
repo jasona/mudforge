@@ -556,10 +556,29 @@ function extractMethods(content: string): Array<{ name: string; code: string; is
   const classBody = content.substring(classStart + 1, classEnd);
 
   // Match methods: [modifiers] methodName(...) [: returnType] { ... }
-  // This regex finds method signatures
-  const methodRegex = /(?:^|\n)\s*((?:private|public|protected|static|async|override)\s+)*(\w+)\s*\([^)]*\)\s*(?::\s*[^{]+)?\s*\{/g;
+  // Two patterns: one for constructor (no modifiers required), one for other methods (modifiers required)
+  // This prevents matching control flow statements like `if (...)` as methods
+  const constructorRegex = /(?:^|\n)\s*constructor\s*\([^)]*\)\s*(?::\s*[^{]+)?\s*\{/g;
+  const methodRegex = /(?:^|\n)\s*((?:private|public|protected|static|async|override)\s+)+(\w+)\s*\([^)]*\)\s*(?::\s*[^{]+)?\s*\{/g;
 
-  let match;
+  // First find constructor
+  let match = constructorRegex.exec(classBody);
+  if (match) {
+    const braceStart = classBody.indexOf('{', match.index + match[0].length - 1);
+    if (braceStart >= 0) {
+      const methodEnd = findMatchingBrace(classBody, braceStart);
+      if (methodEnd >= 0) {
+        const fullMethodCode = classBody.substring(match.index, methodEnd + 1).trim();
+        methods.push({
+          name: 'constructor',
+          code: fullMethodCode,
+          isConstructor: true,
+        });
+      }
+    }
+  }
+
+  // Then find other methods (must have at least one modifier)
   while ((match = methodRegex.exec(classBody)) !== null) {
     const methodName = match[2];
     const methodStart = match.index + match[0].length - 1;
