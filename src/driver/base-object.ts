@@ -6,6 +6,7 @@
  */
 
 import type { MudObject, Action, ActionHandler } from './types.js';
+import { getShadowRegistry } from './shadow-registry.js';
 
 /**
  * Base implementation of MudObject.
@@ -41,15 +42,26 @@ export class BaseMudObject implements MudObject {
   private _inventory: MudObject[] = [];
 
   get environment(): MudObject | null {
+    // Wrap with shadow proxy if environment has shadows
+    if (this._environment) {
+      return getShadowRegistry().wrapWithProxy(this._environment);
+    }
     return this._environment;
   }
 
   set environment(value: MudObject | null) {
-    this._environment = value;
+    // Store the original unwrapped object
+    if (value) {
+      this._environment = getShadowRegistry().getOriginal(value);
+    } else {
+      this._environment = value;
+    }
   }
 
   get inventory(): ReadonlyArray<MudObject> {
-    return this._inventory;
+    // Wrap all inventory items with shadow proxies
+    const registry = getShadowRegistry();
+    return this._inventory.map((obj) => registry.wrapWithProxy(obj));
   }
 
   // ========== Description ==========

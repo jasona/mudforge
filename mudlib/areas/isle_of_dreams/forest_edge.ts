@@ -3,7 +3,7 @@
  * The entrance to the ethereal forest.
  */
 
-import { Room, MudObject } from '../../../lib/std.js';
+import { Room, MudObject } from '../../lib/std.js';
 
 /**
  * The Forest Edge room on the Isle of Dreams.
@@ -29,14 +29,14 @@ To the {green}south{/} lies the {cyan}dock{/} where the ferry arrives. The path 
 The ground beneath your feet seems to pulse with a subtle warmth, as if
 the island itself is alive and breathing.`;
 
-    this.setMapCoordinates({ x: 0, y: -1, z: 0, area: '/areas/valdoria/isle_of_dreams' });
+    this.setMapCoordinates({ x: 0, y: -1, z: 0, area: '/areas/isle_of_dreams' });
     this.setTerrain('forest');
 
     this.setupRoom();
   }
 
   private setupRoom(): void {
-    this.addExit('south', '/areas/valdoria/isle_of_dreams/dock');
+    this.addExit('south', '/areas/isle_of_dreams/dock');
     // More exits could be added later as the area expands
 
     this.addAction('look', this.cmdLook.bind(this));

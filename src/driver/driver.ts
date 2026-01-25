@@ -27,6 +27,7 @@ import { resetScriptRunner } from '../isolation/script-runner.js';
 import { createI3Client, destroyI3Client } from '../network/i3-client.js';
 import { createI2Client, destroyI2Client } from '../network/i2-client.js';
 import { createGrapevineClient, destroyGrapevineClient } from '../network/grapevine-client.js';
+import { createDiscordClient, destroyDiscordClient } from '../network/discord-client.js';
 import pino, { type Logger } from 'pino';
 import type { MudObject } from './types.js';
 import type { Connection } from '../network/connection.js';
@@ -327,6 +328,17 @@ export class Driver {
         await this.initializeGrapevine();
       }
 
+      // Initialize Discord if enabled (check both env var and persisted config)
+      if (this.config.discordEnabled) {
+        await this.initializeDiscord();
+      } else {
+        // Check if Discord was previously enabled via in-game command
+        await this.checkDiscordPersistedConfig();
+      }
+
+      // Initialize Bot system if previously enabled
+      await this.checkBotsPersistedConfig();
+
       // Enable file deletion cleanup for mudlib objects
       // Note: File modifications still require manual 'update' command - only deletions are automatic
       if (this.config.hotReload) {
@@ -376,6 +388,12 @@ export class Driver {
       if (this.config.grapevineEnabled) {
         destroyGrapevineClient();
         this.logger.info('Grapevine client disconnected');
+      }
+
+      // Disconnect Discord if enabled
+      if (this.config.discordEnabled) {
+        destroyDiscordClient();
+        this.logger.info('Discord client disconnected');
       }
 
       // Stop file watcher
@@ -691,6 +709,125 @@ export class Driver {
   }
 
   /**
+   * Initialize Discord channel bridge.
+   */
+  private async initializeDiscord(): Promise<void> {
+    this.logger.info('Initializing Discord...');
+
+    try {
+      // Load the discord daemon first
+      const discordObj = await this.mudlibLoader.loadObject('/daemons/discord');
+
+      if (!discordObj) {
+        this.logger.error('Failed to load discord daemon');
+        return;
+      }
+
+      // Cast to the daemon interface for type safety
+      const discordDaemon = discordObj as MudObject & {
+        initialize(config: {
+          token: string;
+          guildId: string;
+          channelId: string;
+        }): Promise<void>;
+      };
+
+      // Create the Discord client
+      createDiscordClient();
+
+      // Initialize the daemon with config
+      await discordDaemon.initialize({
+        token: this.config.discordBotToken,
+        guildId: this.config.discordGuildId,
+        channelId: this.config.discordChannelId,
+      });
+
+      this.logger.info('Discord client initialized');
+    } catch (error) {
+      this.logger.error({ error }, 'Failed to initialize Discord');
+      // Don't throw - Discord failure shouldn't prevent driver from starting
+    }
+  }
+
+  /**
+   * Check persisted config for Discord settings.
+   * This handles the case where Discord was enabled via in-game command.
+   */
+  private async checkDiscordPersistedConfig(): Promise<void> {
+    try {
+      // Read the persisted config file
+      const configPath = join(this.config.mudlibPath, 'data', 'config', 'settings.json');
+      const fs = await import('fs/promises');
+
+      this.logger.info({ configPath }, 'Checking Discord persisted config');
+
+      const content = await fs.readFile(configPath, 'utf-8');
+      const settings = JSON.parse(content) as Record<string, unknown>;
+
+      const enabled = settings['discord.enabled'];
+      const guildId = settings['discord.guildId'] as string | undefined;
+      const channelId = settings['discord.channelId'] as string | undefined;
+      const hasToken = !!this.config.discordBotToken;
+
+      this.logger.info({ enabled, guildId, channelId, hasToken }, 'Discord persisted settings');
+
+      if (enabled && guildId && channelId && hasToken) {
+        this.logger.info('Discord was previously enabled, auto-connecting...');
+
+        // Override config with persisted values
+        this.config.discordEnabled = true;
+        this.config.discordGuildId = guildId;
+        this.config.discordChannelId = channelId;
+
+        await this.initializeDiscord();
+      } else {
+        this.logger.info('Discord auto-connect skipped (missing config or token)');
+      }
+    } catch (error) {
+      this.logger.info({ error }, 'Could not check Discord persisted config');
+    }
+  }
+
+  /**
+   * Check persisted config for Bot system settings.
+   * This handles the case where bots were enabled via in-game command.
+   */
+  private async checkBotsPersistedConfig(): Promise<void> {
+    try {
+      // Read the persisted config file
+      const configPath = join(this.config.mudlibPath, 'data', 'config', 'settings.json');
+      const fs = await import('fs/promises');
+
+      const content = await fs.readFile(configPath, 'utf-8');
+      const settings = JSON.parse(content) as Record<string, unknown>;
+
+      const enabled = settings['bots.enabled'];
+
+      if (enabled) {
+        this.logger.info('Bot system was previously enabled, initializing...');
+
+        // Load the bots daemon
+        const botsObj = await this.mudlibLoader.loadObject('/daemons/bots');
+
+        if (botsObj) {
+          const botsDaemon = botsObj as MudObject & {
+            loadPersonalities(): Promise<void>;
+            enable(): Promise<{ success: boolean; error?: string }>;
+          };
+
+          // Load personalities first, then explicitly enable
+          // (Don't rely on initialize() checking ConfigDaemon since it may not be loaded yet)
+          await botsDaemon.loadPersonalities();
+          await botsDaemon.enable();
+          this.logger.info('Bot system initialized and enabled');
+        }
+      }
+    } catch {
+      // Config file doesn't exist or bots not enabled - that's fine
+    }
+  }
+
+  /**
    * Preload objects from the preload list.
    */
   private async preloadObjects(paths: string[]): Promise<void> {
@@ -910,12 +1047,14 @@ export class Driver {
       // Determine the directory to search and the filename prefix
       let searchDir = cwd;
       let filePrefix = prefix;
+      let pathPrefix = ''; // Track the path prefix to prepend to completions
 
       // If prefix contains a path separator, split it
       const lastSlash = prefix.lastIndexOf('/');
       if (lastSlash >= 0) {
         const pathPart = prefix.substring(0, lastSlash + 1);
         filePrefix = prefix.substring(lastSlash + 1);
+        pathPrefix = pathPart; // Store the path prefix for completions
 
         // Handle absolute vs relative paths
         if (pathPart.startsWith('/')) {
@@ -946,15 +1085,15 @@ export class Driver {
               : searchDir + '/' + entry;
             const stat = await this.efunBridge.fileStat(entryPath);
 
-            // Add trailing slash for directories
+            // Add trailing slash for directories, prepend path prefix
             if (stat.isDirectory) {
-              completions.push(entry + '/');
+              completions.push(pathPrefix + entry + '/');
             } else {
-              completions.push(entry);
+              completions.push(pathPrefix + entry);
             }
           } catch {
             // Skip entries we can't stat
-            completions.push(entry);
+            completions.push(pathPrefix + entry);
           }
         }
       }
@@ -1122,6 +1261,7 @@ export class Driver {
 
   /**
    * Get all connected players (not including login daemon sessions).
+   * Also includes active bots from the bot daemon.
    */
   getAllPlayers(): MudObject[] {
     const players: MudObject[] = [];
@@ -1131,6 +1271,16 @@ export class Driver {
         players.push(handler);
       }
     }
+
+    // Also include active bots from the bot daemon
+    const botDaemon = this.registry.find('/daemons/bots') as {
+      getActiveBots?: () => MudObject[];
+    } | undefined;
+    if (botDaemon?.getActiveBots) {
+      const bots = botDaemon.getActiveBots();
+      players.push(...bots);
+    }
+
     return players;
   }
 

@@ -729,3 +729,97 @@ if (gif) {
 ```
 
 Returns `undefined` if ID doesn't exist or cache has expired.
+
+## Discord Efuns
+
+Functions for Discord channel bridging. See [Discord Integration](discord-integration.md) for full documentation.
+
+### discordIsConnected()
+
+Check if Discord is currently connected.
+
+```typescript
+if (efuns.discordIsConnected()) {
+  // Discord is connected and ready
+}
+```
+
+### discordGetState()
+
+Get the current connection state.
+
+```typescript
+const state = efuns.discordGetState();
+// Returns: 'disconnected', 'connecting', 'connected', or 'reconnecting'
+```
+
+### discordGetConfig()
+
+Get the current Discord configuration.
+
+```typescript
+const config = efuns.discordGetConfig();
+if (config) {
+  console.log(config.guildId);    // Guild ID
+  console.log(config.channelId);  // Channel ID
+}
+```
+
+Returns `null` if not configured.
+
+### discordConnect(config)
+
+Connect to Discord with the given configuration.
+
+```typescript
+const success = await efuns.discordConnect({
+  token: 'your_bot_token',
+  guildId: '123456789012345678',
+  channelId: '987654321098765432',
+});
+```
+
+**Parameters:**
+- `config.token: string` - Discord bot token
+- `config.guildId: string` - Discord server (guild) ID
+- `config.channelId: string` - Discord channel ID
+
+**Returns:** `Promise<boolean>` - `true` if connected successfully
+
+### discordDisconnect()
+
+Disconnect from Discord.
+
+```typescript
+await efuns.discordDisconnect();
+```
+
+### discordSend(playerName, message)
+
+Send a message to Discord.
+
+```typescript
+const success = await efuns.discordSend('PlayerName', 'Hello Discord!');
+// Discord shows: **PlayerName**: Hello Discord!
+```
+
+**Parameters:**
+- `playerName: string` - Name to display as the sender
+- `message: string` - Message content
+
+**Returns:** `Promise<boolean>` - `true` if sent successfully
+
+### discordOnMessage(callback)
+
+Register a callback to receive Discord messages.
+
+```typescript
+efuns.discordOnMessage((author, content) => {
+  console.log(`Discord message from ${author}: ${content}`);
+});
+```
+
+**Parameters:**
+- `callback: (author: string, content: string) => void` - Function called when a message is received
+
+**Note:** This is typically called by the Discord daemon during initialization. You generally don't need to call this directly.

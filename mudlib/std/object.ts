@@ -105,15 +105,23 @@ export class MudObject {
 
   /**
    * Get the object's environment (container).
+   * Automatically wraps with shadow proxy if the environment has shadows.
    */
   get environment(): MudObject | null {
+    if (this._environment && typeof efuns !== 'undefined' && efuns.wrapShadowedObject) {
+      return efuns.wrapShadowedObject(this._environment);
+    }
     return this._environment;
   }
 
   /**
    * Get the object's inventory (contents).
+   * Automatically wraps all items with shadow proxies.
    */
   get inventory(): ReadonlyArray<MudObject> {
+    if (typeof efuns !== 'undefined' && efuns.wrapShadowedObjects) {
+      return efuns.wrapShadowedObjects(this._inventory);
+    }
     return this._inventory;
   }
 
@@ -215,7 +223,8 @@ export class MudObject {
       return true;
     }
 
-    const lowerDesc = this._shortDesc.toLowerCase();
+    // Use getter to allow shadows to override shortDesc
+    const lowerDesc = this.shortDesc.toLowerCase();
 
     // Check exact match
     if (lowerDesc === lowerName) {

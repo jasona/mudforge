@@ -72,6 +72,12 @@ export interface DriverConfig {
 
   // Giphy (for GIF sharing on channels)
   giphyApiKey: string;
+
+  // Discord (for channel bridging)
+  discordEnabled: boolean;
+  discordBotToken: string;
+  discordGuildId: string;
+  discordChannelId: string;
 }
 
 const LOG_LEVELS = ['trace', 'debug', 'info', 'warn', 'error', 'fatal'] as const;
@@ -178,6 +184,12 @@ export function loadConfig(): DriverConfig {
 
     // Giphy (for GIF sharing on channels)
     giphyApiKey: process.env['GIPHY_API_KEY'] ?? '',
+
+    // Discord (for channel bridging)
+    discordEnabled: parseBoolean(process.env['DISCORD_ENABLED'], false),
+    discordBotToken: process.env['DISCORD_BOT_TOKEN'] ?? '',
+    discordGuildId: process.env['DISCORD_GUILD_ID'] ?? '',
+    discordChannelId: process.env['DISCORD_CHANNEL_ID'] ?? '',
   };
 }
 
@@ -223,6 +235,19 @@ export function validateConfig(config: DriverConfig): string[] {
     }
     if (!config.grapevineClientSecret) {
       errors.push('GRAPEVINE_CLIENT_SECRET is required when Grapevine is enabled.');
+    }
+  }
+
+  // Discord validation
+  if (config.discordEnabled) {
+    if (!config.discordBotToken) {
+      errors.push('DISCORD_BOT_TOKEN is required when Discord is enabled.');
+    }
+    if (!config.discordGuildId) {
+      errors.push('DISCORD_GUILD_ID is required when Discord is enabled.');
+    }
+    if (!config.discordChannelId) {
+      errors.push('DISCORD_CHANNEL_ID is required when Discord is enabled.');
     }
   }
 

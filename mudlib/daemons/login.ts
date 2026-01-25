@@ -677,6 +677,12 @@ ${'='.repeat(bannerWidth)}
       await playerWithPets.restorePets();
     }
 
+    // Restore mercenaries (must be done after player is in a room)
+    const playerWithMercs = player as Player & { restoreMercenaries?: () => Promise<void> };
+    if (playerWithMercs.restoreMercenaries) {
+      await playerWithMercs.restoreMercenaries();
+    }
+
     // Call onConnect
     await player.onConnect();
 

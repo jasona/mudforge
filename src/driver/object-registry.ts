@@ -6,6 +6,7 @@
 
 import type { MudObject, BlueprintInfo, MudObjectConstructor } from './types.js';
 import { getScheduler } from './scheduler.js';
+import { getShadowRegistry } from './shadow-registry.js';
 
 /**
  * Central registry for all MUD objects in the driver.
@@ -143,6 +144,10 @@ export class ObjectRegistry {
     // Clean up scheduler (heartbeats) to prevent memory leaks
     const scheduler = getScheduler();
     scheduler.cleanupForObject(object);
+
+    // Clean up shadows attached to this object
+    const shadowRegistry = getShadowRegistry();
+    await shadowRegistry.cleanupForObject(object.objectId);
 
     // Remove from environment
     if (object.environment) {

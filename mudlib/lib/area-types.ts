@@ -37,6 +37,24 @@ export type AreaMood =
   | 'bustling';
 
 /**
+ * A block of custom code preserved from an imported area.
+ * These blocks are re-injected when the area is published.
+ */
+export interface CustomCodeBlock {
+  /** Type of code block */
+  type: 'import' | 'property' | 'constructor-tail' | 'method' | 'interface' | 'setNPC' | 'setBehavior';
+
+  /** Name identifier (method name, property name, import module) */
+  name?: string;
+
+  /** The actual code content */
+  code: string;
+
+  /** Position hint for ordering (lower = earlier) */
+  position?: number;
+}
+
+/**
  * A room within a draft area.
  */
 export interface DraftRoom {
@@ -87,6 +105,12 @@ export interface DraftRoom {
 
   /** Unix timestamp of last modification (for incremental publishing) */
   updatedAt?: number;
+
+  /** Custom code that couldn't be parsed into standard fields (for imported areas) */
+  customCode?: string;
+
+  /** Preserved custom code blocks that will be re-injected on publish */
+  customCodeBlocks?: CustomCodeBlock[];
 }
 
 /**
@@ -115,6 +139,103 @@ export interface NPCResponse {
 
   /** How to deliver */
   type: 'say' | 'emote';
+}
+
+/**
+ * NPC subclass type for specialized NPCs.
+ */
+export type NPCSubclass = 'npc' | 'merchant' | 'trainer' | 'petMerchant';
+
+/**
+ * Merchant shop stock item.
+ */
+export interface MerchantStockItem {
+  /** Path to item blueprint (relative to area or absolute) */
+  itemPath: string;
+  /** Display name in shop */
+  name: string;
+  /** Price in gold */
+  price: number;
+  /** Stock quantity (-1 for unlimited) */
+  quantity: number;
+  /** Item category for filtering */
+  category?: string;
+}
+
+/**
+ * Merchant configuration for shop NPCs.
+ */
+export interface MerchantConfig {
+  /** Shop display name */
+  shopName: string;
+  /** Shop description/flavor text */
+  shopDescription?: string;
+  /** Rate merchant pays when buying from players (0-1, e.g., 0.5 = 50%) */
+  buyRate: number;
+  /** Sell price multiplier (1.0 = normal price) */
+  sellRate: number;
+  /** Item types merchant will buy (empty = all) */
+  acceptedTypes?: string[];
+  /** Gold available for buying from players */
+  shopGold: number;
+  /** Price modifier per charisma point (default 0.01 = 1%) */
+  charismaEffect?: number;
+  /** Enable automatic restocking over time */
+  restockEnabled?: boolean;
+}
+
+/**
+ * Stat names for trainer configuration.
+ */
+export type StatName = 'strength' | 'intelligence' | 'wisdom' | 'charisma' | 'dexterity' | 'constitution' | 'luck';
+
+/**
+ * Trainer configuration for training NPCs.
+ */
+export interface TrainerConfig {
+  /** Whether trainer can level up players (default: true) */
+  canTrainLevel?: boolean;
+  /** Which stats can be trained (default: all) */
+  trainableStats?: StatName[];
+  /** XP cost multiplier (default: 1.0) */
+  costMultiplier?: number;
+  /** Custom greeting message */
+  greeting?: string;
+}
+
+/**
+ * Base stats configuration for NPCs.
+ */
+export interface BaseStats {
+  strength?: number;
+  intelligence?: number;
+  wisdom?: number;
+  charisma?: number;
+  dexterity?: number;
+  constitution?: number;
+  luck?: number;
+}
+
+/**
+ * Pet stock entry for pet merchants.
+ */
+export interface PetStockEntry {
+  /** Pet type identifier (e.g., 'horse', 'dog') */
+  type: string;
+  /** Price override (uses template cost if not set) */
+  priceOverride?: number;
+  /** Custom description for this shop */
+  description?: string;
+}
+
+/**
+ * Pet merchant configuration.
+ */
+export interface PetMerchantConfig {
+  /** Shop display name */
+  shopName: string;
+  /** Shop description/flavor text */
+  shopDescription?: string;
 }
 
 /**
@@ -220,6 +341,35 @@ export interface DraftNPC {
 
   /** Unix timestamp of last modification (for incremental publishing) */
   updatedAt?: number;
+
+  /** Custom code that couldn't be parsed into standard fields (for imported areas) */
+  customCode?: string;
+
+  /** Preserved custom code blocks that will be re-injected on publish */
+  customCodeBlocks?: CustomCodeBlock[];
+
+  // === Specialized NPC Type Configuration ===
+
+  /** NPC subclass (npc, merchant, trainer, petMerchant) */
+  subclass?: NPCSubclass;
+
+  /** Merchant configuration (when subclass is 'merchant') */
+  merchantConfig?: MerchantConfig;
+
+  /** Merchant stock items (when subclass is 'merchant') */
+  merchantStock?: MerchantStockItem[];
+
+  /** Trainer configuration (when subclass is 'trainer') */
+  trainerConfig?: TrainerConfig;
+
+  /** Base stats for NPC (used by trainers and others) */
+  baseStats?: BaseStats;
+
+  /** Pet merchant configuration (when subclass is 'petMerchant') */
+  petMerchantConfig?: PetMerchantConfig;
+
+  /** Pet stock entries (when subclass is 'petMerchant') */
+  petStock?: PetStockEntry[];
 }
 
 /**
@@ -309,6 +459,12 @@ export interface DraftItem {
 
   /** Unix timestamp of last modification (for incremental publishing) */
   updatedAt?: number;
+
+  /** Custom code that couldn't be parsed into standard fields (for imported areas) */
+  customCode?: string;
+
+  /** Preserved custom code blocks that will be re-injected on publish */
+  customCodeBlocks?: CustomCodeBlock[];
 }
 
 /**

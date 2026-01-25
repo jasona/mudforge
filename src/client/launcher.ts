@@ -9,6 +9,18 @@ import type { WebSocketClient, AuthResponseMessage } from './websocket-client.js
 import { getAvatarSvg, getAvatarList } from './avatars.js';
 
 /**
+ * Announcement data from the API.
+ */
+interface AnnouncementData {
+  id: string;
+  title: string;
+  content: string;
+  author: string;
+  createdAt: number;
+  updatedAt?: number;
+}
+
+/**
  * Launcher class handles the pre-game login interface.
  */
 export class Launcher {
@@ -55,12 +67,27 @@ export class Launcher {
     restrictions?: string[];
   }> = [];
 
+  // Announcement elements
+  private announcementSection: HTMLElement | null = null;
+  private announcementTitle: HTMLElement | null = null;
+  private announcementPreview: HTMLElement | null = null;
+  private announcementModal: HTMLElement | null = null;
+  private announcementsListModal: HTMLElement | null = null;
+  private newsCta: HTMLElement | null = null;
+
+  // Cached announcement data
+  private announcementsData: {
+    latest: AnnouncementData | null;
+    all: AnnouncementData[];
+  } = { latest: null, all: [] };
+
   constructor(wsClient: WebSocketClient, onLoginSuccess: () => void) {
     this.wsClient = wsClient;
     this.onLoginSuccess = onLoginSuccess;
     this.cacheElements();
     this.setupEventListeners();
     this.fetchGameConfig();
+    this.fetchAnnouncements();
 
     // Focus username field on load
     this.usernameInput?.focus();
@@ -143,6 +170,14 @@ export class Launcher {
     this.regSubmit = document.getElementById('reg-submit') as HTMLButtonElement;
     this.regCancel = document.getElementById('reg-cancel') as HTMLButtonElement;
     this.regError = document.getElementById('reg-error');
+
+    // Announcement elements
+    this.announcementSection = document.getElementById('announcement-section');
+    this.announcementTitle = document.getElementById('announcement-title');
+    this.announcementPreview = document.getElementById('announcement-preview');
+    this.announcementModal = document.getElementById('announcement-modal');
+    this.announcementsListModal = document.getElementById('announcements-list-modal');
+    this.newsCta = document.querySelector('.news-cta');
 
     // Populate avatar picker
     this.populateAvatarPicker();
@@ -279,6 +314,208 @@ export class Launcher {
   }
 
   /**
+   * Fetch announcements from the API.
+   */
+  private async fetchAnnouncements(): Promise<void> {
+    try {
+      const response = await fetch('/api/announcements');
+      if (!response.ok) {
+        console.warn('Failed to fetch announcements');
+        return;
+      }
+
+      this.announcementsData = await response.json();
+
+      // Display the latest announcement if available
+      if (this.announcementsData.latest) {
+        this.displayLatestAnnouncement(this.announcementsData.latest);
+      }
+    } catch (error) {
+      console.warn('Failed to fetch announcements:', error);
+    }
+  }
+
+  /**
+   * Display the latest announcement on the login screen.
+   */
+  private displayLatestAnnouncement(announcement: AnnouncementData): void {
+    if (!this.announcementSection || !this.announcementTitle || !this.announcementPreview) {
+      return;
+    }
+
+    // Set the title
+    this.announcementTitle.textContent = announcement.title;
+
+    // Create a preview from the content (first 100 chars, strip markdown)
+    const preview = this.stripMarkdown(announcement.content).slice(0, 100);
+    this.announcementPreview.textContent = preview + (announcement.content.length > 100 ? '...' : '');
+
+    // Show the announcement section
+    this.announcementSection.classList.remove('hidden');
+  }
+
+  /**
+   * Strip markdown formatting for preview text.
+   */
+  private stripMarkdown(text: string): string {
+    return text
+      .replace(/^#+\s*/gm, '')        // Headers
+      .replace(/\*\*(.+?)\*\*/g, '$1') // Bold
+      .replace(/\*(.+?)\*/g, '$1')     // Italic
+      .replace(/__(.+?)__/g, '$1')     // Bold
+      .replace(/_(.+?)_/g, '$1')       // Italic
+      .replace(/`(.+?)`/g, '$1')       // Inline code
+      .replace(/\[(.+?)\]\(.+?\)/g, '$1') // Links
+      .replace(/^-\s+/gm, '')          // List items
+      .replace(/^---+$/gm, '')         // Horizontal rules
+      .replace(/\n+/g, ' ')            // Newlines to spaces
+      .trim();
+  }
+
+  /**
+   * Format a timestamp for display.
+   */
+  private formatDate(timestamp: number): string {
+    const date = new Date(timestamp);
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  }
+
+  /**
+   * Convert markdown to basic HTML for modal display.
+   */
+  private markdownToHtml(markdown: string): string {
+    let html = markdown;
+
+    // Escape HTML special chars first
+    html = html.replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+
+    // Headers
+    html = html.replace(/^### (.+)$/gm, '<h4 style="margin: 12px 0 8px 0; color: #f5f5f5;">$1</h4>');
+    html = html.replace(/^## (.+)$/gm, '<h3 style="margin: 16px 0 8px 0; color: #f5f5f5;">$1</h3>');
+    html = html.replace(/^# (.+)$/gm, '<h2 style="margin: 16px 0 8px 0; color: #fbbf24;">$1</h2>');
+
+    // Bold and italic
+    html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+    html = html.replace(/__(.+?)__/g, '<strong>$1</strong>');
+    html = html.replace(/_(.+?)_/g, '<em>$1</em>');
+
+    // Code inline
+    html = html.replace(/`(.+?)`/g, '<code style="background: #222; padding: 2px 6px; border-radius: 4px; font-family: monospace;">$1</code>');
+
+    // Horizontal rule
+    html = html.replace(/^---+$/gm, '<hr style="border: none; border-top: 1px solid #333; margin: 16px 0;">');
+
+    // Unordered lists
+    html = html.replace(/^- (.+)$/gm, '<li style="margin-left: 20px; list-style-type: disc;">$1</li>');
+
+    // Links
+    html = html.replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" style="color: #5e6ad2;" target="_blank" rel="noopener">$1</a>');
+
+    // Paragraphs (double newlines)
+    html = html.replace(/\n\n/g, '</p><p style="margin: 8px 0;">');
+
+    // Single newlines to <br>
+    html = html.replace(/\n/g, '<br>');
+
+    // Wrap in paragraph
+    html = `<p style="margin: 8px 0;">${html}</p>`;
+
+    return html;
+  }
+
+  /**
+   * Show the announcement detail modal.
+   */
+  private showAnnouncementModal(announcement: AnnouncementData): void {
+    if (!this.announcementModal) return;
+
+    const titleEl = this.announcementModal.querySelector('.announcement-modal-title');
+    const metaEl = this.announcementModal.querySelector('.announcement-modal-meta');
+    const contentEl = this.announcementModal.querySelector('.announcement-modal-content');
+
+    if (titleEl) {
+      titleEl.textContent = announcement.title;
+    }
+
+    if (metaEl) {
+      const dateStr = this.formatDate(announcement.createdAt);
+      const edited = announcement.updatedAt ? ' (edited)' : '';
+      metaEl.textContent = `Posted by ${announcement.author} on ${dateStr}${edited}`;
+    }
+
+    if (contentEl) {
+      contentEl.innerHTML = this.markdownToHtml(announcement.content);
+    }
+
+    this.announcementModal.classList.remove('hidden');
+  }
+
+  /**
+   * Hide the announcement detail modal.
+   */
+  private hideAnnouncementModal(): void {
+    this.announcementModal?.classList.add('hidden');
+  }
+
+  /**
+   * Show the announcements list modal.
+   */
+  private showAnnouncementsList(): void {
+    if (!this.announcementsListModal) return;
+
+    const listEl = this.announcementsListModal.querySelector('.announcements-list');
+    if (!listEl) return;
+
+    // Clear existing content
+    listEl.innerHTML = '';
+
+    if (this.announcementsData.all.length === 0) {
+      listEl.innerHTML = '<div class="announcements-empty">No announcements yet.</div>';
+    } else {
+      for (const ann of this.announcementsData.all) {
+        const item = document.createElement('div');
+        item.className = 'announcement-list-item';
+        item.dataset.announcementId = ann.id;
+
+        const preview = this.stripMarkdown(ann.content).slice(0, 80);
+        const dateStr = this.formatDate(ann.createdAt);
+
+        item.innerHTML = `
+          <div class="announcement-list-header">
+            <span class="announcement-list-title">${ann.title}</span>
+            <span class="announcement-list-date">${dateStr}</span>
+          </div>
+          <div class="announcement-list-preview">${preview}...</div>
+          <div class="announcement-list-author">by ${ann.author}</div>
+        `;
+
+        item.addEventListener('click', () => {
+          this.hideAnnouncementsList();
+          this.showAnnouncementModal(ann);
+        });
+
+        listEl.appendChild(item);
+      }
+    }
+
+    this.announcementsListModal.classList.remove('hidden');
+  }
+
+  /**
+   * Hide the announcements list modal.
+   */
+  private hideAnnouncementsList(): void {
+    this.announcementsListModal?.classList.add('hidden');
+  }
+
+  /**
    * Update the race details panel with selected race info.
    */
   private updateRaceDetails(raceId: string): void {
@@ -375,6 +612,41 @@ export class Launcher {
     // Registration modal backdrop click to close
     this.registerModal?.querySelector('.register-backdrop')?.addEventListener('click', () => {
       this.hideRegistration();
+    });
+
+    // News CTA and announcement card click
+    this.newsCta?.addEventListener('click', (e) => {
+      e.preventDefault();
+      this.showAnnouncementsList();
+    });
+
+    this.announcementSection?.addEventListener('click', () => {
+      if (this.announcementsData.latest) {
+        this.showAnnouncementModal(this.announcementsData.latest);
+      }
+    });
+
+    // Announcement modal close handlers
+    this.announcementModal?.querySelector('.announcement-modal-close')?.addEventListener('click', () => {
+      this.hideAnnouncementModal();
+    });
+
+    this.announcementModal?.querySelector('.announcement-modal-backdrop')?.addEventListener('click', () => {
+      this.hideAnnouncementModal();
+    });
+
+    this.announcementModal?.querySelector('.announcement-view-all')?.addEventListener('click', () => {
+      this.hideAnnouncementModal();
+      this.showAnnouncementsList();
+    });
+
+    // Announcements list modal close handlers
+    this.announcementsListModal?.querySelector('.announcements-list-close')?.addEventListener('click', () => {
+      this.hideAnnouncementsList();
+    });
+
+    this.announcementsListModal?.querySelector('.announcements-list-backdrop')?.addEventListener('click', () => {
+      this.hideAnnouncementsList();
     });
 
     // WebSocket events

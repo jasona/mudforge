@@ -5,9 +5,28 @@
  * - Permission level (player, builder, admin)
  * - Class membership (fighter, thief, mage, etc.)
  * - Custom groups (guilds, clans, etc.)
+ *
+ * Also supports dynamic command help via getCommandInfo efun.
  */
 
 import { MudObject } from '../std/object.js';
+
+declare const efuns: {
+  getCommandInfo(name: string): {
+    names: string[];
+    filePath: string;
+    level: number;
+    description: string;
+    usage?: string | undefined;
+  } | undefined;
+  getAvailableCommands(level?: number): Array<{
+    name: string;
+    names: string[];
+    description: string;
+    usage?: string;
+    level: number;
+  }>;
+};
 
 /**
  * Access requirements for help topics.
@@ -150,6 +169,7 @@ export class HelpDaemon extends MudObject {
 
   /**
    * Get a topic by name or alias.
+   * Does not check commands - use getCommandHelp for that.
    */
   getTopic(name: string): HelpTopic | undefined {
     const lower = name.toLowerCase();
@@ -162,6 +182,26 @@ export class HelpDaemon extends MudObject {
     const realName = this._aliases.get(lower);
     if (realName) {
       return this._topics.get(realName);
+    }
+
+    return undefined;
+  }
+
+  /**
+   * Get help for a topic, checking commands first.
+   * Returns formatted help string or undefined.
+   */
+  getHelp(name: string, player: HelpPlayer): string | undefined {
+    // First, check if it's a command
+    const cmdHelp = this.getCommandHelp(name);
+    if (cmdHelp) {
+      return cmdHelp;
+    }
+
+    // Fall back to static topic
+    const topic = this.getTopic(name);
+    if (topic && this.canAccess(player, topic)) {
+      return this.formatTopic(topic);
     }
 
     return undefined;
@@ -391,6 +431,127 @@ export class HelpDaemon extends MudObject {
     lines.push(`{dim}Use 'help <topic>' for more information.{/}`);
 
     return lines.join('\n') + '\n';
+  }
+
+  /**
+   * Get dynamic help for a command using getCommandInfo.
+   * Returns undefined if not a command or not accessible.
+   */
+  getCommandHelp(cmdName: string): string | undefined {
+    try {
+      const info = efuns.getCommandInfo(cmdName);
+      if (!info) {
+        return undefined;
+      }
+
+      return this.formatCommandHelp(info);
+    } catch {
+      return undefined;
+    }
+  }
+
+  /**
+   * Format command info into help text.
+   */
+  formatCommandHelp(info: {
+    names: string[];
+    filePath: string;
+    level: number;
+    description: string;
+    usage?: string | undefined;
+  }): string {
+    const lines: string[] = [];
+    const levelNames = ['Player', 'Builder', 'Senior Builder', 'Administrator'];
+    const levelColors = ['cyan', 'MAGENTA', 'yellow', 'RED'];
+    const levelName = levelNames[info.level] ?? 'Unknown';
+    const levelColor = levelColors[info.level] ?? 'dim';
+
+    // Header
+    lines.push(`{bold}{cyan}=== ${info.names[0]} ==={/}`);
+    lines.push(`{dim}Category: Commands{/}`);
+    lines.push('');
+
+    // Description
+    lines.push(info.description);
+    lines.push('');
+
+    // Usage
+    if (info.usage) {
+      lines.push('{bold}Usage:{/}');
+      lines.push(`  {yellow}${info.usage}{/}`);
+      lines.push('');
+    }
+
+    // Aliases
+    if (info.names.length > 1) {
+      lines.push(`{dim}Aliases: ${info.names.slice(1).join(', ')}{/}`);
+    }
+
+    // Level and path
+    lines.push(`{dim}Path: ${this.formatMudlibPath(info.filePath)} ({${levelColor}}${levelName}{/}{dim} command){/}`);
+
+    return lines.join('\n') + '\n';
+  }
+
+  /**
+   * Convert absolute file path to mudlib path.
+   */
+  private formatMudlibPath(filePath: string): string {
+    // Extract the mudlib-relative path
+    const mudlibIndex = filePath.indexOf('/mudlib/');
+    if (mudlibIndex >= 0) {
+      let path = filePath.slice(mudlibIndex + 7); // Remove '/mudlib' prefix
+      // Remove .ts extension
+      if (path.endsWith('.ts')) {
+        path = path.slice(0, -3);
+      }
+      return path;
+    }
+    return filePath;
+  }
+
+  /**
+   * Format a list of all available commands grouped by permission level.
+   */
+  formatCommandList(player: HelpPlayer): string {
+    try {
+      const commands = efuns.getAvailableCommands();
+      const lines: string[] = [];
+
+      lines.push('{bold}{cyan}=== Available Commands ==={/}');
+      lines.push('');
+
+      // Group by level
+      const levelNames = ['Player', 'Builder', 'Senior Builder', 'Administrator'];
+      const levelColors = ['cyan', 'MAGENTA', 'yellow', 'RED'];
+
+      for (let level = 0; level <= 3; level++) {
+        const cmds = commands.filter(c => c.level === level);
+        if (cmds.length === 0) continue;
+
+        const levelName = levelNames[level] ?? 'Unknown';
+        const color = levelColors[level] ?? 'dim';
+
+        lines.push(`{bold}{${color}}${levelName} Commands:{/}`);
+
+        // Sort alphabetically and format in columns
+        const sorted = cmds.sort((a, b) => a.name.localeCompare(b.name));
+
+        for (const cmd of sorted) {
+          const nameStr = cmd.name.padEnd(16);
+          const desc = cmd.description.length > 50 ? cmd.description.slice(0, 47) + '...' : cmd.description;
+          lines.push(`  {yellow}${nameStr}{/} - ${desc}`);
+        }
+
+        lines.push('');
+      }
+
+      lines.push(`{dim}Use 'help <command>' for details on a specific command.{/}`);
+
+      return lines.join('\n') + '\n';
+    } catch {
+      return '{red}Error retrieving command list.{/}\n';
+    }
   }
 
   /**

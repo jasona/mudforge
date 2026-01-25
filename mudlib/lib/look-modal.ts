@@ -143,20 +143,31 @@ function stripArticle(str: string): string {
 }
 
 /**
+ * Check if an object has active shadows (transformations, disguises, etc.)
+ */
+function hasShadows(obj: MudObject): boolean {
+  if (typeof efuns !== 'undefined' && efuns.hasShadows) {
+    return efuns.hasShadows(obj);
+  }
+  return false;
+}
+
+/**
  * Get a display name from an object.
  */
 function getDisplayName(obj: MudObject): string {
-  // For players, use name directly
-  if ('permissionLevel' in obj && 'name' in obj) {
+  // For players without shadows, use name directly
+  if ('permissionLevel' in obj && 'name' in obj && !hasShadows(obj)) {
     const name = (obj as MudObject & { name: string }).name;
     return capitalizeFirst(name);
   }
-  // For other objects, strip color codes, strip article, and capitalize
+  // For shadowed players or other objects, use shortDesc
   return capitalizeFirst(stripArticle(stripColorCodes(obj.shortDesc)));
 }
 
 /**
  * Build player-specific modal layout.
+ * If the player has shadows (transformations), uses shadowed properties.
  */
 function buildPlayerLayout(obj: MudObject): LayoutContainer {
   const player = obj as MudObject & {
@@ -166,11 +177,25 @@ function buildPlayerLayout(obj: MudObject): LayoutContainer {
     getProperty?: (key: string) => unknown;
   };
 
-  const name = capitalizeFirst(player.name);
+  const isShadowed = hasShadows(obj);
+
+  // For shadowed players, use shortDesc-based name and longDesc directly
+  // This allows transformations to fully change appearance
+  const name = isShadowed
+    ? capitalizeFirst(stripArticle(stripColorCodes(obj.shortDesc)))
+    : capitalizeFirst(player.name);
   const level = player.level || 1;
-  const title = player.title || '';
-  const charDesc = player.getProperty?.('characterDescription') as string | undefined;
-  const description = charDesc || player.longDesc;
+  const title = isShadowed ? '' : (player.title || '');
+
+  // For description, shadowed players use longDesc directly (which is shadowed)
+  // Non-shadowed players can use characterDescription if set
+  let description: string;
+  if (isShadowed) {
+    description = obj.longDesc;
+  } else {
+    const charDesc = player.getProperty?.('characterDescription') as string | undefined;
+    description = charDesc || player.longDesc;
+  }
 
   const children: Array<LayoutContainer | DisplayElement> = [];
 
@@ -180,7 +205,7 @@ function buildPlayerLayout(obj: MudObject): LayoutContainer {
     id: 'look-name',
     content: name,
     level: 3,
-    style: { color: '#4ade80', margin: '0 0 4px 0', textAlign: 'center' },
+    style: { color: isShadowed ? '#f87171' : '#4ade80', margin: '0 0 4px 0', textAlign: 'center' },
   } as DisplayElement);
 
   if (title) {
@@ -192,20 +217,22 @@ function buildPlayerLayout(obj: MudObject): LayoutContainer {
     } as DisplayElement);
   }
 
-  // Level
-  children.push({
-    type: 'text',
-    id: 'look-level',
-    content: `Level ${level}`,
-    style: { color: '#fbbf24', fontSize: '14px', textAlign: 'center', marginBottom: '12px' },
-  } as DisplayElement);
+  // Level - hide for shadowed players (transformation hides identity)
+  if (!isShadowed) {
+    children.push({
+      type: 'text',
+      id: 'look-level',
+      content: `Level ${level}`,
+      style: { color: '#fbbf24', fontSize: '14px', textAlign: 'center', marginBottom: '12px' },
+    } as DisplayElement);
+  }
 
   // Description
   if (description) {
     children.push({
       type: 'paragraph',
       id: 'look-description',
-      content: description,
+      content: stripColorCodes(description),
       style: { color: '#ddd', fontSize: '13px', lineHeight: '1.5' },
     } as DisplayElement);
   }
@@ -1011,8 +1038,10 @@ export async function openLookModal(
   }
 
   // Get existing image for players, or fallback for others
+  // Shadowed players don't use their profile image (transformation hides identity)
+  const isShadowed = hasShadows(target);
   let initialImage: string;
-  if (type === 'player') {
+  if (type === 'player' && !isShadowed) {
     const existingImage = getPlayerExistingImage(target);
     initialImage = existingImage || portraitDaemon.getFallbackImage(type);
   } else {
@@ -1082,8 +1111,9 @@ export async function openLookModal(
   efuns.guiSend(message);
 
   // Async: Generate/retrieve the actual image
-  // Don't wait for players if they already have an image
-  if (type === 'player' && getPlayerExistingImage(target)) {
+  // Don't wait for non-shadowed players if they already have an image
+  // Shadowed players should get a new image generated based on their transformation
+  if (type === 'player' && !isShadowed && getPlayerExistingImage(target)) {
     return;
   }
 

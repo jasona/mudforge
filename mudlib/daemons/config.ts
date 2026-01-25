@@ -98,6 +98,68 @@ const DEFAULT_SETTINGS: Record<string, ConfigSetting> = {
     min: 1,
     max: 20,
   },
+  'discord.enabled': {
+    value: false,
+    description: 'Enable Discord channel bridge',
+    type: 'boolean',
+  },
+  'discord.guildId': {
+    value: '',
+    description: 'Discord server (guild) ID',
+    type: 'string',
+  },
+  'discord.channelId': {
+    value: '',
+    description: 'Discord channel ID to bridge',
+    type: 'string',
+  },
+  'bots.enabled': {
+    value: false,
+    description: 'Enable the bot system (simulated players)',
+    type: 'boolean',
+  },
+  'bots.maxBots': {
+    value: 5,
+    description: 'Maximum number of bots that can be online at once',
+    type: 'number',
+    min: 1,
+    max: 50,
+  },
+  'bots.minOnlineMinutes': {
+    value: 15,
+    description: 'Minimum minutes a bot stays online per session',
+    type: 'number',
+    min: 5,
+    max: 240,
+  },
+  'bots.maxOnlineMinutes': {
+    value: 120,
+    description: 'Maximum minutes a bot stays online per session',
+    type: 'number',
+    min: 15,
+    max: 480,
+  },
+  'bots.minOfflineMinutes': {
+    value: 30,
+    description: 'Minimum minutes a bot stays offline between sessions',
+    type: 'number',
+    min: 5,
+    max: 480,
+  },
+  'bots.maxOfflineMinutes': {
+    value: 240,
+    description: 'Maximum minutes a bot stays offline between sessions',
+    type: 'number',
+    min: 30,
+    max: 1440,
+  },
+  'bots.chatFrequencyMinutes': {
+    value: 10,
+    description: 'Average minutes between bot channel messages',
+    type: 'number',
+    min: 1,
+    max: 60,
+  },
 };
 
 /**

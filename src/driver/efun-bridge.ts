@@ -22,6 +22,7 @@ import { constants } from 'fs';
 import { getI3Client } from '../network/i3-client.js';
 import { getI2Client } from '../network/i2-client.js';
 import { getGrapevineClient, type GrapevineEvent } from '../network/grapevine-client.js';
+import { getDiscordClient } from '../network/discord-client.js';
 import type { LPCValue } from '../network/lpc-codec.js';
 import type { I2Message } from '../network/i2-codec.js';
 import {
@@ -33,6 +34,8 @@ import {
 } from './version.js';
 import { getGitHubClient } from './github-client.js';
 import { getGiphyClient, type CachedGif } from './giphy-client.js';
+import { getShadowRegistry, type ShadowRegistry } from './shadow-registry.js';
+import type { Shadow, AddShadowResult } from './shadow-types.js';
 
 /**
  * Pager options for the page efun.
@@ -258,6 +261,7 @@ type I3PacketCallback = (packet: LPCValue[]) => void;
  */
 type I2MessageCallback = (message: I2Message, rinfo: { address: string; port: number }) => void;
 type GrapevineMessageCallback = (event: GrapevineEvent) => void;
+type DiscordMessageCallback = (author: string, content: string) => void;
 
 /**
  * Snoop session data stored in driver.
@@ -457,11 +461,15 @@ export class EfunBridge {
   private i3PacketCallback: I3PacketCallback | null = null;
   private i2MessageCallback: I2MessageCallback | null = null;
   private grapevineMessageCallback: GrapevineMessageCallback | null = null;
+  private discordMessageCallback: DiscordMessageCallback | null = null;
 
   /** Snoop sessions: snooperId -> session data */
   private snoopSessions: Map<string, SnoopSession> = new Map();
   /** Reverse lookup: targetId -> set of snooperIds */
   private snoopTargets: Map<string, Set<string>> = new Map();
+
+  /** Shadow registry for object overlays */
+  private shadowRegistry: ShadowRegistry;
 
   constructor(config: Partial<EfunBridgeConfig> = {}) {
     this.config = {
@@ -470,6 +478,25 @@ export class EfunBridge {
     this.registry = getRegistry();
     this.scheduler = getScheduler();
     this.permissions = getPermissions();
+    this.shadowRegistry = getShadowRegistry();
+  }
+
+  // ========== Shadow Wrapper Helpers ==========
+
+  /**
+   * Wrap a single object with shadow proxy if it has shadows.
+   * Returns null/undefined unchanged.
+   */
+  private wrapObject<T extends MudObject | null | undefined>(obj: T): T {
+    if (!obj) return obj;
+    return this.shadowRegistry.wrapWithProxy(obj) as T;
+  }
+
+  /**
+   * Wrap an array of objects with shadow proxies.
+   */
+  private wrapObjects(objs: MudObject[]): MudObject[] {
+    return objs.map((obj) => this.shadowRegistry.wrapWithProxy(obj));
   }
 
   /**
@@ -571,7 +598,8 @@ export class EfunBridge {
    */
   async cloneObject(path: string): Promise<MudObject | undefined> {
     const loader = getMudlibLoader({ mudlibPath: this.config.mudlibPath });
-    return loader.cloneObject(path);
+    const clone = await loader.cloneObject(path);
+    return this.wrapObject(clone);
   }
 
   /**
@@ -587,7 +615,7 @@ export class EfunBridge {
    * @param path The object path
    */
   loadObject(path: string): MudObject | undefined {
-    return this.registry.find(path);
+    return this.wrapObject(this.registry.find(path));
   }
 
   /**
@@ -595,7 +623,7 @@ export class EfunBridge {
    * @param pathOrId The object path or clone ID
    */
   findObject(pathOrId: string): MudObject | undefined {
-    return this.registry.find(pathOrId);
+    return this.wrapObject(this.registry.find(pathOrId));
   }
 
   /**
@@ -608,12 +636,13 @@ export class EfunBridge {
     // First check if already loaded
     const existing = this.registry.find(path);
     if (existing) {
-      return existing;
+      return this.wrapObject(existing);
     }
 
     // Load from disk
     const loader = getMudlibLoader({ mudlibPath: this.config.mudlibPath });
-    return loader.loadObject(path);
+    const obj = await loader.loadObject(path);
+    return this.wrapObject(obj);
   }
 
   /**
@@ -622,7 +651,7 @@ export class EfunBridge {
    * @returns Array of all loaded MudObjects
    */
   getAllObjects(): MudObject[] {
-    return Array.from(this.registry.getAllObjects());
+    return this.wrapObjects(Array.from(this.registry.getAllObjects()));
   }
 
   // ========== Hierarchy Efuns ==========
@@ -632,7 +661,9 @@ export class EfunBridge {
    * @param object The container object
    */
   allInventory(object: MudObject): MudObject[] {
-    return [...object.inventory];
+    // Get original object if this is a proxy
+    const original = this.shadowRegistry.getOriginal(object);
+    return this.wrapObjects([...original.inventory]);
   }
 
   /**
@@ -640,7 +671,9 @@ export class EfunBridge {
    * @param object The object
    */
   environment(object: MudObject): MudObject | null {
-    return object.environment;
+    // Get original object if this is a proxy
+    const original = this.shadowRegistry.getOriginal(object);
+    return this.wrapObject(original.environment);
   }
 
   /**
@@ -658,14 +691,14 @@ export class EfunBridge {
    * Get the current "this object" from context.
    */
   thisObject(): MudObject | null {
-    return this.context.thisObject;
+    return this.wrapObject(this.context.thisObject);
   }
 
   /**
    * Get the current "this player" from context.
    */
   thisPlayer(): MudObject | null {
-    return this.context.thisPlayer;
+    return this.wrapObject(this.context.thisPlayer);
   }
 
   /**
@@ -673,7 +706,7 @@ export class EfunBridge {
    */
   allPlayers(): MudObject[] {
     if (this.allPlayersCallback) {
-      return this.allPlayersCallback();
+      return this.wrapObjects(this.allPlayersCallback());
     }
     return [];
   }
@@ -2686,10 +2719,11 @@ export class EfunBridge {
 
   /**
    * Get information about a command by name.
-   * Requires builder permission.
+   * Available to all players, but scoped to their permission level.
+   * Returns undefined if command doesn't exist or is above caller's permission.
    *
    * @param name The command name to look up
-   * @returns Command info or undefined if not found
+   * @returns Command info or undefined if not found or not accessible
    */
   getCommandInfo(name: string): {
     names: string[];
@@ -2698,15 +2732,80 @@ export class EfunBridge {
     description: string;
     usage?: string | undefined;
   } | undefined {
-    if (!this.isBuilder()) {
-      return undefined;
-    }
-
     try {
       const commandManager = getCommandManager();
-      return commandManager.getCommandInfo(name);
+      const info = commandManager.getCommandInfo(name);
+
+      if (!info) {
+        return undefined;
+      }
+
+      // Only return info if command level <= caller's permission level
+      const playerLevel = this.getPermissionLevel();
+      if (info.level > playerLevel) {
+        return undefined;
+      }
+
+      return info;
     } catch {
       return undefined;
+    }
+  }
+
+  /**
+   * Get all available commands for the current player's permission level.
+   * Returns commands sorted by name.
+   *
+   * @param level Optional permission level override (capped at caller's level)
+   * @returns Array of command info objects
+   */
+  getAvailableCommands(level?: number): Array<{
+    name: string;
+    names: string[];
+    description: string;
+    usage?: string;
+    level: number;
+  }> {
+    try {
+      const commandManager = getCommandManager();
+      const playerLevel = this.getPermissionLevel();
+
+      // Use provided level, but cap at player's actual level
+      const effectiveLevel = level !== undefined ? Math.min(level, playerLevel) : playerLevel;
+
+      const commands = commandManager.getAvailableCommands(effectiveLevel);
+
+      // Map to return format with level info
+      return commands
+        .map(cmd => {
+          const cmdName = Array.isArray(cmd.name) ? cmd.name[0] : cmd.name;
+          if (!cmdName) return null; // Skip commands with no name
+          const names = Array.isArray(cmd.name) ? cmd.name : [cmd.name];
+          // Get full info to retrieve level
+          const info = commandManager.getCommandInfo(cmdName);
+
+          const result: {
+            name: string;
+            names: string[];
+            description: string;
+            usage?: string;
+            level: number;
+          } = {
+            name: cmdName,
+            names: names,
+            description: cmd.description,
+            level: info?.level ?? 0,
+          };
+
+          if (cmd.usage) {
+            result.usage = cmd.usage;
+          }
+
+          return result;
+        })
+        .filter((cmd): cmd is NonNullable<typeof cmd> => cmd !== null);
+    } catch {
+      return [];
     }
   }
 
@@ -2745,6 +2844,46 @@ export class EfunBridge {
         commandCount: 0,
       };
     }
+  }
+
+  /**
+   * Shutdown the server (hard restart).
+   * Should only be called from privileged code (senior+ commands).
+   *
+   * @param reason Optional reason for shutdown
+   * @returns Object with success status
+   */
+  shutdown(reason?: string): { success: boolean; error?: string } {
+    console.log(`[EfunBridge] Server shutdown requested: ${reason || 'no reason given'}`);
+
+    // Schedule immediate shutdown to allow response to be sent
+    setTimeout(() => {
+      console.log('[EfunBridge] Server shutting down...');
+      process.exit(0);
+    }, 100);
+
+    return { success: true };
+  }
+
+  /**
+   * Get server uptime.
+   * Available to all players.
+   *
+   * @returns Object containing uptime in seconds and formatted string
+   */
+  getUptime(): { seconds: number; formatted: string } {
+    const uptimeSeconds = process.uptime();
+    const days = Math.floor(uptimeSeconds / 86400);
+    const hours = Math.floor((uptimeSeconds % 86400) / 3600);
+    const minutes = Math.floor((uptimeSeconds % 3600) / 60);
+    const seconds = Math.floor(uptimeSeconds % 60);
+    const formatted = days > 0
+      ? `${days}d ${hours}h ${minutes}m ${seconds}s`
+      : hours > 0
+        ? `${hours}h ${minutes}m ${seconds}s`
+        : `${minutes}m ${seconds}s`;
+
+    return { seconds: uptimeSeconds, formatted };
   }
 
   /**
@@ -3337,6 +3476,110 @@ RULES:
     return client.getGifCache(id);
   }
 
+  // ========== Shadow Efuns ==========
+
+  /**
+   * Add a shadow to a target object.
+   * The shadow can override properties and methods of the target.
+   * @param target The object to shadow
+   * @param shadow The shadow to attach
+   * @returns Result indicating success or failure
+   */
+  async addShadow(target: MudObject, shadow: Shadow): Promise<AddShadowResult> {
+    return this.shadowRegistry.addShadow(target, shadow);
+  }
+
+  /**
+   * Remove a shadow from a target object.
+   * @param target The object to unshadow
+   * @param shadowOrId The shadow instance or shadowId to remove
+   * @returns true if shadow was removed
+   */
+  async removeShadow(target: MudObject, shadowOrId: Shadow | string): Promise<boolean> {
+    return this.shadowRegistry.removeShadow(target, shadowOrId);
+  }
+
+  /**
+   * Get all shadows attached to an object.
+   * @param target The object to check
+   * @returns Array of shadows (sorted by priority, highest first)
+   */
+  getShadows(target: MudObject): Shadow[] {
+    const objectId = this.shadowRegistry.getOriginal(target).objectId;
+    return this.shadowRegistry.getShadows(objectId);
+  }
+
+  /**
+   * Find a specific shadow by type on an object.
+   * @param target The object to check
+   * @param shadowType The shadow type to find
+   * @returns The shadow if found
+   */
+  findShadow(target: MudObject, shadowType: string): Shadow | undefined {
+    const objectId = this.shadowRegistry.getOriginal(target).objectId;
+    return this.shadowRegistry.findShadow(objectId, shadowType);
+  }
+
+  /**
+   * Check if an object has any shadows.
+   * @param target The object to check
+   */
+  hasShadows(target: MudObject): boolean {
+    const objectId = this.shadowRegistry.getOriginal(target).objectId;
+    return this.shadowRegistry.hasShadows(objectId);
+  }
+
+  /**
+   * Clear all shadows from an object.
+   * @param target The object to clear shadows from
+   */
+  async clearShadows(target: MudObject): Promise<void> {
+    return this.shadowRegistry.clearShadows(target);
+  }
+
+  /**
+   * Get the original unwrapped object from a shadow proxy.
+   * If the object is not a proxy, returns it unchanged.
+   * @param objectOrProxy The object or proxy
+   * @returns The original unwrapped object
+   */
+  getOriginalObject(objectOrProxy: MudObject): MudObject {
+    return this.shadowRegistry.getOriginal(objectOrProxy);
+  }
+
+  /**
+   * Wrap an object with its shadow proxy if it has shadows.
+   * Use this when accessing objects from collections (like inventory)
+   * that bypass the normal efun wrapping.
+   * @param object The object to potentially wrap
+   * @returns The wrapped proxy or original object
+   */
+  wrapShadowedObject(object: MudObject): MudObject {
+    return this.wrapObject(object);
+  }
+
+  /**
+   * Wrap an array of objects with their shadow proxies.
+   * Use this when accessing objects from collections that bypass efun wrapping.
+   * @param objects The objects to potentially wrap
+   * @returns Array of wrapped proxies or original objects
+   */
+  wrapShadowedObjects(objects: MudObject[]): MudObject[] {
+    return this.wrapObjects(objects);
+  }
+
+  /**
+   * Get shadow system statistics.
+   */
+  getShadowStats(): {
+    totalShadowedObjects: number;
+    totalShadows: number;
+    cachedProxies: number;
+    shadowsByType: Record<string, number>;
+  } {
+    return this.shadowRegistry.getStats();
+  }
+
   /**
    * Get all efuns as an object for exposing to sandbox.
    */
@@ -3442,6 +3685,7 @@ RULES:
       reloadCommand: this.reloadCommand.bind(this),
       rehashCommands: this.rehashCommands.bind(this),
       getCommandInfo: this.getCommandInfo.bind(this),
+      getAvailableCommands: this.getAvailableCommands.bind(this),
 
       // Paging
       page: this.page.bind(this),
@@ -3472,6 +3716,8 @@ RULES:
       setMudConfig: this.setMudConfig.bind(this),
 
       // Stats
+      shutdown: this.shutdown.bind(this),
+      getUptime: this.getUptime.bind(this),
       getDriverStats: this.getDriverStats.bind(this),
       getObjectStats: this.getObjectStats.bind(this),
       getMemoryStats: this.getMemoryStats.bind(this),
@@ -3514,6 +3760,15 @@ RULES:
       grapevineSend: this.grapevineSend.bind(this),
       grapevineOnMessage: this.grapevineOnMessage.bind(this),
 
+      // Discord
+      discordIsConnected: this.discordIsConnected.bind(this),
+      discordGetState: this.discordGetState.bind(this),
+      discordGetConfig: this.discordGetConfig.bind(this),
+      discordConnect: this.discordConnect.bind(this),
+      discordDisconnect: this.discordDisconnect.bind(this),
+      discordSend: this.discordSend.bind(this),
+      discordOnMessage: this.discordOnMessage.bind(this),
+
       // Version
       driverVersion: this.driverVersion.bind(this),
       gameConfig: this.gameConfig.bind(this),
@@ -3529,6 +3784,18 @@ RULES:
       giphyGenerateId: this.giphyGenerateId.bind(this),
       giphyCacheGif: this.giphyCacheGif.bind(this),
       giphyGetCachedGif: this.giphyGetCachedGif.bind(this),
+
+      // Shadow
+      addShadow: this.addShadow.bind(this),
+      removeShadow: this.removeShadow.bind(this),
+      getShadows: this.getShadows.bind(this),
+      findShadow: this.findShadow.bind(this),
+      hasShadows: this.hasShadows.bind(this),
+      clearShadows: this.clearShadows.bind(this),
+      getOriginalObject: this.getOriginalObject.bind(this),
+      wrapShadowedObject: this.wrapShadowedObject.bind(this),
+      wrapShadowedObjects: this.wrapShadowedObjects.bind(this),
+      getShadowStats: this.getShadowStats.bind(this),
     };
   }
 
@@ -3923,6 +4190,89 @@ RULES:
     console.log(`[EfunBridge] handleGrapevineMessage: ${event.event}, hasCallback: ${!!this.grapevineMessageCallback}`);
     if (this.grapevineMessageCallback) {
       this.grapevineMessageCallback(event);
+    }
+  }
+
+  // ========== Discord Efuns ==========
+
+  /**
+   * Check if Discord is connected.
+   */
+  discordIsConnected(): boolean {
+    const client = getDiscordClient();
+    return client?.isConnected ?? false;
+  }
+
+  /**
+   * Get Discord connection state.
+   */
+  discordGetState(): string {
+    const client = getDiscordClient();
+    return client?.state ?? 'disconnected';
+  }
+
+  /**
+   * Get Discord configuration.
+   */
+  discordGetConfig(): { guildId: string; channelId: string } | null {
+    const client = getDiscordClient();
+    return client?.getConfig() ?? null;
+  }
+
+  /**
+   * Connect to Discord with the given configuration.
+   */
+  async discordConnect(config: {
+    token: string;
+    guildId: string;
+    channelId: string;
+  }): Promise<boolean> {
+    const client = getDiscordClient();
+    if (!client) {
+      return false;
+    }
+    return client.connect(config);
+  }
+
+  /**
+   * Disconnect from Discord.
+   */
+  async discordDisconnect(): Promise<void> {
+    const client = getDiscordClient();
+    if (client) {
+      await client.disconnect();
+    }
+  }
+
+  /**
+   * Send a message to Discord.
+   */
+  async discordSend(playerName: string, message: string): Promise<boolean> {
+    const client = getDiscordClient();
+    if (!client) {
+      return false;
+    }
+    return client.sendMessage(playerName, message);
+  }
+
+  /**
+   * Register a callback to receive Discord messages.
+   */
+  discordOnMessage(callback: (author: string, content: string) => void): void {
+    this.discordMessageCallback = callback;
+    // Also register with the client directly
+    const client = getDiscordClient();
+    if (client) {
+      client.onMessage(callback);
+    }
+  }
+
+  /**
+   * Internal method called when Discord message is received.
+   */
+  handleDiscordMessage(author: string, content: string): void {
+    if (this.discordMessageCallback) {
+      this.discordMessageCallback(author, content);
     }
   }
 

@@ -659,6 +659,21 @@ declare global {
     // ========== Stats Efuns ==========
 
     /**
+     * Shutdown the server (hard restart).
+     * Should only be called from privileged code (senior+ commands).
+     * @param reason Optional reason for shutdown
+     * @returns Object with success status
+     */
+    shutdown(reason?: string): { success: boolean; error?: string };
+
+    /**
+     * Get server uptime.
+     * Available to all players.
+     * @returns Object containing uptime in seconds and formatted string
+     */
+    getUptime(): { seconds: number; formatted: string };
+
+    /**
      * Get driver statistics including memory, objects, scheduler, and performance metrics.
      * Requires senior builder permission (level 2) or higher.
      * @returns Object containing driver statistics or error if permission denied
@@ -946,6 +961,45 @@ declare global {
       query: string;
       expiresAt: number;
     } | undefined;
+
+    // ========== Discord Efuns ==========
+
+    /** Check if Discord is connected */
+    discordIsConnected(): boolean;
+
+    /** Get Discord connection state */
+    discordGetState(): string;
+
+    /** Get Discord configuration */
+    discordGetConfig(): { guildId: string; channelId: string } | null;
+
+    /**
+     * Connect to Discord with the given configuration.
+     * @param config Connection configuration with token, guildId, and channelId
+     * @returns true if connected successfully
+     */
+    discordConnect(config: {
+      token: string;
+      guildId: string;
+      channelId: string;
+    }): Promise<boolean>;
+
+    /** Disconnect from Discord */
+    discordDisconnect(): Promise<void>;
+
+    /**
+     * Send a message to Discord.
+     * @param playerName The name of the player sending the message
+     * @param message The message content
+     * @returns true if sent successfully
+     */
+    discordSend(playerName: string, message: string): Promise<boolean>;
+
+    /**
+     * Register a callback to receive Discord messages.
+     * @param callback Function to call when a Discord message is received
+     */
+    discordOnMessage(callback: (author: string, content: string) => void): void;
   };
 }
 

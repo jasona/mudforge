@@ -13,7 +13,8 @@ mudlib/daemons/
 ├── config.ts     # Mud-wide configuration settings
 ├── combat.ts     # Combat system management
 ├── quest.ts      # Quest system management
-└── lore.ts       # World lore registry for AI integration
+├── lore.ts       # World lore registry for AI integration
+└── discord.ts    # Discord channel bridge
 ```
 
 ## Login Daemon
@@ -109,6 +110,7 @@ The channels daemon manages global communication channels.
 | `shout` | All players | Server-wide announcements |
 | `builder` | Builders+ | Builder discussion |
 | `admin` | Admins | Admin communication |
+| `discord` | All players | Discord bridge (when enabled) |
 
 ### Special Syntax
 
@@ -489,6 +491,81 @@ export class Bartender extends NPC {
 ```
 
 When the NPC responds to players, the lore daemon automatically fetches these entries and includes them in the AI prompt.
+
+## Discord Daemon
+
+The Discord daemon manages the two-way message bridge between Discord and in-game channels.
+
+### Location
+
+`/mudlib/daemons/discord.ts`
+
+### Purpose
+
+- Connect to Discord via bot token
+- Bridge messages between Discord channel and in-game "discord" channel
+- Handle configuration and connection state
+- Route incoming Discord messages to channel daemon
+
+### API
+
+```typescript
+import { getDiscordDaemon } from '../daemons/discord.js';
+
+const daemon = getDiscordDaemon();
+
+// Configure the connection
+await daemon.configure('guildId', 'channelId');
+
+// Enable and connect
+const result = await daemon.enable();
+if (result.success) {
+  console.log('Connected to Discord!');
+}
+
+// Send a message to Discord
+await daemon.sendToDiscord('PlayerName', 'Hello Discord!');
+
+// Check status
+const status = daemon.getStatus();
+console.log(status.connected);  // true/false
+console.log(status.state);      // connection state
+
+// Disable and disconnect
+await daemon.disable();
+```
+
+### Message Flow
+
+**In-Game to Discord:**
+```
+Player: "discord Hello!"
+  → ChannelDaemon.send('discord', ...)
+  → DiscordDaemon.sendToDiscord('PlayerName', 'Hello!')
+  → efuns.discordSend(...)
+  → Discord shows: **PlayerName**: Hello!
+```
+
+**Discord to In-Game:**
+```
+Discord user sends message
+  → DiscordClient receives message
+  → DiscordDaemon.receiveFromDiscord('Username', 'message')
+  → ChannelDaemon.receiveDiscordMessage(...)
+  → Players see: [Discord] Username: message
+```
+
+### Admin Commands
+
+```
+discordadmin status                           # Show status
+discordadmin configure <guildId> <channelId>  # Configure IDs
+discordadmin enable                           # Connect
+discordadmin disable                          # Disconnect
+discordadmin test                             # Send test message
+```
+
+See [Discord Integration](discord-integration.md) for complete documentation.
 
 ### Builder Commands
 

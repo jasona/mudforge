@@ -10,6 +10,7 @@ import type { Living } from '../living.js';
 import type { GeneratedItemData, GeneratedAbility } from '../loot/types.js';
 import type { Effect } from '../combat/types.js';
 import { generateItemDescription, getPlaceholderDescription } from '../loot/description.js';
+import { capitalizeName } from '../../lib/text-utils.js';
 
 /**
  * A weapon created by the random loot generator.
@@ -149,7 +150,7 @@ export class GeneratedWeapon extends Weapon {
           source: attacker,
         };
         result.effect = effect;
-        result.message = `{red}${attacker.name}'s ${ability.name} ignites ${defender.name}!{/}`;
+        result.message = `{red}${capitalizeName(attacker.name)}'s ${ability.name} ignites ${capitalizeName(defender.name)}!{/}`;
         break;
       }
 
@@ -166,7 +167,7 @@ export class GeneratedWeapon extends Weapon {
           source: attacker,
         };
         result.effect = effect;
-        result.message = `{cyan}${attacker.name}'s ${ability.name} slows ${defender.name}!{/}`;
+        result.message = `{cyan}${capitalizeName(attacker.name)}'s ${ability.name} slows ${capitalizeName(defender.name)}!{/}`;
         break;
       }
 
@@ -183,7 +184,7 @@ export class GeneratedWeapon extends Weapon {
           source: attacker,
         };
         result.effect = effect;
-        result.message = `{yellow}${attacker.name}'s ${ability.name} stuns ${defender.name}!{/}`;
+        result.message = `{yellow}${capitalizeName(attacker.name)}'s ${ability.name} stuns ${capitalizeName(defender.name)}!{/}`;
         break;
       }
 
@@ -191,14 +192,14 @@ export class GeneratedWeapon extends Weapon {
         // Heal attacker based on damage percentage
         const healAmount = Math.round(ability.magnitude * 0.1); // magnitude is % of damage
         attacker.heal(healAmount);
-        result.message = `{green}${attacker.name}'s ${ability.name} drains life from ${defender.name}! (+${healAmount} HP){/}`;
+        result.message = `{green}${capitalizeName(attacker.name)}'s ${ability.name} drains life from ${capitalizeName(defender.name)}! (+${healAmount} HP){/}`;
         break;
       }
 
       case 'manadrain': {
         // Restore mana to attacker
         attacker.restoreMana(ability.magnitude);
-        result.message = `{blue}${attacker.name}'s ${ability.name} siphons mana! (+${ability.magnitude} MP){/}`;
+        result.message = `{blue}${capitalizeName(attacker.name)}'s ${ability.name} siphons mana! (+${ability.magnitude} MP){/}`;
         break;
       }
 
@@ -206,7 +207,7 @@ export class GeneratedWeapon extends Weapon {
         // Direct damage ability
         if (ability.damageType) {
           result.damage = ability.magnitude;
-          result.message = `{red}${attacker.name}'s ${ability.name} strikes ${defender.name} for ${ability.magnitude} ${ability.damageType} damage!{/}`;
+          result.message = `{red}${capitalizeName(attacker.name)}'s ${ability.name} strikes ${capitalizeName(defender.name)} for ${ability.magnitude} ${ability.damageType} damage!{/}`;
         }
         break;
       }

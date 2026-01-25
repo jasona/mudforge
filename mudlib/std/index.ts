@@ -16,6 +16,7 @@ export { Item, SIZE_WEIGHTS } from './item.js';
 export type { ItemSize } from './item.js';
 export { Container } from './container.js';
 export { Bag } from './bag.js';
+export { Shadow } from './shadow.js';
 
 // Living beings
 export { Living, ENCUMBRANCE_THRESHOLDS, ENCUMBRANCE_PENALTIES, POSTURE_REGEN_MULTIPLIERS, CAMPFIRE_WARMTH_BONUS } from './living.js';

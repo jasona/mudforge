@@ -2,7 +2,7 @@
  * Isle of Dreams Dock - A mysterious island's arrival point.
  */
 
-import { Room, MudObject } from '../../../lib/std.js';
+import { Room, MudObject } from '../../lib/std.js';
 
 /**
  * The Isle of Dreams Dock room.
@@ -28,7 +28,7 @@ A crystalline {cyan}signpost{/} stands nearby, its letters shifting and rearrang
 themselves as you watch.`;
 
     // Map coordinates - separate area for the island
-    this.setMapCoordinates({ x: 0, y: 0, z: 0, area: '/areas/valdoria/isle_of_dreams' });
+    this.setMapCoordinates({ x: 0, y: 0, z: 0, area: '/areas/isle_of_dreams' });
     this.setTerrain('town');
     this.setMapIcon('D');
 
@@ -36,7 +36,7 @@ themselves as you watch.`;
   }
 
   private setupRoom(): void {
-    this.addExit('north', '/areas/valdoria/isle_of_dreams/forest_edge');
+    this.addExit('north', '/areas/isle_of_dreams/forest_edge');
 
     this.addAction('read', this.cmdRead.bind(this));
     this.addAction('look', this.cmdLook.bind(this));

@@ -5,6 +5,7 @@
  *   areas                         - List your areas
  *   areas gui                     - Open area builder GUI
  *   areas new <region> <subregion> <name> - Create a new draft area
+ *   areas import <path> [options] - Import existing area into builder
  *   areas info <id>               - Show area details
  *   areas validate <id>           - Validate an area
  *   areas delete <id>             - Delete a draft area
@@ -512,6 +513,121 @@ async function openGUI(ctx: CommandContext): Promise<void> {
 }
 
 /**
+ * Import an existing area into the builder.
+ */
+async function importArea(ctx: CommandContext, args: string[]): Promise<void> {
+  if (args.length < 1) {
+    ctx.sendLine('{yellow}Usage: areas import <path> [options]{/}');
+    ctx.sendLine('');
+    ctx.sendLine('Options:');
+    ctx.sendLine('  {white}--preview{/}      Show what would be imported without saving');
+    ctx.sendLine('  {white}--force{/}        Overwrite existing draft if present');
+    ctx.sendLine('  {white}--name <name>{/}  Set custom area name');
+    ctx.sendLine('');
+    ctx.sendLine('Examples:');
+    ctx.sendLine('  {cyan}areas import /areas/valdoria/aldric{/}');
+    ctx.sendLine('  {cyan}areas import /areas/valdoria/aldric --preview{/}');
+    ctx.sendLine('  {cyan}areas import /areas/valdoria/aldric --force --name "Town of Aldric"{/}');
+    return;
+  }
+
+  // Parse arguments
+  let sourcePath = '';
+  let preview = false;
+  let force = false;
+  let customName: string | undefined;
+
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+    if (arg === '--preview') {
+      preview = true;
+    } else if (arg === '--force') {
+      force = true;
+    } else if (arg === '--name' && args[i + 1]) {
+      customName = args[++i];
+    } else if (!arg.startsWith('--')) {
+      sourcePath = arg;
+    }
+  }
+
+  if (!sourcePath) {
+    ctx.sendLine('{red}Missing path argument.{/}');
+    return;
+  }
+
+  // Normalize path
+  if (!sourcePath.startsWith('/')) {
+    sourcePath = '/' + sourcePath;
+  }
+  if (!sourcePath.startsWith('/areas/')) {
+    ctx.sendLine('{red}Path must start with /areas/{/}');
+    return;
+  }
+
+  const daemon = getAreaDaemon();
+  const playerName = ctx.player.name.toLowerCase();
+
+  ctx.sendLine(`{cyan}${preview ? 'Previewing' : 'Importing'} area from: ${sourcePath}...{/}`);
+  ctx.sendLine('');
+
+  const result = await daemon.importArea(playerName, sourcePath, {
+    name: customName,
+    force,
+    preview,
+  });
+
+  if (!result.success) {
+    ctx.sendLine(`{red}Import failed: ${result.error}{/}`);
+    return;
+  }
+
+  // Show statistics
+  ctx.sendLine('{green}Import ' + (preview ? 'preview' : 'successful') + '!{/}');
+  ctx.sendLine('');
+  ctx.sendLine('Statistics:');
+  ctx.sendLine(`  Rooms imported:  {white}${result.stats.roomsImported}{/}`);
+  ctx.sendLine(`  NPCs imported:   {white}${result.stats.npcsImported}{/}`);
+  ctx.sendLine(`  Items imported:  {white}${result.stats.itemsImported}{/}`);
+
+  if (result.stats.filesSkipped.length > 0) {
+    ctx.sendLine(`  Files skipped:   {yellow}${result.stats.filesSkipped.length}{/}`);
+  }
+
+  if (result.stats.parseErrors.length > 0) {
+    ctx.sendLine(`  Parse errors:    {red}${result.stats.parseErrors.length}{/}`);
+  }
+
+  // Show warnings
+  if (result.warnings.length > 0) {
+    ctx.sendLine('');
+    ctx.sendLine('{yellow}Warnings:{/}');
+    for (const warning of result.warnings) {
+      ctx.sendLine(`  {yellow}*{/} ${warning}`);
+    }
+  }
+
+  // Show parse errors
+  if (result.stats.parseErrors.length > 0) {
+    ctx.sendLine('');
+    ctx.sendLine('{red}Parse errors:{/}');
+    for (const err of result.stats.parseErrors.slice(0, 5)) {
+      ctx.sendLine(`  {red}*{/} ${err.file}: ${err.error}`);
+    }
+    if (result.stats.parseErrors.length > 5) {
+      ctx.sendLine(`  {dim}... and ${result.stats.parseErrors.length - 5} more errors{/}`);
+    }
+  }
+
+  if (!preview && result.areaId) {
+    ctx.sendLine('');
+    ctx.sendLine(`Area ID: {cyan}${result.areaId}{/}`);
+    ctx.sendLine('');
+    ctx.sendLine('Use {cyan}areas gui{/} to open the visual editor.');
+    ctx.sendLine('Use {cyan}areas info ' + result.areaId + '{/} to see details.');
+  }
+}
+
+/**
  * Show help.
  */
 function showHelp(ctx: CommandContext): void {
@@ -521,12 +637,18 @@ function showHelp(ctx: CommandContext): void {
   ctx.sendLine('  {white}areas{/}                              - List your areas');
   ctx.sendLine('  {white}areas gui{/}                          - Open visual area builder');
   ctx.sendLine('  {white}areas new{/} <region> <subregion> <name> - Create a new area');
+  ctx.sendLine('  {white}areas import{/} <path> [options]      - Import existing area');
   ctx.sendLine('  {white}areas info{/} <id>                    - Show area details');
   ctx.sendLine('  {white}areas validate{/} <id>                - Validate an area');
   ctx.sendLine('  {white}areas delete{/} <id>                  - Delete a draft area');
   ctx.sendLine('  {white}areas publish{/} <id>                 - Publish area to game');
   ctx.sendLine('  {white}areas addcollab{/} <id> <player>      - Add a collaborator');
   ctx.sendLine('  {white}areas rmcollab{/} <id> <player>       - Remove a collaborator');
+  ctx.sendLine('');
+  ctx.sendLine('Import options:');
+  ctx.sendLine('  {dim}--preview{/}   Show what would be imported without saving');
+  ctx.sendLine('  {dim}--force{/}     Overwrite existing draft if present');
+  ctx.sendLine('  {dim}--name <n>{/}  Set custom area name');
   ctx.sendLine('');
   ctx.sendLine('Area ID format: {dim}<region>:<subregion>{/}');
   ctx.sendLine('Example: {dim}valdoria:dark_caves{/}');
@@ -565,6 +687,10 @@ export async function execute(ctx: CommandContext): Promise<void> {
     case 'new':
     case 'create':
       createArea(ctx, commandArgs);
+      break;
+
+    case 'import':
+      await importArea(ctx, commandArgs);
       break;
 
     case 'info':

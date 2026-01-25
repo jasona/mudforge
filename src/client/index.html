@@ -33,6 +33,17 @@
             <div id="login-error" class="login-error"></div>
           </div>
         </div>
+        <!-- Latest Announcement Card (shown when announcements exist) -->
+        <div id="announcement-section" class="announcement-section hidden">
+          <div class="announcement-card">
+            <div class="announcement-icon">📢</div>
+            <div class="announcement-content">
+              <h3 id="announcement-title"></h3>
+              <p id="announcement-preview"></p>
+            </div>
+            <div class="announcement-arrow">→</div>
+          </div>
+        </div>
         <a href="#" class="news-cta">View News & Announcements →</a>
         <!-- Powered by MudForge -->
         <div class="powered-by-wrapper">
@@ -137,6 +148,34 @@
           </div>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- Announcement Detail Modal -->
+  <div id="announcement-modal" class="announcement-modal hidden">
+    <div class="announcement-modal-backdrop"></div>
+    <div class="announcement-modal-container">
+      <div class="announcement-modal-header">
+        <h2 class="announcement-modal-title"></h2>
+        <button class="announcement-modal-close" aria-label="Close">&times;</button>
+      </div>
+      <div class="announcement-modal-meta"></div>
+      <div class="announcement-modal-content"></div>
+      <div class="announcement-modal-footer">
+        <button class="announcement-view-all">View All Announcements</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Announcements List Modal -->
+  <div id="announcements-list-modal" class="announcements-list-modal hidden">
+    <div class="announcements-list-backdrop"></div>
+    <div class="announcements-list-container">
+      <div class="announcements-list-header">
+        <h2>News & Announcements</h2>
+        <button class="announcements-list-close" aria-label="Close">&times;</button>
+      </div>
+      <div class="announcements-list"></div>
     </div>
   </div>
 

@@ -32,6 +32,7 @@ import {
   getGuildXPRequired,
   getSkillXPRequired,
 } from '../std/guild/types.js';
+import { capitalizeName } from '../lib/text-utils.js';
 import {
   getAllGuildDefinitions,
   getAllSkillDefinitions,
@@ -760,10 +761,10 @@ export class GuildDaemon extends MudObject {
       healTarget.heal(magnitude);
 
       const verb = skill.useVerb ?? 'cast';
-      const targetMsg = healTarget === player ? 'yourself' : healTarget.name;
+      const targetMsg = healTarget === player ? 'yourself' : capitalizeName(healTarget.name);
       return {
         success: true,
-        message: `You ${verb} ${skill.name} on ${targetMsg}, healing for ${Math.round(magnitude)} HP!`,
+        message: `\n{cyan}You ${verb} ${skill.name} on ${targetMsg}, healing for ${Math.round(magnitude)} HP!{/}\n`,
         healing: magnitude,
       };
     } else {
@@ -790,7 +791,7 @@ export class GuildDaemon extends MudObject {
           const verb = skill.useVerb ?? 'unleash';
           return {
             success: true,
-            message: `You ${verb} ${skill.name}, hitting ${enemies.length} enemies for ${Math.round(magnitude)} damage each!`,
+            message: `\n{red}You ${verb} ${skill.name}, hitting ${enemies.length} enemies for ${Math.round(magnitude)} damage each!{/}\n`,
             damage: totalDamage,
           };
         }
@@ -802,7 +803,7 @@ export class GuildDaemon extends MudObject {
       const verb = skill.useVerb ?? 'use';
       return {
         success: true,
-        message: `You ${verb} ${skill.name} on ${target.name}, dealing ${Math.round(magnitude)} damage!`,
+        message: `\n{red}You ${verb} ${skill.name} on ${capitalizeName(target.name)}, dealing ${Math.round(magnitude)} damage!{/}\n`,
         damage: magnitude,
       };
     }
@@ -857,7 +858,7 @@ export class GuildDaemon extends MudObject {
     buffTarget.addEffect(effectData);
 
     const verb = skill.useVerb ?? 'cast';
-    const targetMsg = buffTarget === player ? 'yourself' : buffTarget.name;
+    const targetMsg = buffTarget === player ? 'yourself' : capitalizeName(buffTarget.name);
     const durationSec = Math.round(duration / 1000);
 
     // Custom message for threat modifier
@@ -867,7 +868,7 @@ export class GuildDaemon extends MudObject {
 
     return {
       success: true,
-      message: `You ${verb} ${skill.name} on ${targetMsg}! ${effectMsg}`,
+      message: `\n{yellow}You ${verb} ${skill.name} on ${targetMsg}! ${effectMsg}{/}\n`,
       effectApplied: skill.name,
     };
   }
@@ -925,7 +926,7 @@ export class GuildDaemon extends MudObject {
 
     return {
       success: true,
-      message: `You ${verb} ${skill.name} on ${target.name}! (${durationSec}s)`,
+      message: `\n{magenta}You ${verb} ${skill.name} on ${capitalizeName(target.name)}! (${durationSec}s){/}\n`,
       effectApplied: skill.name,
     };
   }
@@ -967,14 +968,14 @@ export class GuildDaemon extends MudObject {
     const room = player.environment;
     if (room && 'broadcast' in room) {
       (room as { broadcast: (msg: string, opts?: { exclude?: unknown[] }) => void })
-        .broadcast(`{yellow}${player.name} taunts ${target.name}!{/}\n`, {
+        .broadcast(`\n{yellow}${capitalizeName(player.name)} taunts ${capitalizeName(target.name)}!{/}\n`, {
           exclude: [player],
         });
     }
 
     return {
       success: true,
-      message: `You ${verb} ${target.name}, forcing them to focus on you for ${durationSec} seconds!`,
+      message: `\n{yellow}You ${verb} ${capitalizeName(target.name)}, forcing them to focus on you for ${durationSec} seconds!{/}\n`,
       effectApplied: skill.name,
     };
   }

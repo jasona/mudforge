@@ -302,10 +302,12 @@ export class Living extends MudObject {
    * @returns The composed message
    */
   composeMovementMessage(template: string, direction: string): string {
-    const capName = typeof efuns !== 'undefined' ? efuns.capitalize(this._name) : this._name;
+    // Use getter to allow shadows to override name
+    const name = this.name;
+    const capName = typeof efuns !== 'undefined' ? efuns.capitalize(name) : name;
     return template
       .replace(/\$N/g, capName)
-      .replace(/\$n/g, this._name.toLowerCase())
+      .replace(/\$n/g, name.toLowerCase())
       .replace(/\$D/g, direction);
   }
 
@@ -334,12 +336,13 @@ export class Living extends MudObject {
 
   /**
    * Get the display name (name + title).
+   * Uses getters to allow shadows to override.
    */
   getDisplayName(): string {
-    if (this._title) {
-      return `${this._name} ${this._title}`;
+    if (this.title) {
+      return `${this.name} ${this.title}`;
     }
-    return this._name;
+    return this.name;
   }
 
   /**
@@ -565,8 +568,9 @@ export class Living extends MudObject {
     const env = this.environment as Room | null;
     if (!env) return;
 
+    // Use getter to allow shadows to override name
     const name =
-      typeof efuns !== 'undefined' ? efuns.capitalize(this._name) : this._name;
+      typeof efuns !== 'undefined' ? efuns.capitalize(this.name) : this.name;
 
     // Message to the speaker
     this.receive(`You say: ${message}`);
@@ -585,8 +589,9 @@ export class Living extends MudObject {
     const env = this.environment as Room | null;
     if (!env) return;
 
+    // Use getter to allow shadows to override name
     const name =
-      typeof efuns !== 'undefined' ? efuns.capitalize(this._name) : this._name;
+      typeof efuns !== 'undefined' ? efuns.capitalize(this.name) : this.name;
     const message = `${name} ${action}`;
 
     // Message to everyone including the emoter
@@ -601,8 +606,9 @@ export class Living extends MudObject {
    * @param message The message to whisper
    */
   whisper(target: Living, message: string): void {
+    // Use getter to allow shadows to override name
     const name =
-      typeof efuns !== 'undefined' ? efuns.capitalize(this._name) : this._name;
+      typeof efuns !== 'undefined' ? efuns.capitalize(this.name) : this.name;
 
     this.receive(`You whisper to ${target.name}: ${message}`);
     target.receive(`${name} whispers: ${message}`);
@@ -730,8 +736,8 @@ export class Living extends MudObject {
       return false;
     }
 
-    // Notify current room with exit message
-    const exitMsg = this.composeMovementMessage(this._exitMessage, direction);
+    // Notify current room with exit message (use getter to allow shadows to override)
+    const exitMsg = this.composeMovementMessage(this.exitMessage, direction);
     env.broadcast(exitMsg, { exclude: [this] });
     if (typeof env.onLeave === 'function') {
       await env.onLeave(this, dest);
@@ -740,11 +746,11 @@ export class Living extends MudObject {
     // Move
     await this.moveTo(dest);
 
-    // Notify new room with enter message
+    // Notify new room with enter message (use getter to allow shadows to override)
     const newEnv = this.environment as Room | null;
     if (newEnv) {
       const oppositeDir = Living.getOppositeDirection(direction);
-      const enterMsg = this.composeMovementMessage(this._enterMessage, oppositeDir);
+      const enterMsg = this.composeMovementMessage(this.enterMessage, oppositeDir);
       newEnv.broadcast(enterMsg, { exclude: [this] });
       if (typeof newEnv.onEnter === 'function') {
         await newEnv.onEnter(this, env);
@@ -803,8 +809,9 @@ export class Living extends MudObject {
   onDeath(): void | Promise<void> {
     const env = this.environment as Room | null;
     if (env && typeof env.broadcast === 'function') {
+      // Use getter to allow shadows to override name
       const name =
-        typeof efuns !== 'undefined' ? efuns.capitalize(this._name) : this._name;
+        typeof efuns !== 'undefined' ? efuns.capitalize(this.name) : this.name;
       env.broadcast(`${name} has died!`);
     }
   }

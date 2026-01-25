@@ -143,6 +143,29 @@ export class Server extends EventEmitter {
       }
     });
 
+    // Announcements endpoint (for login screen)
+    this.fastify.get('/api/announcements', async () => {
+      try {
+        const announcementsPath = resolve(this.config.mudlibPath, 'data', 'announcements', 'announcements.json');
+        const content = await readFile(announcementsPath, 'utf-8');
+        const data = JSON.parse(content);
+        // Sort by createdAt descending (newest first)
+        const sorted = (data.announcements || []).sort(
+          (a: { createdAt: number }, b: { createdAt: number }) => b.createdAt - a.createdAt
+        );
+        return {
+          latest: sorted[0] || null,
+          all: sorted,
+        };
+      } catch {
+        // Fallback if announcements.json doesn't exist yet
+        return {
+          latest: null,
+          all: [],
+        };
+      }
+    });
+
     // WebSocket endpoint
     this.fastify.get('/ws', { websocket: true }, (socket: WebSocket, request) => {
       this.handleWebSocketConnection(socket, request);

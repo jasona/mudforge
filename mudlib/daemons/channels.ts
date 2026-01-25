@@ -16,7 +16,7 @@ import { openGiphyModal } from '../lib/giphy-modal.js';
 /**
  * Channel access types.
  */
-export type ChannelAccessType = 'public' | 'permission' | 'membership' | 'intermud' | 'intermud2' | 'grapevine';
+export type ChannelAccessType = 'public' | 'permission' | 'membership' | 'intermud' | 'intermud2' | 'grapevine' | 'discord';
 
 /**
  * Channel configuration.
@@ -38,8 +38,8 @@ export interface ChannelConfig {
   color?: string;
   /** Description of the channel */
   description: string;
-  /** Channel source ('local', 'intermud', 'intermud2', or 'grapevine') */
-  source?: 'local' | 'intermud' | 'intermud2' | 'grapevine';
+  /** Channel source ('local', 'intermud', 'intermud2', 'grapevine', or 'discord') */
+  source?: 'local' | 'intermud' | 'intermud2' | 'grapevine' | 'discord';
   /** I3 channel name (for intermud channels) */
   i3ChannelName?: string;
   /** Host MUD for I3 channel */
@@ -303,6 +303,10 @@ export class ChannelDaemon extends MudObject {
         // Grapevine channels are public access
         return true;
 
+      case 'discord':
+        // Discord channels are public access
+        return true;
+
       default:
         return false;
     }
@@ -440,6 +444,11 @@ export class ChannelDaemon extends MudObject {
       this.sendToGrapevine(channel.grapevineChannelName, player.name, message);
     }
 
+    // If this is a Discord channel, also send to Discord
+    if (channel.source === 'discord') {
+      this.sendToDiscord(player.name, message);
+    }
+
     // Store in history
     this.addToHistory(channelName, {
       channel: channelName,
@@ -451,7 +460,62 @@ export class ChannelDaemon extends MudObject {
     // Broadcast to all eligible players with visibility-aware sender names
     this.broadcastWithVisibility(channelName, channel, player, message);
 
+    // Check for bot mentions on public channels (async, don't wait)
+    if (channel.accessType === 'public') {
+      this.checkBotMentions(player.name, channelName, message).catch(() => {
+        // Ignore errors from bot mention handling
+      });
+    }
+
     return true;
+  }
+
+  /**
+   * Check if any bots are mentioned in a message and notify them.
+   * @param senderName The name of the player who sent the message
+   * @param channelName The channel the message was sent on
+   * @param message The message content
+   */
+  private async checkBotMentions(senderName: string, channelName: string, message: string): Promise<void> {
+    // Get the bot daemon
+    let botDaemon: {
+      getActiveBots?: () => Array<{
+        name: string;
+        handleMention?: (sender: string, channel: string, msg: string) => Promise<void>;
+      }>;
+    } | null = null;
+
+    try {
+      if (typeof efuns !== 'undefined' && efuns.findObject) {
+        botDaemon = efuns.findObject('/daemons/bots') as typeof botDaemon;
+      }
+    } catch {
+      return;
+    }
+
+    if (!botDaemon?.getActiveBots) return;
+
+    const activeBots = botDaemon.getActiveBots();
+    if (activeBots.length === 0) return;
+
+    const lowerMessage = message.toLowerCase();
+
+    // Check each active bot to see if they're mentioned
+    for (const bot of activeBots) {
+      const botName = bot.name.toLowerCase();
+
+      // Check if the bot's name appears in the message
+      // Use word boundary check to avoid partial matches
+      const namePattern = new RegExp(`\\b${botName}\\b`, 'i');
+      if (namePattern.test(lowerMessage)) {
+        // Bot was mentioned - notify them (async, don't block)
+        if (bot.handleMention) {
+          bot.handleMention(senderName, channelName, message).catch(() => {
+            // Ignore errors from bot response
+          });
+        }
+      }
+    }
   }
 
   /**
@@ -1352,6 +1416,86 @@ export class ChannelDaemon extends MudObject {
    */
   getGrapevineChannels(): ChannelConfig[] {
     return this.getAllChannels().filter((ch) => ch.source === 'grapevine');
+  }
+
+  // ========== Discord Methods ==========
+
+  /**
+   * Send a message to Discord.
+   * Used when a local player sends on the discord channel.
+   */
+  private sendToDiscord(senderName: string, message: string): void {
+    try {
+      const discordDaemon = efuns.findObject('/daemons/discord') as {
+        sendToDiscord: (name: string, msg: string) => Promise<boolean>;
+      } | null;
+      if (discordDaemon) {
+        discordDaemon.sendToDiscord(senderName, message);
+      }
+    } catch {
+      // Discord not available
+    }
+  }
+
+  /**
+   * Receive a message from Discord.
+   * Called by DiscordDaemon when a remote message arrives.
+   */
+  receiveDiscordMessage(author: string, content: string): void {
+    const channel = this.getChannel('discord');
+
+    if (!channel) {
+      // Discord channel not registered, ignore
+      return;
+    }
+
+    // Format sender with Discord indicator
+    const displaySender = `${author}`;
+    const formattedMessage = `{blue}[Discord]{/} {bold}${displaySender}{/}: ${content}\n`;
+
+    // Store in history
+    this.addToHistory('discord', {
+      channel: 'discord',
+      sender: displaySender,
+      message: content,
+      timestamp: Date.now(),
+    });
+
+    // Broadcast to local players
+    this.broadcast('discord', formattedMessage, { sender: displaySender, rawMessage: content });
+  }
+
+  /**
+   * Get all Discord channels.
+   */
+  getDiscordChannels(): ChannelConfig[] {
+    return this.getAllChannels().filter((ch) => ch.source === 'discord');
+  }
+
+  // ========== Discord Channel Registration ==========
+
+  /**
+   * Register the Discord bridge channel.
+   * Called by the Discord daemon when it connects.
+   */
+  registerDiscordChannel(): boolean {
+    return this.registerChannel({
+      name: 'discord',
+      displayName: 'Discord',
+      accessType: 'discord',
+      defaultOn: true,
+      color: 'blue',
+      description: 'Discord bridge channel',
+      source: 'discord',
+    });
+  }
+
+  /**
+   * Unregister the Discord bridge channel.
+   * Called when Discord is disabled.
+   */
+  unregisterDiscordChannel(): boolean {
+    return this.unregisterChannel('discord');
   }
 }
 

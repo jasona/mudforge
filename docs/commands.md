@@ -984,6 +984,36 @@ reloadcmds
 
 Use after modifying command files to apply changes without restarting.
 
+### Discord
+
+#### discordadmin
+Manage the Discord channel bridge.
+
+```
+discordadmin status                           # Show connection status
+discordadmin configure <guildId> <channelId>  # Set Discord server and channel
+discordadmin enable                           # Connect to Discord
+discordadmin disable                          # Disconnect from Discord
+discordadmin test                             # Send test message
+```
+
+**Subcommands:**
+
+| Subcommand | Description |
+|------------|-------------|
+| `status` | Show current configuration and connection status |
+| `configure` | Set the Discord guild (server) and channel IDs |
+| `enable` | Connect to Discord and enable the bridge |
+| `disable` | Disconnect and disable the bridge |
+| `test` | Send a test message to verify connection |
+
+**Requirements:**
+- `DISCORD_BOT_TOKEN` environment variable must be set
+- Bot must be invited to the Discord server with proper permissions
+- Valid guild and channel IDs must be configured
+
+See [Discord Integration](discord-integration.md) for setup instructions and full documentation.
+
 ## Creating Custom Commands
 
 Commands are TypeScript files in the `/mudlib/cmds/` directory.

@@ -42,7 +42,7 @@ passengers from the mysteries of the waters they cross.`;
     // Set up the route
     const route: FerryStop[] = [
       { roomPath: '/areas/valdoria/harbor/dock', name: 'Valdoria Harbor' },
-      { roomPath: '/areas/valdoria/isle_of_dreams/dock', name: 'Isle of Dreams' },
+      { roomPath: '/areas/isle_of_dreams/dock', name: 'Isle of Dreams' },
     ];
     this.setRoute(route);
 
