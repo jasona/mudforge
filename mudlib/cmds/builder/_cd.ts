@@ -3,10 +3,11 @@
  *
  * Usage:
  *   cd <path>     - Change to specified directory
- *   cd            - Change to root (/)
- *   cd ~          - Change to root (/)
+ *   cd            - Change to home directory
+ *   cd ~          - Change to home directory
  *   cd ..         - Change to parent directory
  *   cd -          - Change to previous directory
+ *   cd here       - Change to the directory of the current room
  */
 
 import type { MudObject } from '../../lib/std.js';
@@ -15,6 +16,7 @@ import { resolvePath, getHomeDir } from '../../lib/path-utils.js';
 interface PlayerWithCwd extends MudObject {
   cwd: string;
   name: string;
+  environment: MudObject | null;
   setProperty(key: string, value: unknown): void;
   getProperty(key: string): unknown;
 }
@@ -28,7 +30,7 @@ interface CommandContext {
 
 export const name = ['cd'];
 export const description = 'Change current working directory';
-export const usage = 'cd [path]';
+export const usage = 'cd [path|-|here]';
 
 export async function execute(ctx: CommandContext): Promise<void> {
   const player = ctx.player as PlayerWithCwd;
@@ -60,6 +62,30 @@ export async function execute(ctx: CommandContext): Promise<void> {
     } else {
       ctx.sendLine('{yellow}No previous directory.{/}');
     }
+    return;
+  }
+
+  // Handle cd here (go to current room's directory)
+  if (targetPath === 'here') {
+    const room = player.environment;
+    if (!room) {
+      ctx.sendLine('{red}You are not in a room.{/}');
+      return;
+    }
+
+    const roomPath = room.objectPath;
+    if (!roomPath) {
+      ctx.sendLine('{red}Current room has no path.{/}');
+      return;
+    }
+
+    // Extract directory from room path (remove filename)
+    const lastSlash = roomPath.lastIndexOf('/');
+    const roomDir = lastSlash > 0 ? roomPath.substring(0, lastSlash) : '/';
+
+    player.setProperty('_prevCwd', currentCwd);
+    player.cwd = roomDir;
+    ctx.sendLine(roomDir);
     return;
   }
 
