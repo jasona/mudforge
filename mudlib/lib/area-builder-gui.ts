@@ -5540,6 +5540,17 @@ async function handleEditorResponse(
 
     // Save (global save button)
     if (customAction === 'save') {
+      // Update area settings from form data
+      const areaName = data.areaName as string | undefined;
+      const areaDescription = data.areaDescription as string | undefined;
+      const areaTheme = data.areaTheme as string | undefined;
+
+      areaDaemon.updateArea(state.areaId, {
+        name: areaName,
+        description: areaDescription,
+        theme: areaTheme,
+      });
+
       await areaDaemon.save();
       player.receive('{green}Changes saved.{/}\n');
       editorStates.delete(player.name);
