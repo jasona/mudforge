@@ -2719,10 +2719,11 @@ export class EfunBridge {
 
   /**
    * Get information about a command by name.
-   * Requires builder permission.
+   * Available to all players, but scoped to their permission level.
+   * Returns undefined if command doesn't exist or is above caller's permission.
    *
    * @param name The command name to look up
-   * @returns Command info or undefined if not found
+   * @returns Command info or undefined if not found or not accessible
    */
   getCommandInfo(name: string): {
     names: string[];
@@ -2731,15 +2732,80 @@ export class EfunBridge {
     description: string;
     usage?: string | undefined;
   } | undefined {
-    if (!this.isBuilder()) {
-      return undefined;
-    }
-
     try {
       const commandManager = getCommandManager();
-      return commandManager.getCommandInfo(name);
+      const info = commandManager.getCommandInfo(name);
+
+      if (!info) {
+        return undefined;
+      }
+
+      // Only return info if command level <= caller's permission level
+      const playerLevel = this.getPermissionLevel();
+      if (info.level > playerLevel) {
+        return undefined;
+      }
+
+      return info;
     } catch {
       return undefined;
+    }
+  }
+
+  /**
+   * Get all available commands for the current player's permission level.
+   * Returns commands sorted by name.
+   *
+   * @param level Optional permission level override (capped at caller's level)
+   * @returns Array of command info objects
+   */
+  getAvailableCommands(level?: number): Array<{
+    name: string;
+    names: string[];
+    description: string;
+    usage?: string;
+    level: number;
+  }> {
+    try {
+      const commandManager = getCommandManager();
+      const playerLevel = this.getPermissionLevel();
+
+      // Use provided level, but cap at player's actual level
+      const effectiveLevel = level !== undefined ? Math.min(level, playerLevel) : playerLevel;
+
+      const commands = commandManager.getAvailableCommands(effectiveLevel);
+
+      // Map to return format with level info
+      return commands
+        .map(cmd => {
+          const cmdName = Array.isArray(cmd.name) ? cmd.name[0] : cmd.name;
+          if (!cmdName) return null; // Skip commands with no name
+          const names = Array.isArray(cmd.name) ? cmd.name : [cmd.name];
+          // Get full info to retrieve level
+          const info = commandManager.getCommandInfo(cmdName);
+
+          const result: {
+            name: string;
+            names: string[];
+            description: string;
+            usage?: string;
+            level: number;
+          } = {
+            name: cmdName,
+            names: names,
+            description: cmd.description,
+            level: info?.level ?? 0,
+          };
+
+          if (cmd.usage) {
+            result.usage = cmd.usage;
+          }
+
+          return result;
+        })
+        .filter((cmd): cmd is NonNullable<typeof cmd> => cmd !== null);
+    } catch {
+      return [];
     }
   }
 
@@ -3619,6 +3685,7 @@ RULES:
       reloadCommand: this.reloadCommand.bind(this),
       rehashCommands: this.rehashCommands.bind(this),
       getCommandInfo: this.getCommandInfo.bind(this),
+      getAvailableCommands: this.getAvailableCommands.bind(this),
 
       // Paging
       page: this.page.bind(this),

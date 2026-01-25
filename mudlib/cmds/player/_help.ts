@@ -3,10 +3,10 @@
  *
  * Usage:
  *   help              - Show help index
- *   help <topic>      - View help on a specific topic
+ *   help <topic>      - View help on a specific topic (including commands)
  *   help <category>   - List topics in a category
  *   help search <term> - Search for help topics
- *   help commands     - List available commands
+ *   help commands     - List all available commands
  */
 
 import type { MudObject } from '../../lib/std.js';
@@ -26,9 +26,9 @@ interface CommandContext {
   sendLine(message: string): void;
 }
 
-export const name = ['help', 'commands', '?'];
+export const name = ['help', '?'];
 export const description = 'Access the in-game help system';
-export const usage = 'help [topic|category|search <term>]';
+export const usage = 'help [topic|command|category|search <term>|commands]';
 
 export function execute(ctx: CommandContext): void {
   const { args } = ctx;
@@ -56,6 +56,12 @@ export function execute(ctx: CommandContext): void {
     return;
   }
 
+  // Special "commands" argument - show dynamic command list
+  if (command === 'commands' || command === 'cmds') {
+    ctx.send('\n' + helpDaemon.formatCommandList(player));
+    return;
+  }
+
   // Check if it's a category name
   const categoryNames = Object.keys(CATEGORY_INFO) as HelpCategory[];
   const matchedCategory = categoryNames.find(cat => {
@@ -68,18 +74,12 @@ export function execute(ctx: CommandContext): void {
     return;
   }
 
-  // Try to find a topic
+  // Try to find help for a topic or command
   const topicName = parts.join(' ');
-  const topic = helpDaemon.getTopic(topicName);
+  const help = helpDaemon.getHelp(topicName, player);
 
-  if (topic) {
-    // Check access
-    if (!helpDaemon.canAccess(player, topic)) {
-      ctx.sendLine('\n{red}You do not have access to that help topic.{/}');
-      return;
-    }
-
-    ctx.send('\n' + helpDaemon.formatTopic(topic));
+  if (help) {
+    ctx.send('\n' + help);
     return;
   }
 
