@@ -3990,14 +3990,12 @@ export async function openAreaSelector(
   const message = buildAreaSelectorModal(listEntries, efuns.capitalize(playerName));
 
   // Send the GUI message
-  if (typeof efuns !== 'undefined' && efuns.guiSend) {
-    efuns.guiSend(message);
+  sendGUIToPlayer(player, message);
 
-    // Set up response handler
-    player.onGUIResponse = (response: GUIClientMessage) => {
-      handleAreaSelectorResponse(player, areaDaemon, response);
-    };
-  }
+  // Set up response handler
+  player.onGUIResponse = (response: GUIClientMessage) => {
+    handleAreaSelectorResponse(player, areaDaemon, response);
+  };
 }
 
 /**
@@ -4065,13 +4063,11 @@ function handleAreaSelectorResponse(
 function openNewAreaModal(player: GUIPlayer, areaDaemon: AreaDaemon): void {
   const message = buildNewAreaModal();
 
-  if (typeof efuns !== 'undefined' && efuns.guiSend) {
-    efuns.guiSend(message);
+  sendGUIToPlayer(player, message);
 
-    player.onGUIResponse = (response: GUIClientMessage) => {
-      handleNewAreaResponse(player, areaDaemon, response);
-    };
-  }
+  player.onGUIResponse = (response: GUIClientMessage) => {
+    handleNewAreaResponse(player, areaDaemon, response);
+  };
 }
 
 /**
@@ -4166,13 +4162,11 @@ function openDeleteConfirmModal(
 ): void {
   const message = buildDeleteConfirmModal(area);
 
-  if (typeof efuns !== 'undefined' && efuns.guiSend) {
-    efuns.guiSend(message);
+  sendGUIToPlayer(player, message);
 
-    player.onGUIResponse = (response: GUIClientMessage) => {
-      handleDeleteConfirmResponse(player, areaDaemon, area, response);
-    };
-  }
+  player.onGUIResponse = (response: GUIClientMessage) => {
+    handleDeleteConfirmResponse(player, areaDaemon, area, response);
+  };
 }
 
 /**
@@ -4216,14 +4210,12 @@ async function handleDeleteConfirmResponse(
 /**
  * Close a modal by ID.
  */
-function closeModal(_player: GUIPlayer, modalId: string): void {
-  if (typeof efuns !== 'undefined' && efuns.guiSend) {
-    const closeMessage: GUICloseMessage = {
-      action: 'close',
-      modalId,
-    };
-    efuns.guiSend(closeMessage);
-  }
+function closeModal(player: GUIPlayer, modalId: string): void {
+  const closeMessage: GUICloseMessage = {
+    action: 'close',
+    modalId,
+  };
+  sendGUIToPlayer(player, closeMessage);
 }
 
 // =============================================================================
@@ -4262,13 +4254,11 @@ export function openAreaEditor(
 
   const message = buildAreaEditorModal(area, state);
 
-  if (typeof efuns !== 'undefined' && efuns.guiSend) {
-    efuns.guiSend(message);
+  sendGUIToPlayer(player, message);
 
-    player.onGUIResponse = (response: GUIClientMessage) => {
-      handleEditorResponse(player, areaDaemon, state!, response);
-    };
-  }
+  player.onGUIResponse = (response: GUIClientMessage) => {
+    handleEditorResponse(player, areaDaemon, state!, response);
+  };
 }
 
 /**
@@ -5568,13 +5558,11 @@ function openAddRoomModal(
 
   const message = buildAddRoomModal(area);
 
-  if (typeof efuns !== 'undefined' && efuns.guiSend) {
-    efuns.guiSend(message);
+  sendGUIToPlayer(player, message);
 
-    player.onGUIResponse = (response: GUIClientMessage) => {
-      handleAddRoomResponse(player, areaDaemon, state, response);
-    };
-  }
+  player.onGUIResponse = (response: GUIClientMessage) => {
+    handleAddRoomResponse(player, areaDaemon, state, response);
+  };
 }
 
 /**
@@ -5644,13 +5632,11 @@ function openAddNPCModal(
 ): void {
   const message = buildAddNPCModal();
 
-  if (typeof efuns !== 'undefined' && efuns.guiSend) {
-    efuns.guiSend(message);
+  sendGUIToPlayer(player, message);
 
-    player.onGUIResponse = (response: GUIClientMessage) => {
-      handleAddNPCResponse(player, areaDaemon, state, response);
-    };
-  }
+  player.onGUIResponse = (response: GUIClientMessage) => {
+    handleAddNPCResponse(player, areaDaemon, state, response);
+  };
 }
 
 /**
@@ -5715,13 +5701,11 @@ function openAddItemModal(
 ): void {
   const message = buildAddItemModal();
 
-  if (typeof efuns !== 'undefined' && efuns.guiSend) {
-    efuns.guiSend(message);
+  sendGUIToPlayer(player, message);
 
-    player.onGUIResponse = (response: GUIClientMessage) => {
-      handleAddItemResponse(player, areaDaemon, state, response);
-    };
-  }
+  player.onGUIResponse = (response: GUIClientMessage) => {
+    handleAddItemResponse(player, areaDaemon, state, response);
+  };
 }
 
 /**
