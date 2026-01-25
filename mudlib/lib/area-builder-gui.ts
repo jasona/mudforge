@@ -1872,7 +1872,7 @@ function buildRoomEditor(room: DraftRoom | undefined, area: AreaDefinition): Lay
       overflow: 'auto',
     },
     children: [
-      // Header with delete button
+      // Header with AI Describe and Save buttons
       {
         type: 'horizontal',
         gap: '12px',
@@ -1887,13 +1887,35 @@ function buildRoomEditor(room: DraftRoom | undefined, area: AreaDefinition): Lay
           } as DisplayElement,
           {
             type: 'button',
-            id: 'btn-delete-room',
-            name: 'btn-delete-room',
-            label: 'Delete Room',
+            id: 'btn-ai-describe-room',
+            name: 'btn-ai-describe-room',
+            label: '🤖 AI Describe',
             action: 'custom',
-            customAction: `delete-room:${room.id}`,
-            variant: 'danger',
+            customAction: `ai-describe-room:${room.id}`,
+            variant: 'secondary',
           } as InputElement,
+          {
+            type: 'button',
+            id: 'btn-save-room',
+            name: 'btn-save-room',
+            label: 'Save Room',
+            action: 'custom',
+            customAction: 'save-room',
+            variant: 'primary',
+          } as InputElement,
+          {
+            type: 'html',
+            id: 'room-save-status',
+            content: '',
+            style: {
+              color: '#22c55e',
+              fontSize: '14px',
+              fontWeight: 'bold',
+              margin: '0',
+              padding: '4px 8px',
+              minWidth: '60px',
+            },
+          } as DisplayElement,
         ],
       },
       // Hidden field for room ID
@@ -2157,7 +2179,7 @@ function buildRoomEditor(room: DraftRoom | undefined, area: AreaDefinition): Lay
       ] : []),
       // Custom Code Blocks section (preserved code that will be re-injected on publish)
       ...renderCustomCodeBlocksSection(room.customCodeBlocks, `room-${room.id}`),
-      // Save room button and AI button
+      // Delete room button
       {
         type: 'horizontal',
         gap: '8px',
@@ -2165,35 +2187,13 @@ function buildRoomEditor(room: DraftRoom | undefined, area: AreaDefinition): Lay
         children: [
           {
             type: 'button',
-            id: 'btn-ai-describe-room',
-            name: 'btn-ai-describe-room',
-            label: '🤖 AI Describe',
+            id: 'btn-delete-room',
+            name: 'btn-delete-room',
+            label: 'Delete Room',
             action: 'custom',
-            customAction: `ai-describe-room:${room.id}`,
-            variant: 'secondary',
+            customAction: `delete-room:${room.id}`,
+            variant: 'danger',
           } as InputElement,
-          {
-            type: 'button',
-            id: 'btn-save-room',
-            name: 'btn-save-room',
-            label: 'Save Room',
-            action: 'custom',
-            customAction: 'save-room',
-            variant: 'primary',
-          } as InputElement,
-          {
-            type: 'html',
-            id: 'room-save-status',
-            content: '',
-            style: {
-              color: '#22c55e',
-              fontSize: '14px',
-              fontWeight: 'bold',
-              margin: '0',
-              padding: '4px 8px',
-              minWidth: '60px',
-            },
-          } as DisplayElement,
         ],
       },
     ],
