@@ -131,9 +131,15 @@ export class AreaDaemon extends MudObject {
     const area = this._areas.get(areaId);
     if (!area) return false;
 
-    // Apply updates (excluding protected fields)
+    // Apply updates (excluding protected fields and undefined values)
     const { rooms, npcs, items, ...safeUpdates } = updates;
-    Object.assign(area, safeUpdates, { updatedAt: Date.now() });
+    const filteredUpdates: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(safeUpdates)) {
+      if (value !== undefined) {
+        filteredUpdates[key] = value;
+      }
+    }
+    Object.assign(area, filteredUpdates, { updatedAt: Date.now() });
 
     this._dirty = true;
     return true;
@@ -299,11 +305,19 @@ export class AreaDaemon extends MudObject {
     const room = area.rooms.find(r => r.id === roomId);
     if (!room) return false;
 
+    // Filter out undefined values to avoid overwriting existing properties
+    const filteredUpdates: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(updates)) {
+      if (value !== undefined) {
+        filteredUpdates[key] = value;
+      }
+    }
+
     // If coordinates are changing, validate
-    if (updates.x !== undefined || updates.y !== undefined || updates.z !== undefined) {
-      const newX = updates.x ?? room.x;
-      const newY = updates.y ?? room.y;
-      const newZ = updates.z ?? room.z;
+    if (filteredUpdates.x !== undefined || filteredUpdates.y !== undefined || filteredUpdates.z !== undefined) {
+      const newX = (filteredUpdates.x as number) ?? room.x;
+      const newY = (filteredUpdates.y as number) ?? room.y;
+      const newZ = (filteredUpdates.z as number) ?? room.z;
 
       // Check bounds
       if (newX < 0 || newX >= area.gridSize.width ||
@@ -318,7 +332,7 @@ export class AreaDaemon extends MudObject {
       }
     }
 
-    Object.assign(room, updates);
+    Object.assign(room, filteredUpdates);
     room.updatedAt = Date.now();
     area.updatedAt = Date.now();
     this._dirty = true;
@@ -459,7 +473,15 @@ export class AreaDaemon extends MudObject {
     const npc = area.npcs.find(n => n.id === npcId);
     if (!npc) return false;
 
-    Object.assign(npc, updates);
+    // Filter out undefined values to avoid overwriting existing properties
+    const filteredUpdates: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(updates)) {
+      if (value !== undefined) {
+        filteredUpdates[key] = value;
+      }
+    }
+
+    Object.assign(npc, filteredUpdates);
     npc.updatedAt = Date.now();
     area.updatedAt = Date.now();
     this._dirty = true;
@@ -530,7 +552,15 @@ export class AreaDaemon extends MudObject {
     const item = area.items.find(i => i.id === itemId);
     if (!item) return false;
 
-    Object.assign(item, updates);
+    // Filter out undefined values to avoid overwriting existing properties
+    const filteredUpdates: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(updates)) {
+      if (value !== undefined) {
+        filteredUpdates[key] = value;
+      }
+    }
+
+    Object.assign(item, filteredUpdates);
     item.updatedAt = Date.now();
     area.updatedAt = Date.now();
     this._dirty = true;
