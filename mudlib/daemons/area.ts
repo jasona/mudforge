@@ -25,6 +25,7 @@ import type {
   PublishResult,
   AreaListEntry,
 } from '../lib/area-types.js';
+import { importAreaFromPath, type ImportResult, type ImportOptions } from '../lib/area-importer.js';
 
 /**
  * Serialized format for persistence.
@@ -678,13 +679,31 @@ export class AreaDaemon extends MudObject {
       }
     }
 
+    // Check external exits
+    for (const room of area.rooms) {
+      if (room.externalExits) {
+        for (const [dir, path] of Object.entries(room.externalExits)) {
+          // Validate path format
+          if (!path.startsWith('/areas/')) {
+            errors.push(`Room ${room.id} external exit "${dir}" has invalid path (must start with /areas/): ${path}`);
+          }
+          // Warn if both internal and external exit exist for same direction
+          if (room.exits[dir]) {
+            warnings.push(`Room ${room.id} has both internal and external exit for "${dir}" - external will take priority`);
+          }
+        }
+      }
+    }
+
     // Check for orphan rooms (no exits except entrance)
     for (const room of area.rooms) {
       if (room.isEntrance) continue;
+      // Consider both internal and external exits
       const hasIncomingExit = area.rooms.some(r =>
         r.id !== room.id && Object.values(r.exits).includes(room.id)
       );
-      if (!hasIncomingExit && Object.keys(room.exits).length === 0) {
+      const totalExits = Object.keys(room.exits).length + Object.keys(room.externalExits ?? {}).length;
+      if (!hasIncomingExit && totalExits === 0) {
         warnings.push(`Room ${room.id} has no exits and is not reachable`);
       }
     }
@@ -857,14 +876,22 @@ export class AreaDaemon extends MudObject {
     const className = this.toPascalCase(room.id);
     const areaPath = `/areas/${area.region}/${area.subregion}`;
 
-    // Build exits
-    const exitLines = Object.entries(room.exits).map(([dir, target]) => {
-      // Check if it's an external exit
-      if (room.externalExits?.[dir]) {
-        return `    this.addExit('${dir}', '${room.externalExits[dir]}');`;
+    // Build exits (internal exits first, then external exits that aren't in internal)
+    const exitLines: string[] = [];
+
+    // Add internal exits
+    for (const [dir, target] of Object.entries(room.exits)) {
+      // Skip if there's an external exit for this direction (external takes priority)
+      if (room.externalExits?.[dir]) continue;
+      exitLines.push(`    this.addExit('${dir}', '${areaPath}/${target}');`);
+    }
+
+    // Add external exits
+    if (room.externalExits) {
+      for (const [dir, path] of Object.entries(room.externalExits)) {
+        exitLines.push(`    this.addExit('${dir}', '${path}');`);
       }
-      return `    this.addExit('${dir}', '${areaPath}/${target}');`;
-    });
+    }
 
     // Build NPC paths array
     const npcPaths = room.npcs.map(npcId => {
@@ -887,6 +914,34 @@ export class AreaDaemon extends MudObject {
       `    this.addAction('${action.verb}', '${this.escapeString(action.description)}', '${this.escapeString(action.response)}');`
     );
 
+    // Extract custom code blocks by type
+    const blocks = room.customCodeBlocks ?? [];
+    const customImports = blocks.filter(b => b.type === 'import').map(b => b.code);
+    const customProperties = blocks.filter(b => b.type === 'property').map(b => b.code);
+    const constructorTail = blocks.filter(b => b.type === 'constructor-tail').map(b => b.code);
+    const customMethods = blocks.filter(b => b.type === 'method').sort((a, b) => (a.position ?? 0) - (b.position ?? 0)).map(b => b.code);
+
+    // Build imports section
+    const importsSection = [
+      "import { Room } from '../../../lib/std.js';",
+      ...customImports,
+    ].join('\n');
+
+    // Build properties section (if any)
+    const propertiesSection = customProperties.length > 0
+      ? '\n' + customProperties.map(p => '  ' + p).join('\n') + '\n'
+      : '';
+
+    // Build constructor tail section
+    const constructorTailSection = constructorTail.length > 0
+      ? '\n    // Preserved custom code\n' + constructorTail.map(c => c.split('\n').map(l => '    ' + l.trim()).join('\n')).join('\n') + '\n'
+      : '';
+
+    // Build methods section
+    const methodsSection = customMethods.length > 0
+      ? '\n\n  // Preserved custom methods\n' + customMethods.map(m => '  ' + m.split('\n').join('\n  ')).join('\n\n')
+      : '';
+
     return `/**
  * ${room.shortDesc}
  *
@@ -894,23 +949,22 @@ export class AreaDaemon extends MudObject {
  * Area: ${area.name} (${area.id})
  */
 
-import { Room } from '../../../lib/std.js';
+${importsSection}
 
-export class ${className} extends Room {
+export class ${className} extends Room {${propertiesSection}
   constructor() {
     super();
     this.shortDesc = '${this.escapeString(room.shortDesc)}';
     this.longDesc = \`${room.longDesc.replace(/`/g, '\\`')}\`;
     this.setMapCoordinates({ x: ${room.x}, y: ${room.y}, z: ${room.z}, area: '${areaPath}' });
     this.setTerrain('${room.terrain}');
-${room.mapIcon ? `    this.mapIcon = '${room.mapIcon}';\n` : ''}    this.setupRoom();
-  }
+${room.mapIcon ? `    this.mapIcon = '${room.mapIcon}';\n` : ''}    this.setupRoom();${constructorTailSection}  }
 
   private setupRoom(): void {
     // Exits
 ${exitLines.length > 0 ? exitLines.join('\n') : '    // No exits'}
 
-${npcPaths.length > 0 ? `    // NPCs\n    this.setNpcs([${npcPaths.map(p => `'${p}'`).join(', ')}]);\n` : ''}${itemPaths.length > 0 ? `    // Items\n    this.setItems([${itemPaths.map(p => `'${p}'`).join(', ')}]);\n` : ''}${actionLines.length > 0 ? `    // Custom actions\n${actionLines.join('\n')}\n` : ''}  }
+${npcPaths.length > 0 ? `    // NPCs\n    this.setNpcs([${npcPaths.map(p => `'${p}'`).join(', ')}]);\n` : ''}${itemPaths.length > 0 ? `    // Items\n    this.setItems([${itemPaths.map(p => `'${p}'`).join(', ')}]);\n` : ''}${actionLines.length > 0 ? `    // Custom actions\n${actionLines.join('\n')}\n` : ''}  }${methodsSection}
 }
 
 export default ${className};
@@ -923,6 +977,97 @@ export default ${className};
   private generateNPCFile(area: AreaDefinition, npc: DraftNPC): string {
     const className = this.toPascalCase(npc.id);
     const areaPath = `/areas/${area.region}/${area.subregion}`;
+
+    // Determine base class and import based on subclass
+    let baseClass = 'NPC';
+    let baseImport = "import { NPC } from '../../../lib/std.js';";
+    let subclassSpecificCode = '';
+
+    const subclass = npc.subclass ?? 'npc';
+
+    switch (subclass) {
+      case 'merchant':
+        baseClass = 'Merchant';
+        baseImport = "import { Merchant } from '../../../lib/std.js';";
+        if (npc.merchantConfig) {
+          const mc = npc.merchantConfig;
+          const configParts: string[] = [
+            `name: '${this.escapeString(npc.name)}'`,
+            `shopName: '${this.escapeString(mc.shopName)}'`,
+          ];
+          if (mc.shopDescription) configParts.push(`shopDescription: '${this.escapeString(mc.shopDescription)}'`);
+          configParts.push(`buyRate: ${mc.buyRate}`);
+          configParts.push(`sellRate: ${mc.sellRate}`);
+          if (mc.acceptedTypes && mc.acceptedTypes.length > 0) {
+            configParts.push(`acceptedTypes: [${mc.acceptedTypes.map(t => `'${t}'`).join(', ')}]`);
+          }
+          configParts.push(`shopGold: ${mc.shopGold}`);
+          if (mc.charismaEffect !== undefined) configParts.push(`charismaEffect: ${mc.charismaEffect}`);
+          if (mc.restockEnabled) configParts.push(`restockEnabled: true`);
+          subclassSpecificCode += `    this.setMerchant({\n      ${configParts.join(',\n      ')},\n    });\n`;
+        }
+        // Add stock items
+        if (npc.merchantStock && npc.merchantStock.length > 0) {
+          subclassSpecificCode += `    // Shop inventory\n`;
+          for (const item of npc.merchantStock) {
+            const itemPath = item.itemPath.startsWith('/') ? item.itemPath : `${areaPath}/${item.itemPath}`;
+            subclassSpecificCode += `    this.addStock('${itemPath}', '${this.escapeString(item.name)}', ${item.price}, ${item.quantity}${item.category ? `, '${item.category}'` : ''});\n`;
+          }
+        }
+        break;
+
+      case 'trainer':
+        baseClass = 'Trainer';
+        baseImport = "import { Trainer } from '../../../lib/std.js';";
+        if (npc.trainerConfig) {
+          const tc = npc.trainerConfig;
+          const configParts: string[] = [];
+          if (tc.canTrainLevel !== undefined) configParts.push(`canTrainLevel: ${tc.canTrainLevel}`);
+          if (tc.trainableStats && tc.trainableStats.length > 0) {
+            configParts.push(`trainableStats: [${tc.trainableStats.map(s => `'${s}'`).join(', ')}]`);
+          }
+          if (tc.costMultiplier !== undefined) configParts.push(`costMultiplier: ${tc.costMultiplier}`);
+          if (tc.greeting) configParts.push(`greeting: '${this.escapeString(tc.greeting)}'`);
+          if (configParts.length > 0) {
+            subclassSpecificCode += `    this.setTrainerConfig({\n      ${configParts.join(',\n      ')},\n    });\n`;
+          }
+        }
+        if (npc.baseStats) {
+          const bs = npc.baseStats;
+          const statParts: string[] = [];
+          if (bs.strength !== undefined) statParts.push(`strength: ${bs.strength}`);
+          if (bs.intelligence !== undefined) statParts.push(`intelligence: ${bs.intelligence}`);
+          if (bs.wisdom !== undefined) statParts.push(`wisdom: ${bs.wisdom}`);
+          if (bs.charisma !== undefined) statParts.push(`charisma: ${bs.charisma}`);
+          if (bs.dexterity !== undefined) statParts.push(`dexterity: ${bs.dexterity}`);
+          if (bs.constitution !== undefined) statParts.push(`constitution: ${bs.constitution}`);
+          if (bs.luck !== undefined) statParts.push(`luck: ${bs.luck}`);
+          if (statParts.length > 0) {
+            subclassSpecificCode += `    this.setBaseStats({\n      ${statParts.join(',\n      ')},\n    });\n`;
+          }
+        }
+        break;
+
+      case 'petMerchant':
+        baseClass = 'PetMerchant';
+        baseImport = "import { PetMerchant } from '../../../lib/std.js';";
+        if (npc.petMerchantConfig) {
+          const pmc = npc.petMerchantConfig;
+          const configParts: string[] = [
+            `name: '${this.escapeString(npc.name)}'`,
+            `shopName: '${this.escapeString(pmc.shopName)}'`,
+          ];
+          if (pmc.shopDescription) configParts.push(`shopDescription: '${this.escapeString(pmc.shopDescription)}'`);
+          subclassSpecificCode += `    this.setPetMerchant({\n      ${configParts.join(',\n      ')},\n    });\n`;
+        }
+        // For pet merchants, we typically load from pet daemon
+        // Add a setup call if there's pet stock specified
+        if (npc.petStock && npc.petStock.length > 0) {
+          subclassSpecificCode += `    // Pet stock loaded from pet daemon\n`;
+          subclassSpecificCode += `    this.setupPetStock();\n`;
+        }
+        break;
+    }
 
     // Build chats
     const chatLines = (npc.chats ?? []).map(chat =>
@@ -960,6 +1105,34 @@ export default ${className};
     const autoMaxHealth = Math.round((50 + npc.level * 15) * mult);
     const healthOverridden = npc.maxHealth !== autoMaxHealth;
 
+    // Extract custom code blocks by type
+    const blocks = npc.customCodeBlocks ?? [];
+    const customImports = blocks.filter(b => b.type === 'import').map(b => b.code);
+    const customProperties = blocks.filter(b => b.type === 'property').map(b => b.code);
+    const constructorTail = blocks.filter(b => b.type === 'constructor-tail').map(b => b.code);
+    const customMethods = blocks.filter(b => b.type === 'method').sort((a, b) => (a.position ?? 0) - (b.position ?? 0)).map(b => b.code);
+
+    // Build imports section
+    const importsSection = [
+      baseImport,
+      ...customImports,
+    ].join('\n');
+
+    // Build properties section (if any)
+    const propertiesSection = customProperties.length > 0
+      ? '\n' + customProperties.map(p => '  ' + p).join('\n') + '\n'
+      : '';
+
+    // Build constructor tail section
+    const constructorTailSection = constructorTail.length > 0
+      ? '\n    // Preserved custom code\n' + constructorTail.map(c => c.split('\n').map(l => '    ' + l.trim()).join('\n')).join('\n') + '\n'
+      : '';
+
+    // Build methods section
+    const methodsSection = customMethods.length > 0
+      ? '\n\n  // Preserved custom methods\n' + customMethods.map(m => '  ' + m.split('\n').join('\n  ')).join('\n\n')
+      : '';
+
     return `/**
  * ${npc.name}
  *
@@ -967,16 +1140,15 @@ export default ${className};
  * Area: ${area.name} (${area.id})
  */
 
-import { NPC } from '../../../lib/std.js';
+${importsSection}
 
-export class ${className} extends NPC {
+export class ${className} extends ${baseClass} {${propertiesSection}
   constructor() {
     super();
-    this.name = '${this.escapeString(npc.name)}';
-    this.shortDesc = '${this.escapeString(npc.shortDesc)}';
+${subclass === 'npc' ? `    this.name = '${this.escapeString(npc.name)}';\n` : ''}    this.shortDesc = '${this.escapeString(npc.shortDesc)}';
     this.longDesc = \`${npc.longDesc.replace(/`/g, '\\`')}\`;
     this.setLevel(${npc.level}, '${npcType}');
-${healthOverridden ? `    // Override auto-calculated health\n    this.maxHealth = ${npc.maxHealth};\n    this.health = ${npc.health ?? npc.maxHealth};\n` : ''}${npc.gender ? `    this.gender = '${npc.gender}';\n` : ''}${npc.keywords && npc.keywords.length > 0 ? `    this.keywords = [${npc.keywords.map(k => `'${k}'`).join(', ')}];\n` : ''}${npc.chatChance !== undefined ? `    this.chatChance = ${npc.chatChance};\n` : ''}${chatLines.length > 0 ? `    this.chats = [\n${chatLines.join('\n')}\n    ];\n` : ''}${responseLines.length > 0 ? `    this.responses = [\n${responseLines.join('\n')}\n    ];\n` : ''}${combatConfigStr ? `${combatConfigStr}\n` : ''}${npc.wandering !== undefined ? `    this.wandering = ${npc.wandering};\n` : ''}${npc.respawnTime !== undefined ? `    this.respawnTime = ${npc.respawnTime};\n` : ''}${npc.questsOffered && npc.questsOffered.length > 0 ? `    this.questsOffered = [${npc.questsOffered.map(q => `'${q}'`).join(', ')}];\n` : ''}${npc.questsTurnedIn && npc.questsTurnedIn.length > 0 ? `    this.questsTurnedIn = [${npc.questsTurnedIn.map(q => `'${q}'`).join(', ')}];\n` : ''}${npc.items && npc.items.length > 0 ? `    this.setSpawnItems([${npc.items.map(i => i.startsWith('/') ? `'${i}'` : `'${areaPath}/${i}'`).join(', ')}]);\n` : ''}  }
+${healthOverridden ? `    // Override auto-calculated health\n    this.maxHealth = ${npc.maxHealth};\n    this.health = ${npc.health ?? npc.maxHealth};\n` : ''}${npc.gender ? `    this.gender = '${npc.gender}';\n` : ''}${npc.keywords && npc.keywords.length > 0 ? `    this.keywords = [${npc.keywords.map(k => `'${k}'`).join(', ')}];\n` : ''}${npc.chatChance !== undefined ? `    this.chatChance = ${npc.chatChance};\n` : ''}${chatLines.length > 0 ? `    this.chats = [\n${chatLines.join('\n')}\n    ];\n` : ''}${responseLines.length > 0 ? `    this.responses = [\n${responseLines.join('\n')}\n    ];\n` : ''}${combatConfigStr ? `${combatConfigStr}\n` : ''}${npc.wandering !== undefined ? `    this.wandering = ${npc.wandering};\n` : ''}${npc.respawnTime !== undefined ? `    this.respawnTime = ${npc.respawnTime};\n` : ''}${npc.questsOffered && npc.questsOffered.length > 0 ? `    this.questsOffered = [${npc.questsOffered.map(q => `'${q}'`).join(', ')}];\n` : ''}${npc.questsTurnedIn && npc.questsTurnedIn.length > 0 ? `    this.questsTurnedIn = [${npc.questsTurnedIn.map(q => `'${q}'`).join(', ')}];\n` : ''}${npc.items && npc.items.length > 0 ? `    this.setSpawnItems([${npc.items.map(i => i.startsWith('/') ? `'${i}'` : `'${areaPath}/${i}'`).join(', ')}]);\n` : ''}${subclassSpecificCode}${constructorTailSection}  }${methodsSection}
 }
 
 export default ${className};
@@ -992,13 +1164,13 @@ export default ${className};
 
     // Determine which base class to use and build type-specific code
     let baseClass = 'Item';
-    let imports = "import { Item } from '../../../lib/std.js';";
+    let baseImport = "import { Item } from '../../../lib/std.js';";
     let typeSpecificCode = '';
 
     switch (item.type) {
       case 'weapon':
         baseClass = 'Weapon';
-        imports = "import { Weapon } from '../../../lib/std.js';";
+        baseImport = "import { Weapon } from '../../../lib/std.js';";
         // Set handedness and damageType first
         typeSpecificCode += `    this.damageType = '${props.damageType ?? 'slashing'}';\n`;
         typeSpecificCode += `    this.handedness = '${props.handedness ?? 'one_handed'}';\n`;
@@ -1030,7 +1202,7 @@ export default ${className};
 
       case 'armor':
         baseClass = 'Armor';
-        imports = "import { Armor } from '../../../lib/std.js';";
+        baseImport = "import { Armor } from '../../../lib/std.js';";
         // Set slot and size first
         typeSpecificCode += `    this.slot = '${props.slot ?? 'chest'}';\n`;
         if (props.size) {
@@ -1063,7 +1235,7 @@ export default ${className};
 
       case 'container':
         baseClass = 'Container';
-        imports = "import { Container } from '../../../lib/std.js';";
+        baseImport = "import { Container } from '../../../lib/std.js';";
         if (props.capacity !== undefined) {
           typeSpecificCode += `    this.capacity = ${props.capacity};\n`;
         }
@@ -1097,6 +1269,34 @@ export default ${className};
     // Build keywords
     const keywordLines = (item.keywords ?? []).map(k => `    this.addId('${this.escapeString(k)}');`);
 
+    // Extract custom code blocks by type
+    const blocks = item.customCodeBlocks ?? [];
+    const customImports = blocks.filter(b => b.type === 'import').map(b => b.code);
+    const customProperties = blocks.filter(b => b.type === 'property').map(b => b.code);
+    const constructorTail = blocks.filter(b => b.type === 'constructor-tail').map(b => b.code);
+    const customMethods = blocks.filter(b => b.type === 'method').sort((a, b) => (a.position ?? 0) - (b.position ?? 0)).map(b => b.code);
+
+    // Build imports section
+    const importsSection = [
+      baseImport,
+      ...customImports,
+    ].join('\n');
+
+    // Build properties section (if any)
+    const propertiesSection = customProperties.length > 0
+      ? '\n' + customProperties.map(p => '  ' + p).join('\n') + '\n'
+      : '';
+
+    // Build constructor tail section
+    const constructorTailSection = constructorTail.length > 0
+      ? '\n    // Preserved custom code\n' + constructorTail.map(c => c.split('\n').map(l => '    ' + l.trim()).join('\n')).join('\n') + '\n'
+      : '';
+
+    // Build methods section
+    const methodsSection = customMethods.length > 0
+      ? '\n\n  // Preserved custom methods\n' + customMethods.map(m => '  ' + m.split('\n').join('\n  ')).join('\n\n')
+      : '';
+
     return `/**
  * ${item.name}
  *
@@ -1104,14 +1304,14 @@ export default ${className};
  * Area: ${area.name} (${area.id})
  */
 
-${imports}
+${importsSection}
 
-export class ${className} extends ${baseClass} {
+export class ${className} extends ${baseClass} {${propertiesSection}
   constructor() {
     super();
     this.shortDesc = '${this.escapeString(item.shortDesc)}';
     this.longDesc = \`${item.longDesc.replace(/`/g, '\\`')}\`;
-${keywordLines.length > 0 ? keywordLines.join('\n') + '\n' : ''}${item.weight !== undefined ? `    this.weight = ${item.weight};\n` : ''}${item.value !== undefined ? `    this.value = ${item.value};\n` : ''}${typeSpecificCode}  }
+${keywordLines.length > 0 ? keywordLines.join('\n') + '\n' : ''}${item.weight !== undefined ? `    this.weight = ${item.weight};\n` : ''}${item.value !== undefined ? `    this.value = ${item.value};\n` : ''}${typeSpecificCode}${constructorTailSection}  }${methodsSection}
 }
 
 export default ${className};
@@ -1136,6 +1336,75 @@ export default ${className};
       .replace(/\\/g, '\\\\')
       .replace(/'/g, "\\'")
       .replace(/\n/g, '\\n');
+  }
+
+  // ==================== Import ====================
+
+  /**
+   * Import an existing published area into the draft system.
+   *
+   * @param importerName The name of the builder doing the import
+   * @param sourcePath The path to import from (e.g., /areas/valdoria/aldric)
+   * @param options Import options (name, force, preview)
+   * @returns ImportResult with statistics and any warnings
+   */
+  async importArea(
+    importerName: string,
+    sourcePath: string,
+    options: ImportOptions = {},
+  ): Promise<ImportResult> {
+    // Extract area ID from path to check for existing
+    const pathParts = sourcePath.replace('/areas/', '').split('/');
+    if (pathParts.length < 2) {
+      return {
+        success: false,
+        error: 'Path must include region and subregion (e.g., /areas/valdoria/aldric)',
+        stats: { roomsImported: 0, npcsImported: 0, itemsImported: 0, filesSkipped: [], parseErrors: [] },
+        warnings: [],
+      };
+    }
+
+    const region = pathParts[0];
+    const subregion = pathParts[1];
+    const areaId = `${region}:${subregion}`;
+
+    // Check for existing area
+    if (this._areas.has(areaId) && !options.force) {
+      return {
+        success: false,
+        error: `Area ${areaId} already exists. Use --force to overwrite.`,
+        stats: { roomsImported: 0, npcsImported: 0, itemsImported: 0, filesSkipped: [], parseErrors: [] },
+        warnings: [],
+      };
+    }
+
+    // Perform the import
+    const { area, result } = await importAreaFromPath(sourcePath, importerName, options);
+
+    if (!result.success) {
+      return result;
+    }
+
+    // If preview mode, don't save
+    if (options.preview) {
+      return result;
+    }
+
+    // Save the imported area
+    if (options.force && this._areas.has(areaId)) {
+      // Delete existing area first
+      this._areas.delete(areaId);
+    }
+
+    this._areas.set(areaId, area);
+    this._dirty = true;
+
+    // Save to disk
+    await this.save();
+
+    console.log(`[AreaDaemon] Imported area ${areaId} from ${sourcePath}`);
+
+    return result;
   }
 
   // ==================== Persistence ====================
@@ -1237,6 +1506,114 @@ export default ${className};
    */
   get count(): number {
     return this._areas.size;
+  }
+
+  // ==================== External Exit Helpers ====================
+
+  /**
+   * Get a list of published areas by scanning the /areas directory.
+   * Returns an array of { path, name } objects.
+   */
+  async getPublishedAreaPaths(): Promise<Array<{ path: string; name: string }>> {
+    if (typeof efuns === 'undefined' || !efuns.readDir) {
+      return [];
+    }
+
+    const results: Array<{ path: string; name: string }> = [];
+
+    try {
+      // Read regions from /areas
+      const regions = await efuns.readDir('/areas');
+      for (const region of regions) {
+        // Skip non-directories and system files
+        if (region.startsWith('.') || region.startsWith('_')) continue;
+
+        try {
+          // Read subregions within each region
+          const subregions = await efuns.readDir(`/areas/${region}`);
+          for (const subregion of subregions) {
+            if (subregion.startsWith('.') || subregion.startsWith('_')) continue;
+            if (subregion.endsWith('.ts') || subregion.endsWith('.js')) continue;
+
+            const areaPath = `/areas/${region}/${subregion}`;
+            // Check if this directory has any .ts files (indicating it's an area)
+            try {
+              const files = await efuns.readDir(areaPath);
+              const hasTsFiles = files.some(f => f.endsWith('.ts'));
+              if (hasTsFiles) {
+                // Use subregion as display name, converting underscores to spaces and capitalizing
+                const displayName = subregion
+                  .replace(/_/g, ' ')
+                  .replace(/\b\w/g, c => c.toUpperCase());
+                results.push({ path: areaPath, name: displayName });
+              }
+            } catch {
+              // Directory not accessible
+            }
+          }
+        } catch {
+          // Region not accessible
+        }
+      }
+    } catch {
+      // /areas directory not accessible
+    }
+
+    return results;
+  }
+
+  /**
+   * Get a list of rooms in a published area by scanning the directory.
+   * Returns an array of { id, shortDesc } objects.
+   */
+  async getRoomsInPublishedArea(areaPath: string): Promise<Array<{ id: string; shortDesc: string }>> {
+    if (typeof efuns === 'undefined' || !efuns.readDir || !efuns.readFile) {
+      return [];
+    }
+
+    const results: Array<{ id: string; shortDesc: string }> = [];
+
+    try {
+      const files = await efuns.readDir(areaPath);
+      for (const file of files) {
+        if (!file.endsWith('.ts')) continue;
+
+        const roomId = file.replace('.ts', '');
+        let shortDesc = roomId; // Default to ID
+
+        // Try to extract shortDesc from the file
+        try {
+          const content = await efuns.readFile(`${areaPath}/${file}`);
+          // Look for shortDesc assignment
+          const match = content.match(/this\.shortDesc\s*=\s*['"`]([^'"`]+)['"`]/);
+          if (match) {
+            shortDesc = match[1];
+          }
+        } catch {
+          // Couldn't read file
+        }
+
+        results.push({ id: roomId, shortDesc });
+      }
+    } catch {
+      // Directory not accessible
+    }
+
+    return results.sort((a, b) => a.id.localeCompare(b.id));
+  }
+
+  /**
+   * Get a list of rooms in a draft area.
+   * Returns an array of { id, shortDesc } objects.
+   */
+  getRoomsInDraftArea(areaId: string): Array<{ id: string; shortDesc: string }> {
+    const area = this._areas.get(areaId);
+    if (!area) return [];
+
+    return area.rooms.map(room => ({
+      id: room.id,
+      shortDesc: room.shortDesc,
+    })).sort((a, b) => a.id.localeCompare(b.id));
   }
 }
 

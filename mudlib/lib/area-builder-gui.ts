@@ -24,6 +24,7 @@ import type {
   DraftRoom,
   DraftNPC,
   DraftItem,
+  CustomCodeBlock,
 } from './area-types.js';
 import type { AreaDaemon } from '../daemons/area.js';
 import { TERRAINS, type TerrainType } from './terrain.js';
@@ -73,6 +74,66 @@ function showSaveStatus(player: GUIPlayer, statusId: string, saved: boolean): vo
     },
   };
   sendGUIToPlayer(player, message);
+}
+
+/**
+ * Render custom code blocks section for entity editors.
+ * Shows preserved code that will be re-injected when publishing.
+ */
+function renderCustomCodeBlocksSection(
+  blocks: CustomCodeBlock[] | undefined,
+  entityId: string,
+): DisplayElement[] {
+  if (!blocks || blocks.length === 0) return [];
+
+  const typeLabels: Record<string, string> = {
+    'import': '📦 Custom Imports',
+    'property': '🔧 Class Properties',
+    'constructor-tail': '🏗️ Constructor Code',
+    'method': '📜 Custom Methods',
+  };
+
+  const groupedBlocks: Record<string, CustomCodeBlock[]> = {};
+  for (const block of blocks) {
+    if (!groupedBlocks[block.type]) groupedBlocks[block.type] = [];
+    groupedBlocks[block.type].push(block);
+  }
+
+  const elements: DisplayElement[] = [
+    {
+      type: 'heading',
+      id: `${entityId}-custom-code-header`,
+      content: '✅ Preserved Custom Code',
+      level: 5,
+      style: { color: '#22c55e', margin: '12px 0 4px 0' },
+    } as DisplayElement,
+    {
+      type: 'paragraph',
+      id: `${entityId}-custom-code-help`,
+      content: 'This code will be automatically re-injected when the area is published.',
+      style: { color: '#888', fontSize: '11px', margin: '0 0 8px 0' },
+    } as DisplayElement,
+  ];
+
+  // Add each block type as a section
+  const typeOrder = ['import', 'property', 'constructor-tail', 'method'];
+  for (const type of typeOrder) {
+    const typeBlocks = groupedBlocks[type];
+    if (!typeBlocks || typeBlocks.length === 0) continue;
+
+    const blockContent = typeBlocks.map(b => {
+      const name = b.name ? ` (${b.name})` : '';
+      return `// ${typeLabels[type]}${name}\n${b.code}`;
+    }).join('\n\n');
+
+    elements.push({
+      type: 'html',
+      id: `${entityId}-custom-code-${type}`,
+      content: `<details style="margin: 4px 0;"><summary style="cursor: pointer; color: #66b2ff; font-size: 12px;">${typeLabels[type]} (${typeBlocks.length})</summary><pre style="background: #1a1a2e; border: 1px solid #22c55e33; border-radius: 4px; padding: 8px; margin: 4px 0 0 0; font-size: 11px; color: #a0a0a0; white-space: pre-wrap; word-break: break-word; max-height: 150px; overflow: auto;">${blockContent.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre></details>`,
+    } as DisplayElement);
+  }
+
+  return elements;
 }
 
 /**
@@ -413,6 +474,264 @@ export function buildDeleteConfirmModal(area: AreaListEntry): GUIOpenMessage {
         action: 'custom',
         customAction: 'confirm-delete',
         variant: 'danger',
+      },
+    ],
+  };
+}
+
+// =============================================================================
+// External Exit Picker Modal
+// =============================================================================
+
+/** External exit picker state */
+export interface ExternalExitPickerState {
+  roomId: string;
+  direction: string;
+  sourceType: 'draft' | 'published' | 'manual';
+  selectedAreaId?: string;
+}
+
+/**
+ * Build the external exit picker modal.
+ * Allows selecting an external exit from draft areas, published areas, or manual path entry.
+ */
+export function buildExternalExitPickerModal(
+  roomId: string,
+  direction: string,
+  currentExternalExit: string | undefined,
+  draftAreas: AreaListEntry[],
+  publishedAreas: Array<{ path: string; name: string }>,
+  selectedAreaId?: string,
+  selectedAreaRooms?: Array<{ id: string; shortDesc: string }>
+): GUIOpenMessage {
+  // Determine current source type from existing value
+  let currentSourceType: 'draft' | 'published' | 'manual' = 'draft';
+  if (currentExternalExit) {
+    currentSourceType = 'manual'; // Default to manual if there's a value
+  }
+
+  // Build draft area options
+  const draftAreaOptions = draftAreas.map(a => ({
+    value: a.id,
+    label: `${a.name} (${a.id}) [${a.status}]`,
+  }));
+
+  // Build published area options
+  const publishedAreaOptions = publishedAreas.map(a => ({
+    value: a.path,
+    label: `${a.name} (${a.path})`,
+  }));
+
+  // Build room options if an area is selected
+  const roomOptions = selectedAreaRooms?.map(r => ({
+    value: r.id,
+    label: `${r.id} - ${r.shortDesc}`,
+  })) ?? [];
+
+  const directionLabel = direction.charAt(0).toUpperCase() + direction.slice(1);
+
+  return {
+    action: 'open',
+    modal: {
+      id: 'external-exit-picker',
+      title: `External Exit: ${directionLabel}`,
+      subtitle: `Room: ${roomId}`,
+      size: 'medium',
+      closable: true,
+      escapable: true,
+    },
+    layout: {
+      type: 'form',
+      gap: '16px',
+      style: { padding: '16px' },
+      children: [
+        // Hidden fields to track state
+        {
+          type: 'hidden',
+          id: 'picker-room-id',
+          name: 'pickerRoomId',
+          value: roomId,
+        } as InputElement,
+        {
+          type: 'hidden',
+          id: 'picker-direction',
+          name: 'pickerDirection',
+          value: direction,
+        } as InputElement,
+        // Current value display
+        ...(currentExternalExit ? [{
+          type: 'horizontal',
+          gap: '8px',
+          style: { padding: '8px', backgroundColor: '#1a1a1f', borderRadius: '4px', alignItems: 'center' },
+          children: [
+            {
+              type: 'paragraph',
+              id: 'current-exit-label',
+              content: 'Current:',
+              style: { color: '#888', fontSize: '12px', margin: '0' },
+            } as DisplayElement,
+            {
+              type: 'paragraph',
+              id: 'current-exit-value',
+              content: currentExternalExit,
+              style: { color: '#f59e0b', fontSize: '12px', margin: '0', flex: '1', wordBreak: 'break-all' },
+            } as DisplayElement,
+            {
+              type: 'button',
+              id: 'btn-clear-external-exit',
+              name: 'btn-clear-external-exit',
+              label: 'Clear',
+              action: 'custom',
+              customAction: `clear-external-exit:${roomId}:${direction}`,
+              variant: 'danger',
+              style: { padding: '4px 8px' },
+            } as InputElement,
+          ],
+        } as LayoutContainer] : []),
+        // Source type selection
+        {
+          type: 'heading',
+          id: 'source-type-header',
+          content: 'Select Source',
+          level: 5,
+          style: { color: '#f5f5f5', margin: '8px 0 0 0' },
+        } as DisplayElement,
+        {
+          type: 'horizontal',
+          gap: '8px',
+          children: [
+            {
+              type: 'button',
+              id: 'btn-source-draft',
+              name: 'btn-source-draft',
+              label: 'Draft Areas',
+              action: 'custom',
+              customAction: `external-exit-source:draft:${roomId}:${direction}`,
+              variant: 'secondary',
+            } as InputElement,
+            {
+              type: 'button',
+              id: 'btn-source-published',
+              name: 'btn-source-published',
+              label: 'Published Areas',
+              action: 'custom',
+              customAction: `external-exit-source:published:${roomId}:${direction}`,
+              variant: 'secondary',
+            } as InputElement,
+            {
+              type: 'button',
+              id: 'btn-source-manual',
+              name: 'btn-source-manual',
+              label: 'Manual Path',
+              action: 'custom',
+              customAction: `external-exit-source:manual:${roomId}:${direction}`,
+              variant: 'secondary',
+            } as InputElement,
+          ],
+        },
+        // Draft area selection (shown when draft source is selected)
+        ...(draftAreaOptions.length > 0 ? [{
+          type: 'vertical',
+          id: 'draft-area-section',
+          gap: '8px',
+          style: { display: 'block' },
+          children: [
+            {
+              type: 'select',
+              id: 'draft-area-select',
+              name: 'draftAreaId',
+              label: 'Select Draft Area',
+              options: [{ value: '', label: '(select an area)' }, ...draftAreaOptions],
+              value: selectedAreaId ?? '',
+              style: { width: '100%' },
+            } as InputElement,
+            {
+              type: 'button',
+              id: 'btn-load-draft-rooms',
+              name: 'btn-load-draft-rooms',
+              label: 'Load Rooms',
+              action: 'custom',
+              customAction: `load-area-rooms:draft:${roomId}:${direction}`,
+              variant: 'secondary',
+            } as InputElement,
+          ],
+        } as LayoutContainer] : []),
+        // Published area selection
+        ...(publishedAreaOptions.length > 0 ? [{
+          type: 'vertical',
+          id: 'published-area-section',
+          gap: '8px',
+          style: { display: 'none' },
+          children: [
+            {
+              type: 'select',
+              id: 'published-area-select',
+              name: 'publishedAreaPath',
+              label: 'Select Published Area',
+              options: [{ value: '', label: '(select an area)' }, ...publishedAreaOptions],
+              value: '',
+              style: { width: '100%' },
+            } as InputElement,
+            {
+              type: 'button',
+              id: 'btn-load-published-rooms',
+              name: 'btn-load-published-rooms',
+              label: 'Load Rooms',
+              action: 'custom',
+              customAction: `load-area-rooms:published:${roomId}:${direction}`,
+              variant: 'secondary',
+            } as InputElement,
+          ],
+        } as LayoutContainer] : []),
+        // Room selection (shown after loading rooms)
+        ...(roomOptions.length > 0 ? [{
+          type: 'select',
+          id: 'room-select',
+          name: 'selectedRoomId',
+          label: 'Select Room',
+          options: [{ value: '', label: '(select a room)' }, ...roomOptions],
+          value: '',
+          style: { width: '100%' },
+        } as InputElement] : []),
+        // Manual path input section
+        {
+          type: 'vertical',
+          id: 'manual-path-section',
+          gap: '8px',
+          style: { display: 'none' },
+          children: [
+            {
+              type: 'text',
+              id: 'manual-path-input',
+              name: 'manualPath',
+              label: 'External Path',
+              placeholder: '/areas/region/subregion/room_id',
+              value: currentExternalExit ?? '',
+              style: { width: '100%' },
+            } as InputElement,
+            {
+              type: 'paragraph',
+              id: 'manual-path-help',
+              content: 'Enter the full path to the target room, e.g., /areas/valdoria/forest/entrance',
+              style: { color: '#888', fontSize: '11px', margin: '0' },
+            } as DisplayElement,
+          ],
+        } as LayoutContainer,
+      ],
+    },
+    buttons: [
+      {
+        id: 'cancel',
+        label: 'Cancel',
+        action: 'cancel',
+        variant: 'secondary',
+      },
+      {
+        id: 'set-external-exit',
+        label: 'Set External Exit',
+        action: 'custom',
+        customAction: `set-external-exit:${roomId}:${direction}`,
+        variant: 'primary',
       },
     ],
   };
@@ -776,6 +1095,15 @@ function renderAreaGrid(
   .exit-circle-connected {
     fill: #4ade80;
   }
+  .exit-circle-external {
+    fill: #f59e0b;
+    stroke: #f59e0b;
+    stroke-width: 2;
+  }
+  .exit-circle-external:hover {
+    fill: #fbbf24;
+    stroke: #fbbf24;
+  }
   .exit-circle-empty {
     fill: #333;
   }
@@ -785,6 +1113,15 @@ function renderAreaGrid(
   .exit-line {
     stroke: #4ade80;
     stroke-width: 2;
+    pointer-events: none;
+  }
+  .exit-line-external {
+    stroke: #f59e0b;
+    stroke-width: 2;
+    pointer-events: none;
+  }
+  .exit-arrow-external {
+    fill: #f59e0b;
     pointer-events: none;
   }
   .room-label {
@@ -1001,8 +1338,19 @@ function renderExitCircles(
     for (const [direction, offset] of Object.entries(dirOffsets)) {
       const ex = cx + offset.dx;
       const ey = cy + offset.dy;
-      const hasExit = room.exits[direction] !== undefined;
-      const circleClass = hasExit ? 'exit-circle exit-circle-connected' : 'exit-circle exit-circle-empty';
+      const hasInternalExit = room.exits[direction] !== undefined;
+      const hasExternalExit = room.externalExits?.[direction] !== undefined;
+
+      let circleClass = 'exit-circle exit-circle-empty';
+      let tooltip = '';
+
+      if (hasExternalExit) {
+        circleClass = 'exit-circle exit-circle-external';
+        tooltip = `External: ${room.externalExits![direction]}`;
+      } else if (hasInternalExit) {
+        circleClass = 'exit-circle exit-circle-connected';
+        tooltip = `Internal: ${room.exits[direction]}`;
+      }
 
       circles.push(`
         <circle
@@ -1011,7 +1359,10 @@ function renderExitCircles(
           onmousedown="handleExitMouseDown('${room.id}', '${direction}', ${ex}, ${ey}, event)"
           onmouseup="handleExitMouseUp('${room.id}', '${direction}', event)"
           onclick="handleExitClick('${room.id}', '${direction}', event)"
-        />
+          ${tooltip ? `data-tooltip="${escapeHtml(tooltip)}"` : ''}
+        >
+          ${tooltip ? `<title>${escapeHtml(tooltip)}</title>` : ''}
+        </circle>
       `);
     }
   }
@@ -1049,9 +1400,13 @@ function renderExitLines(
     const cx = room.x * cellStride + halfCell;
     const cy = room.y * cellStride + halfCell;
 
+    // Draw internal exit lines
     for (const [direction, targetRoomId] of Object.entries(room.exits)) {
       // Skip up/down for now (different floor)
       if (direction === 'up' || direction === 'down') continue;
+
+      // Skip if there's an external exit for this direction
+      if (room.externalExits?.[direction]) continue;
 
       const targetRoom = area.rooms.find(r => r.id === targetRoomId);
       if (!targetRoom || targetRoom.z !== floor) continue;
@@ -1081,6 +1436,48 @@ function renderExitLines(
       lines.push(`
         <line class="exit-line" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>
       `);
+    }
+
+    // Draw external exit arrows (short outward arrows in amber)
+    if (room.externalExits) {
+      for (const direction of Object.keys(room.externalExits)) {
+        // Skip up/down
+        if (direction === 'up' || direction === 'down') continue;
+
+        const offset = dirOffsets[direction];
+        if (!offset) continue;
+
+        const x1 = cx + offset.dx;
+        const y1 = cy + offset.dy;
+
+        // Draw a short arrow pointing outward
+        const arrowLength = 12;
+        const normalizedDx = offset.dx / Math.sqrt(offset.dx * offset.dx + offset.dy * offset.dy) || 0;
+        const normalizedDy = offset.dy / Math.sqrt(offset.dx * offset.dx + offset.dy * offset.dy) || 0;
+
+        const x2 = x1 + normalizedDx * arrowLength;
+        const y2 = y1 + normalizedDy * arrowLength;
+
+        // Arrow line
+        lines.push(`
+          <line class="exit-line-external" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>
+        `);
+
+        // Arrow head
+        const headSize = 4;
+        const angle = Math.atan2(y2 - y1, x2 - x1);
+        const headAngle1 = angle + (Math.PI * 5 / 6);
+        const headAngle2 = angle - (Math.PI * 5 / 6);
+
+        const head1x = x2 + headSize * Math.cos(headAngle1);
+        const head1y = y2 + headSize * Math.sin(headAngle1);
+        const head2x = x2 + headSize * Math.cos(headAngle2);
+        const head2y = y2 + headSize * Math.sin(headAngle2);
+
+        lines.push(`
+          <polygon class="exit-arrow-external" points="${x2},${y2} ${head1x},${head1y} ${head2x},${head2y}"/>
+        `);
+      }
     }
   }
 
@@ -1411,43 +1808,124 @@ function buildRoomEditor(room: DraftRoom | undefined, area: AreaDefinition): Lay
         style: { color: '#f5f5f5', margin: '8px 0 0 0' },
       } as DisplayElement,
       {
+        type: 'paragraph',
+        id: 'exits-help',
+        content: 'Use dropdown for internal exits, or click ↗ for external (cross-area) exits.',
+        style: { color: '#888', fontSize: '11px', margin: '0 0 4px 0' },
+      } as DisplayElement,
+      {
         type: 'grid',
         columns: 2,
         gap: '8px',
-        children: DIRECTION_OPTIONS.slice(0, 8).map(dir => ({
-          type: 'select',
-          id: `room-exit-${dir.value}`,
-          name: `roomExit_${dir.value}`,
-          label: dir.label,
-          value: room.exits[dir.value] ?? '',
-          options: exitOptions,
-          style: { width: '100%' },
-        } as InputElement)),
+        children: DIRECTION_OPTIONS.slice(0, 8).map(dir => {
+          const hasExternalExit = !!room.externalExits?.[dir.value];
+          const externalPath = room.externalExits?.[dir.value] ?? '';
+          return {
+            type: 'vertical',
+            gap: '2px',
+            children: [
+              {
+                type: 'horizontal',
+                gap: '4px',
+                style: { alignItems: 'flex-end' },
+                children: [
+                  {
+                    type: 'select',
+                    id: `room-exit-${dir.value}`,
+                    name: `roomExit_${dir.value}`,
+                    label: dir.label,
+                    value: hasExternalExit ? '' : (room.exits[dir.value] ?? ''),
+                    options: exitOptions,
+                    disabled: hasExternalExit,
+                    style: { flex: '1' },
+                  } as InputElement,
+                  {
+                    type: 'button',
+                    id: `btn-external-exit-${dir.value}`,
+                    name: `btn-external-exit-${dir.value}`,
+                    label: hasExternalExit ? '🔗' : '↗',
+                    action: 'custom',
+                    customAction: `open-external-exit-picker:${room.id}:${dir.value}`,
+                    variant: hasExternalExit ? 'primary' : 'secondary',
+                    style: { padding: '4px 8px', minWidth: '32px' },
+                  } as InputElement,
+                ],
+              } as LayoutContainer,
+              // Show external exit path if set
+              ...(hasExternalExit ? [{
+                type: 'paragraph',
+                id: `external-exit-display-${dir.value}`,
+                content: `→ ${externalPath}`,
+                style: { color: '#f59e0b', fontSize: '10px', margin: '0', wordBreak: 'break-all' },
+              } as DisplayElement] : []),
+              // Hidden input to track external exit
+              {
+                type: 'hidden',
+                id: `room-external-exit-${dir.value}`,
+                name: `roomExternalExit_${dir.value}`,
+                value: externalPath,
+              } as InputElement,
+            ],
+          } as LayoutContainer;
+        }),
       },
       // Up/Down exits
       {
         type: 'horizontal',
         gap: '12px',
-        children: [
-          {
-            type: 'select',
-            id: 'room-exit-up',
-            name: 'roomExit_up',
-            label: 'Up',
-            value: room.exits['up'] ?? '',
-            options: exitOptions,
+        children: ['up', 'down'].map(dir => {
+          const hasExternalExit = !!room.externalExits?.[dir];
+          const externalPath = room.externalExits?.[dir] ?? '';
+          const label = dir.charAt(0).toUpperCase() + dir.slice(1);
+          return {
+            type: 'vertical',
+            gap: '2px',
             style: { flex: '1' },
-          } as InputElement,
-          {
-            type: 'select',
-            id: 'room-exit-down',
-            name: 'roomExit_down',
-            label: 'Down',
-            value: room.exits['down'] ?? '',
-            options: exitOptions,
-            style: { flex: '1' },
-          } as InputElement,
-        ],
+            children: [
+              {
+                type: 'horizontal',
+                gap: '4px',
+                style: { alignItems: 'flex-end' },
+                children: [
+                  {
+                    type: 'select',
+                    id: `room-exit-${dir}`,
+                    name: `roomExit_${dir}`,
+                    label: label,
+                    value: hasExternalExit ? '' : (room.exits[dir] ?? ''),
+                    options: exitOptions,
+                    disabled: hasExternalExit,
+                    style: { flex: '1' },
+                  } as InputElement,
+                  {
+                    type: 'button',
+                    id: `btn-external-exit-${dir}`,
+                    name: `btn-external-exit-${dir}`,
+                    label: hasExternalExit ? '🔗' : '↗',
+                    action: 'custom',
+                    customAction: `open-external-exit-picker:${room.id}:${dir}`,
+                    variant: hasExternalExit ? 'primary' : 'secondary',
+                    style: { padding: '4px 8px', minWidth: '32px' },
+                  } as InputElement,
+                ],
+              } as LayoutContainer,
+              // Show external exit path if set
+              ...(hasExternalExit ? [{
+                type: 'paragraph',
+                id: `external-exit-display-${dir}`,
+                content: `→ ${externalPath}`,
+                style: { color: '#f59e0b', fontSize: '10px', margin: '0', wordBreak: 'break-all' },
+              } as DisplayElement] : []),
+              // Hidden input to track external exit
+              {
+                type: 'hidden',
+                id: `room-external-exit-${dir}`,
+                name: `roomExternalExit_${dir}`,
+                value: externalPath,
+              } as InputElement,
+            ],
+          } as LayoutContainer;
+        }),
       },
       // NPCs in this room
       ...(area.npcs.length > 0 ? [
@@ -1493,6 +1971,8 @@ function buildRoomEditor(room: DraftRoom | undefined, area: AreaDefinition): Lay
           } as InputElement)),
         } as LayoutContainer,
       ] : []),
+      // Custom Code Blocks section (preserved code that will be re-injected on publish)
+      ...renderCustomCodeBlocksSection(room.customCodeBlocks, `room-${room.id}`),
       // Save room button and AI button
       {
         type: 'horizontal',
@@ -1852,6 +2332,238 @@ function buildNPCEditor(npc: DraftNPC | undefined, area: AreaDefinition): Layout
             id: 'npc-stats-hint',
             content: '<span style="color: #888; font-size: 11px;">Auto-balance: HP=(50+lvl×15)×type. Leave Max Health blank or set to auto-calc value to use formula.</span>',
           } as DisplayElement,
+          // NPC Subclass selector
+          {
+            type: 'heading',
+            id: 'npc-subclass-header',
+            content: 'NPC Type',
+            level: 5,
+            style: { color: '#f5f5f5', margin: '12px 0 4px 0' },
+          } as DisplayElement,
+          {
+            type: 'select',
+            id: 'npc-subclass',
+            name: 'npcSubclass',
+            label: 'Subclass',
+            value: npc?.subclass ?? 'npc',
+            options: [
+              { value: 'npc', label: 'Standard NPC' },
+              { value: 'merchant', label: 'Merchant (Shop)' },
+              { value: 'trainer', label: 'Trainer (Levels/Stats)' },
+              { value: 'petMerchant', label: 'Pet Merchant' },
+            ],
+            style: { width: '200px' },
+          } as InputElement,
+          // Merchant Configuration (shown when subclass is merchant)
+          ...(npc?.subclass === 'merchant' ? [
+            {
+              type: 'heading',
+              id: 'merchant-config-header',
+              content: '🏪 Merchant Configuration',
+              level: 5,
+              style: { color: '#22c55e', margin: '12px 0 4px 0' },
+            } as DisplayElement,
+            {
+              type: 'horizontal',
+              gap: '12px',
+              children: [
+                {
+                  type: 'text',
+                  id: 'merchant-shop-name',
+                  name: 'merchantShopName',
+                  label: 'Shop Name',
+                  value: npc.merchantConfig?.shopName ?? 'Shop',
+                  placeholder: "Grond's Forge",
+                  style: { flex: '1' },
+                } as InputElement,
+                {
+                  type: 'number',
+                  id: 'merchant-shop-gold',
+                  name: 'merchantShopGold',
+                  label: 'Shop Gold',
+                  value: npc.merchantConfig?.shopGold ?? 1000,
+                  min: 0,
+                  style: { width: '120px' },
+                } as InputElement,
+              ],
+            } as LayoutContainer,
+            {
+              type: 'text',
+              id: 'merchant-shop-desc',
+              name: 'merchantShopDescription',
+              label: 'Shop Description',
+              value: npc.merchantConfig?.shopDescription ?? '',
+              placeholder: 'Quality weapons and armor...',
+              style: { width: '100%' },
+            } as InputElement,
+            {
+              type: 'horizontal',
+              gap: '12px',
+              children: [
+                {
+                  type: 'number',
+                  id: 'merchant-buy-rate',
+                  name: 'merchantBuyRate',
+                  label: 'Buy Rate (0-1)',
+                  value: npc.merchantConfig?.buyRate ?? 0.5,
+                  min: 0,
+                  max: 1,
+                  step: 0.1,
+                  style: { width: '120px' },
+                } as InputElement,
+                {
+                  type: 'number',
+                  id: 'merchant-sell-rate',
+                  name: 'merchantSellRate',
+                  label: 'Sell Rate',
+                  value: npc.merchantConfig?.sellRate ?? 1.0,
+                  min: 0.1,
+                  step: 0.1,
+                  style: { width: '120px' },
+                } as InputElement,
+                {
+                  type: 'number',
+                  id: 'merchant-charisma',
+                  name: 'merchantCharismaEffect',
+                  label: 'Charisma %',
+                  value: npc.merchantConfig?.charismaEffect ?? 0.01,
+                  min: 0,
+                  step: 0.01,
+                  style: { width: '120px' },
+                } as InputElement,
+              ],
+            } as LayoutContainer,
+            {
+              type: 'text',
+              id: 'merchant-accepted-types',
+              name: 'merchantAcceptedTypes',
+              label: 'Accepted Types (comma-separated)',
+              value: npc.merchantConfig?.acceptedTypes?.join(', ') ?? '',
+              placeholder: 'weapon, armor (leave empty for all)',
+              style: { width: '100%' },
+            } as InputElement,
+            // Merchant Stock section
+            {
+              type: 'heading',
+              id: 'merchant-stock-header',
+              content: 'Shop Inventory',
+              level: 6,
+              style: { color: '#f5f5f5', margin: '8px 0 4px 0' },
+            } as DisplayElement,
+            {
+              type: 'html',
+              id: 'merchant-stock-list',
+              content: npc.merchantStock && npc.merchantStock.length > 0
+                ? `<div style="background: #1a1a2e; border-radius: 4px; padding: 8px; font-size: 12px; max-height: 150px; overflow: auto;">${npc.merchantStock.map(item => `<div style="margin: 2px 0; color: #a0a0a0;">• ${item.name} - ${item.price}g (qty: ${item.quantity})</div>`).join('')}</div>`
+                : '<span style="color: #666; font-size: 12px;">No stock items. Use importer to load existing shops.</span>',
+            } as DisplayElement,
+          ] : []),
+          // Trainer Configuration (shown when subclass is trainer)
+          ...(npc?.subclass === 'trainer' ? [
+            {
+              type: 'heading',
+              id: 'trainer-config-header',
+              content: '🎓 Trainer Configuration',
+              level: 5,
+              style: { color: '#f59e0b', margin: '12px 0 4px 0' },
+            } as DisplayElement,
+            {
+              type: 'horizontal',
+              gap: '12px',
+              children: [
+                {
+                  type: 'checkbox',
+                  id: 'trainer-can-level',
+                  name: 'trainerCanTrainLevel',
+                  label: 'Can Train Levels',
+                  value: npc.trainerConfig?.canTrainLevel ?? true,
+                } as InputElement,
+                {
+                  type: 'number',
+                  id: 'trainer-cost-mult',
+                  name: 'trainerCostMultiplier',
+                  label: 'Cost Multiplier',
+                  value: npc.trainerConfig?.costMultiplier ?? 1.0,
+                  min: 0.1,
+                  step: 0.1,
+                  style: { width: '120px' },
+                } as InputElement,
+              ],
+            } as LayoutContainer,
+            {
+              type: 'text',
+              id: 'trainer-greeting',
+              name: 'trainerGreeting',
+              label: 'Greeting Message',
+              value: npc.trainerConfig?.greeting ?? '',
+              placeholder: 'Welcome, adventurer! Ready to grow stronger?',
+              style: { width: '100%' },
+            } as InputElement,
+            {
+              type: 'text',
+              id: 'trainer-stats',
+              name: 'trainerStats',
+              label: 'Trainable Stats (comma-separated)',
+              value: npc.trainerConfig?.trainableStats?.join(', ') ?? '',
+              placeholder: 'strength, dexterity, constitution (leave empty for all)',
+              style: { width: '100%' },
+            } as InputElement,
+            // Base Stats section
+            {
+              type: 'heading',
+              id: 'trainer-base-stats-header',
+              content: 'Trainer Base Stats',
+              level: 6,
+              style: { color: '#f5f5f5', margin: '8px 0 4px 0' },
+            } as DisplayElement,
+            {
+              type: 'horizontal',
+              gap: '8px',
+              style: { flexWrap: 'wrap' },
+              children: [
+                { type: 'number', id: 'trainer-str', name: 'trainerStatStr', label: 'STR', value: npc.baseStats?.strength ?? 10, min: 1, max: 100, style: { width: '70px' } } as InputElement,
+                { type: 'number', id: 'trainer-dex', name: 'trainerStatDex', label: 'DEX', value: npc.baseStats?.dexterity ?? 10, min: 1, max: 100, style: { width: '70px' } } as InputElement,
+                { type: 'number', id: 'trainer-con', name: 'trainerStatCon', label: 'CON', value: npc.baseStats?.constitution ?? 10, min: 1, max: 100, style: { width: '70px' } } as InputElement,
+                { type: 'number', id: 'trainer-int', name: 'trainerStatInt', label: 'INT', value: npc.baseStats?.intelligence ?? 10, min: 1, max: 100, style: { width: '70px' } } as InputElement,
+                { type: 'number', id: 'trainer-wis', name: 'trainerStatWis', label: 'WIS', value: npc.baseStats?.wisdom ?? 10, min: 1, max: 100, style: { width: '70px' } } as InputElement,
+                { type: 'number', id: 'trainer-cha', name: 'trainerStatCha', label: 'CHA', value: npc.baseStats?.charisma ?? 10, min: 1, max: 100, style: { width: '70px' } } as InputElement,
+                { type: 'number', id: 'trainer-lck', name: 'trainerStatLck', label: 'LCK', value: npc.baseStats?.luck ?? 10, min: 1, max: 100, style: { width: '70px' } } as InputElement,
+              ],
+            } as LayoutContainer,
+          ] : []),
+          // Pet Merchant Configuration (shown when subclass is petMerchant)
+          ...(npc?.subclass === 'petMerchant' ? [
+            {
+              type: 'heading',
+              id: 'pet-merchant-config-header',
+              content: '🐾 Pet Shop Configuration',
+              level: 5,
+              style: { color: '#ec4899', margin: '12px 0 4px 0' },
+            } as DisplayElement,
+            {
+              type: 'text',
+              id: 'pet-shop-name',
+              name: 'petShopName',
+              label: 'Shop Name',
+              value: npc.petMerchantConfig?.shopName ?? 'Pet Shop',
+              placeholder: "Whiskers & Hooves Pet Emporium",
+              style: { width: '100%' },
+            } as InputElement,
+            {
+              type: 'text',
+              id: 'pet-shop-desc',
+              name: 'petShopDescription',
+              label: 'Shop Description',
+              value: npc.petMerchantConfig?.shopDescription ?? '',
+              placeholder: 'Quality companions for adventurers...',
+              style: { width: '100%' },
+            } as InputElement,
+            {
+              type: 'html',
+              id: 'pet-stock-info',
+              content: '<span style="color: #888; font-size: 11px;">Pet stock is automatically loaded from the Pet Daemon. Available pets are configured globally.</span>',
+            } as DisplayElement,
+          ] : []),
           // Spawn Rooms section
           ...(area.rooms.length > 0 ? [
             {
@@ -2016,6 +2728,8 @@ function buildNPCEditor(npc: DraftNPC | undefined, area: AreaDefinition): Layout
               } as InputElement,
             ],
           },
+          // Custom Code Blocks section (preserved code that will be re-injected on publish)
+          ...renderCustomCodeBlocksSection(npc?.customCodeBlocks, `npc-${npc?.id ?? 'new'}`),
           // Save NPC button and AI button
           {
             type: 'horizontal',
@@ -2655,6 +3369,8 @@ function buildItemEditor(item: DraftItem | undefined, area: AreaDefinition): Lay
               } as InputElement)),
             } as LayoutContainer,
           ] : []),
+          // Custom Code Blocks section (preserved code that will be re-injected on publish)
+          ...renderCustomCodeBlocksSection(item?.customCodeBlocks, `item-${item?.id ?? 'new'}`),
           // Save item button and AI button
           {
             type: 'horizontal',
@@ -3426,10 +4142,20 @@ function saveRoomFromFormData(
   if (!area) return;
 
   const exits: Record<string, string> = {};
+  const externalExits: Record<string, string> = {};
+
   for (const dir of ['north', 'south', 'east', 'west', 'northeast', 'northwest', 'southeast', 'southwest', 'up', 'down']) {
-    const targetRoom = data[`roomExit_${dir}`] as string;
-    if (targetRoom) {
-      exits[dir] = targetRoom;
+    // Check for external exit first (takes priority)
+    const externalPath = data[`roomExternalExit_${dir}`] as string;
+    if (externalPath) {
+      externalExits[dir] = externalPath;
+      // Don't set internal exit if external is set
+    } else {
+      // Internal exit
+      const targetRoom = data[`roomExit_${dir}`] as string;
+      if (targetRoom) {
+        exits[dir] = targetRoom;
+      }
     }
   }
 
@@ -3462,6 +4188,7 @@ function saveRoomFromFormData(
     z: data.roomZ as number,
     isEntrance: data.roomIsEntrance as boolean,
     exits,
+    externalExits: Object.keys(externalExits).length > 0 ? externalExits : undefined,
     npcs,
     items,
   });
@@ -3493,10 +4220,13 @@ function updateRoomEditorOnly(
       roomIsEntrance: room.isEntrance ?? false,
     };
 
-    // Add exit values
+    // Add exit values (both internal and external)
     const directions = ['north', 'south', 'east', 'west', 'northeast', 'northwest', 'southeast', 'southwest', 'up', 'down'];
     for (const dir of directions) {
-      formData[`roomExit_${dir}`] = room.exits[dir] ?? '';
+      const hasExternalExit = !!room.externalExits?.[dir];
+      // If external exit is set, clear internal exit value
+      formData[`roomExit_${dir}`] = hasExternalExit ? '' : (room.exits[dir] ?? '');
+      formData[`roomExternalExit_${dir}`] = room.externalExits?.[dir] ?? '';
     }
 
     // Add NPC checkbox values
@@ -3928,6 +4658,158 @@ async function handleEditorResponse(
       return;
     }
 
+    // Open External Exit Picker
+    if (customAction?.startsWith('open-external-exit-picker:')) {
+      const parts = customAction.replace('open-external-exit-picker:', '').split(':');
+      const roomId = parts[0];
+      const direction = parts[1];
+      const room = area.rooms.find(r => r.id === roomId);
+      if (room) {
+        // Get draft areas for picker
+        const draftAreas = areaDaemon.getAreaListForBuilder(player.name.toLowerCase());
+        // Get published areas
+        const publishedAreas = await areaDaemon.getPublishedAreaPaths();
+        const currentExternalExit = room.externalExits?.[direction];
+
+        const pickerModal = buildExternalExitPickerModal(
+          roomId,
+          direction,
+          currentExternalExit,
+          draftAreas,
+          publishedAreas
+        );
+        sendGUIToPlayer(player, pickerModal);
+      }
+      return;
+    }
+
+    // Set External Exit
+    if (customAction?.startsWith('set-external-exit:')) {
+      const parts = customAction.replace('set-external-exit:', '').split(':');
+      const roomId = parts[0];
+      const direction = parts[1];
+      const room = area.rooms.find(r => r.id === roomId);
+      if (room) {
+        // Get the path from form data - check multiple sources
+        let externalPath = '';
+
+        // Check manual path first
+        const manualPath = data.manualPath as string;
+        if (manualPath && manualPath.trim()) {
+          externalPath = manualPath.trim();
+        } else {
+          // Check if a room was selected from draft or published area
+          const selectedRoomId = data.selectedRoomId as string;
+          if (selectedRoomId) {
+            const draftAreaId = data.draftAreaId as string;
+            const publishedAreaPath = data.publishedAreaPath as string;
+
+            if (draftAreaId) {
+              // Build path from draft area
+              const [region, subregion] = draftAreaId.split(':');
+              externalPath = `/areas/${region}/${subregion}/${selectedRoomId}`;
+            } else if (publishedAreaPath) {
+              // Build path from published area
+              externalPath = `${publishedAreaPath}/${selectedRoomId}`;
+            }
+          }
+        }
+
+        if (externalPath) {
+          // Set the external exit
+          if (!room.externalExits) {
+            room.externalExits = {};
+          }
+          room.externalExits[direction] = externalPath;
+          // Clear any internal exit for this direction
+          delete room.exits[direction];
+          room.updatedAt = Date.now();
+          area.updatedAt = Date.now();
+          await areaDaemon.save();
+          player.receive(`{green}External exit "${direction}" set to: ${externalPath}{/}\n`);
+        } else {
+          player.receive('{yellow}No path specified for external exit.{/}\n');
+        }
+
+        // Close picker and refresh editor
+        closeModal(player, 'external-exit-picker');
+        refreshEditor(player, areaDaemon, state);
+      }
+      return;
+    }
+
+    // Clear External Exit
+    if (customAction?.startsWith('clear-external-exit:')) {
+      const parts = customAction.replace('clear-external-exit:', '').split(':');
+      const roomId = parts[0];
+      const direction = parts[1];
+      const room = area.rooms.find(r => r.id === roomId);
+      if (room && room.externalExits?.[direction]) {
+        delete room.externalExits[direction];
+        if (Object.keys(room.externalExits).length === 0) {
+          delete room.externalExits;
+        }
+        room.updatedAt = Date.now();
+        area.updatedAt = Date.now();
+        await areaDaemon.save();
+        player.receive(`{green}External exit "${direction}" cleared.{/}\n`);
+
+        // Close picker and refresh editor
+        closeModal(player, 'external-exit-picker');
+        refreshEditor(player, areaDaemon, state);
+      }
+      return;
+    }
+
+    // Load rooms for selected area (in external exit picker)
+    if (customAction?.startsWith('load-area-rooms:')) {
+      const parts = customAction.replace('load-area-rooms:', '').split(':');
+      const sourceType = parts[0] as 'draft' | 'published';
+      const roomId = parts[1];
+      const direction = parts[2];
+
+      let rooms: Array<{ id: string; shortDesc: string }> = [];
+      let selectedAreaId: string | undefined;
+
+      if (sourceType === 'draft') {
+        const draftAreaId = data.draftAreaId as string;
+        if (draftAreaId) {
+          rooms = areaDaemon.getRoomsInDraftArea(draftAreaId);
+          selectedAreaId = draftAreaId;
+        }
+      } else if (sourceType === 'published') {
+        const publishedAreaPath = data.publishedAreaPath as string;
+        if (publishedAreaPath) {
+          rooms = await areaDaemon.getRoomsInPublishedArea(publishedAreaPath);
+          selectedAreaId = publishedAreaPath;
+        }
+      }
+
+      if (rooms.length > 0) {
+        // Update the picker modal with room options
+        const room = area.rooms.find(r => r.id === roomId);
+        const currentExternalExit = room?.externalExits?.[direction];
+        const draftAreas = areaDaemon.getAreaListForBuilder(player.name.toLowerCase());
+        const publishedAreas = await areaDaemon.getPublishedAreaPaths();
+
+        // Close current picker and open new one with rooms
+        closeModal(player, 'external-exit-picker');
+        const pickerModal = buildExternalExitPickerModal(
+          roomId,
+          direction,
+          currentExternalExit,
+          draftAreas,
+          publishedAreas,
+          selectedAreaId,
+          rooms
+        );
+        sendGUIToPlayer(player, pickerModal);
+      } else {
+        player.receive('{yellow}No rooms found in the selected area.{/}\n');
+      }
+      return;
+    }
+
     // Delete Room
     if (customAction?.startsWith('delete-room:')) {
       const roomId = customAction.replace('delete-room:', '');
@@ -4029,6 +4911,92 @@ async function handleEditorResponse(
           }
         }
 
+        // Build subclass-specific configuration
+        const subclass = (data.npcSubclass as 'npc' | 'merchant' | 'trainer' | 'petMerchant') ?? 'npc';
+
+        // Merchant config
+        let merchantConfig: {
+          shopName: string;
+          shopDescription?: string;
+          buyRate: number;
+          sellRate: number;
+          acceptedTypes?: string[];
+          shopGold: number;
+          charismaEffect?: number;
+        } | undefined;
+
+        if (subclass === 'merchant') {
+          const acceptedTypes = (data.merchantAcceptedTypes as string || '')
+            .split(',')
+            .map(t => t.trim())
+            .filter(t => t.length > 0);
+
+          merchantConfig = {
+            shopName: (data.merchantShopName as string) || 'Shop',
+            shopDescription: data.merchantShopDescription as string | undefined,
+            buyRate: (data.merchantBuyRate as number) ?? 0.5,
+            sellRate: (data.merchantSellRate as number) ?? 1.0,
+            acceptedTypes: acceptedTypes.length > 0 ? acceptedTypes : undefined,
+            shopGold: (data.merchantShopGold as number) ?? 1000,
+            charismaEffect: data.merchantCharismaEffect as number | undefined,
+          };
+        }
+
+        // Trainer config
+        let trainerConfig: {
+          canTrainLevel?: boolean;
+          trainableStats?: ('strength' | 'intelligence' | 'wisdom' | 'charisma' | 'dexterity' | 'constitution' | 'luck')[];
+          costMultiplier?: number;
+          greeting?: string;
+        } | undefined;
+
+        let baseStats: {
+          strength?: number;
+          intelligence?: number;
+          wisdom?: number;
+          charisma?: number;
+          dexterity?: number;
+          constitution?: number;
+          luck?: number;
+        } | undefined;
+
+        if (subclass === 'trainer') {
+          const trainableStats = (data.trainerStats as string || '')
+            .split(',')
+            .map(s => s.trim().toLowerCase())
+            .filter(s => ['strength', 'intelligence', 'wisdom', 'charisma', 'dexterity', 'constitution', 'luck'].includes(s)) as ('strength' | 'intelligence' | 'wisdom' | 'charisma' | 'dexterity' | 'constitution' | 'luck')[];
+
+          trainerConfig = {
+            canTrainLevel: data.trainerCanTrainLevel as boolean | undefined,
+            trainableStats: trainableStats.length > 0 ? trainableStats : undefined,
+            costMultiplier: data.trainerCostMultiplier as number | undefined,
+            greeting: data.trainerGreeting as string | undefined,
+          };
+
+          baseStats = {
+            strength: data.trainerStatStr as number | undefined,
+            intelligence: data.trainerStatInt as number | undefined,
+            wisdom: data.trainerStatWis as number | undefined,
+            charisma: data.trainerStatCha as number | undefined,
+            dexterity: data.trainerStatDex as number | undefined,
+            constitution: data.trainerStatCon as number | undefined,
+            luck: data.trainerStatLck as number | undefined,
+          };
+        }
+
+        // Pet Merchant config
+        let petMerchantConfig: {
+          shopName: string;
+          shopDescription?: string;
+        } | undefined;
+
+        if (subclass === 'petMerchant') {
+          petMerchantConfig = {
+            shopName: (data.petShopName as string) || 'Pet Shop',
+            shopDescription: data.petShopDescription as string | undefined,
+          };
+        }
+
         areaDaemon.updateNPC(state.areaId, npcId, {
           name: data.npcName as string,
           shortDesc: data.npcShortDesc as string,
@@ -4042,6 +5010,11 @@ async function handleEditorResponse(
           respawnTime: data.npcRespawnTime as number,
           items,
           combatConfig,
+          subclass,
+          merchantConfig,
+          trainerConfig,
+          baseStats,
+          petMerchantConfig,
         });
 
         await areaDaemon.save();
