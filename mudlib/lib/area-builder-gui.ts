@@ -3974,14 +3974,8 @@ export async function openAreaSelector(
     isOwner: area.owner === playerName,
   }));
 
-  // Sort: drafts first, then by updated date
-  listEntries.sort((a, b) => {
-    if (a.status !== b.status) {
-      const order: Record<AreaStatus, number> = { draft: 0, review: 1, published: 2 };
-      return order[a.status] - order[b.status];
-    }
-    return b.updatedAt - a.updatedAt;
-  });
+  // Sort alphabetically by name
+  listEntries.sort((a, b) => a.name.localeCompare(b.name));
 
   const message = buildAreaSelectorModal(listEntries, efuns.capitalize(playerName));
 
