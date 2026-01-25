@@ -30,6 +30,7 @@ import type {
   StatName,
 } from './area-types.js';
 import type { TerrainType } from './terrain.js';
+import { isValidTerrain } from './terrain.js';
 
 /**
  * Entity types detected from file content.
@@ -92,13 +93,7 @@ const DIRECTION_OFFSETS: Record<string, { dx: number; dy: number; dz: number }> 
   down: { dx: 0, dy: 0, dz: -1 },
 };
 
-/**
- * Valid terrain types.
- */
-const VALID_TERRAINS: TerrainType[] = [
-  'town', 'road', 'grassland', 'forest', 'mountain', 'cave', 'dungeon',
-  'water', 'swamp', 'desert', 'snow', 'beach', 'indoor', 'castle', 'temple',
-];
+// Terrain validation uses isValidTerrain() imported from terrain.ts
 
 /**
  * Detect entity type from file content by checking class inheritance.
@@ -238,7 +233,7 @@ function extractMapCoordinates(content: string): { x: number; y: number; z: numb
  */
 function extractTerrain(content: string): TerrainType {
   const match = content.match(/setTerrain\s*\(\s*['"`]([^'"`]+)['"`]\s*\)/);
-  if (match && VALID_TERRAINS.includes(match[1] as TerrainType)) {
+  if (match && isValidTerrain(match[1])) {
     return match[1] as TerrainType;
   }
   return 'indoor'; // Default
@@ -779,6 +774,13 @@ function extractCustomCodeBlocks(
           const trimmedLine = line.trim();
           if (!trimmedLine || trimmedLine === '') continue;
 
+          // Save the state at the START of this line to determine if we should skip it
+          // This is important for multi-line constructs where the closing delimiter is on this line
+          const wasInTemplateLiteral = inTemplateLiteral;
+          const startParenDepth = parenDepth;
+          const startBraceDepth = braceDepth;
+          const startBracketDepth = bracketDepth;
+
           // Count delimiters in this line (simple counting, doesn't handle strings perfectly)
           // Also track template literal backticks
           let i = 0;
@@ -806,24 +808,15 @@ function extractCustomCodeBlocks(
           // Check if this line matches any standard pattern
           const isStandard = standardPatterns.some(pattern => pattern.test(trimmedLine));
 
-          // If we match a standard pattern, check if it starts a multi-line construct
+          // Skip standard patterns
           if (isStandard) {
-            // If we have unclosed parens/braces/brackets or are in a template literal, we're in a multi-line construct
-            if (parenDepth > 0 || braceDepth > 0 || bracketDepth > 0 || inTemplateLiteral) {
-              inMultiLineConstruct = true;
-            }
             continue;
           }
 
-          // Skip lines that are inside a multi-line standard construct
-          if (inMultiLineConstruct) {
-            // Check if construct is closed
-            if (parenDepth <= 0 && braceDepth <= 0 && bracketDepth <= 0 && !inTemplateLiteral) {
-              inMultiLineConstruct = false;
-              parenDepth = 0;
-              braceDepth = 0;
-              bracketDepth = 0;
-            }
+          // Skip lines when we WERE inside any nested construct at the START of the line
+          // This handles multi-line constructs where the closing delimiter is on this line
+          // (e.g., the last line of a template literal should still be skipped)
+          if (startParenDepth > 0 || startBraceDepth > 0 || startBracketDepth > 0 || wasInTemplateLiteral) {
             continue;
           }
 

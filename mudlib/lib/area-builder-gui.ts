@@ -161,27 +161,13 @@ export interface EditorState {
   activeTab?: 'layout' | 'rooms' | 'npcs' | 'items' | 'settings';
 }
 
-/** Terrain type options for select elements */
-const TERRAIN_OPTIONS: Array<{ value: TerrainType; label: string }> = [
-  { value: 'town', label: 'Town' },
-  { value: 'indoor', label: 'Indoor' },
-  { value: 'road', label: 'Road' },
-  { value: 'grassland', label: 'Grassland' },
-  { value: 'forest', label: 'Forest' },
-  { value: 'dense_forest', label: 'Dense Forest' },
-  { value: 'mountain', label: 'Mountain' },
-  { value: 'hills', label: 'Hills' },
-  { value: 'water_shallow', label: 'Shallow Water' },
-  { value: 'water_deep', label: 'Deep Water' },
-  { value: 'river', label: 'River' },
-  { value: 'swamp', label: 'Swamp' },
-  { value: 'desert', label: 'Desert' },
-  { value: 'snow', label: 'Snow' },
-  { value: 'ice', label: 'Ice' },
-  { value: 'cave', label: 'Cave' },
-  { value: 'dungeon', label: 'Dungeon' },
-  { value: 'void', label: 'Void' },
-];
+/** Terrain type options for select elements - derived from TERRAINS to stay in sync */
+const TERRAIN_OPTIONS: Array<{ value: TerrainType; label: string }> = Object.values(TERRAINS).map(
+  (terrain) => ({
+    value: terrain.id,
+    label: terrain.name,
+  })
+);
 
 /** Direction options */
 const DIRECTION_OPTIONS = [
@@ -5848,6 +5834,7 @@ async function handleAIGenerateLayout(
   const loreContext = getLoreContext(keywords);
 
   const { width, height, depth } = area.gridSize;
+  const validTerrainTypes = Object.keys(TERRAINS).join(', ');
 
   const prompt = `Generate a room layout for a MUD game area as JSON.
 
@@ -5869,7 +5856,7 @@ ${loreContext}
 5. Choose appropriate terrain types for each room
 6. Room IDs should be lowercase with underscores
 
-Valid terrain types: town, indoor, road, grassland, forest, dense_forest, mountain, hills, water_shallow, water_deep, river, swamp, desert, snow, ice, cave, dungeon, void
+Valid terrain types: ${validTerrainTypes}
 
 Respond with ONLY a JSON array of rooms:
 [
