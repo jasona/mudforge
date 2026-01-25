@@ -867,9 +867,9 @@ function extractCustomCodeBlocks(
 
   // 3. Extract class-level properties (outside constructor)
   // Look for property declarations like: private _foo: string = 'bar';
-  const classMatch = content.match(/class\s+\w+\s+extends\s+\w+\s*\{/);
-  if (classMatch) {
-    const classStart = classMatch.index! + classMatch[0].length;
+  const classMatchForProps = content.match(/class\s+\w+\s+extends\s+\w+\s*\{/);
+  if (classMatchForProps) {
+    const classStart = classMatchForProps.index! + classMatchForProps[0].length;
     const classEnd = findMatchingBrace(content, classStart - 1);
     if (classEnd > 0) {
       const classBody = content.substring(classStart, classEnd);
