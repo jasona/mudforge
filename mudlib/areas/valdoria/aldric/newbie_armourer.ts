@@ -5,7 +5,25 @@
  * Area: Town of Aldric (valdoria:aldric)
  */
 
-import { NPC } from '../../../lib/std.js';
+import { NPC, Living, Room, MudObject, Player } from '../../../lib/std.js';
+
+// Constants for starter gear system
+const MAX_LEVEL_FOR_FREE_GEAR = 5;
+const RECEIVED_GEAR_PROP = 'received_newbie_gear';
+const STARTER_GEAR = [
+  '/areas/valdoria/aldric/items/newbie_sword',
+  '/areas/valdoria/aldric/items/newbie_shield',
+  '/areas/valdoria/aldric/items/newbie_helm',
+  '/areas/valdoria/aldric/items/newbie_armor',
+];
+
+// Type guard for Player
+function isPlayer(obj: unknown): obj is Player {
+  return obj !== null && typeof obj === 'object' && 'permissionLevel' in obj;
+}
+
+// Type alias for player-like objects
+type PlayerLike = Player;
 
 export class NewbieArmourer extends NPC {
   constructor() {

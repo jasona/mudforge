@@ -46,8 +46,8 @@ caters to adventurers who camp on the road.`;
       { pattern: 'thank|thanks', response: 'smiles warmly. "Safe travels, dear!"', type: 'emote' },
     ];
     this.setMerchant({
-      name: 'food vendor',
-      shopName: 'Marta\\',
+      name: 'Marta, the food vendor',
+      shopName: 'Marta',
       shopDescription: 'Fresh food, travel supplies, and camping materials.',
       buyRate: 0.4,
       sellRate: 1,

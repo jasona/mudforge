@@ -47,7 +47,7 @@ quietly, others glow faintly, and a few seem to move of their own accord.`;
       { pattern: 'thank|thanks', response: 'bows slightly. "May your health never fail you!"', type: 'emote' },
     ];
     this.setMerchant({
-      name: 'alchemist',
+      name: 'Thadeus, the alchemist',
       shopName: 'Thaddeus\\',
       shopDescription: 'Potions, elixirs, and alchemical remedies.',
       buyRate: 0.5,
