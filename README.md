@@ -39,6 +39,99 @@ MudForge brings the architectural elegance of classic LPMud drivers into the mod
 - **Mud-Wide Configuration** - Persistent ConfigDaemon for game-wide settings adjustable by admins
 - **File-Based Persistence** - Human-readable TypeScript/JSON files that work with version control
 
+## Screenshots
+
+### Web Client
+<p align="center">
+  <img src="screenshots/login_page.png" alt="Login Page" width="700">
+</p>
+<p align="center"><em>Modern dark-themed login interface</em></p>
+
+### GUI Features
+<p align="center">
+  <img src="screenshots/gui-score.png" alt="Score Panel" width="700">
+</p>
+<p align="center"><em>Character score with stats, equipment, and guild information</em></p>
+
+<p align="center">
+  <img src="screenshots/gui-inventory.png" alt="Inventory" width="700">
+</p>
+<p align="center"><em>Visual inventory management with item details</em></p>
+
+<p align="center">
+  <img src="screenshots/gui-shops.png" alt="Shop Interface" width="700">
+</p>
+<p align="center"><em>Interactive shop interface for buying and selling</em></p>
+
+<p align="center">
+  <img src="screenshots/gui-race-picker.png" alt="Race Selection" width="700">
+</p>
+<p align="center"><em>Character creation with race selection</em></p>
+
+### Game Systems
+<p align="center">
+  <img src="screenshots/quests.png" alt="Quest System" width="700">
+</p>
+<p align="center"><em>Quest tracking with objectives and rewards</em></p>
+
+<p align="center">
+  <img src="screenshots/professions.png" alt="Professions" width="700">
+</p>
+<p align="center"><em>Multi-guild system with skill progression</em></p>
+
+<p align="center">
+  <img src="screenshots/pets.png" alt="Pet System" width="700">
+</p>
+<p align="center"><em>Companion pets that follow and assist players</em></p>
+
+<p align="center">
+  <img src="screenshots/mercenaries.png" alt="Mercenaries" width="700">
+</p>
+<p align="center"><em>Hire mercenaries to aid in combat</em></p>
+
+### Vehicles & Transportation
+<p align="center">
+  <img src="screenshots/vehicles-ferries.png" alt="Vehicles" width="700">
+</p>
+<p align="center"><em>Rideable vehicles and ferry transportation</em></p>
+
+<p align="center">
+  <img src="screenshots/ferry-gui.png" alt="Ferry GUI" width="700">
+</p>
+<p align="center"><em>Interactive ferry schedule and boarding</em></p>
+
+### Builder Tools
+<p align="center">
+  <img src="screenshots/gui-area-builder.png" alt="Area Builder" width="700">
+</p>
+<p align="center"><em>Visual area builder for creating game content</em></p>
+
+<p align="center">
+  <img src="screenshots/gui-snooping.png" alt="Snooping" width="700">
+</p>
+<p align="center"><em>Admin snooping for monitoring player activity</em></p>
+
+### Special Features
+<p align="center">
+  <img src="screenshots/behaviors.png" alt="NPC Behaviors" width="700">
+</p>
+<p align="center"><em>Configurable NPC behavior system</em></p>
+
+<p align="center">
+  <img src="screenshots/emojis.png" alt="Emoji Support" width="700">
+</p>
+<p align="center"><em>Full emoji support in chat and descriptions</em></p>
+
+<p align="center">
+  <img src="screenshots/giphy-integration.png" alt="Giphy Integration" width="700">
+</p>
+<p align="center"><em>Inline GIF support via Giphy integration</em></p>
+
+<p align="center">
+  <img src="screenshots/ingame-sound.png" alt="Sound Effects" width="700">
+</p>
+<p align="center"><em>In-game sound effects and ambient audio</em></p>
+
 ## Design Philosophy
 
 Following LDMud's proven architecture, MudForge embraces the principle that **everything is an object**:
