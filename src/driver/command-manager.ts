@@ -296,19 +296,6 @@ export class CommandManager {
     const trimmed = input.trim();
     if (!trimmed) return false;
 
-    // Wake up sleeping players when they try to do anything
-    const playerWithPosture = player as MudObject & {
-      posture?: string;
-      setPosture?: (state: string) => { success: boolean; reason?: string };
-      receive?: (msg: string) => void;
-    };
-    if (playerWithPosture.posture === 'sleeping' && playerWithPosture.setPosture) {
-      const wakeResult = playerWithPosture.setPosture('sitting');
-      if (wakeResult.success && playerWithPosture.receive) {
-        playerWithPosture.receive('You wake up and sit up.\n');
-      }
-    }
-
     // Parse verb and args - normal parsing first (split on space)
     const spaceIndex = trimmed.indexOf(' ');
     let verb = spaceIndex > 0 ? trimmed.substring(0, spaceIndex) : trimmed;
