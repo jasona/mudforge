@@ -14,6 +14,36 @@ import type {
 import { MudObject } from '../std/object.js';
 import { getPortraitDaemon, type ObjectImageType } from '../daemons/portrait.js';
 import type { QualityTier, GeneratedItemData } from '../std/loot/types.js';
+import { SLOT_DISPLAY_NAMES, type EquipmentSlot } from '../std/equipment.js';
+
+/**
+ * Equipment grid layout - organized in rows for visual display.
+ */
+const EQUIPMENT_GRID_SLOTS: EquipmentSlot[][] = [
+  ['head', 'cloak'],                    // Top row
+  ['main_hand', 'chest', 'off_hand'],   // Middle row
+  ['hands', 'legs', 'feet'],            // Bottom row
+];
+
+/**
+ * Fallback emoji icons for equipment slots when no image is available.
+ */
+const SLOT_FALLBACK_ICONS: Record<EquipmentSlot, string> = {
+  head: '🎩',
+  chest: '👕',
+  hands: '🧤',
+  legs: '👖',
+  feet: '👢',
+  cloak: '🧥',
+  main_hand: '⚔️',
+  off_hand: '🛡️',
+};
+
+/**
+ * Simple loading placeholder SVG for equipment slots (pre-encoded base64).
+ * A dark box with a spinning indicator.
+ */
+const EQUIPMENT_LOADING_SVG = 'data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgMzIgMzIiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgPHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiBmaWxsPSIjMWExYTJlIiByeD0iMiIvPgogIDxjaXJjbGUgY3g9IjE2IiBjeT0iMTYiIHI9IjgiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzNhM2E0YSIgc3Ryb2tlLXdpZHRoPSIyIi8+CiAgPHBhdGggZD0iTTE2IDggQTggOCAwIDAgMSAyNCAxNiIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNGFkZTgwIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCI+CiAgICA8YW5pbWF0ZVRyYW5zZm9ybSBhdHRyaWJ1dGVOYW1lPSJ0cmFuc2Zvcm0iIHR5cGU9InJvdGF0ZSIgZnJvbT0iMCAxNiAxNiIgdG89IjM2MCAxNiAxNiIgZHVyPSIxcyIgcmVwZWF0Q291bnQ9ImluZGVmaW5pdGUiLz4KICA8L3BhdGg+Cjwvc3ZnPg==';
 
 // Import type checking - we'll do runtime checks instead of instanceof
 // to avoid circular dependency issues
@@ -166,6 +196,311 @@ function getDisplayName(obj: MudObject): string {
 }
 
 /**
+ * Build HTML tooltip content for a weapon.
+ */
+function buildWeaponTooltipHtml(item: MudObject): string {
+  const weapon = item as MudObject & {
+    minDamage?: number;
+    maxDamage?: number;
+    damageType?: string;
+    handedness?: string;
+    weight?: number;
+    value?: number;
+  };
+
+  const name = stripColorCodes(item.shortDesc);
+  const damageType = weapon.damageType || 'physical';
+  const handedness = weapon.handedness === 'two_handed' ? 'Two-Handed' :
+                     weapon.handedness === 'light' ? 'Light' : 'One-Handed';
+
+  let html = `
+    <div style="font-weight: 600; font-size: 14px; color: #4ade80; margin-bottom: 8px;">
+      ${escapeHtml(name)}
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px;">
+      <div style="display: flex; justify-content: space-between; gap: 16px;">
+        <span style="color: #8b8b8e;">Damage:</span>
+        <span style="color: #f87171;">${weapon.minDamage ?? 0}-${weapon.maxDamage ?? 0}</span>
+      </div>
+      <div style="display: flex; justify-content: space-between; gap: 16px;">
+        <span style="color: #8b8b8e;">Type:</span>
+        <span style="color: #fbbf24;">${capitalizeFirst(damageType)}</span>
+      </div>
+      <div style="display: flex; justify-content: space-between; gap: 16px;">
+        <span style="color: #8b8b8e;">Hands:</span>
+        <span>${handedness}</span>
+      </div>`;
+
+  if (weapon.weight !== undefined && weapon.weight > 0) {
+    html += `
+      <div style="display: flex; justify-content: space-between; gap: 16px;">
+        <span style="color: #8b8b8e;">Weight:</span>
+        <span>${weapon.weight} lbs</span>
+      </div>`;
+  }
+
+  if (weapon.value !== undefined && weapon.value > 0) {
+    html += `
+      <div style="display: flex; justify-content: space-between; gap: 16px;">
+        <span style="color: #8b8b8e;">Value:</span>
+        <span style="color: #fbbf24;">${weapon.value} gold</span>
+      </div>`;
+  }
+
+  html += '</div>';
+
+  const description = stripColorCodes(item.longDesc);
+  if (description) {
+    html += `
+      <div style="color: #8b8b8e; font-style: italic; border-top: 1px solid #2a2a40; padding-top: 8px; font-size: 12px;">
+        ${escapeHtml(description)}
+      </div>`;
+  }
+
+  return html;
+}
+
+/**
+ * Build HTML tooltip content for armor.
+ */
+function buildArmorTooltipHtml(item: MudObject): string {
+  const armor = item as MudObject & {
+    armor?: number;
+    slot?: string;
+    weight?: number;
+    value?: number;
+  };
+
+  const name = stripColorCodes(item.shortDesc);
+
+  let html = `
+    <div style="font-weight: 600; font-size: 14px; color: #60a5fa; margin-bottom: 8px;">
+      ${escapeHtml(name)}
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px;">
+      <div style="display: flex; justify-content: space-between; gap: 16px;">
+        <span style="color: #8b8b8e;">Armor:</span>
+        <span style="color: #4ade80;">+${armor.armor ?? 0}</span>
+      </div>
+      <div style="display: flex; justify-content: space-between; gap: 16px;">
+        <span style="color: #8b8b8e;">Slot:</span>
+        <span>${capitalizeFirst(armor.slot || 'unknown')}</span>
+      </div>`;
+
+  if (armor.weight !== undefined && armor.weight > 0) {
+    html += `
+      <div style="display: flex; justify-content: space-between; gap: 16px;">
+        <span style="color: #8b8b8e;">Weight:</span>
+        <span>${armor.weight} lbs</span>
+      </div>`;
+  }
+
+  if (armor.value !== undefined && armor.value > 0) {
+    html += `
+      <div style="display: flex; justify-content: space-between; gap: 16px;">
+        <span style="color: #8b8b8e;">Value:</span>
+        <span style="color: #fbbf24;">${armor.value} gold</span>
+      </div>`;
+  }
+
+  html += '</div>';
+
+  const description = stripColorCodes(item.longDesc);
+  if (description) {
+    html += `
+      <div style="color: #8b8b8e; font-style: italic; border-top: 1px solid #2a2a40; padding-top: 8px; font-size: 12px;">
+        ${escapeHtml(description)}
+      </div>`;
+  }
+
+  return html;
+}
+
+/**
+ * Build tooltip for an equipment item.
+ */
+function buildEquipmentTooltip(item: MudObject): { content: string; html: boolean; maxWidth: string } {
+  // Check if it's a weapon (has minDamage/maxDamage)
+  const isWeapon = 'minDamage' in item && 'maxDamage' in item;
+
+  return {
+    content: isWeapon ? buildWeaponTooltipHtml(item) : buildArmorTooltipHtml(item),
+    html: true,
+    maxWidth: '280px',
+  };
+}
+
+/**
+ * Escape HTML special characters.
+ */
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+/**
+ * Build an individual equipment slot element.
+ * Shows item image if available, fallback icon if not, or empty placeholder.
+ */
+function buildEquipmentSlot(
+  slot: EquipmentSlot,
+  item: MudObject | null,
+  twoHandedLabel?: string
+): LayoutContainer {
+  const slotSize = '40px';
+  const imageSize = '32px';
+
+  // Base style for the slot container
+  const baseStyle = {
+    width: slotSize,
+    height: slotSize,
+    borderRadius: '4px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative' as const,
+  };
+
+  // If two-handed weapon in main_hand, off_hand shows "2H"
+  if (twoHandedLabel) {
+    return {
+      type: 'vertical',
+      style: {
+        ...baseStyle,
+        border: '1px dashed #4a4a4a',
+        backgroundColor: '#1a1a1f',
+        opacity: '0.7',
+      },
+      children: [
+        {
+          type: 'text',
+          id: `equip-slot-${slot}`,
+          content: twoHandedLabel,
+          title: 'Two-handed weapon equipped',
+          style: { color: '#888', fontSize: '12px', textAlign: 'center' },
+        } as DisplayElement,
+      ],
+    };
+  }
+
+  // Empty slot
+  if (!item) {
+    return {
+      type: 'vertical',
+      style: {
+        ...baseStyle,
+        border: '1px dashed #4a4a4a',
+        backgroundColor: '#1a1a1f',
+        opacity: '0.5',
+      },
+      children: [
+        {
+          type: 'text',
+          id: `equip-slot-${slot}`,
+          content: '+',
+          title: `${SLOT_DISPLAY_NAMES[slot]} (Empty)`,
+          style: { color: '#666', fontSize: '16px', textAlign: 'center' },
+        } as DisplayElement,
+      ],
+    };
+  }
+
+  // Equipped slot - always use an image element so it can be updated async
+  const itemName = stripColorCodes(item.shortDesc);
+  const tooltip = buildEquipmentTooltip(item);
+
+  // Use loading placeholder - the actual image will be loaded asynchronously
+  return {
+    type: 'vertical',
+    style: {
+      ...baseStyle,
+      border: '1px solid #4ade80',
+      backgroundColor: '#1a1a1f',
+    },
+    tooltip,
+    children: [
+      {
+        type: 'image',
+        id: `equip-slot-${slot}`,
+        src: EQUIPMENT_LOADING_SVG,
+        alt: itemName,
+        style: {
+          width: imageSize,
+          height: imageSize,
+          objectFit: 'contain',
+          borderRadius: '2px',
+        },
+      } as DisplayElement,
+    ],
+  };
+}
+
+/**
+ * Build the equipment layout grid for a target.
+ * Returns null if the target has no equipment system.
+ */
+function buildEquipmentLayout(target: MudObject): LayoutContainer | null {
+  // Check if target has equipment system
+  const targetWithEquip = target as MudObject & {
+    getAllEquipped?: () => Map<EquipmentSlot, MudObject>;
+  };
+
+  if (!targetWithEquip.getAllEquipped) {
+    return null;
+  }
+
+  const equipped = targetWithEquip.getAllEquipped();
+
+  // Don't show equipment section if nothing is equipped
+  if (equipped.size === 0) {
+    return null;
+  }
+
+  // Check if main_hand weapon is two-handed
+  const mainHandItem = equipped.get('main_hand');
+  const isTwoHanded = mainHandItem && 'handedness' in mainHandItem &&
+    (mainHandItem as MudObject & { handedness: string }).handedness === 'two_handed';
+
+  // Build grid rows
+  const rows: LayoutContainer[] = EQUIPMENT_GRID_SLOTS.map(rowSlots => ({
+    type: 'horizontal',
+    gap: '4px',
+    style: { justifyContent: 'center' },
+    children: rowSlots.map(slot => {
+      // Special handling for off_hand with two-handed weapon
+      if (slot === 'off_hand' && isTwoHanded) {
+        return buildEquipmentSlot(slot, null, '2H');
+      }
+      return buildEquipmentSlot(slot, equipped.get(slot) || null);
+    }),
+  }));
+
+  return {
+    type: 'vertical',
+    gap: '4px',
+    style: {
+      marginTop: '12px',
+      padding: '8px',
+      backgroundColor: '#1a1a1f',
+      borderRadius: '4px',
+    },
+    children: [
+      {
+        type: 'text',
+        id: 'look-equipment-label',
+        content: 'Equipment:',
+        style: { color: '#888', fontSize: '12px', marginBottom: '4px' },
+      } as DisplayElement,
+      ...rows,
+    ],
+  };
+}
+
+/**
  * Build player-specific modal layout.
  * If the player has shadows (transformations), uses shadowed properties.
  */
@@ -235,6 +570,12 @@ function buildPlayerLayout(obj: MudObject): LayoutContainer {
       content: stripColorCodes(description),
       style: { color: '#ddd', fontSize: '13px', lineHeight: '1.5' },
     } as DisplayElement);
+  }
+
+  // Equipment grid
+  const equipmentLayout = buildEquipmentLayout(obj);
+  if (equipmentLayout) {
+    children.push(equipmentLayout);
   }
 
   return {
@@ -317,6 +658,12 @@ function buildNpcLayout(obj: MudObject): LayoutContainer {
     content: stripColorCodes(obj.longDesc),
     style: { color: '#ddd', fontSize: '13px', lineHeight: '1.5' },
   } as DisplayElement);
+
+  // Equipment grid
+  const equipmentLayout = buildEquipmentLayout(obj);
+  if (equipmentLayout) {
+    children.push(equipmentLayout);
+  }
 
   return {
     type: 'vertical',
@@ -1110,35 +1457,75 @@ export async function openLookModal(
 
   efuns.guiSend(message);
 
-  // Async: Generate/retrieve the actual image
+  // Async: Generate/retrieve the actual portrait image
   // Don't wait for non-shadowed players if they already have an image
   // Shadowed players should get a new image generated based on their transformation
-  if (type === 'player' && !isShadowed && getPlayerExistingImage(target)) {
-    return;
-  }
+  const skipPortraitFetch = type === 'player' && !isShadowed && getPlayerExistingImage(target);
 
-  // Get the actual image (from cache or AI generation)
-  const extraContext = getExtraContext(target, type);
-  const actualImage = await portraitDaemon.getObjectImage(target, type, extraContext);
+  if (!skipPortraitFetch) {
+    // Get the actual image (from cache or AI generation)
+    const extraContext = getExtraContext(target, type);
+    const actualImage = await portraitDaemon.getObjectImage(target, type, extraContext);
 
-  // Update the modal with the actual image if it differs
-  if (actualImage !== initialImage) {
-    const updateMessage: GUIUpdateMessage = {
-      action: 'update',
-      modalId: 'look-modal',
-      updates: {
-        elements: {
-          'look-image': {
-            src: actualImage,
+    // Update the modal with the actual image if it differs
+    if (actualImage !== initialImage) {
+      const updateMessage: GUIUpdateMessage = {
+        action: 'update',
+        modalId: 'look-modal',
+        updates: {
+          elements: {
+            'look-image': {
+              src: actualImage,
+            },
           },
         },
-      },
+      };
+      // Try to send the update - may fail if player closed the modal or disconnected
+      try {
+        efuns.guiSend(updateMessage);
+      } catch {
+        // Modal was closed or player disconnected - ignore
+      }
+    }
+  }
+
+  // Async: Fetch equipment images if target has equipment
+  if (type === 'player' || type === 'npc') {
+    const targetWithEquip = target as MudObject & {
+      getAllEquipped?: () => Map<EquipmentSlot, MudObject>;
     };
-    // Try to send the update - may fail if player closed the modal or disconnected
-    try {
-      efuns.guiSend(updateMessage);
-    } catch {
-      // Modal was closed or player disconnected - ignore
+
+    if (targetWithEquip.getAllEquipped) {
+      const equipped = targetWithEquip.getAllEquipped();
+      const equipmentUpdates: Record<string, Partial<DisplayElement>> = {};
+
+      for (const [slot, item] of equipped) {
+        const itemType = detectObjectType(item);
+        const itemExtraContext = getExtraContext(item, itemType);
+
+        try {
+          const itemImage = await portraitDaemon.getObjectImage(item, itemType, itemExtraContext);
+          // Update the slot image source
+          equipmentUpdates[`equip-slot-${slot}`] = { src: itemImage };
+        } catch {
+          // Keep loading placeholder on error
+        }
+      }
+
+      // Send equipment image updates if any
+      if (Object.keys(equipmentUpdates).length > 0) {
+        try {
+          efuns.guiSend({
+            action: 'update',
+            modalId: 'look-modal',
+            updates: {
+              elements: equipmentUpdates,
+            },
+          } as GUIUpdateMessage);
+        } catch {
+          // Modal was closed or player disconnected - ignore
+        }
+      }
     }
   }
 }
