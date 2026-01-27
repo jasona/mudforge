@@ -806,6 +806,16 @@ export class Room extends MudObject {
           desc = formatVisibleName(desc, true);
         }
 
+        // Add posture state for living beings (sitting, sleeping)
+        const living = obj as Living & { isLiving?: boolean };
+        if (living.isLiving && living.posture) {
+          if (living.posture === 'sitting') {
+            desc += ' {dim}(sitting){/}';
+          } else if (living.posture === 'sleeping') {
+            desc += ' {dim}(sleeping){/}';
+          }
+        }
+
         // Add open/closed indicator for containers that support it
         if (obj instanceof Container && obj.canOpenClose) {
           desc += obj.isOpen ? ' {dim}(open){/}' : ' {dim}(closed){/}';
@@ -813,6 +823,10 @@ export class Room extends MudObject {
         // Gold piles displayed in bold yellow
         if (obj instanceof GoldPile) {
           desc = `{bold}{yellow}${desc}{/}`;
+        }
+        // Players displayed in yellow
+        else if (isPlayer(obj)) {
+          desc = `{yellow}${desc}{/}`;
         }
         // NPCs displayed in red (non-bold), with quest indicators
         else if (obj instanceof NPC) {
