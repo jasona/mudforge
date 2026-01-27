@@ -224,6 +224,11 @@ export function canSee(
     return { canSee: true, isPartiallyVisible: false, reason: 'self' };
   }
 
+  // Check if viewer is blinded
+  if (viewer.isBlind && viewer.isBlind()) {
+    return { canSee: false, isPartiallyVisible: false, reason: 'viewer is blinded' };
+  }
+
   // Get target's visibility state
   const visState = getVisibilityState(target);
 

@@ -129,6 +129,13 @@ export async function execute(ctx: CommandContext): Promise<boolean> {
     return false;
   }
 
+  // Check if legs are disabled
+  const livingWithLegs = living as Living & { hasLegsDisabled?: () => boolean };
+  if (livingWithLegs.hasLegsDisabled && livingWithLegs.hasLegsDisabled()) {
+    ctx.sendLine("{red}Your legs are disabled - you cannot move!{/}");
+    return false;
+  }
+
   // Determine direction
   let direction: string;
   if (verb === 'go') {
@@ -286,17 +293,32 @@ export async function execute(ctx: CommandContext): Promise<boolean> {
   }
 
   // Look at the new room (brief mode shows glance, normal shows full look)
-  const newRoom = destination as Room;
+  // Execute the look/glance command so that blind checks etc. are applied
   const playerWithConfig = player as Player;
   const briefMode = playerWithConfig.getConfig?.('brief') ?? false;
 
-  if (briefMode && newRoom.glance) {
-    newRoom.glance(player);
-  } else if (newRoom.look) {
-    newRoom.look(player);
+  if (typeof efuns !== 'undefined' && efuns.executeCommand) {
+    const command = briefMode ? 'glance' : 'look';
+    // Execute asynchronously but don't block movement
+    efuns.executeCommand(player, command, 0).catch(() => {
+      // Fallback if command execution fails
+      const newRoom = destination as Room;
+      if (newRoom.look) {
+        newRoom.look(player);
+      } else {
+        ctx.sendLine(newRoom.shortDesc);
+        ctx.sendLine(newRoom.longDesc);
+      }
+    });
   } else {
-    ctx.sendLine(newRoom.shortDesc);
-    ctx.sendLine(newRoom.longDesc);
+    // Fallback if efuns not available
+    const newRoom = destination as Room;
+    if (newRoom.look) {
+      newRoom.look(player);
+    } else {
+      ctx.sendLine(newRoom.shortDesc);
+      ctx.sendLine(newRoom.longDesc);
+    }
   }
 
   // Quest integration: track room exploration for explore objectives

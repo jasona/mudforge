@@ -7,6 +7,7 @@
  */
 
 import { Living, type Stats, type StatName, MAX_STAT, POSTURE_REGEN_MULTIPLIERS, CAMPFIRE_WARMTH_BONUS } from './living.js';
+import type { Effect, EffectType, EffectCategory, CombatStats, DamageType } from './combat/types.js';
 
 /**
  * Maximum player level cap.
@@ -172,6 +173,29 @@ export interface EquipmentSaveData {
 /**
  * Player save data structure.
  */
+/**
+ * Serializable effect data for saving (excludes function callbacks and object references).
+ */
+export interface EffectSaveData {
+  id: string;
+  name: string;
+  type: string;
+  duration: number;
+  magnitude: number;
+  stacks?: number;
+  maxStacks?: number;
+  stat?: string;
+  combatStat?: string;
+  damageType?: string;
+  category?: string;
+  description?: string;
+  hidden?: boolean;
+  effectType?: string;
+  affectedPart?: 'left' | 'right' | 'both';
+  tickInterval?: number;
+  nextTick?: number;
+}
+
 export interface PlayerSaveData {
   name: string;
   title: string;
@@ -206,6 +230,7 @@ export interface PlayerSaveData {
   pets?: PetSaveData[]; // Pet save data
   mercenaries?: MercenarySaveData[]; // Mercenary save data
   generatedItems?: GeneratedItemData[]; // Random loot generator items
+  effects?: EffectSaveData[]; // Active effects (debuffs that persist across logout)
 }
 
 /**
@@ -1828,7 +1853,75 @@ export class Player extends Living {
       pets: this._getPetSaveData(),
       mercenaries: this._getMercenarySaveData(),
       generatedItems: generatedItems.length > 0 ? generatedItems : undefined,
+      effects: this._getEffectSaveData(),
     };
+  }
+
+  /**
+   * Get serializable effect data for saving.
+   * Only saves debuffs (afflictions) - buffs are not persisted.
+   */
+  private _getEffectSaveData(): EffectSaveData[] | undefined {
+    const effects = this.getEffects();
+    if (effects.length === 0) return undefined;
+
+    // Only save debuffs (afflictions that should persist)
+    const debuffs = effects.filter(e => e.category === 'debuff');
+    if (debuffs.length === 0) return undefined;
+
+    return debuffs.map(e => ({
+      id: e.id,
+      name: e.name,
+      type: e.type,
+      duration: e.duration,
+      magnitude: e.magnitude,
+      stacks: e.stacks,
+      maxStacks: e.maxStacks,
+      stat: e.stat,
+      combatStat: e.combatStat,
+      damageType: e.damageType,
+      category: e.category,
+      description: e.description,
+      hidden: e.hidden,
+      effectType: e.effectType,
+      affectedPart: e.affectedPart,
+      tickInterval: e.tickInterval,
+      nextTick: e.nextTick,
+    }));
+  }
+
+  /**
+   * Restore effects from save data.
+   */
+  private _restoreEffects(effectData: EffectSaveData[]): void {
+    for (const data of effectData) {
+      // Skip effects with no remaining duration
+      if (data.duration <= 0) continue;
+
+      // Reconstruct the effect object
+      const effect: Effect = {
+        id: data.id,
+        name: data.name,
+        type: data.type as EffectType,
+        duration: data.duration,
+        magnitude: data.magnitude,
+        stacks: data.stacks,
+        maxStacks: data.maxStacks,
+        stat: data.stat as StatName | undefined,
+        combatStat: data.combatStat as keyof CombatStats | undefined,
+        damageType: data.damageType as DamageType | undefined,
+        category: data.category as EffectCategory | undefined,
+        description: data.description,
+        hidden: data.hidden,
+        effectType: data.effectType,
+        affectedPart: data.affectedPart,
+        tickInterval: data.tickInterval,
+        nextTick: data.nextTick,
+      };
+
+      // Add the effect directly to bypass duplicate checking (uses saved ID)
+      this.addEffect(effect);
+    }
   }
 
   /**
@@ -1980,6 +2073,11 @@ export class Player extends Living {
     // Store mercenary data for deferred restoration (after player enters room)
     if (data.mercenaries && data.mercenaries.length > 0) {
       this._pendingMercenaryData = data.mercenaries;
+    }
+
+    // Restore active effects (debuffs/afflictions)
+    if (data.effects && data.effects.length > 0) {
+      this._restoreEffects(data.effects);
     }
 
     // Note: Location and inventory need to be handled by the driver

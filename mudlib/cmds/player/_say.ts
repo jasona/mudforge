@@ -30,6 +30,13 @@ export function execute(ctx: CommandContext): void {
   const { player, args } = ctx;
   const room = player.environment;
 
+  // Check if player is muted
+  const playerLiving = player as Living;
+  if (playerLiving.isMute && playerLiving.isMute()) {
+    ctx.sendLine("{red}You try to speak but no sound comes out - you are muted!{/}");
+    return;
+  }
+
   if (!args) {
     ctx.sendLine('Say what?');
     return;
@@ -60,9 +67,14 @@ export function execute(ctx: CommandContext): void {
     for (const obj of room.inventory) {
       if (obj !== player) {
         const other = obj as PlayerLike;
+        const listenerLiving = other as Living;
+
+        // Skip deaf listeners (they don't hear anything)
+        if (listenerLiving.isDeaf && listenerLiving.isDeaf()) {
+          continue;
+        }
 
         // Determine the speaker's name based on listener's visibility of them
-        const listenerLiving = other as Living;
         const roomObj = room as Room;
         const { name: displayedName } = getVisibleDisplayName(listenerLiving, speakerLiving, roomObj);
 

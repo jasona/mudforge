@@ -32,28 +32,42 @@ export function execute(ctx: CommandContext): void {
       return;
     }
 
-    // Unwield main hand first
-    if (wielded.mainHand) {
-      const result = wielded.mainHand.unwield();
-      ctx.sendLine(result.message);
+    // Check if both arms are disabled
+    if (living.areBothArmsDisabled && living.areBothArmsDisabled()) {
+      ctx.sendLine("{red}Both of your arms are disabled - you can't unwield anything!{/}");
+      return;
+    }
 
-      if (result.success && living.environment) {
-        const room = living.environment as Room;
-        if (typeof room.broadcast === 'function') {
-          room.broadcast(`${living.name} stops wielding ${wielded.mainHand.shortDesc}.`, { exclude: [player] });
+    // Unwield main hand first (requires right arm)
+    if (wielded.mainHand) {
+      if (living.hasArmDisabled && living.hasArmDisabled('right')) {
+        ctx.sendLine("{red}Your right arm is disabled - you can't unwield your main hand weapon!{/}");
+      } else {
+        const result = wielded.mainHand.unwield();
+        ctx.sendLine(result.message);
+
+        if (result.success && living.environment) {
+          const room = living.environment as Room;
+          if (typeof room.broadcast === 'function') {
+            room.broadcast(`${living.name} stops wielding ${wielded.mainHand.shortDesc}.`, { exclude: [player] });
+          }
         }
       }
     }
 
-    // Unwield off hand if different from main hand
+    // Unwield off hand if different from main hand (requires left arm)
     if (wielded.offHand && wielded.offHand !== wielded.mainHand) {
-      const result = wielded.offHand.unwield();
-      ctx.sendLine(result.message);
+      if (living.hasArmDisabled && living.hasArmDisabled('left')) {
+        ctx.sendLine("{red}Your left arm is disabled - you can't unwield your off hand weapon!{/}");
+      } else {
+        const result = wielded.offHand.unwield();
+        ctx.sendLine(result.message);
 
-      if (result.success && living.environment) {
-        const room = living.environment as Room;
-        if (typeof room.broadcast === 'function') {
-          room.broadcast(`${living.name} stops wielding ${wielded.offHand.shortDesc}.`, { exclude: [player] });
+        if (result.success && living.environment) {
+          const room = living.environment as Room;
+          if (typeof room.broadcast === 'function') {
+            room.broadcast(`${living.name} stops wielding ${wielded.offHand.shortDesc}.`, { exclude: [player] });
+          }
         }
       }
     }
@@ -62,9 +76,11 @@ export function execute(ctx: CommandContext): void {
 
   // Find specific weapon to unwield
   let weapon: Weapon | undefined;
+  let isMainHand = false;
 
   if (wielded.mainHand?.id(args)) {
     weapon = wielded.mainHand;
+    isMainHand = true;
   } else if (wielded.offHand?.id(args)) {
     weapon = wielded.offHand;
   }
@@ -72,6 +88,18 @@ export function execute(ctx: CommandContext): void {
   if (!weapon) {
     ctx.sendLine(`You aren't wielding any "${args}".`);
     return;
+  }
+
+  // Check if the relevant arm is disabled
+  if (living.hasArmDisabled) {
+    if (isMainHand && living.hasArmDisabled('right')) {
+      ctx.sendLine("{red}Your right arm is disabled - you can't unwield that!{/}");
+      return;
+    }
+    if (!isMainHand && living.hasArmDisabled('left')) {
+      ctx.sendLine("{red}Your left arm is disabled - you can't unwield that!{/}");
+      return;
+    }
   }
 
   const result = weapon.unwield();

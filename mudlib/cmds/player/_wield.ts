@@ -46,6 +46,24 @@ export function execute(ctx: CommandContext): void {
     preferredSlot = 'main_hand';
   }
 
+  // Check if arm is disabled for the target slot
+  if (living.hasArmDisabled) {
+    // Right arm = main_hand, Left arm = off_hand
+    if (preferredSlot === 'main_hand' && living.hasArmDisabled('right')) {
+      ctx.sendLine("{red}Your right arm is disabled - you can't wield anything in your main hand!{/}");
+      return;
+    }
+    if (preferredSlot === 'off_hand' && living.hasArmDisabled('left')) {
+      ctx.sendLine("{red}Your left arm is disabled - you can't wield anything in your off hand!{/}");
+      return;
+    }
+    // If no preferred slot, check if both arms are disabled
+    if (!preferredSlot && living.areBothArmsDisabled && living.areBothArmsDisabled()) {
+      ctx.sendLine("{red}Both of your arms are disabled - you can't wield anything!{/}");
+      return;
+    }
+  }
+
   // Find weapon in inventory
   let weapon: Weapon | undefined;
   for (const item of player.inventory) {

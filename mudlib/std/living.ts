@@ -830,9 +830,9 @@ export class Living extends MudObject {
    * Override this for periodic behavior (regeneration, AI, etc.)
    */
   heartbeat(): void {
-    // Default: do nothing
-    // NPCs can override for AI behavior
-    // Players override for monitor display
+    // Process effect timers (duration countdown, DoT/HoT ticks)
+    // Heartbeat interval is 2000ms by default
+    this.tickEffects(2000);
   }
 
   // ========== Core Stats ==========
@@ -1232,6 +1232,13 @@ export class Living extends MudObject {
   }
 
   /**
+   * Alias for getEffects() - used by some systems.
+   */
+  getActiveEffects(): Effect[] {
+    return this.getEffects();
+  }
+
+  /**
    * Process effect ticks and expirations.
    * Should be called each heartbeat.
    * @param deltaMs Time elapsed in milliseconds
@@ -1418,6 +1425,94 @@ export class Living extends MudObject {
       if (effect.type === 'invulnerable') return true;
     }
     return false;
+  }
+
+  // ========== Body Part/Sense Status Checks ==========
+
+  /**
+   * Check if this living is blinded.
+   */
+  isBlind(): boolean {
+    for (const effect of this._effects.values()) {
+      if (effect.type === 'blind') return true;
+    }
+    return false;
+  }
+
+  /**
+   * Check if this living is deafened.
+   */
+  isDeaf(): boolean {
+    for (const effect of this._effects.values()) {
+      if (effect.type === 'deaf') return true;
+    }
+    return false;
+  }
+
+  /**
+   * Check if this living is muted.
+   */
+  isMute(): boolean {
+    for (const effect of this._effects.values()) {
+      if (effect.type === 'mute') return true;
+    }
+    return false;
+  }
+
+  /**
+   * Check if a specific arm is disabled.
+   * @param arm Which arm to check: 'left', 'right', or 'any' (either arm)
+   */
+  hasArmDisabled(arm: 'left' | 'right' | 'any'): boolean {
+    for (const effect of this._effects.values()) {
+      if (effect.type === 'arm_disabled') {
+        if (arm === 'any') return true;
+        if (effect.affectedPart === 'both') return true;
+        if (effect.affectedPart === arm) return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Check if both arms are disabled.
+   */
+  areBothArmsDisabled(): boolean {
+    let leftDisabled = false;
+    let rightDisabled = false;
+
+    for (const effect of this._effects.values()) {
+      if (effect.type === 'arm_disabled') {
+        if (effect.affectedPart === 'both') return true;
+        if (effect.affectedPart === 'left') leftDisabled = true;
+        if (effect.affectedPart === 'right') rightDisabled = true;
+      }
+    }
+
+    return leftDisabled && rightDisabled;
+  }
+
+  /**
+   * Check if legs are disabled.
+   */
+  hasLegsDisabled(): boolean {
+    for (const effect of this._effects.values()) {
+      if (effect.type === 'leg_disabled') return true;
+    }
+    return false;
+  }
+
+  /**
+   * Receive a message if not deaf.
+   * @param message The message to hear
+   * @returns true if the message was heard, false if deaf
+   */
+  hearMessage(message: string): boolean {
+    if (this.isDeaf()) {
+      return false;
+    }
+    this.receive(message);
+    return true;
   }
 
   /**

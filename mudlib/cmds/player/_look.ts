@@ -98,8 +98,14 @@ export async function execute(ctx: CommandContext): Promise<void> {
     return;
   }
 
-  // Check if player can see in the room
+  // Check if player is blinded
   const playerLiving = player as Living;
+  if (playerLiving.isBlind && playerLiving.isBlind()) {
+    ctx.sendLine("{red}You can't see anything - you are blinded!{/}");
+    return;
+  }
+
+  // Check if player can see in the room
   const roomObj = room as unknown as RoomClass;
   const lightCheck = canSeeInRoom(playerLiving, roomObj);
   const canSee = lightCheck.canSee;

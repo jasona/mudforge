@@ -501,6 +501,9 @@ export class Mercenary extends NPC {
    * is in combat or needs healing, even if the mercenary itself isn't in combat.
    */
   override async heartbeat(): Promise<void> {
+    // Call Living's heartbeat for effect ticking (skip NPC behaviors)
+    Living.prototype.heartbeat.call(this);
+
     if (!this.alive) return;
 
     // If following and owner is not in the room, try to rejoin them

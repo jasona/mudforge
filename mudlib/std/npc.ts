@@ -1332,6 +1332,9 @@ export class NPC extends Living {
    * Processes chat, wandering, aggression, and other periodic behaviors.
    */
   override async heartbeat(): Promise<void> {
+    // Call parent heartbeat for effect ticking
+    super.heartbeat();
+
     if (!this.alive) return;
 
     const random = typeof efuns !== 'undefined' ? efuns.random : (max: number) =>

@@ -610,7 +610,9 @@ export class Pet extends NPC {
    */
   override async heartbeat(): Promise<void> {
     // Pets don't wander or chat on their own
-    // Just do basic living heartbeat (regeneration, etc.)
+    // Just do basic living heartbeat (effect ticking, etc.)
+    Living.prototype.heartbeat.call(this);
+
     if (!this.alive) return;
   }
 }
