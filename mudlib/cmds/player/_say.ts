@@ -69,8 +69,8 @@ export function execute(ctx: CommandContext): void {
         const other = obj as PlayerLike;
         const listenerLiving = other as Living;
 
-        // Skip deaf listeners (they don't hear anything)
-        if (listenerLiving.isDeaf && listenerLiving.isDeaf()) {
+        // Skip deaf or sleeping listeners (they don't hear anything)
+        if (listenerLiving.isDeaf?.() || listenerLiving.isSleeping?.()) {
           continue;
         }
 

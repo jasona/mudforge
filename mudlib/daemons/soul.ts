@@ -466,6 +466,7 @@ export class SoulDaemon extends MudObject {
 
   /**
    * Deliver emote messages to all appropriate recipients.
+   * Sleeping players do not receive emote messages (except their own).
    */
   private async _deliverMessages(
     actor: MudObject,
@@ -474,29 +475,29 @@ export class SoulDaemon extends MudObject {
   ): Promise<void> {
     const actorWithReceive = actor as MudObject & { receive?: (msg: string) => void };
 
-    // Send to actor
+    // Send to actor (always receives their own emote)
     if (actorWithReceive.receive) {
       actorWithReceive.receive(messages.actor + '\n');
     }
 
-    // Send to target
+    // Send to target (skip if sleeping)
     if (target && messages.target) {
-      const targetWithReceive = target as MudObject & { receive?: (msg: string) => void };
-      if (targetWithReceive.receive) {
-        targetWithReceive.receive(messages.target + '\n');
+      const targetLiving = target as MudObject & { receive?: (msg: string) => void; isSleeping?: () => boolean };
+      if (targetLiving.receive && !targetLiving.isSleeping?.()) {
+        targetLiving.receive(messages.target + '\n');
       }
     }
 
-    // Send to others in the room
+    // Send to others in the room (skip sleeping)
     const env = typeof efuns !== 'undefined' ? efuns.environment(actor) : null;
     if (env) {
       const inventory = typeof efuns !== 'undefined' ? efuns.allInventory(env) : [];
       for (const obj of inventory) {
         if (obj === actor || obj === target) continue;
 
-        const objWithReceive = obj as MudObject & { receive?: (msg: string) => void };
-        if (objWithReceive.receive) {
-          objWithReceive.receive(messages.others + '\n');
+        const objLiving = obj as MudObject & { receive?: (msg: string) => void; isSleeping?: () => boolean };
+        if (objLiving.receive && !objLiving.isSleeping?.()) {
+          objLiving.receive(messages.others + '\n');
         }
       }
     }

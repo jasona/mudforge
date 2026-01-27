@@ -1503,6 +1503,13 @@ export class Living extends MudObject {
   }
 
   /**
+   * Check if this living is sleeping.
+   */
+  isSleeping(): boolean {
+    return this._posture === 'sleeping';
+  }
+
+  /**
    * Receive a message if not deaf.
    * @param message The message to hear
    * @returns true if the message was heard, false if deaf

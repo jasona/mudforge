@@ -46,7 +46,7 @@ export async function execute(ctx: CommandContext): Promise<void> {
     ctx.sendLine('You sit down.');
   }
 
-  // Notify room
+  // Notify room (sleeping players filtered automatically)
   if (living.environment) {
     const room = living.environment as Room;
     if (typeof room.broadcast === 'function') {

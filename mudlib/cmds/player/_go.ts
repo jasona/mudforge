@@ -225,7 +225,7 @@ export async function execute(ctx: CommandContext): Promise<boolean> {
   const livingWithName = player as Living & { name?: string };
   const playerName = livingWithName.name || 'someone';
 
-  // Broadcast exit message to current room
+  // Broadcast exit message to current room (sleeping players filtered automatically)
   const exitRoom = room as BroadcastableRoom;
   if (exitRoom.broadcast) {
     const exitTemplate = livingWithName.exitMessage || DEFAULT_EXIT_MESSAGE;
@@ -283,7 +283,7 @@ export async function execute(ctx: CommandContext): Promise<boolean> {
       // Mercenary daemon not available
     });
 
-  // Broadcast enter message to new room
+  // Broadcast enter message to new room (sleeping players filtered automatically)
   const enterRoom = destination as BroadcastableRoom;
   if (enterRoom.broadcast) {
     const enterTemplate = livingWithName.enterMessage || DEFAULT_ENTER_MESSAGE;

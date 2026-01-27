@@ -42,7 +42,7 @@ export async function execute(ctx: CommandContext): Promise<void> {
   // Success message
   ctx.sendLine('You wake up and sit up, stretching.');
 
-  // Notify room
+  // Notify room (sleeping players filtered automatically)
   const room = player.environment;
   if (room && 'broadcast' in room) {
     const name = typeof efuns !== 'undefined' ? efuns.capitalize(living.name) : living.name;
