@@ -183,6 +183,7 @@ export class Connection extends EventEmitter {
   private _connectedAt: Date;
   private _player: unknown = null;
   private _inputBuffer: string = '';
+  private _isAlive: boolean = true;
 
   constructor(socket: WebSocket, id: string, remoteAddress: string = 'unknown') {
     super();
@@ -214,6 +215,11 @@ export class Connection extends EventEmitter {
 
     this.socket.on('error', (error: Error) => {
       this.emit('error', error);
+    });
+
+    // Handle pong responses for keepalive
+    this.socket.on('pong', () => {
+      this._isAlive = true;
     });
 
     // Mark as open if socket is already open
@@ -488,6 +494,36 @@ export class Connection extends EventEmitter {
     try {
       const json = JSON.stringify(message);
       this.socket.send(`\x00[SOUND]${json}`);
+    } catch (error) {
+      this.emit('error', error as Error);
+    }
+  }
+
+  /**
+   * Check if the connection is alive (responded to last ping).
+   */
+  get isAlive(): boolean {
+    return this._isAlive;
+  }
+
+  /**
+   * Mark the connection as not alive (used before sending ping).
+   */
+  markNotAlive(): void {
+    this._isAlive = false;
+  }
+
+  /**
+   * Send a ping frame to the client.
+   * The client's browser will automatically respond with a pong.
+   */
+  ping(): void {
+    if (this._state !== 'open') {
+      return;
+    }
+
+    try {
+      this.socket.ping();
     } catch (error) {
       this.emit('error', error as Error);
     }
