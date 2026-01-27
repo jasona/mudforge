@@ -19,6 +19,16 @@ export const DEFAULT_FUEL_DURATION = 1800;
 export const LOW_FUEL_WARNING = 300;
 
 /**
+ * Fuel provided by adding firewood (10 minutes).
+ */
+export const FIREWOOD_FUEL = 600;
+
+/**
+ * Fuel provided by adding tinder (5 minutes).
+ */
+export const TINDER_FUEL = 300;
+
+/**
  * Heartbeat interval in milliseconds.
  */
 const HEARTBEAT_INTERVAL = 2000;
@@ -63,6 +73,9 @@ export class Campfire extends Item {
     this.addAction('douse', async () => this.extinguish());
     this.addAction('light', async () => this.light());
     this.addAction('rekindle', async () => this.light());
+    this.addAction('add', async () => this.addFuelItem());
+    this.addAction('feed', async () => this.addFuelItem());
+    this.addAction('stoke', async () => this.addFuelItem());
   }
 
   // ========== Properties ==========
@@ -235,6 +248,60 @@ export class Campfire extends Item {
     return null;
   }
 
+  /**
+   * Find firewood in user's inventory.
+   */
+  private findFirewood(user: Living): Item | null {
+    for (const item of user.inventory) {
+      if (item instanceof Item && item.id && item.id('firewood')) {
+        return item;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Add firewood or tinder to the campfire to extend burn time.
+   */
+  async addFuelItem(): Promise<boolean> {
+    const user = this.findUserInRoom();
+    if (!user) return false;
+
+    if (!this._isLit) {
+      user.receive('The fire is out. You need to light it first.\n');
+      return false;
+    }
+
+    // Check for firewood first (provides more fuel)
+    const firewood = this.findFirewood(user);
+    if (firewood) {
+      if (typeof efuns !== 'undefined' && efuns.destruct) {
+        await efuns.destruct(firewood);
+      }
+      this.addFuel(FIREWOOD_FUEL);
+      user.receive('You add firewood to the campfire. The flames grow stronger.\n');
+      this.broadcastToRoom(`${this.capitalize(user.name)} adds firewood to the campfire.\n`, user);
+      this.updateDescription();
+      return true;
+    }
+
+    // Check for tinder (provides less fuel)
+    const tinder = this.findTinder(user);
+    if (tinder) {
+      if (typeof efuns !== 'undefined' && efuns.destruct) {
+        await efuns.destruct(tinder);
+      }
+      this.addFuel(TINDER_FUEL);
+      user.receive('You add tinder to the campfire. The flames flicker brighter.\n');
+      this.broadcastToRoom(`${this.capitalize(user.name)} adds tinder to the campfire.\n`, user);
+      this.updateDescription();
+      return true;
+    }
+
+    user.receive('You need firewood or tinder to add to the fire.\n');
+    return false;
+  }
+
   // ========== Heartbeat ==========
 
   /**
@@ -310,6 +377,17 @@ export class Campfire extends Item {
       desc += `\n\nIt looks like it will burn for about ${minutes} more minute${minutes !== 1 ? 's' : ''}.`;
     }
     return desc;
+  }
+
+  /**
+   * Called when the campfire is created.
+   */
+  override async onCreate(): Promise<void> {
+    await super.onCreate();
+    // Start heartbeat if lit
+    if (this._isLit) {
+      this.startHeartbeat();
+    }
   }
 
   /**
