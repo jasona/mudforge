@@ -42,6 +42,13 @@ function capitalize(str: string): string {
 export async function execute(ctx: CommandContext): Promise<void> {
   const args = ctx.args.trim();
 
+  // Check if player is muted
+  const playerLiving = ctx.player as unknown as Living;
+  if (playerLiving.isMute && playerLiving.isMute()) {
+    ctx.sendLine("{red}You try to speak but no sound comes out - you are muted!{/}");
+    return;
+  }
+
   if (!args) {
     ctx.sendLine('{yellow}Usage: tell <player> <message>{/}');
     ctx.sendLine('{dim}Example: tell bob Hey there!{/}');
@@ -135,7 +142,15 @@ export async function execute(ctx: CommandContext): Promise<void> {
   const allParticipants = [ctx.player.name.toLowerCase(), ...foundTargets.map((t) => t.name.toLowerCase())];
 
   // Send to each target
+  const deafTargets: string[] = [];
   for (const target of foundTargets) {
+    // Check if target is deaf
+    const targetLiving = target as Living;
+    if (targetLiving.isDeaf && targetLiving.isDeaf()) {
+      deafTargets.push(capitalize(target.name));
+      continue;
+    }
+
     // Build "others" list for group tells (everyone except sender and this target)
     const others = foundTargets
       .filter((t) => t !== target)
@@ -189,6 +204,11 @@ export async function execute(ctx: CommandContext): Promise<void> {
   // Store reply info on sender too (for continuing the conversation)
   const senderReplyTo = foundTargets.map((t) => t.name.toLowerCase());
   (ctx.player as Player).setProperty('_lastTellFrom', senderReplyTo);
+
+  // Notify sender about deaf targets
+  for (const name of deafTargets) {
+    ctx.sendLine(`{yellow}${name} can't hear you right now.{/}`);
+  }
 }
 
 export default { name, description, usage, execute };

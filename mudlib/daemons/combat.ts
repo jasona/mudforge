@@ -499,22 +499,53 @@ export class CombatDaemon extends MudObject {
       };
     }
 
+    // Check if both arms are disabled
+    const attackerWithArms = attacker as Living & {
+      areBothArmsDisabled?: () => boolean;
+      hasArmDisabled?: (arm: 'left' | 'right' | 'any') => boolean;
+    };
+    if (attackerWithArms.areBothArmsDisabled && attackerWithArms.areBothArmsDisabled()) {
+      attacker.receive('{yellow}Both of your arms are disabled - you cannot attack!{/}\n');
+      return {
+        attacker,
+        defender,
+        attacks: [],
+        totalDamage: 0,
+        defenderDied: false,
+        attackerDied: false,
+      };
+    }
+
     // Get weapon(s)
     const weapons = attacker.getWieldedWeapons();
     const mainWeapon = weapons.mainHand || null;
     const offWeapon = weapons.offHand || null;
 
-    // Main hand attack
-    const mainAttack = this.resolveAttack(attacker, defender, mainWeapon);
-    attacks.push(mainAttack);
-    totalDamage += mainAttack.finalDamage;
+    // Check right arm for main hand attack
+    const rightArmDisabled = attackerWithArms.hasArmDisabled && attackerWithArms.hasArmDisabled('right');
 
-    // Off-hand attack (if dual-wielding with light weapon)
+    // Main hand attack (requires right arm)
+    if (!rightArmDisabled) {
+      const mainAttack = this.resolveAttack(attacker, defender, mainWeapon);
+      attacks.push(mainAttack);
+      totalDamage += mainAttack.finalDamage;
+    } else {
+      attacker.receive('{yellow}Your right arm is disabled - you cannot attack with your main hand!{/}\n');
+    }
+
+    // Check left arm for off-hand attack
+    const leftArmDisabled = attackerWithArms.hasArmDisabled && attackerWithArms.hasArmDisabled('left');
+
+    // Off-hand attack (if dual-wielding with light weapon, requires left arm)
     if (offWeapon && offWeapon !== mainWeapon) {
       if ('handedness' in offWeapon && (offWeapon as Weapon).handedness === 'light') {
-        const offAttack = this.resolveAttack(attacker, defender, offWeapon);
-        attacks.push(offAttack);
-        totalDamage += offAttack.finalDamage;
+        if (!leftArmDisabled) {
+          const offAttack = this.resolveAttack(attacker, defender, offWeapon);
+          attacks.push(offAttack);
+          totalDamage += offAttack.finalDamage;
+        } else {
+          attacker.receive('{yellow}Your left arm is disabled - you cannot attack with your off hand!{/}\n');
+        }
       }
     }
 
@@ -1187,6 +1218,13 @@ export class CombatDaemon extends MudObject {
    * @returns true if successfully fled
    */
   private wimpyFlee(living: Living, entry: CombatEntry): boolean {
+    // Check if legs are disabled
+    const livingWithLegs = living as Living & { hasLegsDisabled?: () => boolean };
+    if (livingWithLegs.hasLegsDisabled && livingWithLegs.hasLegsDisabled()) {
+      living.receive('{red}[Wimpy] Panic! You try to run but your legs are disabled!{/}\n');
+      return false;
+    }
+
     const room = living.environment;
     if (!room || !('getExits' in room)) {
       living.receive('{red}[Wimpy] Panic! You look around frantically but there\'s nowhere to run!{/}\n');
@@ -1229,6 +1267,13 @@ export class CombatDaemon extends MudObject {
   attemptFlee(attacker: Living, direction?: string): boolean {
     if (!attacker.inCombat) {
       attacker.receive("You're not in combat!\n");
+      return false;
+    }
+
+    // Check if legs are disabled
+    const attackerWithLegs = attacker as Living & { hasLegsDisabled?: () => boolean };
+    if (attackerWithLegs.hasLegsDisabled && attackerWithLegs.hasLegsDisabled()) {
+      attacker.receive("{red}Your legs are disabled - you cannot flee!{/}\n");
       return false;
     }
 

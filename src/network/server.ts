@@ -44,6 +44,9 @@ export interface ServerEvents {
   error: (error: Error) => void;
 }
 
+/** Heartbeat interval in milliseconds (30 seconds) */
+const HEARTBEAT_INTERVAL_MS = 30000;
+
 /**
  * MUD server handling HTTP and WebSocket connections.
  */
@@ -52,6 +55,7 @@ export class Server extends EventEmitter {
   private fastify: FastifyInstance;
   private connectionManager: ConnectionManager;
   private running: boolean = false;
+  private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
 
   constructor(config: Partial<ServerConfig> = {}) {
     super();
@@ -215,10 +219,43 @@ export class Server extends EventEmitter {
       });
 
       this.running = true;
+      this.startHeartbeat();
       console.log(`Server listening on ${this.config.host}:${this.config.port}`);
     } catch (error) {
       this.emit('error', error as Error);
       throw error;
+    }
+  }
+
+  /**
+   * Start the WebSocket heartbeat interval.
+   * Sends ping frames to all connections every 30 seconds to keep them alive.
+   */
+  private startHeartbeat(): void {
+    this.heartbeatInterval = setInterval(() => {
+      const connections = this.connectionManager.getAll();
+      for (const connection of connections) {
+        if (!connection.isAlive) {
+          // Connection didn't respond to previous ping - terminate it
+          connection.terminate();
+          continue;
+        }
+
+        // Mark as not alive and send ping
+        // When pong is received, isAlive will be set back to true
+        connection.markNotAlive();
+        connection.ping();
+      }
+    }, HEARTBEAT_INTERVAL_MS);
+  }
+
+  /**
+   * Stop the WebSocket heartbeat interval.
+   */
+  private stopHeartbeat(): void {
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval);
+      this.heartbeatInterval = null;
     }
   }
 
@@ -229,6 +266,9 @@ export class Server extends EventEmitter {
     if (!this.running) {
       return;
     }
+
+    // Stop heartbeat
+    this.stopHeartbeat();
 
     // Close all connections
     this.connectionManager.closeAll(1001, 'Server shutting down');

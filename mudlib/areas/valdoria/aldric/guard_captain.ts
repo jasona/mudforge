@@ -42,18 +42,6 @@ from his belt pouch.`;
     this.setQuestsOffered(['aldric:map_the_depths']);
     this.setQuestsTurnedIn(['aldric:map_the_depths']);
 
-    // Preserved custom code
-    // Preserved custom code
-    // Quest giver configuration
-    // Use auto-balance for level 20 normal (veteran soldier)
-    // Override stats - he's a tough veteran
-    this.setBaseStat('strength', 16);
-    this.setBaseStat('dexterity', 14);
-    this.setBaseStat('constitution', 16);
-    this.setBaseStat('intelligence', 12);
-    this.setBaseStat('wisdom', 14);
-    this.setBaseStat('charisma', 14);
-    this.setBaseStat('luck', 10);
     this.setupChats();
     this.setupResponses();
   }

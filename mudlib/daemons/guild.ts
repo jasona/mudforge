@@ -699,6 +699,14 @@ export class GuildDaemon extends MudObject {
       return { success: false, message: `You don't have enough mana. ${skill.name} costs ${skill.manaCost} MP.` };
     }
 
+    // Mute check (spells require verbal components - mana cost indicates a spell)
+    if (skill.manaCost > 0) {
+      const playerLiving = player as unknown as Living;
+      if (playerLiving.isMute && playerLiving.isMute()) {
+        return { success: false, message: `You try to speak the incantation for ${skill.name} but no sound comes out - you are muted!` };
+      }
+    }
+
     // Target validation
     if (skill.target === 'single' && !target) {
       return { success: false, message: `${skill.name} requires a target.` };

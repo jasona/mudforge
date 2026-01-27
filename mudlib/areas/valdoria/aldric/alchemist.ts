@@ -74,16 +74,6 @@ quietly, others glow faintly, and a few seem to move of their own accord.`;
     this.addStock('/areas/valdoria/aldric/items/lesser_mana_potion', 'Lesser Mana Potion', 50, 10, 'potion');
     this.addStock('/areas/valdoria/aldric/items/standard_mana_potion', 'Mana Potion', 100, 8, 'potion');
 
-    // Preserved custom code
-    // Override auto-calculated health
-    // Preserved custom code
-    // Configure the merchant
-    // Set NPC properties
-    // Use auto-balance for level 8 normal (learned civilian)
-    // Override health - he's old and frail
-    // Higher wisdom for an alchemist
-    this.setBaseStat('wisdom', 16);
-    this.setBaseStat('intelligence', 18);
     // Stock the shop
     this.setupStock();
     this.setupChats();

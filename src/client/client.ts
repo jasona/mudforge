@@ -18,7 +18,7 @@ import {
   GiphyMessage,
 } from './websocket-client.js';
 import { InputHandler } from './input-handler.js';
-import { IdeEditor } from './ide-editor.js';
+import { IdeEditorLoader } from './ide-editor-loader.js';
 import { MapPanel } from './map-panel.js';
 import { StatsPanel } from './stats-panel.js';
 import { EquipmentPanel } from './equipment-panel.js';
@@ -40,7 +40,7 @@ class MudClient {
   private terminal: Terminal;
   private wsClient: WebSocketClient;
   private inputHandler: InputHandler;
-  private ideEditor: IdeEditor;
+  private ideEditor: IdeEditorLoader;
   private mapPanel: MapPanel;
   private statsPanel: StatsPanel;
   private equipmentPanel: EquipmentPanel;
@@ -74,7 +74,7 @@ class MudClient {
     this.terminal = new Terminal(terminalEl);
     this.inputHandler = new InputHandler(inputEl, sendBtn);
     this.wsClient = new WebSocketClient();
-    this.ideEditor = new IdeEditor();
+    this.ideEditor = new IdeEditorLoader();
     this.mapPanel = new MapPanel('map-container', {
       onRoomClick: (roomPath) => {
         // Could implement auto-walk in the future
@@ -236,9 +236,9 @@ class MudClient {
   /**
    * Handle IDE messages from server.
    */
-  private handleIdeMessage(message: IdeMessage): void {
+  private async handleIdeMessage(message: IdeMessage): Promise<void> {
     if (message.action === 'open') {
-      this.ideEditor.open(message, {
+      await this.ideEditor.open(message, {
         onSave: (path, content) => {
           this.wsClient.sendIdeMessage({
             action: 'save',

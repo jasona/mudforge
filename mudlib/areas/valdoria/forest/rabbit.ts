@@ -32,17 +32,12 @@ a wary eye out for predators.`,
       wanderAreaRestricted: true,
     });
 
-    // Preserved custom code
     // Use auto-balance for level 1 normal NPC
-    // Override stats for rabbit flavor (very fast, fragile)
-    this.setBaseStat('strength', 2);
-    this.setBaseStat('dexterity', 16);
-    this.setBaseStat('constitution', 4);
-    this.setBaseStat('intelligence', 2);
-    this.setBaseStat('wisdom', 8);
-    this.setBaseStat('charisma', 10);
-    this.setBaseStat('luck', 12);
-    // Override: rabbits are fragile
+    this.setLevel(1, 'normal');
+
+    // Rabbits are fragile critters - override HP
+    this.maxHealth = 25;
+    this.health = 25;
     this.maxMana = 0;
     this.mana = 0;
   }

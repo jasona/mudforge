@@ -24,6 +24,16 @@ import { LightLevel, DEFAULT_ROOM_LIGHT } from './visibility/types.js';
 import { canSee, formatVisibleName, canSeeInRoom, getDarknessMessage } from './visibility/index.js';
 
 /**
+ * Filter function that excludes sleeping players from receiving room messages.
+ * Use this with room.broadcast() to prevent sleeping players from seeing
+ * movement, speech, and other room activity.
+ */
+export function awakeFilter(obj: MudObject): boolean {
+  const living = obj as Living & { isSleeping?: () => boolean };
+  return !living.isSleeping || !living.isSleeping();
+}
+
+/**
  * Exit definition.
  */
 export interface Exit {
@@ -45,6 +55,8 @@ export interface BroadcastOptions {
   exclude?: MudObject[];
   /** Only send to objects matching this filter */
   filter?: (obj: MudObject) => boolean;
+  /** If true, also send to sleeping players (default: false) */
+  includeSleeping?: boolean;
 }
 
 /**
@@ -490,11 +502,13 @@ export class Room extends MudObject {
 
   /**
    * Send a message to all objects in this room.
+   * By default, sleeping players are excluded from room broadcasts.
+   * Use includeSleeping: true for system messages that should reach sleeping players.
    * @param message The message to send
    * @param options Broadcast options
    */
   broadcast(message: string, options: BroadcastOptions = {}): void {
-    const { exclude = [], filter } = options;
+    const { exclude = [], filter, includeSleeping = false } = options;
     const excludeSet = new Set(exclude);
 
     for (const obj of this.inventory) {
@@ -504,6 +518,14 @@ export class Room extends MudObject {
 
       if (filter && !filter(obj)) {
         continue;
+      }
+
+      // Skip sleeping players unless explicitly included
+      if (!includeSleeping) {
+        const living = obj as Living & { isSleeping?: () => boolean };
+        if (living.isSleeping?.()) {
+          continue;
+        }
       }
 
       // Check if object has a receive method
@@ -703,7 +725,7 @@ export class Room extends MudObject {
    * Default behavior: broadcast reset message and re-clone missing items/NPCs.
    */
   async onReset(): Promise<void> {
-    // Broadcast reset message if set
+    // Broadcast reset message if set (sleeping players filtered automatically)
     if (this._resetMessage) {
       this.broadcast(this._resetMessage);
     }
@@ -806,6 +828,16 @@ export class Room extends MudObject {
           desc = formatVisibleName(desc, true);
         }
 
+        // Add posture state for living beings (sitting, sleeping)
+        const living = obj as Living & { isLiving?: boolean };
+        if (living.isLiving && living.posture) {
+          if (living.posture === 'sitting') {
+            desc += ' {dim}(sitting){/}';
+          } else if (living.posture === 'sleeping') {
+            desc += ' {dim}(sleeping){/}';
+          }
+        }
+
         // Add open/closed indicator for containers that support it
         if (obj instanceof Container && obj.canOpenClose) {
           desc += obj.isOpen ? ' {dim}(open){/}' : ' {dim}(closed){/}';
@@ -813,6 +845,10 @@ export class Room extends MudObject {
         // Gold piles displayed in bold yellow
         if (obj instanceof GoldPile) {
           desc = `{bold}{yellow}${desc}{/}`;
+        }
+        // Players displayed in yellow
+        else if (isPlayer(obj)) {
+          desc = `{yellow}${desc}{/}`;
         }
         // NPCs displayed in red (non-bold), with quest indicators
         else if (obj instanceof NPC) {

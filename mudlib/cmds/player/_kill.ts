@@ -108,6 +108,12 @@ export function execute(ctx: CommandContext): void {
     return;
   }
 
+  // Check if player is blinded
+  if (attacker.isBlind && attacker.isBlind()) {
+    ctx.sendLine("{red}You can't see well enough to target anyone!{/}");
+    return;
+  }
+
   // Check if player can see in the room
   const roomObj = room as unknown as Room;
   const lightCheck = canSeeInRoom(attacker, roomObj);

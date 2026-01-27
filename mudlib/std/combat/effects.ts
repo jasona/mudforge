@@ -554,6 +554,96 @@ export const Effects = {
       effectType: 'detect_hidden',
     };
   },
+
+  // ========== Body Part/Sense Blocking Effects ==========
+
+  /**
+   * Create a blind effect (cannot see).
+   * Blocks: looking at room/items, targeting enemies, reading
+   * @param duration Duration in milliseconds
+   */
+  blind(duration: number): Effect {
+    return {
+      id: generateId('blind'),
+      name: 'Blinded',
+      type: 'blind',
+      duration,
+      magnitude: 1,
+      category: 'debuff',
+      description: 'Cannot see',
+    };
+  },
+
+  /**
+   * Create a deaf effect (cannot hear).
+   * Blocks: receiving say/tell/channel messages
+   * @param duration Duration in milliseconds
+   */
+  deaf(duration: number): Effect {
+    return {
+      id: generateId('deaf'),
+      name: 'Deafened',
+      type: 'deaf',
+      duration,
+      magnitude: 1,
+      category: 'debuff',
+      description: 'Cannot hear',
+    };
+  },
+
+  /**
+   * Create a mute effect (cannot speak).
+   * Blocks: say, tell, channel messages, casting spells
+   * @param duration Duration in milliseconds
+   */
+  mute(duration: number): Effect {
+    return {
+      id: generateId('mute'),
+      name: 'Muted',
+      type: 'mute',
+      duration,
+      magnitude: 1,
+      category: 'debuff',
+      description: 'Cannot speak',
+    };
+  },
+
+  /**
+   * Create an arm disabled effect.
+   * Blocks: wield/unwield weapons, use shield, attack with affected arm
+   * @param duration Duration in milliseconds
+   * @param arm Which arm(s) to disable: 'left', 'right', or 'both'
+   */
+  armDisabled(duration: number, arm: 'left' | 'right' | 'both' = 'both'): Effect {
+    const armName = arm === 'both' ? 'Both arms' : arm === 'left' ? 'Left arm' : 'Right arm';
+    return {
+      id: generateId('arm_disabled'),
+      name: `${armName} Disabled`,
+      type: 'arm_disabled',
+      duration,
+      magnitude: 1,
+      category: 'debuff',
+      description: `${armName} disabled`,
+      affectedPart: arm,
+    };
+  },
+
+  /**
+   * Create a leg disabled effect.
+   * Blocks: movement between rooms, fleeing combat
+   * @param duration Duration in milliseconds
+   */
+  legDisabled(duration: number): Effect {
+    return {
+      id: generateId('leg_disabled'),
+      name: 'Legs Disabled',
+      type: 'leg_disabled',
+      duration,
+      magnitude: 1,
+      category: 'debuff',
+      description: 'Cannot move',
+    };
+  },
 };
 
 /**

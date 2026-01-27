@@ -1159,8 +1159,8 @@ export class NPC extends Living {
     this.maxHealth = Math.round(baseHP * mult.hp);
     this.health = this.maxHealth;
 
-    // Auto-calculate stats: 8 + floor(level / 5)
-    const baseStat = 8 + Math.floor(level / 5);
+    // Auto-calculate stats: max(1, floor(level / 2) + 1) - matches player starting stats
+    const baseStat = Math.max(1, Math.floor(level / 2) + 1);
     const stats: StatName[] = ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma', 'luck'];
     for (const stat of stats) {
       this.setBaseStat(stat, baseStat);
@@ -1332,6 +1332,9 @@ export class NPC extends Living {
    * Processes chat, wandering, aggression, and other periodic behaviors.
    */
   override async heartbeat(): Promise<void> {
+    // Call parent heartbeat for effect ticking
+    super.heartbeat();
+
     if (!this.alive) return;
 
     const random = typeof efuns !== 'undefined' ? efuns.random : (max: number) =>

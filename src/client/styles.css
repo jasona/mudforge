@@ -3899,3 +3899,43 @@ h6.gui-heading { font-size: 12px; }
 .drop-target-hover.drop-target-valid {
   fill: rgba(34, 197, 94, 0.2) !important;
 }
+
+/* ==========================================================================
+   IDE Loading Indicator
+   ========================================================================== */
+
+.ide-loading {
+  position: fixed;
+  inset: 0;
+  background: rgba(13, 13, 15, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+}
+
+.ide-loading-content {
+  text-align: center;
+  color: #e0e0e0;
+}
+
+.ide-loading-spinner {
+  width: 48px;
+  height: 48px;
+  border: 4px solid rgba(245, 158, 11, 0.3);
+  border-top-color: #f59e0b;
+  border-radius: 50%;
+  animation: ide-spin 1s linear infinite;
+  margin: 0 auto 16px;
+}
+
+.ide-loading-text {
+  font-size: 14px;
+  color: #a0a0a0;
+}
+
+@keyframes ide-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

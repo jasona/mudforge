@@ -419,6 +419,13 @@ export class ChannelDaemon extends MudObject {
       return false;
     }
 
+    // Check if player is muted
+    const playerLiving = player as unknown as Living;
+    if (playerLiving.isMute && playerLiving.isMute()) {
+      player.receive("{red}You try to speak but no sound comes out - you are muted!{/}\n");
+      return false;
+    }
+
     // Check for emote syntax (message starts with :)
     if (message.startsWith(':')) {
       return this.sendEmote(player, channelName, message.slice(1).trim());
@@ -546,6 +553,12 @@ export class ChannelDaemon extends MudObject {
 
       // Skip if player has channel off
       if (!this.isChannelOn(player, channelName)) {
+        continue;
+      }
+
+      // Skip deaf players (they can't hear channel messages)
+      const playerLiving = player as unknown as Living;
+      if (playerLiving.isDeaf && playerLiving.isDeaf()) {
         continue;
       }
 
@@ -787,6 +800,12 @@ export class ChannelDaemon extends MudObject {
         continue;
       }
 
+      // Skip deaf players (they can't hear channel messages)
+      const playerLiving = player as unknown as Living;
+      if (playerLiving.isDeaf && playerLiving.isDeaf()) {
+        continue;
+      }
+
       // Get visibility-aware sender name
       const visibleName = this.getVisibleSenderName(sender, player);
 
@@ -852,6 +871,12 @@ export class ChannelDaemon extends MudObject {
 
       // Skip if player has channel off
       if (!this.isChannelOn(player, channelName)) {
+        continue;
+      }
+
+      // Skip deaf players (they can't hear channel messages)
+      const playerLiving = player as unknown as Living;
+      if (playerLiving.isDeaf && playerLiving.isDeaf()) {
         continue;
       }
 
@@ -939,6 +964,12 @@ export class ChannelDaemon extends MudObject {
 
       // Skip if player has channel off
       if (!this.isChannelOn(player, channelName)) {
+        continue;
+      }
+
+      // Skip deaf players (they can't hear channel messages)
+      const playerLiving = player as unknown as Living;
+      if (playerLiving.isDeaf && playerLiving.isDeaf()) {
         continue;
       }
 

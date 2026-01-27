@@ -183,7 +183,12 @@ export type EffectType =
   | 'see_invisible' // Detection buff (see invisible entities)
   | 'detect_hidden' // Perception buff (detect hidden/sneaking)
   | 'threat_modifier' // Modifies threat generation (e.g., +50% threat)
-  | 'taunt'; // Forces NPC target selection
+  | 'taunt' // Forces NPC target selection
+  | 'blind' // Cannot see (blocks look, targeting)
+  | 'deaf' // Cannot hear (blocks say/tell/channel messages)
+  | 'mute' // Cannot speak (blocks say/tell/channels/spells)
+  | 'arm_disabled' // Arm(s) disabled (blocks wield/unwield/attack)
+  | 'leg_disabled'; // Legs disabled (blocks movement, fleeing)
 
 /**
  * Effect category for display grouping.
@@ -235,6 +240,9 @@ export interface Effect {
 
   /** Effect subtype for visibility system (stealth, invisibility, see_invisible, detect_hidden) */
   effectType?: string;
+
+  /** Affected body part for arm_disabled effect (left, right, or both) */
+  affectedPart?: 'left' | 'right' | 'both';
 
   /** Custom tick callback */
   onTick?: (target: Living, effect: Effect) => void;

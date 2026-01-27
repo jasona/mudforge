@@ -526,10 +526,15 @@ ${'='.repeat(bannerWidth)}
         player.receive('\n{yellow}Reconnecting...{/}\n');
         player.receive('Your previous session has been resumed.\n\n');
 
-        // Look at the room
-        const roomWithLook = player.environment as MudObject & { look?: (viewer: MudObject) => void };
-        if (roomWithLook && typeof roomWithLook.look === 'function') {
-          roomWithLook.look(player);
+        // Look at the room (execute command so blind checks etc. are applied)
+        if (typeof efuns !== 'undefined' && efuns.executeCommand) {
+          efuns.executeCommand(player, 'look', 0).catch(() => {
+            // Fallback if command execution fails
+            const roomWithLook = player.environment as MudObject & { look?: (viewer: MudObject) => void };
+            if (roomWithLook && typeof roomWithLook.look === 'function') {
+              roomWithLook.look(player);
+            }
+          });
         }
 
         // Send prompt
@@ -686,10 +691,15 @@ ${'='.repeat(bannerWidth)}
     // Call onConnect
     await player.onConnect();
 
-    // Look at the room
-    const roomWithLook = player.environment as MudObject & { look?: (viewer: MudObject) => void };
-    if (roomWithLook && typeof roomWithLook.look === 'function') {
-      roomWithLook.look(player);
+    // Look at the room (execute command so blind checks etc. are applied)
+    if (typeof efuns !== 'undefined' && efuns.executeCommand) {
+      efuns.executeCommand(player, 'look', 0).catch(() => {
+        // Fallback if command execution fails
+        const roomWithLook = player.environment as MudObject & { look?: (viewer: MudObject) => void };
+        if (roomWithLook && typeof roomWithLook.look === 'function') {
+          roomWithLook.look(player);
+        }
+      });
     }
 
     // Save the player (update last login time, etc.)

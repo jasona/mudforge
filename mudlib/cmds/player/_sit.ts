@@ -5,7 +5,7 @@
  * Cannot sit while in combat.
  */
 
-import type { MudObject } from '../../lib/std.js';
+import type { MudObject, Room } from '../../lib/std.js';
 import type { Living } from '../../std/living.js';
 
 interface CommandContext {
@@ -46,15 +46,16 @@ export async function execute(ctx: CommandContext): Promise<void> {
     ctx.sendLine('You sit down.');
   }
 
-  // Notify room
-  const room = player.environment;
-  if (room && 'broadcast' in room) {
-    const name = typeof efuns !== 'undefined' ? efuns.capitalize(living.name) : living.name;
-    const msg = currentPosture === 'sleeping'
-      ? `${name} wakes up and sits up.`
-      : `${name} sits down.`;
-    (room as { broadcast: (msg: string, opts?: { exclude?: MudObject[] }) => void })
-      .broadcast(msg + '\n', { exclude: [player] });
+  // Notify room (sleeping players filtered automatically)
+  if (living.environment) {
+    const room = living.environment as Room;
+    if (typeof room.broadcast === 'function') {
+      const name = typeof efuns !== 'undefined' ? efuns.capitalize(living.name) : living.name;
+      const msg = currentPosture === 'sleeping'
+        ? `${name} wakes and sits up.`
+        : `${name} sits down.`;
+      room.broadcast(msg, { exclude: [player] });
+    }
   }
 
   // Check for campfire warmth

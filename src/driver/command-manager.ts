@@ -100,6 +100,14 @@ const LEVEL_DIRS: Record<string, PermissionLevel> = {
 };
 
 /**
+ * Single-character commands that should be treated as prefixes.
+ * When a user types e.g. 'hello, we parse it as "say hello".
+ * This is intentionally limited to avoid issues with direction shortcuts
+ * (w, n, s, e) being treated as prefixes for words like "woo" or "nod".
+ */
+const PREFIX_COMMANDS = new Set(["'", '"', ':', ';']);
+
+/**
  * Manages command loading, caching, and execution.
  */
 export class CommandManager {
@@ -296,32 +304,18 @@ export class CommandManager {
     const trimmed = input.trim();
     if (!trimmed) return false;
 
-    // Wake up sleeping players when they try to do anything
-    const playerWithPosture = player as MudObject & {
-      posture?: string;
-      setPosture?: (state: string) => { success: boolean; reason?: string };
-      receive?: (msg: string) => void;
-    };
-    if (playerWithPosture.posture === 'sleeping' && playerWithPosture.setPosture) {
-      const wakeResult = playerWithPosture.setPosture('sitting');
-      if (wakeResult.success && playerWithPosture.receive) {
-        playerWithPosture.receive('You wake up and sit up.\n');
-      }
-    }
-
     // Parse verb and args - normal parsing first (split on space)
     const spaceIndex = trimmed.indexOf(' ');
     let verb = spaceIndex > 0 ? trimmed.substring(0, spaceIndex) : trimmed;
     let args = spaceIndex > 0 ? trimmed.substring(spaceIndex + 1).trim() : '';
 
-    // Special handling for single-character command prefixes (e.g., 'hello -> say hello)
-    // Only apply if normal verb doesn't match a command and first char is a registered command
-    if (!this.commands.has(verb.toLowerCase())) {
-      const firstChar = trimmed[0];
-      if (firstChar && this.commands.has(firstChar) && trimmed.length > 1) {
-        verb = firstChar;
-        args = trimmed.substring(1).trim();
-      }
+    // Special handling for specific prefix commands (e.g., 'hello -> say hello)
+    // Only applies to characters in PREFIX_COMMANDS, not all single-char commands
+    // This prevents direction shortcuts (w, n, s, e) from matching words like "woo"
+    const firstChar = trimmed[0];
+    if (firstChar && PREFIX_COMMANDS.has(firstChar) && this.commands.has(firstChar) && trimmed.length > 1) {
+      verb = firstChar;
+      args = trimmed.substring(1).trim();
     }
 
     // Find the command
