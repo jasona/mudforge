@@ -672,6 +672,47 @@ Fill entire canvas edge to edge, no borders or margins`;
   }
 
   /**
+   * Fetch and cache an image on an item's 'cachedImage' property.
+   * This is called when items are equipped to ensure the sidebar can display them.
+   * Fire-and-forget - does not return a value or throw errors.
+   */
+  async cacheItemImage(item: MudObject, type: ObjectImageType = 'item'): Promise<void> {
+    try {
+      // Skip if already cached
+      const existing = item.getProperty('cachedImage');
+      if (existing && typeof existing === 'string') {
+        return;
+      }
+
+      // Determine correct type
+      let itemType = type;
+      if ('minDamage' in item && 'maxDamage' in item) {
+        itemType = 'weapon';
+      } else if ('armor' in item && 'slot' in item) {
+        itemType = 'armor';
+      }
+
+      // Get extra context for image generation
+      let extraContext: Record<string, unknown> | undefined;
+      if (itemType === 'weapon') {
+        const weapon = item as MudObject & { damageType?: string };
+        extraContext = weapon.damageType ? { damageType: weapon.damageType } : undefined;
+      } else if (itemType === 'armor') {
+        const armor = item as MudObject & { slot?: string };
+        extraContext = armor.slot ? { slot: armor.slot } : undefined;
+      }
+
+      // Fetch the image
+      const image = await this.getObjectImage(item, itemType, extraContext);
+
+      // Cache on the item
+      item.setProperty('cachedImage', image);
+    } catch {
+      // Silently fail - image caching is best-effort
+    }
+  }
+
+  /**
    * Build a race-aware portrait prompt for AI generation.
    * Used by the portrait command to include race appearance details.
    */
