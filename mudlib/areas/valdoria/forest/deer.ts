@@ -33,16 +33,8 @@ alert to every sound.`,
       wanderAreaRestricted: true,
     });
 
-    // Preserved custom code
-    // Use auto-balance for level 2 normal NPC
-    // Override stats for deer flavor (graceful, timid)
-    this.setBaseStat('strength', 6);
-    this.setBaseStat('dexterity', 14);
-    this.setBaseStat('constitution', 8);
-    this.setBaseStat('intelligence', 3);
-    this.setBaseStat('wisdom', 10);
-    this.setBaseStat('charisma', 12);
-    this.setBaseStat('luck', 10);
+    // Use auto-balance for level 2 NPC
+    this.setLevel(2, 'normal');
     this.maxMana = 0;
     this.mana = 0;
   }

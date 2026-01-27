@@ -38,19 +38,11 @@ alert for both prey and danger. This is clearly a dangerous predator.`,
       wanderAreaRestricted: true,
     });
 
-    // Preserved custom code
-    // Use auto-balance for level 5 normal NPC
-    // Override stats for wolf flavor (fast and tough)
-    this.setBaseStat('strength', 12);
-    this.setBaseStat('dexterity', 14);
-    this.setBaseStat('constitution', 12);
-    this.setBaseStat('intelligence', 4);
-    this.setBaseStat('wisdom', 10);
-    this.setBaseStat('charisma', 6);
-    this.setBaseStat('luck', 8);
-    // Wolves don't use mana
+    // Use auto-balance for level 5 NPC
+    this.setLevel(5, 'normal');
     this.maxMana = 0;
     this.mana = 0;
+
     // Wolves are aggressive to players
     this.setAggressive((target: Living) => {
   }

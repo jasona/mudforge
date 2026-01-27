@@ -46,23 +46,7 @@ beside him, well-worn from years of instruction.`;
       costMultiplier: 1,
       greeting: 'Ah, another soul seeking to grow stronger! Let',
     });
-    this.setBaseStats({
-      strength: 18,
-      intelligence: 12,
-      wisdom: 14,
-      charisma: 10,
-      dexterity: 14,
-      constitution: 16,
-      luck: 10,
-    });
 
-    // Preserved custom code
-    // Override auto-calculated health
-    // Preserved custom code
-    // Use auto-balance for level 25 normal (veteran warrior trainer)
-    // Override health - he's a tough old warrior
-    // Configure trainer capabilities
-    // Set up stats - he's a tough old warrior
     this.setupChats();
     this.setupResponses();
   }

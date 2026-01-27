@@ -34,18 +34,11 @@ are known for their bad temper and surprising ferocity when cornered.`,
       wanderAreaRestricted: true,
     });
 
-    // Preserved custom code
-    // Use auto-balance for level 4 normal NPC
-    // Override stats for boar flavor (strong, tough, slow)
-    this.setBaseStat('strength', 14);
-    this.setBaseStat('dexterity', 8);
-    this.setBaseStat('constitution', 14);
-    this.setBaseStat('intelligence', 3);
-    this.setBaseStat('wisdom', 6);
-    this.setBaseStat('charisma', 4);
-    this.setBaseStat('luck', 8);
+    // Use auto-balance for level 4 NPC
+    this.setLevel(4, 'normal');
     this.maxMana = 0;
     this.mana = 0;
+
     // Boars are aggressive
     this.setAggressive((target: Living) => {
   }
