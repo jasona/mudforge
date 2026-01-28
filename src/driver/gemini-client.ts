@@ -174,13 +174,23 @@ export class GeminiClient {
         },
       };
 
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(body),
-      });
+      // Add 25s timeout to prevent blocking event loop and failing health checks
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 25000);
+
+      let response: Response;
+      try {
+        response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(body),
+          signal: controller.signal,
+        });
+      } finally {
+        clearTimeout(timeoutId);
+      }
 
       if (!response.ok) {
         const errorData = (await response.json()) as { error?: { message?: string } };
@@ -234,6 +244,9 @@ export class GeminiClient {
         mimeType,
       };
     } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        return { success: false, error: 'API request timed out' };
+      }
       const message = error instanceof Error ? error.message : 'Unknown error';
       return { success: false, error: `API request failed: ${message}` };
     }

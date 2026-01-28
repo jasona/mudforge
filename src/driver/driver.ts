@@ -285,6 +285,7 @@ export class Driver {
       // Initialize isolate pool (for future sandbox use)
       getIsolatePool({
         memoryLimitMb: this.config.isolateMemoryMb,
+        maxIsolates: this.config.maxIsolates,
       });
 
       // Load Master object

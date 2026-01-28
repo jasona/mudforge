@@ -27,7 +27,8 @@ describe('loadConfig', () => {
     expect(config.masterObject).toBe('/master');
     expect(config.logLevel).toBe('info');
     expect(config.logPretty).toBe(true);
-    expect(config.isolateMemoryMb).toBe(128);
+    expect(config.isolateMemoryMb).toBe(64);
+    expect(config.maxIsolates).toBe(2);
     expect(config.scriptTimeoutMs).toBe(5000);
     expect(config.heartbeatIntervalMs).toBe(2000);
     expect(config.autoSaveIntervalMs).toBe(300000);
@@ -90,7 +91,7 @@ describe('loadConfig', () => {
     const config = loadConfig();
 
     expect(config.port).toBe(3000);
-    expect(config.isolateMemoryMb).toBe(128);
+    expect(config.isolateMemoryMb).toBe(64);
   });
 });
 
@@ -102,7 +103,8 @@ describe('validateConfig', () => {
     masterObject: '/master',
     logLevel: 'info',
     logPretty: true,
-    isolateMemoryMb: 128,
+    isolateMemoryMb: 64,
+    maxIsolates: 2,
     scriptTimeoutMs: 5000,
     heartbeatIntervalMs: 2000,
     autoSaveIntervalMs: 300000,

@@ -159,7 +159,18 @@ export class GiphyClient {
         rating: this.config.rating,
       });
 
-      const response = await fetch(`https://api.giphy.com/v1/gifs/search?${params.toString()}`);
+      // Add 25s timeout to prevent blocking event loop and failing health checks
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 25000);
+
+      let response: Response;
+      try {
+        response = await fetch(`https://api.giphy.com/v1/gifs/search?${params.toString()}`, {
+          signal: controller.signal,
+        });
+      } finally {
+        clearTimeout(timeoutId);
+      }
 
       if (!response.ok) {
         return {
@@ -217,6 +228,9 @@ export class GiphyClient {
 
       return result;
     } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        return { success: false, error: 'GIF search timed out' };
+      }
       const message = error instanceof Error ? error.message : 'Unknown error';
       return { success: false, error: `Failed to fetch GIF: ${message}` };
     }
