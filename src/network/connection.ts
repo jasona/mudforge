@@ -237,11 +237,21 @@ export class Connection extends EventEmitter {
     });
 
     this.socket.on('close', (code: number, reason: Buffer) => {
+      const reasonStr = reason.toString();
+      const playerName = this._player ? (this._player as { name?: string }).name || 'unknown' : 'no-player';
+      console.log(`[WS-CLOSE] Connection ${this._id} (${playerName}) closed - code: ${code}, reason: "${reasonStr}"`);
+      console.log(`[WS-CLOSE] Close code meanings: 1000=normal, 1001=going-away, 1005=no-status, 1006=abnormal, 1011=server-error`);
+      console.log(`[WS-CLOSE] Connection was open for ${Date.now() - this._connectedAt.getTime()}ms, missed pongs: ${this._missedPongs}`);
+      // Capture stack trace to see what triggered the close
+      console.log(`[WS-CLOSE] Stack trace:`, new Error('Close event trace').stack);
       this._state = 'closed';
       this.emit('close', code, reason.toString());
     });
 
     this.socket.on('error', (error: Error) => {
+      const playerName = this._player ? (this._player as { name?: string }).name || 'unknown' : 'no-player';
+      console.error(`[WS-ERROR] Connection ${this._id} (${playerName}) error:`, error.message);
+      console.error(`[WS-ERROR] Stack:`, error.stack);
       this.emit('error', error);
     });
 
@@ -707,10 +717,16 @@ export class Connection extends EventEmitter {
       return;
     }
 
+    const playerName = this._player ? (this._player as { name?: string }).name || 'unknown' : 'no-player';
+    const closeCode = code || 1000;
+    const closeReason = reason || 'Connection closed';
+    console.log(`[WS-CLOSE-CALL] Closing connection ${this._id} (${playerName}) - code: ${closeCode}, reason: "${closeReason}"`);
+    console.log(`[WS-CLOSE-CALL] Called from:`, new Error('close() call trace').stack);
+
     this._state = 'closing';
 
     try {
-      this.socket.close(code || 1000, reason || 'Connection closed');
+      this.socket.close(closeCode, closeReason);
     } catch (error) {
       this.emit('error', error as Error);
     }
@@ -720,6 +736,11 @@ export class Connection extends EventEmitter {
    * Forcefully terminate the connection.
    */
   terminate(): void {
+    const playerName = this._player ? (this._player as { name?: string }).name || 'unknown' : 'no-player';
+    console.log(`[WS-TERMINATE] Terminating connection ${this._id} (${playerName}) forcefully`);
+    console.log(`[WS-TERMINATE] Missed pongs at termination: ${this._missedPongs}`);
+    console.log(`[WS-TERMINATE] Called from:`, new Error('terminate() call trace').stack);
+
     try {
       this.socket.terminate();
       this._state = 'closed';

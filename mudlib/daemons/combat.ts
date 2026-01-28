@@ -282,8 +282,8 @@ export class CombatDaemon extends MudObject {
         const partyDaemon = getPartyDaemon();
         partyDaemon.handleLeaderCombat(attacker as Parameters<typeof partyDaemon.handleLeaderCombat>[0], defender);
       })
-      .catch(() => {
-        // Party daemon not available
+      .catch((error) => {
+        console.error('[CombatDaemon] Error loading party daemon:', error);
       });
 
     return true;
@@ -1390,10 +1390,10 @@ export class CombatDaemon extends MudObject {
    */
   private sendCombatTargetUpdate(attacker: Living, target: Living | null): void {
     // Only send updates for player attackers with sendCombatTarget method
-    const asPlayer = attacker as Living & { sendCombatTarget?: (target: Living | null) => Promise<void> };
+    const asPlayer = attacker as Living & { sendCombatTarget?: (target: Living | null) => Promise<void>; name?: string };
     if (typeof asPlayer.sendCombatTarget === 'function') {
-      asPlayer.sendCombatTarget(target).catch(() => {
-        // Silently ignore errors
+      asPlayer.sendCombatTarget(target).catch((error) => {
+        console.error(`[CombatDaemon] Error sending combat target update for ${asPlayer.name || 'unknown'}:`, error);
       });
     }
   }

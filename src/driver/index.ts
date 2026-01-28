@@ -10,12 +10,21 @@ import { Server } from '../network/server.js';
 
 // Global error handlers to prevent crashes from unhandled errors
 process.on('uncaughtException', (error) => {
-  console.error('[FATAL] Uncaught exception:', error);
+  console.error('[FATAL] Uncaught exception at', new Date().toISOString());
+  console.error('[FATAL] Error:', error.message);
+  console.error('[FATAL] Stack:', error.stack);
+  console.error('[FATAL] This may cause WebSocket disconnects (code 1005/1006)');
   // Don't exit - let the process continue if possible
 });
 
 process.on('unhandledRejection', (reason, promise) => {
-  console.error('[FATAL] Unhandled rejection at:', promise, 'reason:', reason);
+  console.error('[FATAL] Unhandled rejection at', new Date().toISOString());
+  console.error('[FATAL] Promise:', promise);
+  console.error('[FATAL] Reason:', reason);
+  if (reason instanceof Error) {
+    console.error('[FATAL] Stack:', reason.stack);
+  }
+  console.error('[FATAL] This may cause WebSocket disconnects (code 1005/1006)');
   // Don't exit - let the process continue if possible
 });
 

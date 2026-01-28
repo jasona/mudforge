@@ -1370,12 +1370,12 @@ export class NPC extends Living {
       import('../daemons/behavior.js')
         .then(({ getBehaviorDaemon }) => {
           const behaviorDaemon = getBehaviorDaemon();
-          behaviorDaemon.executeAction(this).catch(() => {
-            // Behavior execution failed silently
+          behaviorDaemon.executeAction(this).catch((error) => {
+            console.error(`[NPC] Behavior execution failed for ${this.name}:`, error);
           });
         })
-        .catch(() => {
-          // Behavior daemon not available
+        .catch((error) => {
+          console.error(`[NPC] Failed to load behavior daemon for ${this.name}:`, error);
         });
     }
 
@@ -1486,8 +1486,9 @@ export class NPC extends Living {
               (attacker as Living & { gainExperience: (xp: number) => void }).gainExperience(xp);
             }
           })
-          .catch(() => {
-            // Party daemon import failed - award directly
+          .catch((error) => {
+            console.error(`[NPC] Party daemon import failed during XP award for ${this.name}:`, error);
+            // Award directly as fallback
             (attacker as Living & { gainExperience: (xp: number) => void }).gainExperience(xp);
           });
       }
@@ -1512,8 +1513,8 @@ export class NPC extends Living {
             // Party daemon not available
           }
         })
-        .catch(() => {
-          // Party daemon import failed
+        .catch((error) => {
+          console.error(`[NPC] Party daemon import failed during gold auto-split for ${this.name}:`, error);
         });
     }
 
