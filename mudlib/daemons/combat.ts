@@ -1086,11 +1086,11 @@ export class CombatDaemon extends MudObject {
     // Send appropriate message
     switch (reason) {
       case 'separated':
-        attacker.receive(`{yellow}Combat with ${capitalizeName(defender.name)} ended - target left.{/}\n`);
+        attacker.receive(`{yellow}You lose sight of ${capitalizeName(defender.name)} as the battle breaks off.{/}\n`);
         break;
       case 'fled':
-        attacker.receive(`{yellow}Combat with ${capitalizeName(defender.name)} ended - you fled.{/}\n`);
-        defender.receive(`{yellow}${capitalizeName(attacker.name)} fled from combat!{/}\n`);
+        attacker.receive(`{yellow}You flee from combat with ${capitalizeName(defender.name)}!{/}\n`);
+        defender.receive(`{yellow}${capitalizeName(attacker.name)} flees from combat!{/}\n`);
         break;
     }
   }
