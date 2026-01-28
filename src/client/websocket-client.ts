@@ -236,8 +236,9 @@ export class WebSocketClient {
   private socket: WebSocket | null = null;
   private url: string = '';
   private reconnectAttempts: number = 0;
-  private maxReconnectAttempts: number = 5;
+  private maxReconnectAttempts: number = 10;
   private reconnectDelay: number = 1000;
+  private maxReconnectDelay: number = 30000;
   private reconnectTimer: number | null = null;
   private handlers: Map<WebSocketClientEvent, Set<EventHandler>> = new Map();
 
@@ -453,6 +454,7 @@ export class WebSocketClient {
 
   /**
    * Schedule a reconnection attempt.
+   * Uses exponential backoff with jitter, capped at maxReconnectDelay.
    */
   private scheduleReconnect(): void {
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
@@ -464,13 +466,20 @@ export class WebSocketClient {
       return; // Already scheduled
     }
 
-    const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts);
+    // Calculate delay with exponential backoff, capped at max
+    const baseDelay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts);
+    const cappedDelay = Math.min(baseDelay, this.maxReconnectDelay);
+
+    // Add jitter (±20%) to prevent thundering herd
+    const jitter = cappedDelay * 0.2 * (Math.random() * 2 - 1);
+    const finalDelay = Math.round(cappedDelay + jitter);
+
     this.reconnectAttempts++;
 
     this.reconnectTimer = window.setTimeout(() => {
       this.reconnectTimer = null;
       this.createConnection();
-    }, delay);
+    }, finalDelay);
   }
 
   /**
@@ -586,9 +595,12 @@ export class WebSocketClient {
   /**
    * Set reconnection options.
    */
-  setReconnectOptions(maxAttempts: number, baseDelay: number): void {
+  setReconnectOptions(maxAttempts: number, baseDelay: number, maxDelay?: number): void {
     this.maxReconnectAttempts = maxAttempts;
     this.reconnectDelay = baseDelay;
+    if (maxDelay !== undefined) {
+      this.maxReconnectDelay = maxDelay;
+    }
   }
 }
 

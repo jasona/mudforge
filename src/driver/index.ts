@@ -31,17 +31,30 @@ async function main(): Promise<void> {
     logHttpRequests: config.logHttpRequests,
   });
 
-  // Wire up server events to driver
+  // Wire up server events to driver with error handling
   server.on('connection', async (connection) => {
-    await driver.onPlayerConnect(connection);
+    try {
+      await driver.onPlayerConnect(connection);
+    } catch (error) {
+      logger.error({ error, id: connection.id }, 'Error in connection handler');
+    }
   });
 
   server.on('message', async (connection, message) => {
-    await driver.onPlayerInput(connection, message);
+    try {
+      await driver.onPlayerInput(connection, message);
+    } catch (error) {
+      logger.error({ error, id: connection.id }, 'Error in message handler');
+      // Don't close connection - let player retry
+    }
   });
 
   server.on('disconnect', async (connection) => {
-    await driver.onPlayerDisconnect(connection);
+    try {
+      await driver.onPlayerDisconnect(connection);
+    } catch (error) {
+      logger.error({ error, id: connection.id }, 'Error in disconnect handler');
+    }
   });
 
   server.on('error', (error) => {

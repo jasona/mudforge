@@ -183,7 +183,8 @@ export class Connection extends EventEmitter {
   private _connectedAt: Date;
   private _player: unknown = null;
   private _inputBuffer: string = '';
-  private _isAlive: boolean = true;
+  private _missedPongs: number = 0;
+  private _lastActivityTime: number = Date.now();
 
   constructor(socket: WebSocket, id: string, remoteAddress: string = 'unknown') {
     super();
@@ -219,7 +220,8 @@ export class Connection extends EventEmitter {
 
     // Handle pong responses for keepalive
     this.socket.on('pong', () => {
-      this._isAlive = true;
+      this._missedPongs = 0;
+      this._lastActivityTime = Date.now();
     });
 
     // Mark as open if socket is already open
@@ -232,6 +234,10 @@ export class Connection extends EventEmitter {
    * Handle an incoming message.
    */
   private handleMessage(data: string): void {
+    // Any message activity means connection is alive
+    this._lastActivityTime = Date.now();
+    this._missedPongs = 0;
+
     // Handle line-buffered input
     this._inputBuffer += data;
 
@@ -500,17 +506,42 @@ export class Connection extends EventEmitter {
   }
 
   /**
-   * Check if the connection is alive (responded to last ping).
+   * Get the number of missed pong responses.
    */
-  get isAlive(): boolean {
-    return this._isAlive;
+  get missedPongs(): number {
+    return this._missedPongs;
   }
 
   /**
-   * Mark the connection as not alive (used before sending ping).
+   * Increment the missed pong counter and return the new value.
+   * Called before sending each ping.
    */
-  markNotAlive(): void {
-    this._isAlive = false;
+  incrementMissedPongs(): number {
+    return ++this._missedPongs;
+  }
+
+  /**
+   * Get the timestamp of last activity (message or pong received).
+   */
+  get lastActivityTime(): number {
+    return this._lastActivityTime;
+  }
+
+  /**
+   * Get connection health metrics for debugging/logging.
+   */
+  getHealthMetrics(): {
+    uptime: number;
+    lastActivity: number;
+    missedPongs: number;
+    state: ConnectionState;
+  } {
+    return {
+      uptime: this.getUptime(),
+      lastActivity: Date.now() - this._lastActivityTime,
+      missedPongs: this._missedPongs,
+      state: this._state,
+    };
   }
 
   /**
