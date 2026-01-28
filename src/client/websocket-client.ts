@@ -4,7 +4,42 @@
  * Provides connection management, auto-reconnect, and message handling.
  */
 
+/* global sessionStorage */
+
 import type { MapMessage } from './map-renderer.js';
+
+/**
+ * Connection state machine states.
+ */
+export type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'reconnecting' | 'failed';
+
+/**
+ * Reconnection progress information.
+ */
+export interface ReconnectProgress {
+  attempt: number;
+  maxAttempts: number;
+  delayMs: number;
+  reason?: string;
+}
+
+/**
+ * Session token message from server.
+ */
+export interface SessionTokenMessage {
+  type: 'session_token';
+  token: string;
+  expiresAt: number;
+}
+
+/**
+ * Session resume response from server.
+ */
+export interface SessionResumeMessage {
+  type: 'session_resume' | 'session_invalid';
+  success?: boolean;
+  error?: string;
+}
 
 /**
  * Event types for the WebSocket client.
@@ -25,7 +60,14 @@ type WebSocketClientEvent =
   | 'combat-message'
   | 'sound-message'
   | 'giphy-message'
-  | 'auth-response';
+  | 'auth-response'
+  | 'state-change'
+  | 'reconnect-progress'
+  | 'reconnect-failed'
+  | 'message-queued'
+  | 'queue-flushed'
+  | 'session-token'
+  | 'session-resume';
 
 /**
  * Equipment slot data for stats display.
@@ -242,6 +284,20 @@ export class WebSocketClient {
   private reconnectTimer: number | null = null;
   private handlers: Map<WebSocketClientEvent, Set<EventHandler>> = new Map();
 
+  // Message queue for commands sent while disconnected
+  private messageQueue: string[] = [];
+  private maxQueueSize: number = 50;
+
+  // Connection state machine
+  private _connectionState: ConnectionState = 'disconnected';
+
+  // Track intentional disconnects (don't reconnect if user explicitly disconnected)
+  private intentionalDisconnect: boolean = false;
+
+  // Session token for reconnection without re-auth
+  private sessionToken: string | null = null;
+  private sessionExpiresAt: number = 0;
+
   /**
    * Check if connected.
    */
@@ -254,6 +310,38 @@ export class WebSocketClient {
    */
   get isConnecting(): boolean {
     return this.socket !== null && this.socket.readyState === WebSocket.CONNECTING;
+  }
+
+  /**
+   * Get the current connection state.
+   */
+  get connectionState(): ConnectionState {
+    return this._connectionState;
+  }
+
+  /**
+   * Get the number of queued messages.
+   */
+  get queuedMessageCount(): number {
+    return this.messageQueue.length;
+  }
+
+  /**
+   * Check if there's a valid session token for reconnection.
+   */
+  get hasValidSession(): boolean {
+    return this.sessionToken !== null && Date.now() < this.sessionExpiresAt;
+  }
+
+  /**
+   * Set the connection state and emit state-change event.
+   */
+  private setConnectionState(newState: ConnectionState): void {
+    const oldState = this._connectionState;
+    if (oldState !== newState) {
+      this._connectionState = newState;
+      this.emit('state-change', newState, oldState);
+    }
   }
 
   /**
@@ -302,6 +390,8 @@ export class WebSocketClient {
 
     this.url = url;
     this.reconnectAttempts = 0;
+    this.intentionalDisconnect = false;
+    this.setConnectionState('connecting');
     this.createConnection();
   }
 
@@ -309,6 +399,12 @@ export class WebSocketClient {
    * Create a new WebSocket connection.
    */
   private createConnection(): void {
+    // Set state based on whether this is initial connect or reconnect
+    if (this.reconnectAttempts > 0) {
+      this.setConnectionState('reconnecting');
+    } else {
+      this.setConnectionState('connecting');
+    }
     this.emit('connecting');
 
     try {
@@ -328,7 +424,16 @@ export class WebSocketClient {
 
     this.socket.onopen = () => {
       this.reconnectAttempts = 0;
+      this.setConnectionState('connected');
       this.emit('connected');
+
+      // If we have a valid session token, attempt to resume
+      if (this.hasValidSession) {
+        this.sendSessionResume();
+      }
+
+      // Flush any queued messages
+      this.flushMessageQueue();
     };
 
     this.socket.onclose = (event) => {
@@ -336,10 +441,19 @@ export class WebSocketClient {
       this.emit('disconnected', reason);
       this.socket = null;
 
-      if (event.code !== 1000 && event.code !== 1001) {
-        // Not a normal close - try to reconnect
-        this.scheduleReconnect();
+      // Only skip reconnect if the user explicitly called disconnect()
+      if (this.intentionalDisconnect) {
+        this.setConnectionState('disconnected');
+        return;
       }
+
+      // Reconnect for all close codes:
+      // - 1000: Normal close (server restart, maintenance)
+      // - 1001: Going away (server shutdown, browser navigation)
+      // - 1005: No status code (server crash, network issue)
+      // - 1006: Abnormal closure (network error)
+      // - Any other code: unexpected disconnect
+      this.scheduleReconnect(reason);
     };
 
     this.socket.onerror = () => {
@@ -445,6 +559,18 @@ export class WebSocketClient {
           } catch (error) {
             console.error('Failed to parse GIPHY message:', error);
           }
+        } else if (line.startsWith('\x00[SESSION]')) {
+          const jsonStr = line.slice(10); // Remove \x00[SESSION] prefix
+          try {
+            const sessionMessage = JSON.parse(jsonStr);
+            if (sessionMessage.type === 'session_token') {
+              this.handleSessionToken(sessionMessage as SessionTokenMessage);
+            } else if (sessionMessage.type === 'session_resume' || sessionMessage.type === 'session_invalid') {
+              this.handleSessionResume(sessionMessage as SessionResumeMessage);
+            }
+          } catch (error) {
+            console.error('Failed to parse SESSION message:', error);
+          }
         } else {
           this.emit('message', line);
         }
@@ -456,8 +582,14 @@ export class WebSocketClient {
    * Schedule a reconnection attempt.
    * Uses exponential backoff with jitter, capped at maxReconnectDelay.
    */
-  private scheduleReconnect(): void {
+  private scheduleReconnect(reason?: string): void {
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+      this.setConnectionState('failed');
+      this.emit('reconnect-failed', {
+        attempt: this.reconnectAttempts,
+        maxAttempts: this.maxReconnectAttempts,
+        reason: reason || 'Max reconnection attempts reached',
+      } as ReconnectProgress);
       this.emit('error', 'Max reconnection attempts reached');
       return;
     }
@@ -475,6 +607,15 @@ export class WebSocketClient {
     const finalDelay = Math.round(cappedDelay + jitter);
 
     this.reconnectAttempts++;
+    this.setConnectionState('reconnecting');
+
+    // Emit progress event so UI can show feedback
+    this.emit('reconnect-progress', {
+      attempt: this.reconnectAttempts,
+      maxAttempts: this.maxReconnectAttempts,
+      delayMs: finalDelay,
+      reason,
+    } as ReconnectProgress);
 
     this.reconnectTimer = window.setTimeout(() => {
       this.reconnectTimer = null;
@@ -494,10 +635,16 @@ export class WebSocketClient {
 
   /**
    * Send a message to the server.
+   * If disconnected but reconnecting, queues the message for later delivery.
    */
   send(message: string): void {
     if (!this.isConnected) {
-      this.emit('error', 'Not connected');
+      // Queue the message if we're trying to reconnect
+      if (this._connectionState === 'reconnecting' || this._connectionState === 'connecting') {
+        this.queueMessage(message);
+      } else {
+        this.emit('error', 'Not connected');
+      }
       return;
     }
 
@@ -505,7 +652,49 @@ export class WebSocketClient {
       this.socket!.send(message + '\n');
     } catch (error) {
       this.emit('error', `Failed to send: ${error}`);
+      // Queue the message in case we reconnect
+      this.queueMessage(message);
     }
+  }
+
+  /**
+   * Queue a message for later delivery when reconnected.
+   */
+  private queueMessage(message: string): void {
+    if (this.messageQueue.length >= this.maxQueueSize) {
+      // Remove oldest message to make room
+      this.messageQueue.shift();
+      console.warn('Message queue full, dropping oldest message');
+    }
+    this.messageQueue.push(message);
+    this.emit('message-queued', message, this.messageQueue.length);
+  }
+
+  /**
+   * Flush all queued messages after reconnection.
+   */
+  private flushMessageQueue(): void {
+    if (this.messageQueue.length === 0) {
+      return;
+    }
+
+    const count = this.messageQueue.length;
+    console.log(`Flushing ${count} queued messages`);
+
+    // Send all queued messages
+    while (this.messageQueue.length > 0) {
+      const message = this.messageQueue.shift()!;
+      try {
+        this.socket!.send(message + '\n');
+      } catch (error) {
+        console.error('Failed to send queued message:', error);
+        // Put it back if send failed
+        this.messageQueue.unshift(message);
+        break;
+      }
+    }
+
+    this.emit('queue-flushed', count);
   }
 
   /**
@@ -580,6 +769,9 @@ export class WebSocketClient {
    * Disconnect from the server.
    */
   disconnect(): void {
+    // Set intentional disconnect flag BEFORE closing
+    // This prevents the close handler from trying to reconnect
+    this.intentionalDisconnect = true;
     this.cancelReconnect();
 
     if (this.socket) {
@@ -590,6 +782,26 @@ export class WebSocketClient {
       }
       this.socket = null;
     }
+
+    this.setConnectionState('disconnected');
+
+    // Clear session on intentional disconnect
+    this.clearSession();
+  }
+
+  /**
+   * Manually trigger a reconnection attempt.
+   * Useful when the user wants to retry after max attempts.
+   */
+  reconnect(): void {
+    if (this.socket) {
+      this.disconnect();
+    }
+
+    this.intentionalDisconnect = false;
+    this.reconnectAttempts = 0;
+    this._connectionState = 'disconnected';
+    this.createConnection();
   }
 
   /**
@@ -600,6 +812,102 @@ export class WebSocketClient {
     this.reconnectDelay = baseDelay;
     if (maxDelay !== undefined) {
       this.maxReconnectDelay = maxDelay;
+    }
+  }
+
+  /**
+   * Set the maximum message queue size.
+   */
+  setMaxQueueSize(size: number): void {
+    this.maxQueueSize = Math.max(1, size);
+  }
+
+  /**
+   * Handle a session token message from the server.
+   * Stores the token for use during reconnection.
+   */
+  private handleSessionToken(message: SessionTokenMessage): void {
+    this.sessionToken = message.token;
+    this.sessionExpiresAt = message.expiresAt;
+
+    // Store in sessionStorage for page refresh recovery
+    try {
+      sessionStorage.setItem('mudforge_session_token', message.token);
+      sessionStorage.setItem('mudforge_session_expires', String(message.expiresAt));
+    } catch {
+      // sessionStorage might not be available (private browsing, etc.)
+    }
+
+    this.emit('session-token', message);
+  }
+
+  /**
+   * Handle a session resume response from the server.
+   */
+  private handleSessionResume(message: SessionResumeMessage): void {
+    if (message.type === 'session_invalid') {
+      // Session was invalid, clear it
+      this.clearSession();
+    }
+    this.emit('session-resume', message);
+  }
+
+  /**
+   * Send a session resume request to the server.
+   * Called automatically on reconnection if we have a valid session.
+   */
+  private sendSessionResume(): void {
+    if (!this.sessionToken || !this.isConnected) {
+      return;
+    }
+
+    try {
+      const message = JSON.stringify({
+        type: 'session_resume',
+        token: this.sessionToken,
+      });
+      this.socket!.send(`\x00[SESSION]${message}\n`);
+    } catch (error) {
+      console.error('Failed to send session resume:', error);
+    }
+  }
+
+  /**
+   * Clear the stored session token.
+   */
+  private clearSession(): void {
+    this.sessionToken = null;
+    this.sessionExpiresAt = 0;
+
+    try {
+      sessionStorage.removeItem('mudforge_session_token');
+      sessionStorage.removeItem('mudforge_session_expires');
+    } catch {
+      // Ignore sessionStorage errors
+    }
+  }
+
+  /**
+   * Load session token from sessionStorage (for page refresh recovery).
+   * Called during initialization if needed.
+   */
+  loadSessionFromStorage(): void {
+    try {
+      const token = sessionStorage.getItem('mudforge_session_token');
+      const expires = sessionStorage.getItem('mudforge_session_expires');
+
+      if (token && expires) {
+        const expiresAt = parseInt(expires, 10);
+        if (Date.now() < expiresAt) {
+          this.sessionToken = token;
+          this.sessionExpiresAt = expiresAt;
+        } else {
+          // Expired, clear it
+          this.clearSession();
+        }
+      }
+    } catch {
+      // Ignore sessionStorage errors
     }
   }
 }

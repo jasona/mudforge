@@ -16,6 +16,8 @@ import {
   CombatMessage,
   SoundMessage,
   GiphyMessage,
+  ReconnectProgress,
+  ConnectionState,
 } from './websocket-client.js';
 import { InputHandler } from './input-handler.js';
 import { IdeEditorLoader } from './ide-editor-loader.js';
@@ -162,6 +164,54 @@ class MudClient {
       this.terminal.addErrorLine(`Error: ${error}`);
     });
 
+    // Reconnection progress feedback
+    this.wsClient.on('reconnect-progress', (p: ReconnectProgress) => {
+      const statusText = `Reconnecting (${p.attempt}/${p.maxAttempts})...`;
+      this.setStatus('connecting', statusText);
+      this.terminal.addSystemLine(`Reconnecting in ${Math.round(p.delayMs / 1000)}s (attempt ${p.attempt}/${p.maxAttempts})...`);
+    });
+
+    this.wsClient.on('reconnect-failed', (_progress: ReconnectProgress) => {
+      this.setStatus('disconnected', 'Connection Failed');
+      this.terminal.addErrorLine('Connection failed after maximum retry attempts.');
+      this.terminal.addSystemLine('Click the status indicator or type /reconnect to try again.');
+    });
+
+    // Connection state changes
+    this.wsClient.on('state-change', (newState: ConnectionState, _oldState: ConnectionState) => {
+      // Update status element with click handler for manual reconnect
+      if (newState === 'failed') {
+        this.statusElement.style.cursor = 'pointer';
+        this.statusElement.onclick = () => this.wsClient.reconnect();
+      } else {
+        this.statusElement.style.cursor = 'default';
+        this.statusElement.onclick = null;
+      }
+    });
+
+    // Message queue feedback
+    this.wsClient.on('message-queued', (message: string, queueSize: number) => {
+      // Only show feedback for first queued message
+      if (queueSize === 1) {
+        this.terminal.addSystemLine('{dim}Commands will be sent when reconnected...{/}');
+      }
+    });
+
+    this.wsClient.on('queue-flushed', (count: number) => {
+      if (count > 0) {
+        this.terminal.addSystemLine(`{green}Sent ${count} queued command${count > 1 ? 's' : ''}.{/}`);
+      }
+    });
+
+    // Session events
+    this.wsClient.on('session-resume', (message: { type: string; success?: boolean; error?: string }) => {
+      if (message.type === 'session_resume' && message.success) {
+        this.terminal.addSystemLine('{green}Session restored successfully.{/}');
+      } else if (message.type === 'session_invalid') {
+        this.terminal.addSystemLine('{yellow}Session expired. Please log in again.{/}');
+      }
+    });
+
     this.wsClient.on('message', (data: string) => {
       this.terminal.addLine(data);
     });
@@ -284,6 +334,9 @@ class MudClient {
    * Connect to the server.
    */
   connect(): void {
+    // Try to load existing session for page refresh recovery
+    this.wsClient.loadSessionFromStorage();
+
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = `${protocol}//${window.location.host}/ws`;
     this.wsClient.connect(wsUrl);
