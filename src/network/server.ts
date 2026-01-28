@@ -44,8 +44,11 @@ export interface ServerEvents {
   error: (error: Error) => void;
 }
 
-/** Heartbeat interval in milliseconds (30 seconds) */
-const HEARTBEAT_INTERVAL_MS = 30000;
+/** Heartbeat interval in milliseconds (45 seconds) */
+const HEARTBEAT_INTERVAL_MS = 45000;
+
+/** Maximum missed pong responses before terminating connection */
+const MAX_MISSED_PONGS = 2;
 
 /**
  * MUD server handling HTTP and WebSocket connections.
@@ -229,21 +232,31 @@ export class Server extends EventEmitter {
 
   /**
    * Start the WebSocket heartbeat interval.
-   * Sends ping frames to all connections every 30 seconds to keep them alive.
+   * Sends ping frames to all connections every 45 seconds to keep them alive.
+   * Allows up to MAX_MISSED_PONGS missed responses before terminating.
    */
   private startHeartbeat(): void {
     this.heartbeatInterval = setInterval(() => {
       const connections = this.connectionManager.getAll();
       for (const connection of connections) {
-        if (!connection.isAlive) {
-          // Connection didn't respond to previous ping - terminate it
+        // Increment missed pongs counter before sending new ping
+        const missedPongs = connection.incrementMissedPongs();
+
+        if (missedPongs > MAX_MISSED_PONGS) {
+          // Connection has missed too many heartbeats - terminate it
+          const metrics = connection.getHealthMetrics();
+          this.config.logger?.warn(
+            {
+              id: connection.id,
+              ...metrics,
+            },
+            'Connection terminated: missed too many heartbeats'
+          );
           connection.terminate();
           continue;
         }
 
-        // Mark as not alive and send ping
-        // When pong is received, isAlive will be set back to true
-        connection.markNotAlive();
+        // Send ping - when pong is received, missedPongs resets to 0
         connection.ping();
       }
     }, HEARTBEAT_INTERVAL_MS);
