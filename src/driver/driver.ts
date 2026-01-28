@@ -28,6 +28,7 @@ import { createI3Client, destroyI3Client } from '../network/i3-client.js';
 import { createI2Client, destroyI2Client } from '../network/i2-client.js';
 import { createGrapevineClient, destroyGrapevineClient } from '../network/grapevine-client.js';
 import { createDiscordClient, destroyDiscordClient } from '../network/discord-client.js';
+import { getSessionManager, resetSessionManager, type SessionManager } from '../network/session-manager.js';
 import pino, { type Logger } from 'pino';
 import type { MudObject } from './types.js';
 import type { Connection } from '../network/connection.js';
@@ -101,6 +102,7 @@ export class Driver {
   private commandManager: CommandManager;
   private compiler: Compiler;
   private hotReload: HotReload;
+  private sessionManager: SessionManager;
   private master: MasterObject | null = null;
   private loginDaemon: LoginDaemon | null = null;
   private state: DriverState = 'stopped';
@@ -268,6 +270,13 @@ export class Driver {
       },
       this.registry
     );
+
+    // Initialize session manager for WebSocket reconnection
+    this.sessionManager = getSessionManager({
+      secret: this.config.wsSessionSecret || undefined,
+      ttlMs: this.config.wsSessionTokenTtlMs,
+      validateIp: this.config.wsSessionValidateIp,
+    } as { secret?: string; ttlMs?: number; validateIp?: boolean });
   }
 
   /**
@@ -407,6 +416,7 @@ export class Driver {
       this.scheduler.clear();
       this.connectionHandlers.clear();
       this.activePlayers.clear();
+      this.sessionManager.stop();
 
       this.state = 'stopped';
       this.logger.info('MudForge Driver stopped');
@@ -887,6 +897,12 @@ export class Driver {
         return;
       }
 
+      // Check for session resume request
+      if (input.startsWith('\x00[SESSION]')) {
+        await this.handleSessionMessage(connection, input.slice(10));
+        return;
+      }
+
       // Check for GUI message prefix
       if (input.startsWith('\x00[GUI]')) {
         await this.handleGUIMessage(handler, input.slice(6));
@@ -959,6 +975,156 @@ export class Driver {
         errorCode: 'validation_error',
       });
     }
+  }
+
+  /**
+   * Handle a session message from the client.
+   * Used for session resume attempts during reconnection.
+   */
+  private async handleSessionMessage(connection: Connection, jsonStr: string): Promise<void> {
+    try {
+      const message = JSON.parse(jsonStr) as { type: string; token?: string };
+
+      if (message.type === 'session_resume' && message.token) {
+        await this.handleSessionResume(connection, message.token);
+      }
+    } catch (error) {
+      this.logger.error({ error }, 'Failed to parse session message');
+      connection.sendSession({
+        type: 'session_invalid',
+        error: 'Invalid session message',
+      });
+    }
+  }
+
+  /**
+   * Handle a session resume attempt.
+   * Validates the token and reconnects the player if valid.
+   */
+  private async handleSessionResume(connection: Connection, token: string): Promise<void> {
+    const remoteAddress = connection.getRemoteAddress();
+    const result = this.sessionManager.validateToken(token, remoteAddress);
+
+    if (!result.valid || !result.session) {
+      this.logger.info({ error: result.error }, 'Session resume failed');
+      connection.sendSession({
+        type: 'session_invalid',
+        error: result.error || 'Invalid session',
+      });
+      return;
+    }
+
+    // Find the player in active players
+    const player = this.findActivePlayer(result.session.playerName);
+
+    if (!player) {
+      this.logger.info({ playerName: result.session.playerName }, 'Session resume: player not found');
+      connection.sendSession({
+        type: 'session_invalid',
+        error: 'Player session not found',
+      });
+      // Invalidate the token since player is gone
+      this.sessionManager.invalidateToken(token);
+      return;
+    }
+
+    // Check if player is in the void (disconnected state)
+    const playerWithEnv = player as MudObject & {
+      environment?: MudObject;
+      previousLocation?: string | null;
+      disconnectTimerId?: number | null;
+      name?: string;
+    };
+
+    // Cancel any pending disconnect timeout
+    if (playerWithEnv.disconnectTimerId !== null && playerWithEnv.disconnectTimerId !== undefined) {
+      this.scheduler.removeCallOut(playerWithEnv.disconnectTimerId);
+      playerWithEnv.disconnectTimerId = null;
+    }
+
+    // Transfer connection to this player (handles old connection cleanup)
+    this.transferConnection(connection, player);
+
+    // Restore player to previous location if in void
+    if (playerWithEnv.previousLocation && playerWithEnv.environment?.objectPath === '/areas/void/void') {
+      try {
+        const previousRoom = this.efunBridge.findObject(playerWithEnv.previousLocation);
+        if (previousRoom) {
+          await player.moveTo(previousRoom);
+          this.logger.info(
+            { name: playerWithEnv.name, location: playerWithEnv.previousLocation },
+            'Session resume: player restored to previous location'
+          );
+        }
+      } catch (error) {
+        this.logger.error({ error }, 'Failed to restore player location on session resume');
+      }
+      playerWithEnv.previousLocation = null;
+    }
+
+    // Issue a new session token (old one is invalidated)
+    this.sessionManager.invalidateToken(token);
+    const { token: newToken, expiresAt } = this.issueSessionToken(player, connection);
+
+    // Notify client of successful resume
+    connection.sendSession({
+      type: 'session_resume',
+      success: true,
+    });
+
+    // Send the new token
+    connection.sendSession({
+      type: 'session_token',
+      token: newToken,
+      expiresAt,
+    });
+
+    // Send a welcome back message
+    const playerWithReceive = player as MudObject & { receive?: (msg: string) => void };
+    if (playerWithReceive.receive) {
+      playerWithReceive.receive('\n{green}Session restored. Welcome back!{/}\n');
+    }
+
+    // Send a look command to refresh the room
+    const playerWithInput = player as MudObject & { processInput?: (input: string) => void | Promise<void> };
+    if (playerWithInput.processInput) {
+      this.efunBridge.setContext({ thisPlayer: player, thisObject: player });
+      try {
+        await playerWithInput.processInput('look');
+      } finally {
+        this.efunBridge.clearContext();
+      }
+    }
+
+    this.logger.info(
+      { name: playerWithEnv.name, connectionId: connection.id },
+      'Session resumed successfully'
+    );
+  }
+
+  /**
+   * Issue a session token for a player.
+   * Called after successful login.
+   */
+  issueSessionToken(player: MudObject, connection: Connection): { token: string; expiresAt: number } {
+    const playerWithName = player as MudObject & { name?: string };
+    const playerName = playerWithName.name || 'unknown';
+    const remoteAddress = connection.getRemoteAddress();
+
+    const { token, expiresAt } = this.sessionManager.createToken(
+      playerName,
+      connection.id,
+      remoteAddress
+    );
+
+    // Send token to client
+    connection.sendSession({
+      type: 'session_token',
+      token,
+      expiresAt,
+    });
+
+    return { token, expiresAt };
   }
 
   /**
@@ -1258,6 +1424,9 @@ export class Driver {
   bindPlayerToConnection(connection: Connection, player: MudObject): void {
     this.connectionHandlers.set(connection, player);
     connection.bindPlayer(player);
+
+    // Issue session token for reconnection support
+    this.issueSessionToken(player, connection);
   }
 
   /**
@@ -1566,6 +1735,13 @@ export class Driver {
   getMaster(): MasterObject | null {
     return this.master;
   }
+
+  /**
+   * Get the session manager.
+   */
+  getSessionManager(): SessionManager {
+    return this.sessionManager;
+  }
 }
 
 // Singleton instance
@@ -1599,4 +1775,5 @@ export function resetDriver(): void {
   resetScriptRunner();
   resetMudlibLoader();
   resetCommandManager();
+  resetSessionManager();
 }

@@ -40,6 +40,8 @@ async function main(): Promise<void> {
     mudlibPath: config.mudlibPath,
     logger,
     logHttpRequests: config.logHttpRequests,
+    wsHeartbeatIntervalMs: config.wsHeartbeatIntervalMs,
+    wsMaxMissedPongs: config.wsMaxMissedPongs,
   });
 
   // Wire up server events to driver with error handling

@@ -79,6 +79,13 @@ export interface DriverConfig {
   discordBotToken: string;
   discordGuildId: string;
   discordChannelId: string;
+
+  // WebSocket reliability
+  wsHeartbeatIntervalMs: number;
+  wsMaxMissedPongs: number;
+  wsSessionTokenTtlMs: number;
+  wsSessionSecret: string;
+  wsSessionValidateIp: boolean;
 }
 
 const LOG_LEVELS = ['trace', 'debug', 'info', 'warn', 'error', 'fatal'] as const;
@@ -192,6 +199,13 @@ export function loadConfig(): DriverConfig {
     discordBotToken: process.env['DISCORD_BOT_TOKEN'] ?? '',
     discordGuildId: process.env['DISCORD_GUILD_ID'] ?? '',
     discordChannelId: process.env['DISCORD_CHANNEL_ID'] ?? '',
+
+    // WebSocket reliability
+    wsHeartbeatIntervalMs: parseNumber(process.env['WS_HEARTBEAT_INTERVAL_MS'], 45000),
+    wsMaxMissedPongs: parseNumber(process.env['WS_MAX_MISSED_PONGS'], 2),
+    wsSessionTokenTtlMs: parseNumber(process.env['WS_SESSION_TOKEN_TTL_MS'], 15 * 60 * 1000), // 15 minutes
+    wsSessionSecret: process.env['WS_SESSION_SECRET'] ?? '', // Auto-generated if empty
+    wsSessionValidateIp: parseBoolean(process.env['WS_SESSION_VALIDATE_IP'], false),
   };
 }
 

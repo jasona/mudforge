@@ -5,7 +5,16 @@
  * Area: Town of Aldric (valdoria:aldric)
  */
 
-import { Room } from '../../../lib/std.js';
+import { Room, MudObject, Player } from '../../../lib/std.js';
+
+/** Interface for player banking methods */
+interface BankablePlayer extends MudObject {
+  receive?: (msg: string) => void;
+  gold: number;
+  bankedGold: number;
+  depositGold(amount: number | 'all'): number;
+  withdrawGold(amount: number | 'all'): number;
+}
 
 export class Bank extends Room {
   constructor() {
@@ -37,6 +46,10 @@ The exit leads {green}northwest{/} back to the town center.`;
     // Exits
     this.addExit('east', '/areas/valdoria/aldric/castle');
 
+    // Bank commands
+    this.addAction('deposit', (args) => this.cmdDeposit(args ?? ''));
+    this.addAction('withdraw', (args) => this.cmdWithdraw(args ?? ''));
+    this.addAction('balance', (args) => this.cmdBalance(args ?? ''));
   }
 
   // Preserved custom methods

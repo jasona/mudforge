@@ -159,6 +159,24 @@ export interface SoundMessage {
 }
 
 /**
+ * SESSION protocol message for session token.
+ */
+export interface SessionTokenMessage {
+  type: 'session_token';
+  token: string;
+  expiresAt: number;
+}
+
+/**
+ * SESSION protocol message for session resume response.
+ */
+export interface SessionResumeResponse {
+  type: 'session_resume' | 'session_invalid';
+  success?: boolean;
+  error?: string;
+}
+
+/**
  * Connection state.
  */
 export type ConnectionState = 'connecting' | 'open' | 'closing' | 'closed';
@@ -171,6 +189,12 @@ export interface ConnectionEvents {
   close: (code: number, reason: string) => void;
   error: (error: Error) => void;
 }
+
+/** Backpressure threshold in bytes (64KB) */
+const BACKPRESSURE_THRESHOLD = 64 * 1024;
+
+/** Maximum send buffer size before dropping messages (256KB) */
+const MAX_BUFFER_SIZE = 256 * 1024;
 
 /**
  * A single client connection.
@@ -185,6 +209,9 @@ export class Connection extends EventEmitter {
   private _inputBuffer: string = '';
   private _missedPongs: number = 0;
   private _lastActivityTime: number = Date.now();
+  private _backpressureWarned: boolean = false;
+  private _pendingMessages: string[] = [];
+  private _drainScheduled: boolean = false;
 
   constructor(socket: WebSocket, id: string, remoteAddress: string = 'unknown') {
     super();
@@ -317,6 +344,7 @@ export class Connection extends EventEmitter {
 
   /**
    * Send a message to the client.
+   * Implements backpressure handling to prevent memory exhaustion.
    * @param message The message to send
    */
   send(message: string): void {
@@ -324,11 +352,101 @@ export class Connection extends EventEmitter {
       return;
     }
 
+    const bufferedAmount = this.socket.bufferedAmount || 0;
+
+    // Check for backpressure
+    if (bufferedAmount > BACKPRESSURE_THRESHOLD) {
+      // Warn once per backpressure episode
+      if (!this._backpressureWarned) {
+        this._backpressureWarned = true;
+        this.emit('backpressure', bufferedAmount);
+      }
+
+      // If buffer is critically full, queue the message
+      if (bufferedAmount > MAX_BUFFER_SIZE) {
+        // Queue message for later (limited queue size)
+        if (this._pendingMessages.length < 100) {
+          this._pendingMessages.push(message);
+          this.scheduleDrain();
+        }
+        // Drop message if queue is also full (prevents memory exhaustion)
+        return;
+      }
+    } else {
+      // Backpressure cleared
+      this._backpressureWarned = false;
+    }
+
     try {
       this.socket.send(message);
     } catch (error) {
       this.emit('error', error as Error);
     }
+  }
+
+  /**
+   * Schedule draining of pending messages.
+   */
+  private scheduleDrain(): void {
+    if (this._drainScheduled || this._pendingMessages.length === 0) {
+      return;
+    }
+
+    this._drainScheduled = true;
+
+    // Check again after a short delay
+    setTimeout(() => {
+      this._drainScheduled = false;
+      this.drainPendingMessages();
+    }, 50);
+  }
+
+  /**
+   * Drain pending messages when buffer has space.
+   */
+  private drainPendingMessages(): void {
+    if (this._state !== 'open' || this._pendingMessages.length === 0) {
+      return;
+    }
+
+    const bufferedAmount = this.socket.bufferedAmount || 0;
+
+    // Only drain if we have room
+    while (this._pendingMessages.length > 0 && bufferedAmount < BACKPRESSURE_THRESHOLD) {
+      const message = this._pendingMessages.shift()!;
+      try {
+        this.socket.send(message);
+      } catch (error) {
+        this.emit('error', error as Error);
+        break;
+      }
+    }
+
+    // Schedule another drain if we still have messages
+    if (this._pendingMessages.length > 0) {
+      this.scheduleDrain();
+    }
+  }
+
+  /**
+   * Get the current socket buffer size.
+   */
+  get bufferedAmount(): number {
+    return this.socket.bufferedAmount || 0;
+  }
+
+  /**
+   * Check if the connection is experiencing backpressure.
+   */
+  get hasBackpressure(): boolean {
+    return (this.socket.bufferedAmount || 0) > BACKPRESSURE_THRESHOLD;
+  }
+
+  /**
+   * Get the number of pending messages waiting to be sent.
+   */
+  get pendingMessageCount(): number {
+    return this._pendingMessages.length;
   }
 
   /**
@@ -500,6 +618,25 @@ export class Connection extends EventEmitter {
     try {
       const json = JSON.stringify(message);
       this.socket.send(`\x00[SOUND]${json}`);
+    } catch (error) {
+      this.emit('error', error as Error);
+    }
+  }
+
+  /**
+   * Send a SESSION protocol message to the client.
+   * SESSION messages are prefixed with \x00[SESSION] to distinguish them from regular text.
+   * Used for session token delivery and session resume responses.
+   * @param message The session message to send
+   */
+  sendSession(message: SessionTokenMessage | SessionResumeResponse): void {
+    if (this._state !== 'open') {
+      return;
+    }
+
+    try {
+      const json = JSON.stringify(message);
+      this.socket.send(`\x00[SESSION]${json}`);
     } catch (error) {
       this.emit('error', error as Error);
     }

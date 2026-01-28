@@ -32,6 +32,10 @@ export interface ServerConfig {
   logger?: Logger;
   /** Enable HTTP request logging (default: false) */
   logHttpRequests?: boolean;
+  /** WebSocket heartbeat interval in milliseconds (default: 45000) */
+  wsHeartbeatIntervalMs?: number;
+  /** Maximum missed pong responses before terminating connection (default: 2) */
+  wsMaxMissedPongs?: number;
 }
 
 /**
@@ -44,11 +48,11 @@ export interface ServerEvents {
   error: (error: Error) => void;
 }
 
-/** Heartbeat interval in milliseconds (45 seconds) */
-const HEARTBEAT_INTERVAL_MS = 45000;
+/** Default heartbeat interval in milliseconds (45 seconds) */
+const DEFAULT_HEARTBEAT_INTERVAL_MS = 45000;
 
-/** Maximum missed pong responses before terminating connection */
-const MAX_MISSED_PONGS = 2;
+/** Default maximum missed pong responses before terminating connection */
+const DEFAULT_MAX_MISSED_PONGS = 2;
 
 /**
  * MUD server handling HTTP and WebSocket connections.
@@ -59,6 +63,8 @@ export class Server extends EventEmitter {
   private connectionManager: ConnectionManager;
   private running: boolean = false;
   private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
+  private heartbeatIntervalMs: number;
+  private maxMissedPongs: number;
 
   constructor(config: Partial<ServerConfig> = {}) {
     super();
@@ -70,6 +76,10 @@ export class Server extends EventEmitter {
       mudlibPath: config.mudlibPath ?? join(process.cwd(), 'mudlib'),
       ...(config.logger ? { logger: config.logger } : {}),
     };
+
+    // Initialize WebSocket heartbeat settings from config
+    this.heartbeatIntervalMs = config.wsHeartbeatIntervalMs ?? DEFAULT_HEARTBEAT_INTERVAL_MS;
+    this.maxMissedPongs = config.wsMaxMissedPongs ?? DEFAULT_MAX_MISSED_PONGS;
 
     this.connectionManager = getConnectionManager();
 
@@ -232,8 +242,8 @@ export class Server extends EventEmitter {
 
   /**
    * Start the WebSocket heartbeat interval.
-   * Sends ping frames to all connections every 45 seconds to keep them alive.
-   * Allows up to MAX_MISSED_PONGS missed responses before terminating.
+   * Sends ping frames to all connections periodically to keep them alive.
+   * Allows up to maxMissedPongs missed responses before terminating.
    */
   private startHeartbeat(): void {
     this.heartbeatInterval = setInterval(() => {
@@ -242,7 +252,7 @@ export class Server extends EventEmitter {
         // Increment missed pongs counter before sending new ping
         const missedPongs = connection.incrementMissedPongs();
 
-        if (missedPongs > MAX_MISSED_PONGS) {
+        if (missedPongs > this.maxMissedPongs) {
           // Connection has missed too many heartbeats - terminate it
           const metrics = connection.getHealthMetrics();
           this.config.logger?.warn(
@@ -259,7 +269,7 @@ export class Server extends EventEmitter {
         // Send ping - when pong is received, missedPongs resets to 0
         connection.ping();
       }
-    }, HEARTBEAT_INTERVAL_MS);
+    }, this.heartbeatIntervalMs);
   }
 
   /**
