@@ -19,6 +19,7 @@ export interface DriverConfig {
 
   // Isolation/Sandbox
   isolateMemoryMb: number;
+  maxIsolates: number;
   scriptTimeoutMs: number;
 
   // Scheduler
@@ -125,8 +126,9 @@ export function loadConfig(): DriverConfig {
     // HTTP request logging (default off to reduce noise)
     logHttpRequests: parseBoolean(process.env['LOG_HTTP_REQUESTS'], false),
 
-    // Isolation/Sandbox
-    isolateMemoryMb: parseNumber(process.env['ISOLATE_MEMORY_MB'], 128),
+    // Isolation/Sandbox (lower defaults for memory-constrained environments like Render free tier)
+    isolateMemoryMb: parseNumber(process.env['ISOLATE_MEMORY_MB'], 64),
+    maxIsolates: parseNumber(process.env['MAX_ISOLATES'], 2),
     scriptTimeoutMs: parseNumber(process.env['SCRIPT_TIMEOUT_MS'], 5000),
 
     // Scheduler

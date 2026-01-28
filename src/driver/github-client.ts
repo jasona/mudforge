@@ -57,20 +57,30 @@ export class GitHubClient {
     const url = `https://api.github.com/repos/${this.config.owner}/${this.config.repo}/issues`;
 
     try {
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${this.config.token}`,
-          Accept: 'application/vnd.github+json',
-          'Content-Type': 'application/json',
-          'X-GitHub-Api-Version': '2022-11-28',
-        },
-        body: JSON.stringify({
-          title,
-          body,
-          labels: labels || [],
-        }),
-      });
+      // Add 25s timeout to prevent blocking event loop and failing health checks
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 25000);
+
+      let response: Response;
+      try {
+        response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${this.config.token}`,
+            Accept: 'application/vnd.github+json',
+            'Content-Type': 'application/json',
+            'X-GitHub-Api-Version': '2022-11-28',
+          },
+          body: JSON.stringify({
+            title,
+            body,
+            labels: labels || [],
+          }),
+          signal: controller.signal,
+        });
+      } finally {
+        clearTimeout(timeoutId);
+      }
 
       if (!response.ok) {
         const errorBody = await response.text();
@@ -99,6 +109,9 @@ export class GitHubClient {
         url: data.html_url,
       };
     } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        return { success: false, error: 'API request timed out' };
+      }
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',

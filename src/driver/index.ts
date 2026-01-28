@@ -8,6 +8,17 @@ import 'dotenv/config';
 import { getDriver } from './driver.js';
 import { Server } from '../network/server.js';
 
+// Global error handlers to prevent crashes from unhandled errors
+process.on('uncaughtException', (error) => {
+  console.error('[FATAL] Uncaught exception:', error);
+  // Don't exit - let the process continue if possible
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[FATAL] Unhandled rejection at:', promise, 'reason:', reason);
+  // Don't exit - let the process continue if possible
+});
+
 async function main(): Promise<void> {
   // Get driver instance (loads config)
   const driver = getDriver();
@@ -67,8 +78,20 @@ async function main(): Promise<void> {
   // Handle graceful shutdown
   const shutdown = async (signal: string) => {
     logger.info({ signal }, 'Received shutdown signal');
-    await server.stop();
-    await driver.stop();
+
+    // Force exit after 15 seconds if graceful shutdown hangs
+    const forceExitTimer = setTimeout(() => {
+      logger.warn('Graceful shutdown timeout - forcing exit');
+      process.exit(1);
+    }, 15000);
+
+    try {
+      await server.stop();
+      await driver.stop();
+    } finally {
+      clearTimeout(forceExitTimer);
+    }
+
     process.exit(0);
   };
 
