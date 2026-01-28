@@ -220,9 +220,13 @@ export class CombatDaemon extends MudObject {
     if (this.isNPC(defender) && !this._combats.has(this.combatKey(defender, attacker))) {
       if (typeof efuns !== 'undefined' && efuns.callOut) {
         efuns.callOut(() => {
-          // Double-check they're still alive and in the same room
-          if (defender.alive && attacker.alive && defender.environment === attacker.environment) {
-            this.initiateCombat(defender, attacker);
+          try {
+            // Double-check they're still alive and in the same room
+            if (defender.alive && attacker.alive && defender.environment === attacker.environment) {
+              this.initiateCombat(defender, attacker);
+            }
+          } catch (error) {
+            console.error('[CombatDaemon] Error in NPC retaliation:', error);
           }
         }, 100); // Small delay to avoid recursion issues
       }
@@ -244,7 +248,9 @@ export class CombatDaemon extends MudObject {
     // Schedule first round
     if (typeof efuns !== 'undefined' && efuns.callOut) {
       entry.callOutId = efuns.callOut(() => {
-        this.executeRound(key);
+        this.executeRound(key).catch((error) => {
+          console.error('[CombatDaemon] Error executing first combat round:', error);
+        });
       }, roundTime);
     }
 
@@ -408,73 +414,87 @@ export class CombatDaemon extends MudObject {
    * Execute a combat round.
    */
   async executeRound(key: string): Promise<void> {
-    const entry = this._combats.get(key);
-    if (!entry) return;
+    try {
+      const entry = this._combats.get(key);
+      if (!entry) return;
 
-    const { attacker, defender } = entry;
+      const { attacker, defender } = entry;
 
-    // Check if combat should end
-    if (!attacker.alive || !defender.alive) {
-      this.handleCombatEnd(entry, !attacker.alive ? 'attacker_died' : 'defender_died');
-      return;
-    }
-
-    // Check if they're still in the same room
-    if (attacker.environment !== defender.environment) {
-      this.handleCombatEnd(entry, 'separated');
-      return;
-    }
-
-    // Execute the round
-    entry.roundCount++;
-    const result = this.resolveRound(attacker, defender);
-
-    // Send messages
-    this.sendRoundMessages(result);
-
-    // Update combat target panel with new health values (only if defender still alive)
-    // If defender died, the clear will be sent by handleCombatEnd below
-    if (!result.defenderDied && defender.alive) {
-      this.sendCombatTargetUpdate(attacker, defender);
-    }
-
-    // Check wimpy for defender (before checking death - give them a chance to flee)
-    if (!result.defenderDied && defender.alive) {
-      const defenderFled = await this.checkWimpy(defender, entry);
-      if (defenderFled) {
-        return; // Combat ended due to flee
+      // Check if combat should end
+      if (!attacker.alive || !defender.alive) {
+        this.handleCombatEnd(entry, !attacker.alive ? 'attacker_died' : 'defender_died');
+        return;
       }
-    }
 
-    // Check wimpy for attacker (in case of thorns damage)
-    if (!result.attackerDied && attacker.alive) {
-      const attackerFled = await this.checkWimpy(attacker, entry);
-      if (attackerFled) {
-        return; // Combat ended due to flee
+      // Check if they're still in the same room
+      if (attacker.environment !== defender.environment) {
+        this.handleCombatEnd(entry, 'separated');
+        return;
       }
-    }
 
-    // Check for death
-    if (result.defenderDied) {
-      this.handleCombatEnd(entry, 'defender_died');
-      this.handleDeath(defender, attacker);
-      return;
-    }
+      // Execute the round
+      entry.roundCount++;
+      const result = this.resolveRound(attacker, defender);
 
-    if (result.attackerDied) {
-      this.handleCombatEnd(entry, 'attacker_died');
-      this.handleDeath(attacker, defender);
-      return;
-    }
+      // Send messages
+      this.sendRoundMessages(result);
 
-    // Schedule next round
-    const nextRoundTime = this.calculateRoundTime(attacker);
-    entry.nextRoundTime = Date.now() + nextRoundTime;
+      // Update combat target panel with new health values (only if defender still alive)
+      // If defender died, the clear will be sent by handleCombatEnd below
+      if (!result.defenderDied && defender.alive) {
+        this.sendCombatTargetUpdate(attacker, defender);
+      }
 
-    if (typeof efuns !== 'undefined' && efuns.callOut) {
-      entry.callOutId = efuns.callOut(() => {
-        this.executeRound(key);
-      }, nextRoundTime);
+      // Check wimpy for defender (before checking death - give them a chance to flee)
+      if (!result.defenderDied && defender.alive) {
+        try {
+          const defenderFled = await this.checkWimpy(defender, entry);
+          if (defenderFled) {
+            return; // Combat ended due to flee
+          }
+        } catch (error) {
+          console.error('[CombatDaemon] Error in defender wimpy check:', error);
+        }
+      }
+
+      // Check wimpy for attacker (in case of thorns damage)
+      if (!result.attackerDied && attacker.alive) {
+        try {
+          const attackerFled = await this.checkWimpy(attacker, entry);
+          if (attackerFled) {
+            return; // Combat ended due to flee
+          }
+        } catch (error) {
+          console.error('[CombatDaemon] Error in attacker wimpy check:', error);
+        }
+      }
+
+      // Check for death
+      if (result.defenderDied) {
+        this.handleCombatEnd(entry, 'defender_died');
+        this.handleDeath(defender, attacker);
+        return;
+      }
+
+      if (result.attackerDied) {
+        this.handleCombatEnd(entry, 'attacker_died');
+        this.handleDeath(attacker, defender);
+        return;
+      }
+
+      // Schedule next round
+      const nextRoundTime = this.calculateRoundTime(attacker);
+      entry.nextRoundTime = Date.now() + nextRoundTime;
+
+      if (typeof efuns !== 'undefined' && efuns.callOut) {
+        entry.callOutId = efuns.callOut(() => {
+          this.executeRound(key).catch((error) => {
+            console.error('[CombatDaemon] Error executing combat round:', error);
+          });
+        }, nextRoundTime);
+      }
+    } catch (error) {
+      console.error('[CombatDaemon] Unhandled error in executeRound:', error);
     }
   }
 

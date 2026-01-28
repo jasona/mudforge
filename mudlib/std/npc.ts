@@ -1545,64 +1545,78 @@ export class NPC extends Living {
       const selfId = this.objectId;
 
       if (typeof efuns !== 'undefined' && efuns.callOut) {
-        efuns.callOut(async () => {
-          // Get room's spawn tracking (if available)
-          const roomWithTracking = spawnRoom as Room & {
-            _spawnedNpcIds?: Set<string>;
-          };
+        efuns.callOut(() => {
+          // Wrap async logic in an immediately invoked async function with error handling
+          (async () => {
+            // Get room's spawn tracking (if available)
+            const roomWithTracking = spawnRoom as Room & {
+              _spawnedNpcIds?: Set<string>;
+            };
 
-          // Clone a new NPC instead of reviving (cleaner approach)
-          try {
-            if (typeof efuns !== 'undefined' && efuns.cloneObject) {
-              const newNpc = await efuns.cloneObject(npcPath);
-              if (newNpc) {
-                // Update room's spawn tracking
-                if (roomWithTracking._spawnedNpcIds) {
-                  roomWithTracking._spawnedNpcIds.delete(selfId);
-                  roomWithTracking._spawnedNpcIds.add(newNpc.objectId);
-                }
+            // Clone a new NPC instead of reviving (cleaner approach)
+            try {
+              if (typeof efuns !== 'undefined' && efuns.cloneObject) {
+                const newNpc = await efuns.cloneObject(npcPath);
+                if (newNpc) {
+                  // Update room's spawn tracking
+                  if (roomWithTracking._spawnedNpcIds) {
+                    roomWithTracking._spawnedNpcIds.delete(selfId);
+                    roomWithTracking._spawnedNpcIds.add(newNpc.objectId);
+                  }
 
-                // Set spawn room on new NPC
-                const newNpcWithSpawn = newNpc as NPC & {
-                  _spawnRoom?: Room;
-                  setWanderAreaFromSpawnRoom?: () => void;
-                };
-                newNpcWithSpawn._spawnRoom = spawnRoom;
+                  // Set spawn room on new NPC
+                  const newNpcWithSpawn = newNpc as NPC & {
+                    _spawnRoom?: Room;
+                    setWanderAreaFromSpawnRoom?: () => void;
+                  };
+                  newNpcWithSpawn._spawnRoom = spawnRoom;
 
-                // Set wander area path for area-restricted wandering
-                if (typeof newNpcWithSpawn.setWanderAreaFromSpawnRoom === 'function') {
-                  newNpcWithSpawn.setWanderAreaFromSpawnRoom();
-                }
+                  // Set wander area path for area-restricted wandering
+                  if (typeof newNpcWithSpawn.setWanderAreaFromSpawnRoom === 'function') {
+                    newNpcWithSpawn.setWanderAreaFromSpawnRoom();
+                  }
 
-                await newNpc.moveTo(spawnRoom);
-                if ('broadcast' in spawnRoom) {
-                  const spawnName = (newNpc as NPC).name;
-                  const name = typeof efuns !== 'undefined' ? efuns.capitalize(spawnName) : spawnName;
-                  (spawnRoom as MudObject & { broadcast: (msg: string) => void })
-                    .broadcast(`{dim}${name} appears.{/}\n`);
+                  await newNpc.moveTo(spawnRoom);
+                  if ('broadcast' in spawnRoom) {
+                    const spawnName = (newNpc as NPC).name;
+                    const name = typeof efuns !== 'undefined' ? efuns.capitalize(spawnName) : spawnName;
+                    (spawnRoom as MudObject & { broadcast: (msg: string) => void })
+                      .broadcast(`{dim}${name} appears.{/}\n`);
+                  }
                 }
               }
+            } catch (error) {
+              // Respawn failed - remove from tracking so room reset can retry
+              console.error('[NPC] Respawn failed:', error);
+              if (roomWithTracking._spawnedNpcIds) {
+                roomWithTracking._spawnedNpcIds.delete(selfId);
+              }
             }
-          } catch {
-            // Respawn failed - remove from tracking so room reset can retry
-            if (roomWithTracking._spawnedNpcIds) {
-              roomWithTracking._spawnedNpcIds.delete(selfId);
-            }
-          }
 
-          // Destroy the old NPC
-          if (typeof efuns !== 'undefined' && efuns.destruct) {
-            await efuns.destruct(this);
-          }
+            // Destroy the old NPC
+            try {
+              if (typeof efuns !== 'undefined' && efuns.destruct) {
+                await efuns.destruct(this);
+              }
+            } catch (error) {
+              console.error('[NPC] Failed to destruct old NPC:', error);
+            }
+          })().catch((error) => {
+            console.error('[NPC] Unhandled error in respawn callback:', error);
+          });
         }, this._respawnTime * 1000);
       }
     } else {
       // No respawn - destroy after a delay to allow for any final operations
       if (typeof efuns !== 'undefined' && efuns.callOut) {
-        efuns.callOut(async () => {
-          if (typeof efuns !== 'undefined' && efuns.destruct) {
-            await efuns.destruct(this);
-          }
+        efuns.callOut(() => {
+          (async () => {
+            if (typeof efuns !== 'undefined' && efuns.destruct) {
+              await efuns.destruct(this);
+            }
+          })().catch((error) => {
+            console.error('[NPC] Failed to destruct NPC:', error);
+          });
         }, 1000);
       }
     }
