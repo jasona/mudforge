@@ -108,7 +108,7 @@ export class GuildMaster extends NPC {
 
     this.addAction('learn', async (args) => {
       const player = typeof efuns !== 'undefined' ? efuns.thisPlayer() as GuildPlayer | undefined : undefined;
-      if (player) await this.handleLearnSkill(player, args);
+      if (player) await this.handleLearnSkill(player, args ?? '');
       return true;
     });
 
@@ -191,11 +191,17 @@ export class GuildMaster extends NPC {
    * Handle a join request.
    */
   async handleJoinRequest(player: GuildPlayer): Promise<void> {
-    if (!this._guildId) return;
+    if (!this._guildId) {
+      player.receive('{red}This guildmaster is not properly configured.{/}\n');
+      return;
+    }
 
     const guildDaemon = getGuildDaemon();
     const guild = guildDaemon.getGuild(this._guildId);
-    if (!guild) return;
+    if (!guild) {
+      player.receive('{red}Guild not found.{/}\n');
+      return;
+    }
 
     // Check if already a member
     if (guildDaemon.isMember(player, this._guildId)) {
@@ -226,7 +232,10 @@ export class GuildMaster extends NPC {
    * Handle learning a skill.
    */
   async handleLearnSkill(player: GuildPlayer, skillName: string): Promise<void> {
-    if (!this._guildId) return;
+    if (!this._guildId) {
+      player.receive('{red}This guildmaster is not properly configured.{/}\n');
+      return;
+    }
 
     const guildDaemon = getGuildDaemon();
     const guild = guildDaemon.getGuild(this._guildId);
@@ -292,11 +301,17 @@ export class GuildMaster extends NPC {
    * Show skill options to a player.
    */
   showSkillOptions(player: GuildPlayer): void {
-    if (!this._guildId) return;
+    if (!this._guildId) {
+      player.receive('{red}This guildmaster is not properly configured.{/}\n');
+      return;
+    }
 
     const guildDaemon = getGuildDaemon();
     const guild = guildDaemon.getGuild(this._guildId);
-    if (!guild) return;
+    if (!guild) {
+      player.receive('{red}Guild not found.{/}\n');
+      return;
+    }
 
     if (!guildDaemon.isMember(player, this._guildId)) {
       this.sayTo(player, `You must join the ${guild.name} before you can learn our skills.`);
@@ -326,11 +341,17 @@ export class GuildMaster extends NPC {
    * Show player's progress in this guild.
    */
   showProgress(player: GuildPlayer): void {
-    if (!this._guildId) return;
+    if (!this._guildId) {
+      player.receive('{red}This guildmaster is not properly configured.{/}\n');
+      return;
+    }
 
     const guildDaemon = getGuildDaemon();
     const guild = guildDaemon.getGuild(this._guildId);
-    if (!guild) return;
+    if (!guild) {
+      player.receive('{red}Guild not found.{/}\n');
+      return;
+    }
 
     if (!guildDaemon.isMember(player, this._guildId)) {
       this.sayTo(player, `You are not a member of the ${guild.name}.`);
@@ -374,7 +395,10 @@ export class GuildMaster extends NPC {
    * Handle guild advancement.
    */
   async handleAdvance(player: GuildPlayer): Promise<void> {
-    if (!this._guildId) return;
+    if (!this._guildId) {
+      player.receive('{red}This guildmaster is not properly configured.{/}\n');
+      return;
+    }
 
     const guildDaemon = getGuildDaemon();
     const result = guildDaemon.advanceGuildLevel(player, this._guildId);

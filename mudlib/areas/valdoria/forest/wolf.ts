@@ -5,7 +5,7 @@
  * Area: Southern Forest (valdoria:forest)
  */
 
-import { NPC } from '../../../lib/std.js';
+import { NPC, Living, Room } from '../../../lib/std.js';
 
 export class Wolf extends NPC {
   constructor() {
@@ -45,6 +45,9 @@ alert for both prey and danger. This is clearly a dangerous predator.`,
 
     // Wolves are aggressive to players
     this.setAggressive((target: Living) => {
+      const player = target as Living & { isConnected?: () => boolean };
+      return typeof player.isConnected === 'function';
+    });
   }
 
   // Preserved custom methods

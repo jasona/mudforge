@@ -5,7 +5,7 @@
  * Area: Southern Forest (valdoria:forest)
  */
 
-import { NPC } from '../../../lib/std.js';
+import { NPC, Living, Room } from '../../../lib/std.js';
 
 export class Boar extends NPC {
   constructor() {
@@ -39,8 +39,11 @@ are known for their bad temper and surprising ferocity when cornered.`,
     this.maxMana = 0;
     this.mana = 0;
 
-    // Boars are aggressive
+    // Boars are aggressive to players
     this.setAggressive((target: Living) => {
+      const player = target as Living & { isConnected?: () => boolean };
+      return typeof player.isConnected === 'function';
+    });
   }
 
   // Preserved custom methods
