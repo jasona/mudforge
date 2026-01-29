@@ -220,6 +220,7 @@ export class Connection extends EventEmitter {
     this._remoteAddress = remoteAddress;
     this._connectedAt = new Date();
 
+    console.log(`[WS-CONNECT] New connection ${id} from ${remoteAddress}`);
     this.setupEventHandlers();
   }
 
@@ -335,6 +336,8 @@ export class Connection extends EventEmitter {
    * Bind a player object to this connection.
    */
   bindPlayer(player: unknown): void {
+    const playerName = (player as { name?: string })?.name || 'unknown';
+    console.log(`[WS-BIND] Player "${playerName}" bound to connection ${this._id}`);
     this._player = player;
   }
 
@@ -342,6 +345,8 @@ export class Connection extends EventEmitter {
    * Unbind the player object.
    */
   unbindPlayer(): void {
+    const playerName = this._player ? (this._player as { name?: string }).name || 'unknown' : 'none';
+    console.log(`[WS-UNBIND] Player "${playerName}" unbound from connection ${this._id}`);
     this._player = null;
   }
 
@@ -704,6 +709,26 @@ export class Connection extends EventEmitter {
       this.socket.ping();
     } catch (error) {
       this.emit('error', error as Error);
+    }
+  }
+
+  /**
+   * Send a keep-alive data frame to the client.
+   * This sends actual WebSocket data (not just ping/pong frames) which
+   * load balancers and proxies recognize as "activity", preventing
+   * idle connection timeouts that ignore ping/pong frames.
+   */
+  sendKeepAlive(): void {
+    if (this._state !== 'open') {
+      return;
+    }
+
+    try {
+      // Send a null-prefixed keep-alive message that the client ignores
+      // but creates actual data frames on the wire for load balancers
+      this.socket.send('\x00[KEEPALIVE]');
+    } catch (error) {
+      // Don't emit error for keep-alive failures - ping will catch dead connections
     }
   }
 

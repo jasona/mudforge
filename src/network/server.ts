@@ -244,6 +244,7 @@ export class Server extends EventEmitter {
    * Start the WebSocket heartbeat interval.
    * Sends ping frames to all connections periodically to keep them alive.
    * Allows up to maxMissedPongs missed responses before terminating.
+   * Also sends data-frame keep-alives to satisfy load balancer idle timeouts.
    */
   private startHeartbeat(): void {
     this.heartbeatInterval = setInterval(() => {
@@ -266,8 +267,13 @@ export class Server extends EventEmitter {
           continue;
         }
 
-        // Send ping - when pong is received, missedPongs resets to 0
+        // Send WebSocket ping frame (application-level heartbeat)
         connection.ping();
+
+        // Also send a data-frame keep-alive message
+        // This creates actual WebSocket data frames that load balancers/proxies
+        // recognize as "activity", preventing idle connection timeouts
+        connection.sendKeepAlive();
       }
     }, this.heartbeatIntervalMs);
   }
