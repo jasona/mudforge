@@ -746,8 +746,8 @@ export class Player extends Living {
           isPlayer,
         },
       });
-    } catch {
-      // Silently fail if portrait daemon isn't available
+    } catch (error) {
+      console.error(`[Player] Error sending combat target update for ${this.name}:`, error);
     }
   }
 

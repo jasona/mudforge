@@ -1,13 +1,12 @@
 /**
- * Glance command - Quick one-line summary of the current room.
+ * Glance command - Quick summary of the current room.
  *
- * Shows the room's short description and available exits on a single line.
+ * Shows the room's short description, exits, and a brief colorized
+ * list of contents (players, NPCs, items). Used when brief mode is on.
  */
 
 import type { MudObject } from '../../lib/std.js';
-import { canSeeInRoom, getDarknessMessage } from '../../std/visibility/index.js';
 import type { Living } from '../../std/living.js';
-import type { Room as RoomClass } from '../../std/room.js';
 
 interface CommandContext {
   player: MudObject;
@@ -17,7 +16,8 @@ interface CommandContext {
 }
 
 interface Room extends MudObject {
-  getExitDirections?(): string[];
+  glance?(viewer: MudObject): void;
+  look?(viewer: MudObject): void;
 }
 
 export const name = ['glance', 'gl'];
@@ -40,27 +40,15 @@ export function execute(ctx: CommandContext): void {
     return;
   }
 
-  // Check if player can see in the room
-  const roomObj = room as unknown as RoomClass;
-  const lightCheck = canSeeInRoom(playerLiving, roomObj);
-
-  if (!lightCheck.canSee) {
-    // Too dark to see
-    ctx.sendLine(`{bold}{dim}Darkness{/} {dim}[You can't see the exits]{/}`);
-    return;
+  // Use the room's glance method which handles visibility, contents, etc.
+  if (typeof room.glance === 'function') {
+    room.glance(player);
+  } else if (typeof room.look === 'function') {
+    // Fallback to look if glance not available
+    room.look(player);
+  } else {
+    ctx.sendLine(room.shortDesc || 'You are somewhere.');
   }
-
-  // Get exits
-  let exitsStr = '';
-  if (room.getExitDirections) {
-    const exits = room.getExitDirections();
-    if (exits.length > 0) {
-      exitsStr = ` {dim}[${exits.join(', ')}]{/}`;
-    }
-  }
-
-  // Output: "Room Name [n, s, e, w]"
-  ctx.sendLine(`{bold}${room.shortDesc}{/}${exitsStr}`);
 }
 
 export default { name, description, usage, execute };

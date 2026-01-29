@@ -900,15 +900,103 @@ export class Room extends MudObject {
   }
 
   /**
-   * Quick glance at the room (brief mode - just name and exits).
+   * Quick glance at the room (brief mode - room name, exits, and summarized contents).
    * Used when brief mode is enabled.
    * @param viewer The object glancing at the room
    */
   glance(viewer: MudObject): void {
     const receiver = viewer as MudObject & { receive?: (msg: string) => void };
+    const viewerLiving = viewer as Living & { isLiving?: boolean; isBlind?: () => boolean };
+
+    // Check if viewer is blinded
+    if (viewerLiving?.isBlind && viewerLiving.isBlind()) {
+      const msg = "{red}You can't see anything - you are blinded!{/}\n";
+      if (typeof receiver.receive === 'function') {
+        receiver.receive(msg);
+      } else if (typeof efuns !== 'undefined') {
+        efuns.send(viewer, msg);
+      }
+      return;
+    }
+
+    // Check if viewer can see in this room
+    let title = this.shortDesc;
+    let canSeeRoom = true;
+    if (viewerLiving?.isLiving) {
+      const lightCheck = canSeeInRoom(viewerLiving, this);
+      if (!lightCheck.canSee) {
+        title = '{dim}Darkness{/}';
+        canSeeRoom = false;
+      }
+    }
+
+    // Build title with exits
     const exitDirs = this.getExitDirections();
     const exitsStr = exitDirs.length > 0 ? ` {dim}[${exitDirs.join(', ')}]{/}` : '';
-    const message = `{bold}${this.shortDesc}{/}${exitsStr}\n`;
+    let message = `{bold}${title}{/}${exitsStr}\n`;
+
+    // If viewer can see, add brief contents summary
+    if (canSeeRoom) {
+      // Helper to check if object is a player
+      const isPlayer = (obj: MudObject): boolean => {
+        const p = obj as MudObject & { isConnected?: () => boolean };
+        return typeof p.isConnected === 'function';
+      };
+
+      // Gather visible contents
+      const players: string[] = [];
+      const npcs: string[] = [];
+      const items: string[] = [];
+
+      for (const obj of this.inventory) {
+        // Exclude the viewer
+        if (viewer && obj === viewer) continue;
+
+        // Check visibility for Living entities
+        const objLiving = obj as Living & { isLiving?: boolean };
+        let isVisible = true;
+        if (objLiving.isLiving && viewerLiving?.isLiving) {
+          const visResult = canSee(viewerLiving, objLiving, this);
+          isVisible = visResult.canSee;
+        }
+
+        if (!isVisible) continue;
+
+        // Get short description
+        let desc = obj.shortDesc || 'something';
+        // Capitalize first letter
+        desc = desc.charAt(0).toUpperCase() + desc.slice(1);
+
+        // Categorize and colorize
+        if (isPlayer(obj)) {
+          players.push(`{yellow}${desc}{/}`);
+        } else if (obj instanceof NPC) {
+          // Check for quest indicator
+          let questIndicator = '';
+          if (viewer && 'getProperty' in viewer) {
+            const indicator = obj.getQuestIndicatorSync(
+              viewer as Parameters<typeof obj.getQuestIndicatorSync>[0]
+            );
+            if (indicator === '?') {
+              questIndicator = '{bold}{yellow}[?]{/}';
+            } else if (indicator === '!') {
+              questIndicator = '{bold}{yellow}[!]{/}';
+            }
+          }
+          npcs.push(`{red}${desc}{/}${questIndicator}`);
+        } else if (obj instanceof GoldPile) {
+          items.push(`{bold}{yellow}${desc}{/}`);
+        } else {
+          items.push(desc);
+        }
+      }
+
+      // Build contents line (players first, NPCs second, items last)
+      const allContents = [...players, ...npcs, ...items];
+      if (allContents.length > 0) {
+        message += `  ${allContents.join(', ')}\n`;
+      }
+    }
 
     if (typeof receiver.receive === 'function') {
       receiver.receive(message);
