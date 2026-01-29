@@ -571,6 +571,9 @@ export class WebSocketClient {
           } catch (error) {
             console.error('Failed to parse SESSION message:', error);
           }
+        } else if (line.startsWith('\x00[KEEPALIVE]')) {
+          // Server keep-alive message - silently ignore
+          // These are sent to create data frames that keep load balancers happy
         } else {
           this.emit('message', line);
         }
