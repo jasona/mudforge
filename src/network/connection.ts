@@ -713,22 +713,36 @@ export class Connection extends EventEmitter {
   }
 
   /**
-   * Send a keep-alive data frame to the client.
+   * Send a time data frame to the client.
    * This sends actual WebSocket data (not just ping/pong frames) which
    * load balancers and proxies recognize as "activity", preventing
    * idle connection timeouts that ignore ping/pong frames.
+   * The client displays this as a clock in the header.
    */
-  sendKeepAlive(): void {
+  sendTime(): void {
     if (this._state !== 'open') {
       return;
     }
 
     try {
-      // Send a null-prefixed keep-alive message that the client ignores
-      // but creates actual data frames on the wire for load balancers
-      this.socket.send('\x00[KEEPALIVE]');
-    } catch (error) {
-      // Don't emit error for keep-alive failures - ping will catch dead connections
+      const now = new Date();
+      const name = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const abbreviation =
+        now.toLocaleTimeString('en-US', { timeZoneName: 'short' }).split(' ').pop() || '';
+      const offsetMinutes = now.getTimezoneOffset();
+      const sign = offsetMinutes <= 0 ? '+' : '-';
+      const hours = Math.floor(Math.abs(offsetMinutes) / 60)
+        .toString()
+        .padStart(2, '0');
+      const minutes = (Math.abs(offsetMinutes) % 60).toString().padStart(2, '0');
+
+      const message = {
+        timestamp: Math.floor(now.getTime() / 1000),
+        timezone: { name, abbreviation, offset: `${sign}${hours}:${minutes}` },
+      };
+      this.socket.send(`\x00[TIME]${JSON.stringify(message)}`);
+    } catch {
+      // Don't emit error for time failures - ping will catch dead connections
     }
   }
 

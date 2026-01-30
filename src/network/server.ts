@@ -270,10 +270,11 @@ export class Server extends EventEmitter {
         // Send WebSocket ping frame (application-level heartbeat)
         connection.ping();
 
-        // Also send a data-frame keep-alive message
+        // Also send a time message with server timestamp
         // This creates actual WebSocket data frames that load balancers/proxies
         // recognize as "activity", preventing idle connection timeouts
-        connection.sendKeepAlive();
+        // The client displays this as a clock in the header
+        connection.sendTime();
       }
     }, this.heartbeatIntervalMs);
   }

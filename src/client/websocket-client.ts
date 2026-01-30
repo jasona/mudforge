@@ -42,6 +42,14 @@ export interface SessionResumeMessage {
 }
 
 /**
+ * Time message from server for clock display.
+ */
+export interface TimeMessage {
+  timestamp: number;
+  timezone: { name: string; abbreviation: string; offset: string };
+}
+
+/**
  * Event types for the WebSocket client.
  */
 type WebSocketClientEvent =
@@ -67,7 +75,8 @@ type WebSocketClientEvent =
   | 'message-queued'
   | 'queue-flushed'
   | 'session-token'
-  | 'session-resume';
+  | 'session-resume'
+  | 'time-message';
 
 /**
  * Equipment slot data for stats display.
@@ -571,9 +580,14 @@ export class WebSocketClient {
           } catch (error) {
             console.error('Failed to parse SESSION message:', error);
           }
-        } else if (line.startsWith('\x00[KEEPALIVE]')) {
-          // Server keep-alive message - silently ignore
-          // These are sent to create data frames that keep load balancers happy
+        } else if (line.startsWith('\x00[TIME]')) {
+          const jsonStr = line.slice(7); // Remove \x00[TIME] prefix
+          try {
+            const timeMessage = JSON.parse(jsonStr) as TimeMessage;
+            this.emit('time-message', timeMessage);
+          } catch {
+            // Ignore parse errors - still serves as keepalive
+          }
         } else {
           this.emit('message', line);
         }
