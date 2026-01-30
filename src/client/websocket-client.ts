@@ -47,6 +47,7 @@ export interface SessionResumeMessage {
 export interface TimeMessage {
   timestamp: number;
   timezone: { name: string; abbreviation: string; offset: string };
+  gameVersion?: string;
 }
 
 /**

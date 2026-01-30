@@ -184,7 +184,9 @@
     <header id="header">
       <h1>MudForge</h1>
       <div id="header-right">
+        <span id="version-badge" class="version-badge" title="Game version"></span>
         <div id="clock-container" aria-label="Server time"></div>
+        <button id="debug-toggle" class="header-button" title="Toggle Debug Console (Ctrl+\`)">Debug</button>
         <span id="status" class="disconnected">Disconnected</span>
       </div>
     </header>
@@ -195,10 +197,16 @@
         <div id="equipment-container" aria-label="Equipment"></div>
       </div>
       <div id="terminal-container">
+        <div id="update-banner" class="update-banner hidden" aria-label="Update available">
+          <span class="update-banner-text">A new version is available!</span>
+          <button id="update-refresh" class="update-refresh-btn">Refresh</button>
+          <button id="update-dismiss" class="update-dismiss-btn" aria-label="Dismiss">&times;</button>
+        </div>
         <div id="terminal" role="log" aria-live="polite" aria-label="Game output"></div>
         <div id="combat-container" aria-label="Combat target"></div>
         <div id="giphy-container" aria-label="Shared GIFs"></div>
         <div id="comm-container" aria-label="Communications panel"></div>
+        <div id="debug-container" aria-label="Debug console"></div>
       </div>
       <div id="right-sidebar">
         <div id="map-container" aria-label="Game map"></div>

@@ -34,8 +34,29 @@ import { SoundManager } from './sound-manager.js';
 import { SoundPanel } from './sound-panel.js';
 import { GUIModal } from './gui/gui-modal.js';
 import { Launcher } from './launcher.js';
+import { DebugPanel } from './debug-panel.js';
+import { logger } from './logger.js';
 import type { MapMessage } from './map-renderer.js';
 import type { GUIServerMessage, GUIClientMessage } from './gui/gui-types.js';
+
+/**
+ * Game/driver configuration from /api/config.
+ */
+interface GameConfig {
+  game: {
+    name: string;
+    tagline: string;
+    version: string;
+    description: string;
+    establishedYear: number;
+    website: string;
+  };
+  driver: {
+    name: string;
+    version: string;
+  };
+  hasBugReports?: boolean;
+}
 
 /**
  * Main client application.
@@ -57,10 +78,16 @@ class MudClient {
   private soundPanel: SoundPanel;
   private guiModal: GUIModal;
   private launcher: Launcher;
+  private debugPanel: DebugPanel;
   private statusElement: HTMLElement;
+  private versionBadge: HTMLElement;
+  private updateBanner: HTMLElement;
   private permissionLevel: number = 0;
   private cwd: string = '/';
   private isLoggedIn: boolean = false;
+  private gameConfig: GameConfig | null = null;
+  private serverVersion: string | null = null;
+  private versionMismatchShown: boolean = false;
 
   constructor() {
     // Get DOM elements
@@ -68,12 +95,17 @@ class MudClient {
     const inputEl = document.getElementById('input') as HTMLInputElement;
     const sendBtn = document.getElementById('send-btn');
     const statusEl = document.getElementById('status');
+    const versionBadge = document.getElementById('version-badge');
+    const updateBanner = document.getElementById('update-banner');
+    const debugToggle = document.getElementById('debug-toggle');
 
-    if (!terminalEl || !inputEl || !sendBtn || !statusEl) {
+    if (!terminalEl || !inputEl || !sendBtn || !statusEl || !versionBadge || !updateBanner) {
       throw new Error('Required DOM elements not found');
     }
 
     this.statusElement = statusEl;
+    this.versionBadge = versionBadge;
+    this.updateBanner = updateBanner;
 
     // Initialize components
     this.terminal = new Terminal(terminalEl);
@@ -133,7 +165,44 @@ class MudClient {
       this.onLoginSuccess();
     });
 
+    // Initialize debug panel
+    this.debugPanel = new DebugPanel('debug-container', {
+      onSendBugReport: (report) => this.sendBugReport(report),
+    });
+
+    // Debug toggle button
+    if (debugToggle) {
+      debugToggle.addEventListener('click', () => {
+        this.debugPanel.toggle();
+      });
+    }
+
+    // Keyboard shortcut for debug panel (Ctrl+`)
+    document.addEventListener('keydown', (e) => {
+      if (e.ctrlKey && e.key === '`') {
+        e.preventDefault();
+        this.debugPanel.toggle();
+      }
+    });
+
+    // Update banner buttons
+    const updateRefresh = document.getElementById('update-refresh');
+    const updateDismiss = document.getElementById('update-dismiss');
+    if (updateRefresh) {
+      updateRefresh.addEventListener('click', () => {
+        window.location.reload();
+      });
+    }
+    if (updateDismiss) {
+      updateDismiss.addEventListener('click', () => {
+        this.updateBanner.classList.add('hidden');
+      });
+    }
+
     this.setupEventHandlers();
+
+    // Load game config
+    this.loadGameConfig();
   }
 
   /**
@@ -142,6 +211,69 @@ class MudClient {
   private onLoginSuccess(): void {
     this.isLoggedIn = true;
     this.inputHandler.focus();
+  }
+
+  /**
+   * Load game configuration from the server.
+   */
+  private async loadGameConfig(): Promise<void> {
+    try {
+      const response = await fetch('/api/config');
+      if (!response.ok) {
+        throw new Error(`Failed to fetch config: ${response.status}`);
+      }
+      this.gameConfig = await response.json();
+
+      // Update version badge
+      if (this.gameConfig) {
+        this.versionBadge.textContent = `v${this.gameConfig.game.version}`;
+        this.versionBadge.title = `${this.gameConfig.game.name} v${this.gameConfig.game.version}`;
+
+        // Store initial version for comparison
+        this.serverVersion = this.gameConfig.game.version;
+
+        // Update debug panel with config info
+        this.debugPanel.setConfig(this.gameConfig);
+
+        logger.info(`Loaded game config: ${this.gameConfig.game.name} v${this.gameConfig.game.version}`);
+      }
+    } catch (error) {
+      logger.error('Failed to load game config:', error);
+      this.versionBadge.textContent = 'v?.?.?';
+    }
+  }
+
+  /**
+   * Check for version mismatch and show update banner if needed.
+   */
+  private checkVersionMismatch(serverVersion: string): void {
+    if (this.versionMismatchShown) {
+      return; // Already shown
+    }
+
+    if (this.serverVersion && serverVersion !== this.serverVersion) {
+      logger.warn(`Version mismatch detected: client=${this.serverVersion}, server=${serverVersion}`);
+      this.updateBanner.classList.remove('hidden');
+      this.versionMismatchShown = true;
+    }
+  }
+
+  /**
+   * Send a bug report to the server.
+   */
+  private sendBugReport(report: unknown): void {
+    if (!this.wsClient.isConnected) {
+      logger.error('Cannot send bug report: not connected');
+      return;
+    }
+
+    try {
+      const jsonStr = JSON.stringify(report);
+      this.wsClient.send(`\x00[BUG_REPORT]${jsonStr}`);
+      logger.info('Bug report sent to server');
+    } catch (error) {
+      logger.error('Failed to send bug report:', error);
+    }
   }
 
   /**
@@ -272,6 +404,11 @@ class MudClient {
     // Time/clock events
     this.wsClient.on('time-message', (message: TimeMessage) => {
       this.clockPanel.handleMessage(message);
+
+      // Check for version mismatch (server sends gameVersion in TIME messages)
+      if (message.gameVersion) {
+        this.checkVersionMismatch(message.gameVersion);
+      }
     });
 
     // Completion events

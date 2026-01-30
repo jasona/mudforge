@@ -718,8 +718,9 @@ export class Connection extends EventEmitter {
    * load balancers and proxies recognize as "activity", preventing
    * idle connection timeouts that ignore ping/pong frames.
    * The client displays this as a clock in the header.
+   * @param gameVersion Optional game version to include for cache invalidation
    */
-  sendTime(): void {
+  sendTime(gameVersion?: string): void {
     if (this._state !== 'open') {
       return;
     }
@@ -736,10 +737,20 @@ export class Connection extends EventEmitter {
         .padStart(2, '0');
       const minutes = (Math.abs(offsetMinutes) % 60).toString().padStart(2, '0');
 
-      const message = {
+      const message: {
+        timestamp: number;
+        timezone: { name: string; abbreviation: string; offset: string };
+        gameVersion?: string;
+      } = {
         timestamp: Math.floor(now.getTime() / 1000),
         timezone: { name, abbreviation, offset: `${sign}${hours}:${minutes}` },
       };
+
+      // Include game version if provided (for cache invalidation)
+      if (gameVersion) {
+        message.gameVersion = gameVersion;
+      }
+
       this.socket.send(`\x00[TIME]${JSON.stringify(message)}`);
     } catch {
       // Don't emit error for time failures - ping will catch dead connections

@@ -915,6 +915,12 @@ export class Driver {
         return;
       }
 
+      // Check for bug report prefix
+      if (input.startsWith('\x00[BUG_REPORT]')) {
+        await this.handleBugReport(connection, input.slice(13));
+        return;
+      }
+
       // Check if handler is login daemon
       if (handler === this.loginDaemon) {
         await this.loginDaemon.processInput(connection, input);
@@ -1125,6 +1131,107 @@ export class Driver {
     });
 
     return { token, expiresAt };
+  }
+
+  /**
+   * Handle a bug report from the client debug console.
+   * Creates a GitHub issue with full details.
+   */
+  private async handleBugReport(connection: Connection, jsonStr: string): Promise<void> {
+    try {
+      const report = JSON.parse(jsonStr);
+      const githubToken = process.env.GITHUB_TOKEN;
+      const githubOwner = process.env.GITHUB_OWNER;
+      const githubRepo = process.env.GITHUB_REPO;
+
+      if (!githubToken || !githubOwner || !githubRepo) {
+        this.logger.info('Bug report received but GitHub not configured');
+        return;
+      }
+
+      // Get player name if available
+      const handler = this.connectionHandlers.get(connection);
+      let playerName = 'Unknown';
+      if (handler && handler !== this.loginDaemon) {
+        const player = handler as MudObject & { name?: string };
+        playerName = player.name || 'Unknown';
+      }
+
+      // Format logs for the issue body
+      const allLogs = (report.recentLogs || [])
+        .map((log: { timestamp: number; level: string; message: string }) => {
+          const time = new Date(log.timestamp).toISOString();
+          return `[${time}] [${log.level.toUpperCase()}] ${log.message}`;
+        })
+        .join('\n');
+
+      // Build the issue body with full details
+      const issueBody = `## Bug Report
+
+**Reported by:** ${playerName}
+**Timestamp:** ${report.timestamp || new Date().toISOString()}
+
+### Environment
+
+| Property | Value |
+|----------|-------|
+| Game Version | ${report.gameVersion || 'Unknown'} |
+| Driver Version | ${report.driverVersion || 'Unknown'} |
+| Platform | ${report.platform || 'Unknown'} |
+| Session Uptime | ${Math.floor((report.uptime || 0) / 60)} minutes |
+
+### Browser
+
+\`\`\`
+${report.browser || 'Unknown'}
+\`\`\`
+
+### Console Logs
+
+<details>
+<summary>Full log output (${(report.recentLogs || []).length} entries)</summary>
+
+\`\`\`
+${allLogs || 'No logs captured'}
+\`\`\`
+
+</details>
+
+---
+*This issue was automatically created from the in-game debug console.*`;
+
+      // Create GitHub issue
+      const response = await fetch(
+        `https://api.github.com/repos/${githubOwner}/${githubRepo}/issues`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${githubToken}`,
+            'Accept': 'application/vnd.github+json',
+            'Content-Type': 'application/json',
+            'X-GitHub-Api-Version': '2022-11-28',
+          },
+          body: JSON.stringify({
+            title: `[Bug Report] From ${playerName} - ${new Date().toLocaleDateString()}`,
+            body: issueBody,
+            labels: ['bug', 'client-report'],
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        this.logger.error(
+          { status: response.status, statusText: response.statusText, error: errorText },
+          'Failed to create GitHub issue'
+        );
+      } else {
+        const issue = await response.json() as { number: number; html_url: string };
+        this.logger.info({ playerName, issueNumber: issue.number, issueUrl: issue.html_url }, 'Bug report created as GitHub issue');
+      }
+    } catch (error) {
+      this.logger.error({ error }, 'Failed to process bug report');
+    }
   }
 
   /**

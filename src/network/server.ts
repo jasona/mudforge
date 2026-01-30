@@ -142,6 +142,8 @@ export class Server extends EventEmitter {
           name: driver.name,
           version: driver.version,
         },
+        // Indicate if GitHub bug reports are configured
+        hasBugReports: !!(process.env.GITHUB_TOKEN && process.env.GITHUB_OWNER && process.env.GITHUB_REPO),
       };
     });
 
@@ -274,7 +276,9 @@ export class Server extends EventEmitter {
         // This creates actual WebSocket data frames that load balancers/proxies
         // recognize as "activity", preventing idle connection timeouts
         // The client displays this as a clock in the header
-        connection.sendTime();
+        // Include game version for cache invalidation detection
+        const gameVersion = getGameConfig()?.version;
+        connection.sendTime(gameVersion);
       }
     }, this.heartbeatIntervalMs);
   }
