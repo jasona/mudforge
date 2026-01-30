@@ -16,6 +16,7 @@ import {
   CombatMessage,
   SoundMessage,
   GiphyMessage,
+  TimeMessage,
   ReconnectProgress,
   ConnectionState,
 } from './websocket-client.js';
@@ -28,6 +29,7 @@ import { QuestPanel } from './quest-panel.js';
 import { CommPanel } from './comm-panel.js';
 import { CombatPanel } from './combat-panel.js';
 import { GiphyPanel } from './giphy-panel.js';
+import { ClockPanel } from './clock-panel.js';
 import { SoundManager } from './sound-manager.js';
 import { SoundPanel } from './sound-panel.js';
 import { GUIModal } from './gui/gui-modal.js';
@@ -50,6 +52,7 @@ class MudClient {
   private commPanel: CommPanel;
   private combatPanel: CombatPanel;
   private giphyPanel: GiphyPanel;
+  private clockPanel: ClockPanel;
   private soundManager: SoundManager;
   private soundPanel: SoundPanel;
   private guiModal: GUIModal;
@@ -118,6 +121,7 @@ class MudClient {
     });
     this.combatPanel = new CombatPanel('combat-container');
     this.giphyPanel = new GiphyPanel('giphy-container');
+    this.clockPanel = new ClockPanel('clock-container');
     this.soundManager = new SoundManager();
     this.soundPanel = new SoundPanel('sound-container', this.soundManager);
     this.guiModal = new GUIModal((message: GUIClientMessage) => {
@@ -263,6 +267,11 @@ class MudClient {
     // Giphy panel events
     this.wsClient.on('giphy-message', (message: GiphyMessage) => {
       this.giphyPanel.handleMessage(message);
+    });
+
+    // Time/clock events
+    this.wsClient.on('time-message', (message: TimeMessage) => {
+      this.clockPanel.handleMessage(message);
     });
 
     // Completion events

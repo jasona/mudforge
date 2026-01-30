@@ -193,6 +193,52 @@ body {
   50% { opacity: 0.4; }
 }
 
+/* Header right group */
+#header-right {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+/* Clock display */
+#clock-container {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: 9999px;
+  background-color: var(--bg-tertiary);
+}
+
+.clock-period {
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.clock-period-blue {
+  color: var(--ansi-blue);
+}
+
+.clock-period-yellow {
+  color: var(--ansi-yellow);
+}
+
+.clock-period-orange {
+  color: #f97316;
+}
+
+.clock-period-magenta {
+  color: var(--ansi-magenta);
+}
+
+.clock-time {
+  color: var(--text-secondary);
+  font-weight: 400;
+}
+
 #terminal {
   height: 100%;
   padding: var(--spacing-lg);
