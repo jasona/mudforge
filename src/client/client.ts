@@ -80,7 +80,6 @@ class MudClient {
   private launcher: Launcher;
   private debugPanel: DebugPanel;
   private statusElement: HTMLElement;
-  private versionBadge: HTMLElement;
   private updateBanner: HTMLElement;
   private permissionLevel: number = 0;
   private cwd: string = '/';
@@ -95,16 +94,14 @@ class MudClient {
     const inputEl = document.getElementById('input') as HTMLInputElement;
     const sendBtn = document.getElementById('send-btn');
     const statusEl = document.getElementById('status');
-    const versionBadge = document.getElementById('version-badge');
     const updateBanner = document.getElementById('update-banner');
     const debugToggle = document.getElementById('debug-toggle');
 
-    if (!terminalEl || !inputEl || !sendBtn || !statusEl || !versionBadge || !updateBanner) {
+    if (!terminalEl || !inputEl || !sendBtn || !statusEl || !updateBanner) {
       throw new Error('Required DOM elements not found');
     }
 
     this.statusElement = statusEl;
-    this.versionBadge = versionBadge;
     this.updateBanner = updateBanner;
 
     // Initialize components
@@ -224,11 +221,7 @@ class MudClient {
       }
       this.gameConfig = await response.json();
 
-      // Update version badge
       if (this.gameConfig) {
-        this.versionBadge.textContent = `v${this.gameConfig.game.version}`;
-        this.versionBadge.title = `${this.gameConfig.game.name} v${this.gameConfig.game.version}`;
-
         // Store initial version for comparison
         this.serverVersion = this.gameConfig.game.version;
 
@@ -239,7 +232,6 @@ class MudClient {
       }
     } catch (error) {
       logger.error('Failed to load game config:', error);
-      this.versionBadge.textContent = 'v?.?.?';
     }
   }
 

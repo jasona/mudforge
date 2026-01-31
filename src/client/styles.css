@@ -3987,27 +3987,6 @@ h6.gui-heading { font-size: 12px; }
 }
 
 /* ==========================================================================
-   Version Badge
-   ========================================================================== */
-
-.version-badge {
-  font-size: var(--font-size-xs);
-  font-weight: 500;
-  padding: var(--spacing-xs) var(--spacing-sm);
-  border-radius: 9999px;
-  background-color: var(--bg-tertiary);
-  color: var(--text-secondary);
-  cursor: default;
-  user-select: none;
-  letter-spacing: 0.03em;
-}
-
-.version-badge:hover {
-  background-color: var(--bg-hover);
-  color: var(--text-primary);
-}
-
-/* ==========================================================================
    Header Button (Debug Toggle)
    ========================================================================== */
 
