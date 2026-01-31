@@ -7,6 +7,12 @@
  */
 
 import type { MudObject } from './types.js';
+import { getMetrics } from './metrics.js';
+
+/**
+ * Maximum number of heartbeats to execute in parallel.
+ */
+const HEARTBEAT_CONCURRENCY = 10;
 
 export interface SchedulerConfig {
   /** Heartbeat interval in milliseconds */
@@ -168,30 +174,49 @@ export class Scheduler {
     if (!this.running) return;
 
     this.heartbeatTimer = setTimeout(async () => {
-      await this.executeHeartbeat();
+      await this.executeHeartbeats();
       this.scheduleHeartbeat();
     }, this.config.heartbeatIntervalMs);
   }
 
   /**
    * Execute heartbeat for all registered objects.
+   * Runs in parallel with concurrency limit to prevent slow heartbeats from blocking others.
    */
-  private async executeHeartbeat(): Promise<void> {
+  private async executeHeartbeats(): Promise<void> {
     const objects = Array.from(this.heartbeatObjects);
+    const metrics = getMetrics();
 
-    for (const object of objects) {
-      try {
-        // Call the heartbeat method if it exists
-        const objWithHeartbeat = object as MudObject & {
-          heartbeat?: () => void | Promise<void>;
-        };
-        if (typeof objWithHeartbeat.heartbeat === 'function') {
-          await objWithHeartbeat.heartbeat();
-        }
-      } catch (error) {
-        // Log error but continue with other objects
-        console.error(`Heartbeat error for ${object.objectId}:`, error);
+    // Process in chunks of HEARTBEAT_CONCURRENCY
+    for (let i = 0; i < objects.length; i += HEARTBEAT_CONCURRENCY) {
+      const chunk = objects.slice(i, i + HEARTBEAT_CONCURRENCY);
+      await Promise.all(chunk.map((obj) => this.executeSingleHeartbeat(obj, metrics)));
+    }
+  }
+
+  /**
+   * Execute a single heartbeat with timing.
+   */
+  private async executeSingleHeartbeat(
+    object: MudObject,
+    metrics: ReturnType<typeof getMetrics>
+  ): Promise<void> {
+    const start = Date.now();
+    try {
+      // Call the heartbeat method if it exists
+      const objWithHeartbeat = object as MudObject & {
+        heartbeat?: () => void | Promise<void>;
+      };
+      if (typeof objWithHeartbeat.heartbeat === 'function') {
+        await objWithHeartbeat.heartbeat();
       }
+      const elapsed = Date.now() - start;
+      metrics.recordHeartbeat(elapsed, object.objectId);
+    } catch (error) {
+      const elapsed = Date.now() - start;
+      metrics.recordHeartbeat(elapsed, object.objectId);
+      // Log error but continue with other objects
+      console.error(`Heartbeat error for ${object.objectId}:`, error);
     }
   }
 
@@ -214,6 +239,7 @@ export class Scheduler {
   private async executeCallOuts(): Promise<void> {
     const now = Date.now();
     const toExecute: CallOutEntry[] = [];
+    const metrics = getMetrics();
 
     // Find all callOuts that are due
     for (const entry of this.callOuts.values()) {
@@ -224,9 +250,14 @@ export class Scheduler {
 
     // Execute and handle recurring
     for (const entry of toExecute) {
+      const start = Date.now();
       try {
         await entry.callback();
+        const elapsed = Date.now() - start;
+        metrics.recordCallOut(elapsed, `callOut#${entry.id}`);
       } catch (error) {
+        const elapsed = Date.now() - start;
+        metrics.recordCallOut(elapsed, `callOut#${entry.id}`);
         console.error(`CallOut error:`, error);
       }
 

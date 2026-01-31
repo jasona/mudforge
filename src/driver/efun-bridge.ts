@@ -8,6 +8,7 @@
 
 import { getRegistry, type ObjectRegistry } from './object-registry.js';
 import { getScheduler, type Scheduler } from './scheduler.js';
+import { getMetrics } from './metrics.js';
 import { getPermissions, resetPermissions, type Permissions } from './permissions.js';
 import { getFileStore } from './persistence/file-store.js';
 import { getMudlibLoader } from './mudlib-loader.js';
@@ -1121,6 +1122,30 @@ export class EfunBridge {
    */
   timeMs(): number {
     return Date.now();
+  }
+
+  /**
+   * Get the server's timezone information.
+   * @returns Object with timezone name, abbreviation, and UTC offset
+   */
+  getTimezone(): { name: string; abbreviation: string; offset: string } {
+    const now = new Date();
+
+    // Get IANA timezone name (e.g., "America/New_York")
+    const name = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+    // Get timezone abbreviation (e.g., "EST", "PST")
+    const abbreviation = now.toLocaleTimeString('en-US', { timeZoneName: 'short' })
+      .split(' ').pop() || '';
+
+    // Get UTC offset (e.g., "-05:00")
+    const offsetMinutes = now.getTimezoneOffset();
+    const sign = offsetMinutes <= 0 ? '+' : '-';
+    const hours = Math.floor(Math.abs(offsetMinutes) / 60).toString().padStart(2, '0');
+    const minutes = (Math.abs(offsetMinutes) % 60).toString().padStart(2, '0');
+    const offset = `${sign}${hours}:${minutes}`;
+
+    return { name, abbreviation, offset };
   }
 
   /**
@@ -3619,6 +3644,7 @@ RULES:
       // Utility
       time: this.time.bind(this),
       timeMs: this.timeMs.bind(this),
+      getTimezone: this.getTimezone.bind(this),
       random: this.random.bind(this),
       capitalize: this.capitalize.bind(this),
       explode: this.explode.bind(this),
@@ -3721,6 +3747,9 @@ RULES:
       getDriverStats: this.getDriverStats.bind(this),
       getObjectStats: this.getObjectStats.bind(this),
       getMemoryStats: this.getMemoryStats.bind(this),
+      getPerformanceMetrics: this.getPerformanceMetrics.bind(this),
+      setPerformanceMetricsOption: this.setPerformanceMetricsOption.bind(this),
+      clearPerformanceMetrics: this.clearPerformanceMetrics.bind(this),
 
       // AI
       aiAvailable: this.aiAvailable.bind(this),
@@ -3876,6 +3905,125 @@ RULES:
         heapTotalMb: Math.round(memUsage.heapTotal / 1024 / 1024 * 100) / 100,
         rssMb: Math.round(memUsage.rss / 1024 / 1024 * 100) / 100,
       };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
+
+  /**
+   * Get performance metrics including timing histograms and slow operations.
+   * Requires admin permission.
+   *
+   * @returns Performance metrics snapshot
+   */
+  getPerformanceMetrics(): {
+    success: boolean;
+    error?: string;
+    heartbeats?: { avg: number; p95: number; p99: number; max: number; count: number };
+    callOuts?: { avg: number; p95: number; p99: number; max: number; count: number };
+    commands?: { avg: number; p95: number; p99: number; max: number; count: number };
+    isolateAcquireWaits?: number;
+    isolateQueueLength?: number;
+    backpressureEvents?: number;
+    droppedMessages?: number;
+    slowOperations?: Array<{
+      timestamp: number;
+      type: string;
+      identifier: string;
+      durationMs: number;
+    }>;
+    uptimeMs?: number;
+    efunTimingEnabled?: boolean;
+  } {
+    // Check admin permission
+    if (!this.isAdmin()) {
+      return {
+        success: false,
+        error: 'Permission denied: admin required',
+      };
+    }
+
+    try {
+      const metrics = getMetrics().getFormattedMetrics();
+      return {
+        success: true,
+        heartbeats: metrics.heartbeats,
+        callOuts: metrics.callOuts,
+        commands: metrics.commands,
+        isolateAcquireWaits: metrics.isolateAcquireWaits,
+        isolateQueueLength: metrics.isolateQueueLength,
+        backpressureEvents: metrics.backpressureEvents,
+        droppedMessages: metrics.droppedMessages,
+        slowOperations: metrics.slowOperations,
+        uptimeMs: metrics.uptimeMs,
+        efunTimingEnabled: getMetrics().isEfunTimingEnabled(),
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
+
+  /**
+   * Set performance metrics options.
+   * Requires admin permission.
+   *
+   * @param option The option to set ('efunTiming')
+   * @param value The value to set
+   * @returns Success status
+   */
+  setPerformanceMetricsOption(
+    option: string,
+    value: boolean
+  ): { success: boolean; error?: string } {
+    // Check admin permission
+    if (!this.isAdmin()) {
+      return {
+        success: false,
+        error: 'Permission denied: admin required',
+      };
+    }
+
+    try {
+      if (option === 'efunTiming') {
+        getMetrics().setEfunTimingEnabled(value);
+        return { success: true };
+      }
+      return {
+        success: false,
+        error: `Unknown option: ${option}`,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
+
+  /**
+   * Clear all performance metrics.
+   * Requires admin permission.
+   *
+   * @returns Success status
+   */
+  clearPerformanceMetrics(): { success: boolean; error?: string } {
+    // Check admin permission
+    if (!this.isAdmin()) {
+      return {
+        success: false,
+        error: 'Permission denied: admin required',
+      };
+    }
+
+    try {
+      getMetrics().clear();
+      return { success: true };
     } catch (error) {
       return {
         success: false,

@@ -48,6 +48,8 @@ export interface TimeMessage {
   timestamp: number;
   timezone: { name: string; abbreviation: string; offset: string };
   gameVersion?: string;
+  /** Calculated round-trip latency in milliseconds (added by client) */
+  latencyMs?: number;
 }
 
 /**
@@ -585,6 +587,16 @@ export class WebSocketClient {
           const jsonStr = line.slice(7); // Remove \x00[TIME] prefix
           try {
             const timeMessage = JSON.parse(jsonStr) as TimeMessage;
+            // Calculate approximate round-trip latency based on server timestamp
+            // This assumes server sends its current Unix timestamp
+            const serverTimeMs = timeMessage.timestamp * 1000;
+            const clientTimeMs = Date.now();
+            // Latency estimate: difference between client time and server time
+            // Positive values mean we're behind the server, negative means ahead
+            // The absolute value gives a rough one-way latency estimate
+            // Multiply by 2 for approximate RTT (assuming symmetric network)
+            const oneWayLatency = Math.abs(clientTimeMs - serverTimeMs);
+            timeMessage.latencyMs = Math.min(oneWayLatency, 9999); // Cap at 9999ms
             this.emit('time-message', timeMessage);
           } catch {
             // Ignore parse errors - still serves as keepalive

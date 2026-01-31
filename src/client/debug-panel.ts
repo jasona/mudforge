@@ -90,6 +90,8 @@ export class DebugPanel {
   private isCollapsed: boolean = false;
   private currentFilter: LogFilter = 'all';
   private startTime: number = Date.now();
+  private latencySamples: number[] = [];
+  private currentLatency: number = 0;
 
   // Drag state
   private isDragging: boolean = false;
@@ -152,6 +154,7 @@ export class DebugPanel {
         <div class="debug-log-list"></div>
         <div class="debug-status-bar">
           <span class="debug-version">Version: -</span>
+          <span class="debug-ping">Ping: --</span>
           <span class="debug-uptime">Uptime: 0s</span>
           <span class="debug-log-count">Logs: 0</span>
         </div>
@@ -340,11 +343,33 @@ export class DebugPanel {
    */
   private updateStatusBar(): void {
     const versionEl = this.statusBar.querySelector('.debug-version');
+    const pingEl = this.statusBar.querySelector('.debug-ping');
     const uptimeEl = this.statusBar.querySelector('.debug-uptime');
     const countEl = this.statusBar.querySelector('.debug-log-count');
 
     if (versionEl && this.config) {
       versionEl.textContent = `Version: ${this.config.game.version}`;
+    }
+
+    if (pingEl) {
+      if (this.currentLatency > 0) {
+        const latencyText = `Ping: ${this.currentLatency}ms`;
+        pingEl.textContent = latencyText;
+
+        // Color code based on latency
+        // Remove existing color classes
+        pingEl.classList.remove('ping-good', 'ping-warn', 'ping-bad');
+        if (this.currentLatency < 100) {
+          pingEl.classList.add('ping-good');
+        } else if (this.currentLatency < 250) {
+          pingEl.classList.add('ping-warn');
+        } else {
+          pingEl.classList.add('ping-bad');
+        }
+      } else {
+        pingEl.textContent = 'Ping: --';
+        pingEl.classList.remove('ping-good', 'ping-warn', 'ping-bad');
+      }
     }
 
     if (uptimeEl) {
@@ -364,6 +389,26 @@ export class DebugPanel {
     if (countEl) {
       countEl.textContent = `Logs: ${logger.count}`;
     }
+  }
+
+  /**
+   * Update the latency display with a new sample.
+   * Keeps a rolling average of the last 5 samples.
+   */
+  updateLatency(latencyMs: number): void {
+    // Add new sample
+    this.latencySamples.push(latencyMs);
+
+    // Keep only last 5 samples
+    if (this.latencySamples.length > 5) {
+      this.latencySamples.shift();
+    }
+
+    // Calculate rolling average
+    const sum = this.latencySamples.reduce((a, b) => a + b, 0);
+    this.currentLatency = Math.round(sum / this.latencySamples.length);
+
+    this.updateStatusBar();
   }
 
   /**

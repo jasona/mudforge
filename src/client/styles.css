@@ -4310,6 +4310,19 @@ h6.gui-heading { font-size: 12px; }
   color: var(--text-tertiary);
 }
 
+/* Ping latency color coding */
+.debug-ping.ping-good {
+  color: var(--success);
+}
+
+.debug-ping.ping-warn {
+  color: var(--warning);
+}
+
+.debug-ping.ping-bad {
+  color: var(--error);
+}
+
 /* Action Buttons */
 .debug-actions {
   display: flex;

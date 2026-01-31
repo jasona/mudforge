@@ -6,6 +6,7 @@
  */
 
 import ivm from 'isolated-vm';
+import { getMetrics } from '../driver/metrics.js';
 
 export interface IsolatePoolConfig {
   /** Maximum number of isolates in the pool */
@@ -32,6 +33,8 @@ export class IsolatePool {
   private config: IsolatePoolConfig;
   private isolates: PooledIsolate[] = [];
   private disposed: boolean = false;
+  /** Queue of waiters when all isolates are in use */
+  private waitQueue: Array<(isolate: PooledIsolate) => void> = [];
 
   constructor(config: Partial<IsolatePoolConfig> = {}) {
     this.config = {
@@ -65,16 +68,12 @@ export class IsolatePool {
       return pooledIsolate;
     }
 
-    // Pool is full, wait for an isolate to become available
+    // Pool is full, wait for an isolate to be released
+    // Uses event-driven waiting instead of polling to avoid memory leaks
+    getMetrics().recordIsolateWait();
     return new Promise((resolve) => {
-      const checkInterval = setInterval(() => {
-        const available = this.isolates.find((pi) => !pi.inUse);
-        if (available) {
-          clearInterval(checkInterval);
-          available.inUse = true;
-          resolve(available);
-        }
-      }, 10);
+      this.waitQueue.push(resolve);
+      getMetrics().setIsolateQueueLength(this.waitQueue.length);
     });
   }
 
@@ -82,8 +81,18 @@ export class IsolatePool {
    * Release an isolate back to the pool.
    */
   release(pooledIsolate: PooledIsolate): void {
-    pooledIsolate.inUse = false;
     pooledIsolate.executionCount++;
+
+    // Check if there's a waiter for this isolate
+    const waiter = this.waitQueue.shift();
+    if (waiter) {
+      // Pass directly to waiter without marking as not in use
+      getMetrics().setIsolateQueueLength(this.waitQueue.length);
+      waiter(pooledIsolate);
+    } else {
+      // No waiter, mark as available
+      pooledIsolate.inUse = false;
+    }
   }
 
   /**
@@ -109,6 +118,7 @@ export class IsolatePool {
     total: number;
     inUse: number;
     available: number;
+    waiting: number;
     maxIsolates: number;
     memoryLimitMb: number;
   } {
@@ -117,6 +127,7 @@ export class IsolatePool {
       total: this.isolates.length,
       inUse,
       available: this.isolates.length - inUse,
+      waiting: this.waitQueue.length,
       maxIsolates: this.config.maxIsolates,
       memoryLimitMb: this.config.memoryLimitMb,
     };
@@ -127,6 +138,8 @@ export class IsolatePool {
    */
   dispose(): void {
     this.disposed = true;
+    // Clear any pending waiters
+    this.waitQueue = [];
     for (const pooledIsolate of this.isolates) {
       pooledIsolate.isolate.dispose();
     }

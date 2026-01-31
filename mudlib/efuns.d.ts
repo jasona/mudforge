@@ -234,6 +234,9 @@ declare global {
     /** Get current timestamp in milliseconds */
     timeMs(): number;
 
+    /** Get the server's timezone information */
+    getTimezone(): { name: string; abbreviation: string; offset: string };
+
     /** Generate a random integer (0 to max-1) */
     random(max: number): number;
 
@@ -712,6 +715,84 @@ declare global {
       nodeVersion?: string;
       platform?: string;
     };
+
+    /**
+     * Get detailed object statistics from the registry.
+     * Requires builder permission (level 1) or higher.
+     * @returns Object containing detailed object counts
+     */
+    getObjectStats(): {
+      success: boolean;
+      error?: string;
+      totalObjects?: number;
+      blueprints?: number;
+      clones?: number;
+      byType?: Record<string, number>;
+      largestInventories?: Array<{ objectId: string; count: number }>;
+      blueprintCloneCounts?: Array<{ path: string; clones: number }>;
+    };
+
+    /**
+     * Get current memory usage statistics.
+     * Requires builder permission (level 1) or higher.
+     * @returns Object containing memory usage details
+     */
+    getMemoryStats(): {
+      success: boolean;
+      error?: string;
+      heapUsed?: number;
+      heapTotal?: number;
+      external?: number;
+      rss?: number;
+      arrayBuffers?: number;
+      heapUsedMb?: number;
+      heapTotalMb?: number;
+      rssMb?: number;
+    };
+
+    /**
+     * Get performance metrics including timing histograms and slow operations.
+     * Requires admin permission (level 3).
+     * @returns Object containing performance metrics snapshot
+     */
+    getPerformanceMetrics(): {
+      success: boolean;
+      error?: string;
+      heartbeats?: { avg: number; p95: number; p99: number; max: number; count: number };
+      callOuts?: { avg: number; p95: number; p99: number; max: number; count: number };
+      commands?: { avg: number; p95: number; p99: number; max: number; count: number };
+      isolateAcquireWaits?: number;
+      isolateQueueLength?: number;
+      backpressureEvents?: number;
+      droppedMessages?: number;
+      slowOperations?: Array<{
+        timestamp: number;
+        type: string;
+        identifier: string;
+        durationMs: number;
+      }>;
+      uptimeMs?: number;
+      efunTimingEnabled?: boolean;
+    };
+
+    /**
+     * Set performance metrics options.
+     * Requires admin permission (level 3).
+     * @param option The option to set ('efunTiming')
+     * @param value The value to set
+     * @returns Object with success status
+     */
+    setPerformanceMetricsOption(
+      option: string,
+      value: boolean
+    ): { success: boolean; error?: string };
+
+    /**
+     * Clear all performance metrics.
+     * Requires admin permission (level 3).
+     * @returns Object with success status
+     */
+    clearPerformanceMetrics(): { success: boolean; error?: string };
 
     // ========== AI Efuns ==========
 

@@ -405,6 +405,11 @@ class MudClient {
     this.wsClient.on('time-message', (message: TimeMessage) => {
       this.clockPanel.handleMessage(message);
 
+      // Update debug panel latency display
+      if (message.latencyMs !== undefined) {
+        this.debugPanel.updateLatency(message.latencyMs);
+      }
+
       // Check for version mismatch (server sends gameVersion in TIME messages)
       if (message.gameVersion) {
         this.checkVersionMismatch(message.gameVersion);
