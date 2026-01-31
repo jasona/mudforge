@@ -2180,8 +2180,8 @@ h6.gui-heading { font-size: 12px; }
 
 #comm-container {
   position: absolute;
-  bottom: 60px;
-  left: 8px;
+  bottom: calc(var(--input-height) + var(--spacing-sm));
+  right: var(--spacing-sm);
   z-index: 100;
 }
 
@@ -4099,8 +4099,8 @@ h6.gui-heading { font-size: 12px; }
 
 .debug-panel {
   position: fixed;
-  right: var(--spacing-lg);
-  bottom: calc(var(--input-height) + var(--spacing-lg));
+  right: var(--spacing-sm);
+  bottom: calc(var(--input-height) + 250px + var(--spacing-md));
   width: 400px;
   max-width: calc(100vw - 48px);
   max-height: 50vh;
