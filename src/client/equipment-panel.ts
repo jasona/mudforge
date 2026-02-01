@@ -279,6 +279,9 @@ export class EquipmentPanel {
   private slots: Map<EquipmentSlotName, HTMLElement> = new Map();
   private currentEquipment: Map<EquipmentSlotName, EquipmentSlotData | null> = new Map();
 
+  // Equipment body container for delegated events
+  private equipmentBody: HTMLElement | null = null;
+
   private static STORAGE_KEY = 'mudforge-equipment-collapsed';
 
   constructor(containerId: string, options: EquipmentPanelOptions = {}) {
@@ -343,6 +346,9 @@ export class EquipmentPanel {
 
     this.container.appendChild(this.panel);
 
+    // Cache equipment body for event delegation
+    this.equipmentBody = this.panel.querySelector('.equipment-body');
+
     // Cache slot elements
     for (const slot of EQUIPMENT_SLOTS) {
       const slotEl = this.panel.querySelector(`[data-slot="${slot}"]`) as HTMLElement;
@@ -385,7 +391,7 @@ export class EquipmentPanel {
   }
 
   /**
-   * Set up event handlers.
+   * Set up event handlers using event delegation for better performance.
    */
   private setupEventHandlers(): void {
     // Toggle button
@@ -395,26 +401,54 @@ export class EquipmentPanel {
       this.toggle();
     });
 
-    // Slot click and hover handlers
-    for (const [slot, slotEl] of this.slots) {
-      slotEl.addEventListener('click', () => {
-        this.options.onSlotClick?.(slot);
-      });
-
-      // Tooltip on hover with delay
-      slotEl.addEventListener('mouseenter', () => {
-        if (tooltipTimeout) {
-          clearTimeout(tooltipTimeout);
+    // Use event delegation on the equipment body for slot interactions
+    // This replaces 16+ individual listeners with just 3 delegated listeners
+    if (this.equipmentBody) {
+      // Click handler (delegated)
+      this.equipmentBody.addEventListener('click', (e) => {
+        const slot = this.getSlotFromEvent(e);
+        if (slot) {
+          this.options.onSlotClick?.(slot);
         }
-        tooltipTimeout = setTimeout(() => {
-          this.showSlotTooltip(slot);
-        }, 200);
       });
 
-      slotEl.addEventListener('mouseleave', () => {
-        hideTooltip();
+      // Mouseenter handler (delegated) - tooltip with delay
+      this.equipmentBody.addEventListener('mouseover', (e) => {
+        const slot = this.getSlotFromEvent(e);
+        if (slot) {
+          if (tooltipTimeout) {
+            clearTimeout(tooltipTimeout);
+          }
+          tooltipTimeout = setTimeout(() => {
+            this.showSlotTooltip(slot);
+          }, 200);
+        }
+      });
+
+      // Mouseleave handler (delegated) - hide tooltip
+      this.equipmentBody.addEventListener('mouseout', (e) => {
+        const slot = this.getSlotFromEvent(e);
+        if (slot) {
+          hideTooltip();
+        }
       });
     }
+  }
+
+  /**
+   * Get the slot name from an event target using event delegation.
+   */
+  private getSlotFromEvent(e: Event): EquipmentSlotName | null {
+    const target = e.target as HTMLElement;
+    // Walk up the DOM tree to find the slot element
+    const slotEl = target.closest('[data-slot]') as HTMLElement | null;
+    if (slotEl) {
+      const slot = slotEl.dataset.slot as EquipmentSlotName;
+      if (EQUIPMENT_SLOTS.includes(slot as (typeof EQUIPMENT_SLOTS)[number])) {
+        return slot;
+      }
+    }
+    return null;
   }
 
   /**

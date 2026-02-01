@@ -141,6 +141,8 @@ export class MapRenderer {
   private connectionsGroup: SVGGElement;
   private markersGroup: SVGGElement;
   private rooms: Map<string, ClientRoomData> = new Map();
+  // Spatial index for O(1) coordinate lookup: "x,y,z" -> roomPath
+  private coordIndex: Map<string, string> = new Map();
   private currentRoomPath: string = '';
   private currentZ: number = 0;
   private zoomLevel: number = 3;
@@ -177,14 +179,39 @@ export class MapRenderer {
   }
 
   /**
+   * Get coordinate key for spatial index.
+   */
+  private getCoordKey(x: number, y: number, z: number): string {
+    return `${x},${y},${z}`;
+  }
+
+  /**
+   * Add a room to the spatial index.
+   */
+  private indexRoom(room: ClientRoomData): void {
+    const key = this.getCoordKey(room.x, room.y, room.z);
+    this.coordIndex.set(key, room.path);
+  }
+
+  /**
+   * Remove a room from the spatial index.
+   */
+  private unindexRoom(room: ClientRoomData): void {
+    const key = this.getCoordKey(room.x, room.y, room.z);
+    this.coordIndex.delete(key);
+  }
+
+  /**
    * Handle area change message.
    */
   handleAreaChange(message: MapAreaChangeMessage): void {
     this.areaName = message.area.name;
     this.rooms.clear();
+    this.coordIndex.clear();
 
     for (const room of message.rooms) {
       this.rooms.set(room.path, room);
+      this.indexRoom(room);
       if (room.current) {
         this.currentRoomPath = room.path;
         this.currentZ = room.z;
@@ -211,6 +238,7 @@ export class MapRenderer {
     // Add discovered room if present
     if (message.discovered) {
       this.rooms.set(message.discovered.path, message.discovered);
+      this.indexRoom(message.discovered);
     }
 
     // Update new room to be current
@@ -233,6 +261,7 @@ export class MapRenderer {
     if (message.rooms) {
       for (const room of message.rooms) {
         this.rooms.set(room.path, room);
+        this.indexRoom(room);
       }
     }
     this.render();
@@ -247,6 +276,7 @@ export class MapRenderer {
       const existing = this.rooms.get(room.path);
       if (!existing || existing.state !== 'explored') {
         this.rooms.set(room.path, room);
+        this.indexRoom(room);
       }
     }
     this.render();
@@ -496,15 +526,11 @@ export class MapRenderer {
   }
 
   /**
-   * Find room at given coordinates.
+   * Find room at given coordinates using spatial index (O(1) lookup).
    */
   private findRoomAt(x: number, y: number, z: number): string | null {
-    for (const [path, room] of this.rooms) {
-      if (room.x === x && room.y === y && room.z === z) {
-        return path;
-      }
-    }
-    return null;
+    const key = this.getCoordKey(x, y, z);
+    return this.coordIndex.get(key) ?? null;
   }
 
   /**

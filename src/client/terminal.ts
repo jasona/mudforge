@@ -7,6 +7,31 @@
 import { convertEmoticons, isEmojiConversionEnabled } from './emoji-converter.js';
 
 /**
+ * Simple throttle function to limit how often a function can be called.
+ */
+function throttle<T extends (...args: unknown[]) => void>(fn: T, delay: number): T {
+  let lastCall = 0;
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+  return ((...args: unknown[]) => {
+    const now = Date.now();
+    const timeSinceLastCall = now - lastCall;
+
+    if (timeSinceLastCall >= delay) {
+      lastCall = now;
+      fn(...args);
+    } else if (!timeoutId) {
+      // Schedule a trailing call
+      timeoutId = setTimeout(() => {
+        lastCall = Date.now();
+        timeoutId = null;
+        fn(...args);
+      }, delay - timeSinceLastCall);
+    }
+  }) as T;
+}
+
+/**
  * ANSI escape sequence parser state.
  */
 interface AnsiState {
@@ -41,14 +66,15 @@ export class Terminal {
     this.scrollPending = false;
 
     // Set up scroll detection - check if user scrolled away from bottom
-    this.element.addEventListener('scroll', () => {
+    // Throttled to 100ms to prevent excessive calls during fast scrolling
+    this.element.addEventListener('scroll', throttle(() => {
       // Don't update autoScroll if we're programmatically scrolling
       if (this.scrollPending) return;
 
       const { scrollTop, scrollHeight, clientHeight } = this.element;
       // Use a larger threshold to be more forgiving
       this.autoScroll = scrollHeight - scrollTop - clientHeight < 100;
-    });
+    }, 100));
   }
 
   /**

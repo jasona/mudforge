@@ -6,6 +6,31 @@
  * Positioned to the left of the map widget, below the combat panel.
  */
 
+/**
+ * Simple throttle function to limit how often a function can be called.
+ */
+function throttle<T extends (...args: unknown[]) => void>(fn: T, delay: number): T {
+  let lastCall = 0;
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+  return ((...args: unknown[]) => {
+    const now = Date.now();
+    const timeSinceLastCall = now - lastCall;
+
+    if (timeSinceLastCall >= delay) {
+      lastCall = now;
+      fn(...args);
+    } else if (!timeoutId) {
+      // Schedule a trailing call
+      timeoutId = setTimeout(() => {
+        lastCall = Date.now();
+        timeoutId = null;
+        fn(...args);
+      }, delay - timeSinceLastCall);
+    }
+  }) as T;
+}
+
 export interface GiphyMessage {
   type: 'show' | 'hide';
   gifUrl?: string;
@@ -28,6 +53,9 @@ export class GiphyPanel {
   private gifImage: HTMLImageElement | null = null;
   private headerElement: HTMLElement | null = null;
   private queryElement: HTMLElement | null = null;
+
+  // Throttled position handler to prevent excessive reflows
+  private throttledPositionPanel: () => void;
 
   constructor(containerId: string) {
     // Get or create container
@@ -68,11 +96,14 @@ export class GiphyPanel {
       closeBtn.addEventListener('click', () => this.hide());
     }
 
+    // Create throttled position handler (100ms) to prevent excessive reflows
+    this.throttledPositionPanel = throttle(() => this.positionPanel(), 100);
+
     // Position the panel relative to the map
     this.positionPanel();
 
-    // Listen for window resize to reposition
-    window.addEventListener('resize', () => this.positionPanel());
+    // Listen for window resize to reposition (throttled)
+    window.addEventListener('resize', this.throttledPositionPanel);
 
     // Observe map container for position changes (when dragged)
     this.observeMapPosition();
@@ -88,9 +119,10 @@ export class GiphyPanel {
     }
 
     // Use MutationObserver to watch for style changes (dragging)
+    // Uses throttled handler to prevent excessive reflows during drag
     const observer = new MutationObserver(() => {
       if (this.isVisible) {
-        this.positionPanel();
+        this.throttledPositionPanel();
       }
     });
 
