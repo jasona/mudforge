@@ -1423,39 +1423,54 @@ export class NPC extends Living {
    * Called when the NPC dies.
    */
   override async onDeath(): Promise<void> {
-    const deathRoom = this.environment;
+    let deathRoom: typeof this.environment;
+    let attackers: Living[] = [];
 
-    // End all combat
-    const combatDaemon = getCombatDaemon();
+    try {
+      deathRoom = this.environment;
 
-    // Get attackers before ending combat (for XP distribution)
-    const attackers = [...this.attackers];
-    combatDaemon.endAllCombats(this);
+      // End all combat
+      const combatDaemon = getCombatDaemon();
 
-    // Create corpse
-    const corpse = new Corpse();
-    corpse.ownerName = this.name;
-    corpse.isPlayerCorpse = false;
-    corpse.level = this.level;
-
-    // Transfer NPC's inventory to corpse
-    const items = [...this.inventory];
-    for (const item of items) {
-      await item.moveTo(corpse);
+      // Get attackers before ending combat (for XP distribution)
+      attackers = [...this.attackers];
+      combatDaemon.endAllCombats(this);
+    } catch (error) {
+      console.error(`[NPC] Error in onDeath sync section for ${this.name}:`, error);
+      return;
     }
 
-    // Generate gold
-    const goldAmount = this.generateGoldDrop();
-    if (goldAmount > 0) {
-      corpse.gold = goldAmount;
-    }
+    // Create corpse and handle loot
+    let corpse: Corpse;
+    let goldAmount = 0;
+    try {
+      corpse = new Corpse();
+      corpse.ownerName = this.name;
+      corpse.isPlayerCorpse = false;
+      corpse.level = this.level;
 
-    // Generate loot drops
-    await this.generateLoot(corpse);
+      // Transfer NPC's inventory to corpse
+      const items = [...this.inventory];
+      for (const item of items) {
+        await item.moveTo(corpse);
+      }
 
-    // Move corpse to death location
-    if (deathRoom) {
-      await corpse.moveTo(deathRoom);
+      // Generate gold
+      goldAmount = this.generateGoldDrop();
+      if (goldAmount > 0) {
+        corpse.gold = goldAmount;
+      }
+
+      // Generate loot drops
+      await this.generateLoot(corpse);
+
+      // Move corpse to death location
+      if (deathRoom) {
+        await corpse.moveTo(deathRoom);
+      }
+    } catch (error) {
+      console.error(`[NPC] Error creating corpse/loot for ${this.name}:`, error);
+      return;
     }
 
     // Distribute XP to all attackers (with party XP sharing support)
