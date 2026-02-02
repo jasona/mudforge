@@ -125,7 +125,7 @@ export async function openShopModal(
     };
 
     const state = merchant.getTransactionState(player);
-    const layout = await buildShopLayout(player, merchant, state);
+    const layout = buildShopLayout(player, merchant, state);
 
     const message: GUIOpenMessage = {
       action: 'open',
@@ -142,6 +142,11 @@ export async function openShopModal(
     };
 
     efuns.guiSend(message);
+
+    // Load images asynchronously after modal is displayed
+    loadShopImages(player, merchant, state).catch(() => {
+      // Ignore errors - fallback images will remain
+    });
   } catch (error) {
     console.error('[ShopModal] Error opening shop modal:', error);
     throw error; // Re-throw to let caller handle
@@ -151,24 +156,16 @@ export async function openShopModal(
 /**
  * Update the shop modal with current state.
  */
-export async function updateShopModal(
+export function updateShopModal(
   player: ShopPlayer,
   merchant: ShopMerchant
-): Promise<void> {
+): void {
   if (typeof efuns === 'undefined' || !efuns.guiSend) {
     return;
   }
 
   const state = merchant.getTransactionState(player);
-  const layout = await buildShopLayout(player, merchant, state);
-
-  const message: GUIUpdateMessage = {
-    action: 'update',
-    modalId: MODAL_ID,
-    updates: {
-      buttons: buildButtons(state, merchant.calculateLedger(state, player.gold)),
-    },
-  };
+  const layout = buildShopLayout(player, merchant, state);
 
   // Send full layout update by reopening
   const openMessage: GUIOpenMessage = {
@@ -187,6 +184,11 @@ export async function updateShopModal(
 
   try {
     efuns.guiSend(openMessage);
+
+    // Load images asynchronously after modal is displayed
+    loadShopImages(player, merchant, state).catch(() => {
+      // Ignore errors - fallback images will remain
+    });
   } catch {
     // Modal may have been closed
   }
@@ -217,16 +219,99 @@ export function closeShopModal(player: ShopPlayer): void {
 }
 
 /**
- * Build the complete shop layout.
+ * Load images for shop items asynchronously and update the modal.
+ * This runs after the modal is displayed with fallback images.
  */
-async function buildShopLayout(
+async function loadShopImages(
   player: ShopPlayer,
   merchant: ShopMerchant,
   state: TransactionState
-): Promise<LayoutContainer> {
-  const waresPanel = await buildWaresPanel(player, merchant, state);
+): Promise<void> {
+  if (typeof efuns === 'undefined' || !efuns.guiSend) {
+    return;
+  }
+
+  const portraitDaemon = getPortraitDaemon();
+  const updates: Record<string, { src: string }> = {};
+
+  // Load images for merchant stock items
+  const stock = merchant.getStock();
+  for (const item of stock) {
+    if (typeof efuns.findObject === 'function') {
+      try {
+        const obj = efuns.findObject(item.itemPath);
+        if (obj) {
+          const image = await portraitDaemon.getObjectImage(obj, detectItemCategory(obj) as 'item');
+          const fallback = portraitDaemon.getFallbackImage('item');
+          if (image !== fallback) {
+            updates[`item-img-${item.itemPath}`] = { src: image };
+          }
+        }
+      } catch {
+        // Object not loaded - keep fallback
+      }
+    }
+  }
+
+  // Load images for sold items
+  const soldItems = merchant.getSoldItems();
+  for (const item of soldItems) {
+    const itemObj = merchant.getSoldItemObject(item.objectId);
+    if (itemObj) {
+      try {
+        const image = await portraitDaemon.getObjectImage(itemObj, detectItemCategory(itemObj) as 'item');
+        const fallback = portraitDaemon.getFallbackImage('item');
+        if (image !== fallback) {
+          updates[`sold-img-${item.objectId}`] = { src: image };
+        }
+      } catch {
+        // Keep fallback
+      }
+    }
+  }
+
+  // Load images for player inventory items
+  const playerItems = player.inventory || [];
+  for (const item of playerItems) {
+    try {
+      const image = await portraitDaemon.getObjectImage(item, detectItemCategory(item) as 'item');
+      const fallback = portraitDaemon.getFallbackImage('item');
+      if (image !== fallback) {
+        updates[`inv-img-${item.objectId}`] = { src: image };
+      }
+    } catch {
+      // Keep fallback
+    }
+  }
+
+  // Send batch update if we have any images to update
+  if (Object.keys(updates).length > 0) {
+    try {
+      const updateMessage: GUIUpdateMessage = {
+        action: 'update',
+        modalId: MODAL_ID,
+        updates: {
+          elements: updates,
+        },
+      };
+      efuns.guiSend(updateMessage);
+    } catch {
+      // Modal may have been closed
+    }
+  }
+}
+
+/**
+ * Build the complete shop layout.
+ */
+function buildShopLayout(
+  player: ShopPlayer,
+  merchant: ShopMerchant,
+  state: TransactionState
+): LayoutContainer {
+  const waresPanel = buildWaresPanel(player, merchant, state);
   const ledgerPanel = buildLedgerPanel(state, player.gold, merchant);
-  const inventoryPanel = await buildInventoryPanel(player, merchant, state);
+  const inventoryPanel = buildInventoryPanel(player, merchant, state);
 
   return {
     type: 'vertical',
@@ -272,11 +357,11 @@ async function buildShopLayout(
 /**
  * Build the merchant wares panel (left).
  */
-async function buildWaresPanel(
+function buildWaresPanel(
   player: ShopPlayer,
   merchant: ShopMerchant,
   state: TransactionState
-): Promise<LayoutContainer> {
+): LayoutContainer {
   const stock = merchant.getStock();
   const soldItems = merchant.getSoldItems();
   const categories = merchant.getCategories();
@@ -359,7 +444,7 @@ async function buildWaresPanel(
         const basePrice = merchant.getBaseSellPrice(item.itemPath);
         const canAfford = player.gold >= price || state.itemsToSell.length > 0;
 
-        const itemCard = await buildItemCard(
+        const itemCard = buildItemCard(
           item.itemPath,
           item.name,
           price,
@@ -377,7 +462,7 @@ async function buildWaresPanel(
         const inCart = soldInCart.has(item.objectId);
         const canAfford = player.gold >= item.sellPrice || state.itemsToSell.length > 0;
 
-        const itemCard = await buildSoldItemCard(
+        const itemCard = buildSoldItemCard(
           item.objectId,
           item.name,
           item.sellPrice,
@@ -665,11 +750,11 @@ function buildLedgerEntry(
 /**
  * Build the player inventory panel (right).
  */
-async function buildInventoryPanel(
+function buildInventoryPanel(
   player: ShopPlayer,
   merchant: ShopMerchant,
   state: TransactionState
-): Promise<LayoutContainer> {
+): LayoutContainer {
   const itemsInSellCart = new Set(state.itemsToSell.map((e) => e.itemId));
 
   const children: Array<LayoutContainer | DisplayElement | InputElement> = [
@@ -697,7 +782,7 @@ async function buildInventoryPanel(
     const price = accepted ? merchant.getBuyPrice(item, player) : 0;
     const basePrice = accepted ? merchant.getBaseBuyPrice(item) : 0;
 
-    const itemCard = await buildPlayerItemCard(
+    const itemCard = buildPlayerItemCard(
       item,
       price,
       basePrice,
@@ -740,7 +825,7 @@ async function buildInventoryPanel(
 /**
  * Build an item card for merchant wares.
  */
-async function buildItemCard(
+function buildItemCard(
   itemPath: string,
   itemName: string,
   price: number,
@@ -750,22 +835,11 @@ async function buildItemCard(
   inStock: boolean,
   stock: number = -1,
   quantityInCart: number = 0
-): Promise<LayoutContainer> {
+): LayoutContainer {
   const portraitDaemon = getPortraitDaemon();
   const name = itemName || 'Unknown Item';
-  let portrait = portraitDaemon.getFallbackImage('item');
-
-  // Try to get portrait from loaded object if available
-  if (typeof efuns !== 'undefined' && efuns.findObject) {
-    try {
-      const obj = efuns.findObject(itemPath);
-      if (obj) {
-        portrait = await portraitDaemon.getObjectImage(obj, detectItemCategory(obj) as 'item');
-      }
-    } catch {
-      // Object not loaded - use fallback portrait
-    }
-  }
+  // Use fallback for immediate display - real images loaded asynchronously after modal opens
+  const portrait = portraitDaemon.getFallbackImage('item');
 
   const hasQuantityInCart = quantityInCart > 0;
   const canAddMore = stock === -1 || quantityInCart < stock;
@@ -918,23 +992,18 @@ async function buildItemCard(
 /**
  * Build an item card for a sold item (player previously sold to merchant).
  */
-async function buildSoldItemCard(
+function buildSoldItemCard(
   objectId: string,
   itemName: string,
   price: number,
   inCart: boolean,
   canAfford: boolean,
-  merchant: ShopMerchant
-): Promise<LayoutContainer> {
+  _merchant: ShopMerchant
+): LayoutContainer {
   const portraitDaemon = getPortraitDaemon();
   const name = itemName || 'Unknown Item';
-  let portrait = portraitDaemon.getFallbackImage('item');
-
-  // Try to get portrait from the actual item object
-  const itemObj = merchant.getSoldItemObject(objectId);
-  if (itemObj) {
-    portrait = await portraitDaemon.getObjectImage(itemObj, detectItemCategory(itemObj) as 'item');
-  }
+  // Use fallback for immediate display - real images loaded asynchronously after modal opens
+  const portrait = portraitDaemon.getFallbackImage('item');
 
   const disabled = inCart || !canAfford;
 
@@ -1011,17 +1080,18 @@ async function buildSoldItemCard(
 /**
  * Build an item card for player inventory.
  */
-async function buildPlayerItemCard(
+function buildPlayerItemCard(
   item: Item,
   price: number,
   basePrice: number,
   inCart: boolean,
   accepted: boolean,
   equipped: boolean
-): Promise<LayoutContainer> {
+): LayoutContainer {
   const portraitDaemon = getPortraitDaemon();
   const name = item.shortDesc || item.name || 'Unknown Item';
-  const portrait = await portraitDaemon.getObjectImage(item, detectItemCategory(item) as 'item');
+  // Use fallback for immediate display - real images loaded asynchronously after modal opens
+  const portrait = portraitDaemon.getFallbackImage('item');
 
   const disabled = inCart || !accepted || equipped;
   const priceHasBonus = price !== basePrice && accepted;
