@@ -661,6 +661,12 @@ export class CombatDaemon extends MudObject {
       }
 
       this.setMissMessages(result);
+
+      // Play miss sound for player attackers
+      if (this.isPlayer(attacker) && typeof efuns !== 'undefined' && efuns.playSound) {
+        efuns.playSound(attacker, 'combat', 'miss', { volume: 0.5 });
+      }
+
       return result;
     }
 
@@ -733,6 +739,17 @@ export class CombatDaemon extends MudObject {
 
     // Set messages
     this.setHitMessages(result);
+
+    // Play combat sounds for player attackers
+    if (this.isPlayer(attacker) && typeof efuns !== 'undefined' && efuns.playSound) {
+      if (result.critical) {
+        efuns.playSound(attacker, 'combat', 'critical', { volume: 0.6 });
+      } else if (result.blocked) {
+        efuns.playSound(attacker, 'combat', 'block', { volume: 0.5 });
+      } else {
+        efuns.playSound(attacker, 'combat', 'hit', { volume: 0.5 });
+      }
+    }
 
     return result;
   }
@@ -1178,6 +1195,11 @@ export class CombatDaemon extends MudObject {
         .broadcast(`{red}${capitalizeName(victim.name)} has been slain by ${capitalizeName(killer.name)}!{/}\n`, {
           exclude: [victim, killer],
         });
+    }
+
+    // Play victory sound for player killers
+    if (this.isPlayer(killer) && typeof efuns !== 'undefined' && efuns.playSound) {
+      efuns.playSound(killer, 'combat', 'victory', { volume: 0.6 });
     }
 
     // Quest integration: track kills for quest objectives

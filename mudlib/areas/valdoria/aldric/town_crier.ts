@@ -28,6 +28,7 @@ news from the castle.`;
     this.chatChance = 15;
     this.setQuestsOffered(['aldric:urgent_message', 'aldric:meet_guildmasters']);
     this.setQuestsTurnedIn(['aldric:urgent_message', 'aldric:meet_guildmasters']);
+    this.setLookSound('npcs/town-crier.mp3');
 
     // Preserved custom code
     // Override auto-calculated health
