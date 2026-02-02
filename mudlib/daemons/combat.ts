@@ -609,11 +609,6 @@ export class CombatDaemon extends MudObject {
    * Resolve a single attack.
    */
   resolveAttack(attacker: Living, defender: Living, weapon: Weapon | null): AttackResult {
-    // Calculate hit chance
-    const hitChance = this.calculateHitChance(attacker, defender);
-    const hitRoll = Math.random() * 100;
-    const hit = hitRoll < hitChance;
-
     // Get natural attack if weapon is null
     // Check any attacker (NPC or player with transformation) that has getNaturalAttack
     let naturalAttack: NaturalAttack | undefined;
@@ -630,7 +625,7 @@ export class CombatDaemon extends MudObject {
       }
     }
 
-    // Initialize result
+    // Initialize result with new flags
     const result: AttackResult = {
       attacker,
       defender,
@@ -641,6 +636,10 @@ export class CombatDaemon extends MudObject {
       critical: false,
       blocked: false,
       dodged: false,
+      parried: false,
+      glancingBlow: false,
+      riposteTriggered: false,
+      circling: false,
       baseDamage: 0,
       finalDamage: 0,
       damageType,
@@ -649,7 +648,100 @@ export class CombatDaemon extends MudObject {
       roomMessage: '',
     };
 
+    // Check for circling (no attack this round)
+    const circleChance = this.calculateCirclingChance(attacker, defender);
+    if (Math.random() * 100 < circleChance) {
+      result.circling = true;
+      this.setCirclingMessage(result);
+      return result; // No attack, no damage, no sounds
+    }
+
+    // Calculate hit chance
+    const hitChance = this.calculateHitChance(attacker, defender);
+    const hitRoll = Math.random() * 100;
+    const hit = hitRoll < hitChance;
+
     if (!hit) {
+      // Check for glancing blow (near miss within 10%)
+      const glancing = this.calculateGlancingBlow(hitRoll, hitChance);
+
+      if (glancing.isGlancing) {
+        // Glancing blow - partial damage, skip parry/dodge
+        result.glancingBlow = true;
+        result.hit = true; // Counts as a hit for damage purposes
+
+        // Calculate reduced damage
+        let baseDamage = this.calculateBaseDamage(attacker, weapon);
+        baseDamage = Math.round(baseDamage * glancing.damageMultiplier);
+        result.baseDamage = baseDamage;
+
+        // Apply armor and resistances
+        let finalDamage = this.applyDefenses(defender, baseDamage, result.damageType, attacker);
+
+        // Handle invulnerability
+        if (defender.isInvulnerable()) {
+          finalDamage = 0;
+        }
+
+        // Handle damage shields
+        if (finalDamage > 0) {
+          finalDamage = defender.absorbDamageShield(finalDamage);
+        }
+
+        result.finalDamage = Math.max(0, Math.round(finalDamage));
+
+        if (result.finalDamage > 0) {
+          // Builder+ cannot die in combat - cap damage to leave at least 1 HP
+          if (this.isBuilderPlus(defender)) {
+            const maxDamage = defender.health - 1;
+            if (result.finalDamage >= maxDamage) {
+              result.finalDamage = Math.max(0, maxDamage);
+            }
+          }
+          defender.damage(result.finalDamage);
+
+          // Generate threat on the NPC defender
+          if (this.isNPC(defender)) {
+            const npc = defender as Living & { addThreat?: (source: Living, amount: number) => void };
+            if (typeof npc.addThreat === 'function') {
+              const threat = this.calculateThreat(attacker, 'damage', result.finalDamage, result.damageType);
+              npc.addThreat(attacker, threat);
+            }
+          }
+        }
+
+        this.setGlancingMessages(result);
+
+        // Play quieter hit sound for glancing blow
+        if (this.isPlayer(attacker) && typeof efuns !== 'undefined' && efuns.playSound) {
+          efuns.playSound(attacker, 'combat', 'hit', { volume: 0.3 });
+        }
+
+        return result;
+      }
+
+      // Check parry (requires defender weapon)
+      const parryChance = this.calculateParryChance(defender);
+      if (Math.random() * 100 < parryChance) {
+        result.parried = true;
+
+        // Check for riposte
+        const riposteChance = this.calculateRiposteChance(defender);
+        if (Math.random() * 100 < riposteChance) {
+          result.riposteTriggered = true;
+          this.executeRiposte(attacker, defender);
+        }
+
+        this.setMissMessages(result);
+
+        // Play parry sound
+        if (this.isPlayer(attacker) && typeof efuns !== 'undefined' && efuns.playSound) {
+          efuns.playSound(attacker, 'combat', 'parry', { volume: 0.5 });
+        }
+
+        return result;
+      }
+
       // Check if dodged vs missed
       const dodgeChance = this.calculateDodgeChance(defender);
       const dodgeRoll = Math.random() * 100;
@@ -797,13 +889,14 @@ export class CombatDaemon extends MudObject {
 
   /**
    * Calculate dodge chance.
-   * Formula: toDodge + (DEX - 10) * 2 - encumbrance penalty
+   * Formula: 5 (base) + toDodge + (DEX - 10) * 2 - encumbrance penalty
    */
   calculateDodgeChance(defender: Living): number {
     const toDodge = defender.getCombatStat('toDodge');
     const dex = defender.getStat('dexterity');
 
-    let dodgeChance = toDodge + (dex - 10) * 2;
+    // Base 5% dodge chance, plus bonuses from DEX and equipment
+    let dodgeChance = 5 + toDodge + (dex - 10) * 2;
 
     // Apply encumbrance penalty (reduces dodge chance)
     if (typeof defender.getEncumbrancePenalties === 'function') {
@@ -815,6 +908,134 @@ export class CombatDaemon extends MudObject {
     }
 
     return Math.max(0, Math.min(50, dodgeChance));
+  }
+
+  /**
+   * Calculate parry chance (requires defender to have a weapon that can parry).
+   * Formula: 10 (base when wielding) + toParry + (DEX - 10) * 1.5 - encumbrance penalty
+   */
+  calculateParryChance(defender: Living): number {
+    // Check if defender has a weapon that can parry
+    const weapons = defender.getWieldedWeapons();
+    if (!weapons.mainHand) return 0;
+
+    const weapon = weapons.mainHand as Weapon & { canParry?: boolean };
+    if (weapon.canParry === false) return 0;
+
+    const toParry = defender.getCombatStat('toParry');
+    const dex = defender.getStat('dexterity');
+
+    // Base 10% parry chance when wielding a weapon, plus bonuses from DEX and equipment
+    let parryChance = 10 + toParry + (dex - 10) * 1.5;
+
+    // Apply encumbrance penalty
+    if (typeof defender.getEncumbrancePenalties === 'function') {
+      const penalties = defender.getEncumbrancePenalties();
+      parryChance -= 50 * penalties.dodgePenalty;
+    }
+
+    return Math.max(0, Math.min(40, parryChance)); // Cap at 40%
+  }
+
+  /**
+   * Calculate riposte chance (after successful parry).
+   * Formula: toRiposte + (DEX - 10)
+   */
+  calculateRiposteChance(defender: Living): number {
+    const toRiposte = defender.getCombatStat('toRiposte');
+    const dex = defender.getStat('dexterity');
+
+    // Formula: toRiposte + (DEX - 10)
+    // Base is low - riposte is a bonus, not guaranteed
+    const riposteChance = toRiposte + (dex - 10);
+
+    return Math.max(0, Math.min(30, riposteChance)); // Cap at 30%
+  }
+
+  /**
+   * Calculate chance that combatants circle each other without attacking.
+   * More likely when combatants are evenly matched or defender is higher level.
+   */
+  calculateCirclingChance(attacker: Living, defender: Living): number {
+    // Base 10% chance to circle
+    let circleChance = 10;
+
+    // Higher if defender is higher level (more cautious approach)
+    const levelDiff = defender.level - attacker.level;
+    if (levelDiff > 0) {
+      circleChance += Math.min(10, levelDiff * 2); // Up to +10% for higher level defenders
+    }
+
+    // Lower if attacker has high attack speed (aggressive fighter)
+    const attackSpeed = attacker.getCombatStat('attackSpeed');
+    if (attackSpeed > 1.0) {
+      circleChance -= (attackSpeed - 1.0) * 10; // Fast attackers circle less
+    }
+
+    // Cap between 5% and 25%
+    return Math.max(5, Math.min(25, circleChance));
+  }
+
+  /**
+   * Check if a near-miss becomes a glancing blow.
+   * @param hitRoll The attack roll that missed
+   * @param hitChance The threshold needed to hit
+   * @returns { isGlancing: boolean, damageMultiplier: number }
+   */
+  calculateGlancingBlow(hitRoll: number, hitChance: number): { isGlancing: boolean; damageMultiplier: number } {
+    // Glancing blow occurs when miss is within 10 points of hit threshold
+    // When we miss, hitRoll >= hitChance, so missMargin = hitRoll - hitChance
+    const missMargin = hitRoll - hitChance;
+
+    if (missMargin >= 0 && missMargin <= 10) {
+      // The closer to hitting (lower margin), the more damage (25% to 50%)
+      // missMargin 0 = 50% damage, missMargin 10 = 25% damage
+      const damageMultiplier = 0.5 - (0.25 * (missMargin / 10));
+      return { isGlancing: true, damageMultiplier };
+    }
+
+    return { isGlancing: false, damageMultiplier: 0 };
+  }
+
+  /**
+   * Execute a riposte counter-attack.
+   * Simplified attack - always hits, uses defender's weapon damage at 50%.
+   */
+  executeRiposte(originalAttacker: Living, defender: Living): void {
+    const weapons = defender.getWieldedWeapons();
+    const weapon = weapons.mainHand;
+
+    if (!weapon) return;
+
+    // Calculate riposte damage (50% of normal attack damage)
+    const baseDamage = this.calculateBaseDamage(defender, weapon) * 0.5;
+    const finalDamage = Math.max(1, Math.round(baseDamage));
+
+    // Apply damage to original attacker (unless they're builder+)
+    if (this.isBuilderPlus(originalAttacker)) {
+      const maxDamage = originalAttacker.health - 1;
+      if (finalDamage >= maxDamage) {
+        originalAttacker.damage(Math.max(0, maxDamage));
+      } else {
+        originalAttacker.damage(finalDamage);
+      }
+    } else {
+      originalAttacker.damage(finalDamage);
+    }
+
+    // Send messages
+    const weaponName = weapon.shortDesc || 'weapon';
+    defender.receive(`{cyan}You riposte, striking ${capitalizeName(originalAttacker.name)} for ${finalDamage} damage!{/}\n`);
+    originalAttacker.receive(`{red}${capitalizeName(defender.name)} ripostes, hitting you for ${finalDamage} damage!{/}\n`);
+
+    // Room message
+    const room = defender.environment;
+    if (room && 'broadcast' in room) {
+      (room as MudObject & { broadcast: (msg: string, opts?: { exclude?: MudObject[] }) => void }).broadcast(
+        `{cyan}${capitalizeName(defender.name)} ripostes against ${capitalizeName(originalAttacker.name)}!{/}\n`,
+        { exclude: [defender, originalAttacker] }
+      );
+    }
   }
 
   /**
@@ -996,6 +1217,7 @@ export class CombatDaemon extends MudObject {
 
   /**
    * Set messages for a hit.
+   * Colors: Critical = magenta, Blocked = yellow, Normal hit = red
    */
   setHitMessages(result: AttackResult): void {
     const attackerName = capitalizeName(result.attacker.name);
@@ -1031,16 +1253,20 @@ export class CombatDaemon extends MudObject {
 
     let blockNote = '';
     if (result.blocked) {
-      blockNote = ' (partially blocked)';
+      blockNote = ' {blue}(partially blocked){/}';
     }
 
-    result.attackerMessage = `{red}You ${hitVerb} ${defenderName} with your ${weaponName}, ${damageDesc} them for {bold}${result.finalDamage}{/} damage${blockNote}!{/}\n`;
-    result.defenderMessage = `{red}${attackerName} ${hitVerb} you with their ${weaponName}, ${damageDesc} you for {bold}${result.finalDamage}{/} damage${blockNote}!{/}\n`;
-    result.roomMessage = `{red}${attackerName} ${hitVerb} ${defenderName} with their ${weaponName}${blockNote}!{/}\n`;
+    // Color based on outcome: critical = magenta, blocked = red with blue note, normal = red
+    const color = result.critical ? 'magenta' : 'red';
+
+    result.attackerMessage = `{${color}}You ${hitVerb} ${defenderName} with your ${weaponName}, ${damageDesc} them for {bold}${result.finalDamage}{/}{${color}} damage${blockNote}!{/}\n`;
+    result.defenderMessage = `{${color}}${attackerName} ${hitVerb} you with their ${weaponName}, ${damageDesc} you for {bold}${result.finalDamage}{/}{${color}} damage${blockNote}!{/}\n`;
+    result.roomMessage = `{${color}}${attackerName} ${hitVerb} ${defenderName} with their ${weaponName}${blockNote}!{/}\n`;
   }
 
   /**
    * Set messages for a miss.
+   * Colors: Parry = cyan, Riposte = bold cyan, Dodge = green, Clean miss = yellow
    */
   setMissMessages(result: AttackResult): void {
     const attackerName = capitalizeName(result.attacker.name);
@@ -1061,15 +1287,101 @@ export class CombatDaemon extends MudObject {
       missVerb = 'swing at';
     }
 
-    if (result.dodged) {
-      result.attackerMessage = `{yellow}You ${missVerb} ${defenderName} with your ${weaponName}, but they dodge out of the way!{/}\n`;
-      result.defenderMessage = `{yellow}You dodge ${attackerName}'s attack with their ${weaponName}!{/}\n`;
-      result.roomMessage = `{yellow}${defenderName} dodges ${attackerName}'s attack!{/}\n`;
+    if (result.parried) {
+      // Get defender's weapon name for parry message
+      const defenderWeapons = result.defender.getWieldedWeapons();
+      const defWeaponName = defenderWeapons.mainHand?.shortDesc || 'weapon';
+
+      if (result.riposteTriggered) {
+        // Riposte: bold cyan for the counter-attack
+        result.attackerMessage = `{yellow}You ${missVerb} ${defenderName} with your ${weaponName}, but they parry and {bold}{cyan}counter-attack{/}{yellow}!{/}\n`;
+        result.defenderMessage = `{bold}{cyan}You parry ${attackerName}'s attack with your ${defWeaponName} and riposte!{/}\n`;
+        result.roomMessage = `{bold}{cyan}${defenderName} parries ${attackerName}'s attack and ripostes!{/}\n`;
+      } else {
+        // Parry: cyan
+        result.attackerMessage = `{yellow}You ${missVerb} ${defenderName} with your ${weaponName}, but they {cyan}parry{/}{yellow} with their ${defWeaponName}!{/}\n`;
+        result.defenderMessage = `{cyan}You parry ${attackerName}'s attack with your ${defWeaponName}!{/}\n`;
+        result.roomMessage = `{cyan}${defenderName} parries ${attackerName}'s attack!{/}\n`;
+      }
+    } else if (result.dodged) {
+      // Dodge: green for successful evasion
+      result.attackerMessage = `{yellow}You ${missVerb} ${defenderName} with your ${weaponName}, but they {green}dodge{/}{yellow} out of the way!{/}\n`;
+      result.defenderMessage = `{green}You dodge ${attackerName}'s attack!{/}\n`;
+      result.roomMessage = `{green}${defenderName} dodges ${attackerName}'s attack!{/}\n`;
     } else {
+      // Clean miss: yellow
       result.attackerMessage = `{yellow}You ${missVerb} ${defenderName} with your ${weaponName}, but miss!{/}\n`;
       result.defenderMessage = `{yellow}${attackerName} ${missVerb} you with their ${weaponName}, but misses!{/}\n`;
       result.roomMessage = `{yellow}${attackerName} ${missVerb} ${defenderName} but misses!{/}\n`;
     }
+  }
+
+  /**
+   * Set messages for a glancing blow (near-miss that deals partial damage).
+   * Color: White - between yellow (miss) and red (hit)
+   */
+  setGlancingMessages(result: AttackResult): void {
+    const attackerName = capitalizeName(result.attacker.name);
+    const defenderName = capitalizeName(result.defender.name);
+    const damage = result.finalDamage;
+
+    // Determine weapon name based on weapon or natural attack
+    let weaponName: string;
+    if (result.weapon) {
+      weaponName = result.weapon.shortDesc;
+    } else if (result.naturalAttack) {
+      weaponName = result.naturalAttack.name;
+    } else {
+      weaponName = 'fists';
+    }
+
+    result.attackerMessage = `{white}Your attack grazes ${defenderName} with your ${weaponName}, dealing {bold}${damage}{/}{white} damage!{/}\n`;
+    result.defenderMessage = `{white}${attackerName}'s attack grazes you for {bold}${damage}{/}{white} damage!{/}\n`;
+    result.roomMessage = `{white}${attackerName}'s attack grazes ${defenderName}!{/}\n`;
+  }
+
+  /**
+   * Set messages for circling (no attack this round - sizing up opponent).
+   */
+  setCirclingMessage(result: AttackResult): void {
+    const attackerName = capitalizeName(result.attacker.name);
+    const defenderName = capitalizeName(result.defender.name);
+    const defenderNameLower = result.defender.name;
+
+    // Variety of circling messages
+    const messages = [
+      {
+        atk: `You and ${defenderName} circle each other, looking for an opening.`,
+        def: `${attackerName} and you circle warily.`,
+        room: `${attackerName} and ${defenderName} circle each other cautiously.`,
+      },
+      {
+        atk: `You feint, testing ${defenderNameLower}'s defenses.`,
+        def: `${attackerName} feints toward you.`,
+        room: `${attackerName} feints at ${defenderName}.`,
+      },
+      {
+        atk: `${defenderName} shifts their stance. You hold back, waiting.`,
+        def: `You shift your stance, watching ${attackerName.toLowerCase()} carefully.`,
+        room: `${attackerName} and ${defenderName} size each other up.`,
+      },
+      {
+        atk: `You and ${defenderName} exchange a tense stare, weapons ready.`,
+        def: `${attackerName} stares you down, weapon poised.`,
+        room: `${attackerName} and ${defenderName} glare at each other.`,
+      },
+      {
+        atk: `You hesitate, looking for a weakness in ${defenderNameLower}'s guard.`,
+        def: `${attackerName} hesitates, studying your movements.`,
+        room: `${attackerName} studies ${defenderName}'s defenses.`,
+      },
+    ];
+
+    const msg = messages[Math.floor(Math.random() * messages.length)];
+
+    result.attackerMessage = `{dim}${msg.atk}{/}\n`;
+    result.defenderMessage = `{dim}${msg.def}{/}\n`;
+    result.roomMessage = `{dim}${msg.room}{/}\n`;
   }
 
   /**
