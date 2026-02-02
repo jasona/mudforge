@@ -212,6 +212,17 @@ export class GUIModal {
     // Re-render body content
     const body = this.modal.querySelector('.gui-modal-body');
     if (body) {
+      // Capture scroll positions of scrollable containers before clearing
+      const scrollPositions = new Map<string, number>();
+      body.querySelectorAll('[style*="overflow"]').forEach((el, index) => {
+        const htmlEl = el as HTMLElement;
+        if (htmlEl.scrollTop > 0) {
+          // Use element id or index as key
+          const key = htmlEl.id || `scroll-${index}`;
+          scrollPositions.set(key, htmlEl.scrollTop);
+        }
+      });
+
       // Clear existing content
       body.innerHTML = '';
 
@@ -227,6 +238,18 @@ export class GUIModal {
           this.handleLayoutButtonClick(buttonId, action, customAction);
         }
       );
+
+      // Restore scroll positions after re-render
+      if (scrollPositions.size > 0) {
+        body.querySelectorAll('[style*="overflow"]').forEach((el, index) => {
+          const htmlEl = el as HTMLElement;
+          const key = htmlEl.id || `scroll-${index}`;
+          const savedPosition = scrollPositions.get(key);
+          if (savedPosition !== undefined) {
+            htmlEl.scrollTop = savedPosition;
+          }
+        });
+      }
     }
 
     // Update footer buttons
