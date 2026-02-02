@@ -19,14 +19,14 @@ countless footsteps over the years.
 breeze. Gulls wheel overhead, crying out as they search for scraps from
 the morning's catch.
 
-To the {green}northeast{/}, a cobblestone path leads back toward the town's {yellow}market square{/}.
+To the {green}west{/}, a cobblestone path leads back toward the {yellow}residential streets{/} of Aldric.
 A weathered {cyan}signpost{/} near the gangway lists the ferry schedule.
 
 The smell of salt, fish, and tar fills the air. Sailors and dockworkers bustle
 about, loading and unloading cargo from the various vessels moored here.`;
 
-    // Map coordinates - southwest of market
-    this.setMapCoordinates({ x: -2, y: 1, z: 0, area: '/areas/valdoria/aldric' });
+    // Map coordinates - east of residential area
+    this.setMapCoordinates({ x: 5, y: 2, z: 0, area: '/areas/valdoria/aldric' });
     this.setTerrain('town');
     this.setMapIcon('H');
 
@@ -34,7 +34,7 @@ about, loading and unloading cargo from the various vessels moored here.`;
   }
 
   private setupRoom(): void {
-    this.addExit('northeast', '/areas/valdoria/aldric/market');
+    this.addExit('west', '/areas/valdoria/aldric/room_7_4_0');
 
     this.addAction('read', this.cmdRead.bind(this));
     this.addAction('look', this.cmdLook.bind(this));

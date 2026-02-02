@@ -11,7 +11,9 @@ export class Room740 extends Room {
   constructor() {
     super();
     this.shortDesc = 'A quiet residential street corner';
-    this.longDesc = `You stand at the intersection of two narrow cobblestone streets lined with modest timber-framed houses. Wisps of smoke curl from stone chimneys while the warm glow of hearth fires flickers behind diamond-paned windows. The mingled aromas of freshly baked bread from the south and ale from the north drift on the evening breeze, creating a homely atmosphere that speaks of Aldric's simple comforts.`;
+    this.longDesc = `You stand at the intersection of two narrow cobblestone streets lined with modest timber-framed houses. Wisps of smoke curl from stone chimneys while the warm glow of hearth fires flickers behind diamond-paned windows. The mingled aromas of freshly baked bread from the south and ale from the north drift on the evening breeze, creating a homely atmosphere that speaks of Aldric's simple comforts.
+
+To the {green}east{/}, a cobblestone path slopes down toward the {cyan}harbor{/}, where the cries of gulls and the smell of salt air beckon.`;
     this.setMapCoordinates({ x: 4, y: 2, z: 0, area: '/areas/valdoria/aldric' });
     this.setTerrain('town');
     this.setupRoom();  }
@@ -21,7 +23,7 @@ export class Room740 extends Room {
     this.addExit('north', '/areas/valdoria/aldric/tavern');
     this.addExit('south', '/areas/valdoria/aldric/bakery');
     this.addExit('west', '/areas/valdoria/aldric/room_6_4_0');
-
+    this.addExit('east', '/areas/valdoria/harbor/dock');
   }
 }
 
