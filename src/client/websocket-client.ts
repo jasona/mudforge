@@ -310,6 +310,9 @@ export class WebSocketClient {
   private sessionToken: string | null = null;
   private sessionExpiresAt: number = 0;
 
+  // Latency measurement (updated via TIME_PONG responses)
+  private lastMeasuredLatency: number = 0;
+
 
   /**
    * Check if connected.
@@ -588,22 +591,21 @@ export class WebSocketClient {
           const jsonStr = line.slice(7); // Remove \x00[TIME] prefix
           try {
             const timeMessage = JSON.parse(jsonStr) as TimeMessage;
-            // Calculate approximate round-trip latency based on server timestamp
-            // This assumes server sends its current Unix timestamp
-            const serverTimeMs = timeMessage.timestamp * 1000;
-            const clientTimeMs = Date.now();
-            // Latency estimate: difference between client time and server time
-            // Positive values mean we're behind the server, negative means ahead
-            // The absolute value gives a rough one-way latency estimate
-            // Multiply by 2 for approximate RTT (assuming symmetric network)
-            const oneWayLatency = Math.abs(clientTimeMs - serverTimeMs);
-            timeMessage.latencyMs = Math.min(oneWayLatency, 9999); // Cap at 9999ms
+            // Use the last measured RTT latency (from TIME_PONG responses)
+            timeMessage.latencyMs = this.lastMeasuredLatency;
             this.emit('time-message', timeMessage);
 
-            // Send ACK back to server so it knows we're alive
+            // Send ACK with timestamp for RTT measurement
             this.sendTimeAck();
           } catch {
             // Ignore parse errors - still serves as keepalive
+          }
+        } else if (line.startsWith('\x00[TIME_PONG]')) {
+          // Server echoed our timestamp - calculate RTT
+          const timestampStr = line.slice(12); // Remove \x00[TIME_PONG] prefix
+          const sentTime = parseInt(timestampStr, 10);
+          if (!isNaN(sentTime)) {
+            this.lastMeasuredLatency = Date.now() - sentTime;
           }
         } else {
           this.emit('message', line);
@@ -947,7 +949,7 @@ export class WebSocketClient {
 
   /**
    * Send a TIME acknowledgment to the server.
-   * This lets the server know the client is still alive.
+   * Includes current timestamp for RTT measurement.
    */
   private sendTimeAck(): void {
     if (!this.isConnected || !this.socket) {
@@ -955,9 +957,10 @@ export class WebSocketClient {
     }
 
     try {
-      this.socket.send('\x00[TIME_ACK]\n');
+      // Include timestamp so server can echo it back for RTT calculation
+      this.socket.send(`\x00[TIME_ACK]${Date.now()}\n`);
     } catch {
-      // Ignore send errors - if socket is dead, stale check will handle it
+      // Ignore send errors - if socket is dead, close event will handle it
     }
   }
 

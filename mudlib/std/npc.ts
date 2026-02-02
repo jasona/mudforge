@@ -1180,6 +1180,18 @@ export class NPC extends Living {
       },
     });
 
+    // Add natural armor based on level (scales with NPC type multiplier)
+    // Formula: floor(level / 4) + 1, then multiply by HP multiplier
+    const baseArmor = Math.floor(level / 4) + 1;
+    this.addCombatStatModifier('armorBonus', Math.round(baseArmor * mult.hp));
+
+    // Add natural dodge based on level
+    // Formula: floor(level / 5) - higher level NPCs are harder to hit
+    const baseDodge = Math.floor(level / 5);
+    if (baseDodge > 0) {
+      this.addCombatStatModifier('toDodge', baseDodge);
+    }
+
     // Store type for reference
     this.setProperty('npcType', type);
 

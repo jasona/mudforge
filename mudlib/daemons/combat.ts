@@ -661,6 +661,12 @@ export class CombatDaemon extends MudObject {
       }
 
       this.setMissMessages(result);
+
+      // Play miss sound for player attackers
+      if (this.isPlayer(attacker) && typeof efuns !== 'undefined' && efuns.playSound) {
+        efuns.playSound(attacker, 'combat', 'miss', { volume: 0.5 });
+      }
+
       return result;
     }
 
@@ -689,7 +695,7 @@ export class CombatDaemon extends MudObject {
     result.baseDamage = baseDamage;
 
     // Apply armor and resistances
-    let finalDamage = this.applyDefenses(defender, baseDamage, result.damageType);
+    let finalDamage = this.applyDefenses(defender, baseDamage, result.damageType, attacker);
 
     // Handle invulnerability
     if (defender.isInvulnerable()) {
@@ -734,6 +740,17 @@ export class CombatDaemon extends MudObject {
     // Set messages
     this.setHitMessages(result);
 
+    // Play combat sounds for player attackers
+    if (this.isPlayer(attacker) && typeof efuns !== 'undefined' && efuns.playSound) {
+      if (result.critical) {
+        efuns.playSound(attacker, 'combat', 'critical', { volume: 0.6 });
+      } else if (result.blocked) {
+        efuns.playSound(attacker, 'combat', 'block', { volume: 0.5 });
+      } else {
+        efuns.playSound(attacker, 'combat', 'hit', { volume: 0.5 });
+      }
+    }
+
     return result;
   }
 
@@ -742,8 +759,10 @@ export class CombatDaemon extends MudObject {
    * Formula: 75 + toHit + (ATK_DEX - 10) * 2 + (ATK_LUCK / 10)
    *          - toDodge - (DEF_DEX - 10) * 2 + levelBonus
    *
-   * Level bonus: +1% per attacker level above defender, -1% per defender level above attacker
-   * Capped at ±10%
+   * Level bonus: Asymmetric scaling
+   * - Attacking higher level: -2% per level difference (capped at -30%)
+   * - Attacking lower level: +1% per level difference (capped at +15%)
+   * This makes attacking significantly higher level enemies much harder.
    */
   calculateHitChance(attacker: Living, defender: Living): number {
     const toHit = attacker.getCombatStat('toHit');
@@ -752,9 +771,17 @@ export class CombatDaemon extends MudObject {
     const defDex = defender.getStat('dexterity');
     const atkLuck = attacker.getStat('luck');
 
-    // Level difference bonus/penalty (capped at ±10)
+    // Level difference bonus/penalty - asymmetric scaling
+    // Attacking higher levels is much harder than attacking lower levels
     const levelDiff = attacker.level - defender.level;
-    const levelBonus = Math.max(-10, Math.min(10, levelDiff));
+    let levelBonus: number;
+    if (levelDiff >= 0) {
+      // Attacking lower level: small bonus, capped at +15%
+      levelBonus = Math.min(15, levelDiff);
+    } else {
+      // Attacking higher level: steeper penalty, capped at -30%
+      levelBonus = Math.max(-30, levelDiff * 2);
+    }
 
     const hitChance = 75
       + toHit
@@ -931,8 +958,12 @@ export class CombatDaemon extends MudObject {
 
   /**
    * Apply armor and resistances.
+   * @param defender The target taking damage
+   * @param damage Raw damage before defenses
+   * @param damageType Type of damage for resistance checks
+   * @param attacker Optional attacker for level-based minimum damage calculation
    */
-  applyDefenses(defender: Living, damage: number, damageType: DamageType): number {
+  applyDefenses(defender: Living, damage: number, damageType: DamageType, attacker?: Living): number {
     // Get total armor from equipment
     let armor = defender.getCombatStat('armorBonus');
     const wornArmor = defender.getWornArmor();
@@ -949,7 +980,18 @@ export class CombatDaemon extends MudObject {
     // Apply flat armor reduction
     damage -= armor;
 
-    return Math.max(1, damage);
+    // Calculate minimum damage based on level difference
+    // If the defender is more than 10 levels above the attacker, allow 0 damage
+    // This prevents low-level characters from chip-damaging high-level NPCs
+    let minDamage = 1;
+    if (attacker) {
+      const levelDiff = defender.level - attacker.level;
+      if (levelDiff > 10) {
+        minDamage = 0;
+      }
+    }
+
+    return Math.max(minDamage, damage);
   }
 
   /**
@@ -1153,6 +1195,11 @@ export class CombatDaemon extends MudObject {
         .broadcast(`{red}${capitalizeName(victim.name)} has been slain by ${capitalizeName(killer.name)}!{/}\n`, {
           exclude: [victim, killer],
         });
+    }
+
+    // Play victory sound for player killers
+    if (this.isPlayer(killer) && typeof efuns !== 'undefined' && efuns.playSound) {
+      efuns.playSound(killer, 'combat', 'victory', { volume: 0.6 });
     }
 
     // Quest integration: track kills for quest objectives
