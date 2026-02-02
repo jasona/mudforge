@@ -37,6 +37,14 @@ export class EliteGuard extends NPC {
       wimpyThreshold: 0, // Never flee
     });
 
+    // Equip with appropriate gear
+    this.setSpawnItems([
+      '/areas/valdoria/aldric/items/steel_sword',
+      '/areas/valdoria/aldric/items/iron_shield',
+      '/areas/valdoria/aldric/items/chainmail',
+      '/areas/valdoria/aldric/items/iron_helm',
+    ]);
+
     // Learn fighter skills appropriate for level
     this.learnSkills([
       'fighter:bash',

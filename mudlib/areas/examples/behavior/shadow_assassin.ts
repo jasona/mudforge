@@ -27,6 +27,12 @@ export class ShadowAssassin extends NPC {
     this.maxMana = 150;
     this.mana = 150;
 
+    // Equip with daggers and leather armor
+    this.setSpawnItems([
+      '/areas/valdoria/aldric/items/iron_dagger',
+      '/areas/valdoria/aldric/items/leather_armor',
+    ]);
+
     // Configure melee DPS behavior
     this.setBehavior({
       mode: 'aggressive',

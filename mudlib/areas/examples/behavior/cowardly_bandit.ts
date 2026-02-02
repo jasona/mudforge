@@ -29,6 +29,11 @@ export class CowardlyBandit extends NPC {
       wimpyThreshold: 25, // Extra cowardly - flee at 25%
     });
 
+    // Equip with a rusty dagger (using iron_dagger as closest match)
+    this.setSpawnItems([
+      '/areas/valdoria/aldric/items/iron_dagger',
+    ]);
+
     // Enable wandering for retreating
     this.enableWandering();
 

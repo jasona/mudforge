@@ -42,6 +42,13 @@ from his belt pouch.`;
     this.setQuestsOffered(['aldric:map_the_depths']);
     this.setQuestsTurnedIn(['aldric:map_the_depths']);
 
+    // Equip with appropriate gear for a guard captain
+    this.setSpawnItems([
+      '/areas/valdoria/aldric/items/steel_sword',
+      '/areas/valdoria/aldric/items/chainmail',
+      '/areas/valdoria/aldric/items/iron_helm',
+    ]);
+
     this.setupChats();
     this.setupResponses();
   }
