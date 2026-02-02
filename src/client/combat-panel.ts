@@ -11,6 +11,31 @@ import { getAvatarSvg } from './avatars.js';
 import { isAvatarId, getFallbackPortrait, isValidSvg, isDataUri } from './npc-portraits.js';
 
 /**
+ * Simple throttle function to limit how often a function can be called.
+ */
+function throttle<T extends (...args: unknown[]) => void>(fn: T, delay: number): T {
+  let lastCall = 0;
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+  return ((...args: unknown[]) => {
+    const now = Date.now();
+    const timeSinceLastCall = now - lastCall;
+
+    if (timeSinceLastCall >= delay) {
+      lastCall = now;
+      fn(...args);
+    } else if (!timeoutId) {
+      // Schedule a trailing call
+      timeoutId = setTimeout(() => {
+        lastCall = Date.now();
+        timeoutId = null;
+        fn(...args);
+      }, delay - timeSinceLastCall);
+    }
+  }) as T;
+}
+
+/**
  * CombatPanel class.
  */
 export class CombatPanel {
@@ -24,6 +49,9 @@ export class CombatPanel {
   private levelElement: HTMLElement | null = null;
   private healthBar: HTMLElement | null = null;
   private healthText: HTMLElement | null = null;
+
+  // Throttled position handler to prevent excessive reflows
+  private throttledPositionPanel: () => void;
 
   constructor(containerId: string) {
     // Get or create container
@@ -64,11 +92,14 @@ export class CombatPanel {
     this.healthBar = this.panel.querySelector('[data-health-bar]');
     this.healthText = this.panel.querySelector('[data-health-text]');
 
+    // Create throttled position handler (100ms) to prevent excessive reflows
+    this.throttledPositionPanel = throttle(() => this.positionPanel(), 100);
+
     // Position the panel relative to the map
     this.positionPanel();
 
-    // Listen for window resize to reposition
-    window.addEventListener('resize', () => this.positionPanel());
+    // Listen for window resize to reposition (throttled)
+    window.addEventListener('resize', this.throttledPositionPanel);
 
     // Observe map container for position changes (when dragged)
     this.observeMapPosition();
@@ -84,9 +115,10 @@ export class CombatPanel {
     }
 
     // Use MutationObserver to watch for style changes (dragging)
+    // Uses throttled handler to prevent excessive reflows during drag
     const observer = new MutationObserver(() => {
       if (this.isVisible) {
-        this.positionPanel();
+        this.throttledPositionPanel();
       }
     });
 

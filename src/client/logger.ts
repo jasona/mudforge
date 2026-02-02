@@ -64,6 +64,45 @@ class Logger {
     if (options.interceptConsole !== false) {
       this.interceptConsole();
     }
+
+    // Always capture uncaught errors and unhandled rejections
+    this.captureGlobalErrors();
+  }
+
+  /**
+   * Capture uncaught errors and unhandled promise rejections.
+   */
+  private captureGlobalErrors(): void {
+    // Capture uncaught errors
+    window.addEventListener('error', (event: ErrorEvent) => {
+      const message = event.message || 'Unknown error';
+      const source = event.filename ? ` at ${event.filename}:${event.lineno}:${event.colno}` : '';
+      this.addEntry('error', [`[Uncaught] ${message}${source}`]);
+    });
+
+    // Capture unhandled promise rejections
+    window.addEventListener('unhandledrejection', (event: PromiseRejectionEvent) => {
+      let message: string;
+      if (event.reason instanceof Error) {
+        message = `${event.reason.name}: ${event.reason.message}`;
+        if (event.reason.stack) {
+          // Include first line of stack trace
+          const stackLine = event.reason.stack.split('\n')[1]?.trim() || '';
+          if (stackLine) {
+            message += ` (${stackLine})`;
+          }
+        }
+      } else if (typeof event.reason === 'string') {
+        message = event.reason;
+      } else {
+        try {
+          message = JSON.stringify(event.reason);
+        } catch {
+          message = String(event.reason);
+        }
+      }
+      this.addEntry('error', [`[Unhandled Rejection] ${message}`]);
+    });
   }
 
   /**

@@ -338,30 +338,108 @@ export class Merchant extends NPC {
 
   /**
    * Add a stock item to the buy cart (blueprint-based).
+   * If the item is already in the cart, increases the quantity.
+   * @param player The player buying
+   * @param itemPath The item blueprint path
+   * @param quantity Number to add (default 1)
+   * @returns true if successful
    */
-  addToBuyCart(player: ShopPlayer, itemPath: string): boolean {
+  addToBuyCart(player: ShopPlayer, itemPath: string, quantity: number = 1): boolean {
     const state = this.getTransactionState(player);
     const stockItem = this._shopInventory.find((i) => i.itemPath === itemPath);
     if (!stockItem) return false;
 
-    // Check stock
+    // Check stock availability
     if (!this.isInStock(itemPath)) return false;
+
+    // Check if we have enough stock for the requested quantity
+    const currentInCart = this.getQuantityInCart(player, itemPath);
+    const availableStock = stockItem.stock === -1 ? Infinity : stockItem.stock;
+    if (currentInCart + quantity > availableStock) return false;
 
     // Get item info
     const price = this.getSellPrice(itemPath, player);
 
-    state.itemsToBuy.push({
-      itemPath,
-      name: stockItem.name,
-      price,
-      isSoldItem: false,
-    });
+    // Check if already in cart - if so, increase quantity
+    const existing = state.itemsToBuy.find((e) => e.itemPath === itemPath && !e.isSoldItem);
+    if (existing) {
+      existing.quantity += quantity;
+    } else {
+      state.itemsToBuy.push({
+        itemPath,
+        name: stockItem.name,
+        price,
+        quantity,
+        isSoldItem: false,
+      });
+    }
+
+    return true;
+  }
+
+  /**
+   * Get the quantity of an item already in the buy cart.
+   */
+  getQuantityInCart(player: ShopPlayer, itemPath: string): number {
+    const state = this.getTransactionState(player);
+    const entry = state.itemsToBuy.find((e) => e.itemPath === itemPath && !e.isSoldItem);
+    return entry?.quantity ?? 0;
+  }
+
+  /**
+   * Get available stock for an item (accounting for items already in cart).
+   */
+  getAvailableStock(player: ShopPlayer, itemPath: string): number {
+    const stockItem = this._shopInventory.find((i) => i.itemPath === itemPath);
+    if (!stockItem) return 0;
+    if (stockItem.stock === -1) return -1; // Unlimited
+    const inCart = this.getQuantityInCart(player, itemPath);
+    return Math.max(0, stockItem.stock - inCart);
+  }
+
+  /**
+   * Set the quantity of an item in the buy cart.
+   * @returns true if successful
+   */
+  setCartQuantity(player: ShopPlayer, itemPath: string, quantity: number): boolean {
+    const state = this.getTransactionState(player);
+    const stockItem = this._shopInventory.find((i) => i.itemPath === itemPath);
+    if (!stockItem) return false;
+
+    // Check stock availability
+    const availableStock = stockItem.stock === -1 ? Infinity : stockItem.stock;
+    if (quantity > availableStock) return false;
+
+    const existing = state.itemsToBuy.find((e) => e.itemPath === itemPath && !e.isSoldItem);
+
+    if (quantity <= 0) {
+      // Remove from cart
+      if (existing) {
+        const index = state.itemsToBuy.indexOf(existing);
+        state.itemsToBuy.splice(index, 1);
+      }
+      return true;
+    }
+
+    if (existing) {
+      existing.quantity = quantity;
+    } else {
+      const price = this.getSellPrice(itemPath, player);
+      state.itemsToBuy.push({
+        itemPath,
+        name: stockItem.name,
+        price,
+        quantity,
+        isSoldItem: false,
+      });
+    }
 
     return true;
   }
 
   /**
    * Add a sold item to the buy cart (actual item instance).
+   * Sold items always have quantity 1 since they're unique instances.
    */
   addSoldItemToBuyCart(player: ShopPlayer, objectId: string): boolean {
     const state = this.getTransactionState(player);
@@ -376,6 +454,7 @@ export class Merchant extends NPC {
       objectId,
       name: soldEntry.soldItem.name,
       price: soldEntry.soldItem.sellPrice,
+      quantity: 1, // Sold items are always quantity 1
       isSoldItem: true,
     });
 
@@ -468,7 +547,8 @@ export class Merchant extends NPC {
    */
   calculateLedger(state: TransactionState, playerGold: number): LedgerSummary {
     const credits = state.itemsToSell.reduce((sum, e) => sum + e.price, 0);
-    const debits = state.itemsToBuy.reduce((sum, e) => sum + e.price, 0);
+    // Debits must account for quantity
+    const debits = state.itemsToBuy.reduce((sum, e) => sum + (e.price * (e.quantity || 1)), 0);
     const netAmount = credits - debits;
 
     let canFinalize = true;
@@ -577,7 +657,7 @@ export class Merchant extends NPC {
       validSellItems.push({ item, entry });
     }
 
-    // Validate all buy items still in stock
+    // Validate all buy items still in stock with sufficient quantity
     for (const entry of state.itemsToBuy) {
       if (!this.isInStock(entry.itemPath)) {
         return {
@@ -589,6 +669,21 @@ export class Merchant extends NPC {
           goldReceived: 0,
           netGold: 0,
         };
+      }
+      // Check quantity for stock items
+      if (!entry.isSoldItem) {
+        const stockItem = this._shopInventory.find((i) => i.itemPath === entry.itemPath);
+        if (stockItem && stockItem.stock !== -1 && stockItem.stock < (entry.quantity || 1)) {
+          return {
+            success: false,
+            message: `Not enough "${entry.name}" in stock. Only ${stockItem.stock} available.`,
+            itemsBought: [],
+            itemsSold: [],
+            goldSpent: 0,
+            goldReceived: 0,
+            netGold: 0,
+          };
+        }
       }
     }
 
@@ -629,12 +724,20 @@ export class Merchant extends NPC {
           itemsBought.push(entry.name);
         }
       } else {
-        // Buying from stock - clone from blueprint
+        // Buying from stock - clone from blueprint (handle quantity)
+        const quantity = entry.quantity || 1;
         if (typeof efuns !== 'undefined' && efuns.cloneObject) {
-          const newItem = await efuns.cloneObject(entry.itemPath);
-          if (newItem) {
-            await newItem.moveTo(player);
-            this.reduceStock(entry.itemPath);
+          for (let i = 0; i < quantity; i++) {
+            const newItem = await efuns.cloneObject(entry.itemPath);
+            if (newItem) {
+              await newItem.moveTo(player);
+              this.reduceStock(entry.itemPath);
+            }
+          }
+          // Add to bought list with quantity if > 1
+          if (quantity > 1) {
+            itemsBought.push(`${entry.name} x${quantity}`);
+          } else {
             itemsBought.push(entry.name);
           }
         }

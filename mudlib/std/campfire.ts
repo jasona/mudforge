@@ -121,13 +121,21 @@ export class Campfire extends Item {
 
   /**
    * Process fuel consumption and state changes.
-   * Called every heartbeat.
+   * Called every heartbeat (approximately every 2 seconds).
    */
   private processFuel(): void {
     if (!this._isLit) return;
 
-    // Consume fuel (2 seconds per heartbeat)
-    this._fuelRemaining -= HEARTBEAT_INTERVAL / 1000;
+    // Sanity check - ensure fuel was properly initialized
+    if (this._fuelRemaining === undefined || this._maxFuel === undefined) {
+      this._fuelRemaining = DEFAULT_FUEL_DURATION;
+      this._maxFuel = DEFAULT_FUEL_DURATION;
+    }
+
+    // Consume fuel (2 seconds per heartbeat interval)
+    // This assumes heartbeat runs every ~2 seconds
+    const fuelToConsume = HEARTBEAT_INTERVAL / 1000;
+    this._fuelRemaining = Math.max(0, this._fuelRemaining - fuelToConsume);
 
     // Warn when fuel is low
     if (this._fuelRemaining <= LOW_FUEL_WARNING && !this._hasWarnedLowFuel) {
@@ -137,7 +145,6 @@ export class Campfire extends Item {
 
     // Burn out when fuel is depleted
     if (this._fuelRemaining <= 0) {
-      this._fuelRemaining = 0;
       this.burnOut();
     }
   }
@@ -384,6 +391,16 @@ export class Campfire extends Item {
    */
   override async onCreate(): Promise<void> {
     await super.onCreate();
+
+    // Ensure fuel is properly initialized (defensive check)
+    // This guards against any initialization timing issues
+    if (this._fuelRemaining <= 0 || this._fuelRemaining === undefined) {
+      this._fuelRemaining = DEFAULT_FUEL_DURATION;
+    }
+    if (this._maxFuel <= 0 || this._maxFuel === undefined) {
+      this._maxFuel = DEFAULT_FUEL_DURATION;
+    }
+
     // Start heartbeat if lit
     if (this._isLit) {
       this.startHeartbeat();

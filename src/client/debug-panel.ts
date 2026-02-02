@@ -84,6 +84,12 @@ export class DebugPanel {
   private statusBar: HTMLElement;
   private filterTabs: HTMLElement;
 
+  // Cached status bar elements (avoid repeated DOM queries)
+  private versionEl: HTMLElement | null = null;
+  private pingEl: HTMLElement | null = null;
+  private uptimeEl: HTMLElement | null = null;
+  private countEl: HTMLElement | null = null;
+
   private options: DebugPanelOptions;
   private config: GameConfig | null = null;
   private isVisible: boolean = false;
@@ -96,6 +102,12 @@ export class DebugPanel {
   // Drag state
   private isDragging: boolean = false;
   private dragOffset: { x: number; y: number } = { x: 0, y: 0 };
+
+  // Interval reference for cleanup
+  private statusBarInterval: number | null = null;
+
+  // Maximum log entries to keep in DOM (prevents memory bloat on long sessions)
+  private static MAX_LOG_ENTRIES = 200;
 
   constructor(containerId: string, options: DebugPanelOptions = {}) {
     const container = document.getElementById(containerId);
@@ -114,6 +126,12 @@ export class DebugPanel {
     this.filterTabs = this.panel.querySelector('.debug-filter-tabs')!;
 
     this.container.appendChild(this.panel);
+
+    // Cache status bar element references
+    this.versionEl = this.statusBar.querySelector('.debug-version');
+    this.pingEl = this.statusBar.querySelector('.debug-ping');
+    this.uptimeEl = this.statusBar.querySelector('.debug-uptime');
+    this.countEl = this.statusBar.querySelector('.debug-log-count');
 
     // Set up event handlers
     this.setupEventHandlers();
@@ -211,8 +229,8 @@ export class DebugPanel {
     document.addEventListener('mousemove', (e) => this.onDrag(e));
     document.addEventListener('mouseup', () => this.endDrag());
 
-    // Update uptime periodically
-    setInterval(() => this.updateStatusBar(), 1000);
+    // Update uptime periodically (store reference for potential cleanup)
+    this.statusBarInterval = window.setInterval(() => this.updateStatusBar(), 1000);
   }
 
   /**
@@ -298,6 +316,11 @@ export class DebugPanel {
 
     this.logList.appendChild(item);
 
+    // Trim old entries to prevent memory bloat on long sessions
+    while (this.logList.children.length > DebugPanel.MAX_LOG_ENTRIES) {
+      this.logList.removeChild(this.logList.firstChild!);
+    }
+
     // Auto-scroll to bottom
     if (scroll && this.isVisible) {
       this.logList.scrollTop = this.logList.scrollHeight;
@@ -339,55 +362,50 @@ export class DebugPanel {
   }
 
   /**
-   * Update the status bar.
+   * Update the status bar (uses cached element references for performance).
    */
   private updateStatusBar(): void {
-    const versionEl = this.statusBar.querySelector('.debug-version');
-    const pingEl = this.statusBar.querySelector('.debug-ping');
-    const uptimeEl = this.statusBar.querySelector('.debug-uptime');
-    const countEl = this.statusBar.querySelector('.debug-log-count');
-
-    if (versionEl && this.config) {
-      versionEl.textContent = `Version: ${this.config.game.version}`;
+    if (this.versionEl && this.config) {
+      this.versionEl.textContent = `Version: ${this.config.game.version}`;
     }
 
-    if (pingEl) {
+    if (this.pingEl) {
       if (this.currentLatency > 0) {
         const latencyText = `Ping: ${this.currentLatency}ms`;
-        pingEl.textContent = latencyText;
+        this.pingEl.textContent = latencyText;
 
         // Color code based on latency
         // Remove existing color classes
-        pingEl.classList.remove('ping-good', 'ping-warn', 'ping-bad');
+        this.pingEl.classList.remove('ping-good', 'ping-warn', 'ping-bad');
         if (this.currentLatency < 100) {
-          pingEl.classList.add('ping-good');
+          this.pingEl.classList.add('ping-good');
         } else if (this.currentLatency < 250) {
-          pingEl.classList.add('ping-warn');
+          this.pingEl.classList.add('ping-warn');
         } else {
-          pingEl.classList.add('ping-bad');
+          this.pingEl.classList.add('ping-bad');
         }
       } else {
-        pingEl.textContent = 'Ping: --';
-        pingEl.classList.remove('ping-good', 'ping-warn', 'ping-bad');
+        this.pingEl.textContent = 'Ping: --';
+        this.pingEl.classList.remove('ping-good', 'ping-warn', 'ping-bad');
       }
     }
 
-    if (uptimeEl) {
+    if (this.uptimeEl) {
       const uptime = Math.floor((Date.now() - this.startTime) / 1000);
       const hours = Math.floor(uptime / 3600);
       const minutes = Math.floor((uptime % 3600) / 60);
       const seconds = uptime % 60;
       if (hours > 0) {
-        uptimeEl.textContent = `Uptime: ${hours}h ${minutes}m`;
+        this.uptimeEl.textContent = `Uptime: ${hours}h ${minutes}m`;
       } else if (minutes > 0) {
-        uptimeEl.textContent = `Uptime: ${minutes}m ${seconds}s`;
+        this.uptimeEl.textContent = `Uptime: ${minutes}m ${seconds}s`;
       } else {
-        uptimeEl.textContent = `Uptime: ${seconds}s`;
+        this.uptimeEl.textContent = `Uptime: ${seconds}s`;
       }
     }
 
-    if (countEl) {
-      countEl.textContent = `Logs: ${logger.count}`;
+    if (this.countEl) {
+      this.countEl.textContent = `Logs: ${logger.count}`;
     }
   }
 
@@ -521,6 +539,16 @@ export class DebugPanel {
       this.hide();
     } else {
       this.show();
+    }
+  }
+
+  /**
+   * Stop the panel and clean up resources.
+   */
+  stop(): void {
+    if (this.statusBarInterval !== null) {
+      window.clearInterval(this.statusBarInterval);
+      this.statusBarInterval = null;
     }
   }
 

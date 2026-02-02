@@ -1258,9 +1258,14 @@ export class Living extends MudObject {
       effect.duration -= deltaMs;
 
       // Process ticks for DoT/HoT effects
-      if (effect.tickInterval && effect.nextTick !== undefined) {
+      // Guard: tickInterval must be positive to prevent infinite loop
+      if (effect.tickInterval && effect.tickInterval > 0 && effect.nextTick !== undefined) {
         effect.nextTick -= deltaMs;
-        while (effect.nextTick <= 0 && effect.duration > 0) {
+        // Safety limit: max iterations based on reasonable deltaMs/tickInterval ratio
+        const maxIterations = Math.ceil(deltaMs / effect.tickInterval) + 1;
+        let iterations = 0;
+        while (effect.nextTick <= 0 && effect.duration > 0 && iterations < maxIterations) {
+          iterations++;
           // Execute tick
           if (effect.onTick) {
             effect.onTick(this, effect);
@@ -1617,6 +1622,7 @@ export class Living extends MudObject {
    */
   absorbDamageShield(amount: number): number {
     let remaining = amount;
+    const depletedShields: string[] = [];
 
     for (const [id, effect] of this._effects) {
       if (effect.type === 'damage_shield' && remaining > 0) {
@@ -1624,11 +1630,16 @@ export class Living extends MudObject {
         effect.magnitude -= absorbed;
         remaining -= absorbed;
 
-        // Remove depleted shields
+        // Mark depleted shields for removal (don't modify Map during iteration)
         if (effect.magnitude <= 0) {
-          this._effects.delete(id);
+          depletedShields.push(id);
         }
       }
+    }
+
+    // Remove depleted shields after iteration
+    for (const id of depletedShields) {
+      this._effects.delete(id);
     }
 
     return remaining;

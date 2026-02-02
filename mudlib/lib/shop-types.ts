@@ -106,8 +106,10 @@ export interface BuyEntry {
   isSoldItem?: boolean;
   /** Item name for display */
   name: string;
-  /** Price to pay (debit) */
+  /** Price per unit (debit) */
   price: number;
+  /** Quantity to buy (default 1) */
+  quantity: number;
   /** Portrait for ledger display */
   portraitUri?: string;
 }

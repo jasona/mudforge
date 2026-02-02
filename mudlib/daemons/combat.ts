@@ -1390,11 +1390,15 @@ export class CombatDaemon extends MudObject {
    */
   private sendCombatTargetUpdate(attacker: Living, target: Living | null): void {
     // Only send updates for player attackers with sendCombatTarget method
-    const asPlayer = attacker as Living & { sendCombatTarget?: (target: Living | null) => Promise<void>; name?: string };
-    if (typeof asPlayer.sendCombatTarget === 'function') {
-      asPlayer.sendCombatTarget(target).catch((error) => {
-        console.error(`[CombatDaemon] Error sending combat target update for ${asPlayer.name || 'unknown'}:`, error);
-      });
+    try {
+      const asPlayer = attacker as Living & { sendCombatTarget?: (target: Living | null) => Promise<void>; name?: string };
+      if (typeof asPlayer.sendCombatTarget === 'function') {
+        asPlayer.sendCombatTarget(target).catch((error) => {
+          console.error(`[CombatDaemon] Error sending combat target update for ${asPlayer.name || 'unknown'}:`, error);
+        });
+      }
+    } catch (error) {
+      console.error('[CombatDaemon] Sync error in sendCombatTargetUpdate:', error);
     }
   }
 }

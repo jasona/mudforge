@@ -71,8 +71,11 @@ interface ShopMerchant extends MudObject {
   getBaseBuyPrice(item: Item): number;
   acceptsItem(item: Item): boolean;
   getTransactionState(player: ShopPlayer): TransactionState;
-  addToBuyCart(player: ShopPlayer, itemPath: string): boolean;
+  addToBuyCart(player: ShopPlayer, itemPath: string, quantity?: number): boolean;
   addSoldItemToBuyCart(player: ShopPlayer, objectId: string): boolean;
+  getQuantityInCart(player: ShopPlayer, itemPath: string): number;
+  getAvailableStock(player: ShopPlayer, itemPath: string): number;
+  setCartQuantity(player: ShopPlayer, itemPath: string, quantity: number): boolean;
   addToSellCart(player: ShopPlayer, itemId: string): boolean;
   removeFromBuyCart(player: ShopPlayer, itemPath: string): boolean;
   removeFromSellCart(player: ShopPlayer, itemId: string): boolean;
@@ -350,7 +353,8 @@ async function buildWaresPanel(
     for (const entry of categoryItems) {
       if (entry.type === 'stock') {
         const item = entry.item;
-        const inCart = stockInCart.has(item.itemPath);
+        const quantityInCart = merchant.getQuantityInCart(player, item.itemPath);
+        const inCart = quantityInCart > 0;
         const price = merchant.getSellPrice(item.itemPath, player);
         const basePrice = merchant.getBaseSellPrice(item.itemPath);
         const canAfford = player.gold >= price || state.itemsToSell.length > 0;
@@ -362,7 +366,9 @@ async function buildWaresPanel(
           basePrice,
           inCart,
           canAfford,
-          true // inStock
+          true, // inStock
+          item.stock,
+          quantityInCart
         );
         scrollContent.push(itemCard);
       } else {
@@ -600,6 +606,13 @@ function buildLedgerEntry(
     actionId = `remove-sell-${(entry as SellEntry).itemId}`;
   }
 
+  // Calculate display values for buy entries with quantity
+  const quantity = isBuy ? (entry as BuyEntry).quantity || 1 : 1;
+  const totalPrice = entry.price * quantity;
+  const displayName = quantity > 1
+    ? `${truncateText(entry.name, 9)} x${quantity}`
+    : truncateText(entry.name, 12);
+
   return {
     type: 'horizontal',
     gap: '4px',
@@ -631,13 +644,13 @@ function buildLedgerEntry(
       {
         type: 'text',
         id: `entry-name-${entry.name}`,
-        content: truncateText(entry.name, 12),
+        content: displayName,
         style: { color: '#ddd', fontSize: '12px', flex: '1', overflow: 'hidden' },
       } as DisplayElement,
       {
         type: 'text',
         id: `entry-price-${entry.name}`,
-        content: isBuy ? `-${entry.price}g` : `+${entry.price}g`,
+        content: isBuy ? `-${totalPrice}g` : `+${entry.price}g`,
         style: {
           color: isBuy ? '#f87171' : '#4ade80',
           fontSize: '12px',
@@ -734,7 +747,9 @@ async function buildItemCard(
   basePrice: number,
   inCart: boolean,
   canAfford: boolean,
-  inStock: boolean
+  inStock: boolean,
+  stock: number = -1,
+  quantityInCart: number = 0
 ): Promise<LayoutContainer> {
   const portraitDaemon = getPortraitDaemon();
   const name = itemName || 'Unknown Item';
@@ -752,18 +767,111 @@ async function buildItemCard(
     }
   }
 
-  const disabled = inCart || !canAfford || !inStock;
+  const hasQuantityInCart = quantityInCart > 0;
+  const canAddMore = stock === -1 || quantityInCart < stock;
+  const disabled = !canAfford || !inStock;
   const priceHasBonus = price !== basePrice;
+
+  // Build stock indicator text
+  let stockText = '';
+  if (stock !== -1) {
+    const remaining = stock - quantityInCart;
+    stockText = `Stock: ${remaining}`;
+  }
+
+  // Build price line with optional stock indicator
+  const priceChildren: Array<DisplayElement | LayoutContainer> = priceHasBonus
+    ? [
+        {
+          type: 'text',
+          id: `item-base-${itemPath}`,
+          content: `${basePrice}g`,
+          style: {
+            color: '#666',
+            fontSize: '12px',
+            textDecoration: 'line-through',
+          },
+        } as DisplayElement,
+        {
+          type: 'text',
+          id: `item-price-${itemPath}`,
+          content: `${price}g`,
+          style: { color: '#fbbf24', fontSize: '12px', fontWeight: 'bold' },
+        } as DisplayElement,
+      ]
+    : [
+        {
+          type: 'text',
+          id: `item-price-${itemPath}`,
+          content: `${price}g`,
+          style: { color: '#fbbf24', fontSize: '12px' },
+        } as DisplayElement,
+      ];
+
+  // Add stock indicator if limited
+  if (stockText) {
+    priceChildren.push({
+      type: 'text',
+      id: `item-stock-${itemPath}`,
+      content: stockText,
+      style: { color: '#888', fontSize: '10px', marginLeft: '8px' },
+    } as DisplayElement);
+  }
+
+  // Build quantity controls if item is in cart
+  const quantityControls: Array<DisplayElement | InputElement | LayoutContainer> = hasQuantityInCart
+    ? [
+        {
+          type: 'button',
+          id: `dec-buy-${itemPath}`,
+          name: `dec-buy-${itemPath}`,
+          label: '-',
+          action: 'custom' as const,
+          customAction: `dec-buy-${itemPath}`,
+          variant: 'ghost',
+          style: { width: '24px', height: '24px', padding: '0', fontSize: '14px' },
+        } as InputElement,
+        {
+          type: 'text',
+          id: `qty-${itemPath}`,
+          content: `${quantityInCart}`,
+          style: { color: '#ddd', fontSize: '13px', minWidth: '20px', textAlign: 'center' },
+        } as DisplayElement,
+        {
+          type: 'button',
+          id: `inc-buy-${itemPath}`,
+          name: `inc-buy-${itemPath}`,
+          label: '+',
+          action: 'custom' as const,
+          customAction: `inc-buy-${itemPath}`,
+          variant: 'ghost',
+          disabled: !canAddMore || disabled,
+          style: { width: '24px', height: '24px', padding: '0', fontSize: '14px' },
+        } as InputElement,
+      ]
+    : [
+        {
+          type: 'button',
+          id: `add-buy-${itemPath}`,
+          name: `add-buy-${itemPath}`,
+          label: '+',
+          action: 'custom' as const,
+          customAction: `add-buy-${itemPath}`,
+          variant: 'ghost',
+          disabled: disabled,
+          style: { width: '28px', height: '28px', padding: '0' },
+        } as InputElement,
+      ];
 
   return {
     type: 'horizontal',
     gap: '8px',
     style: {
       padding: '8px',
-      backgroundColor: inCart ? '#2d3748' : '#252530',
+      backgroundColor: hasQuantityInCart ? '#2d3748' : '#252530',
       borderRadius: '4px',
       alignItems: 'center',
-      opacity: disabled && !inCart ? '0.5' : '1',
+      opacity: disabled && !hasQuantityInCart ? '0.5' : '1',
     },
     children: [
       {
@@ -792,47 +900,17 @@ async function buildItemCard(
           {
             type: 'horizontal',
             gap: '4px',
-            children: priceHasBonus
-              ? [
-                  {
-                    type: 'text',
-                    id: `item-base-${itemPath}`,
-                    content: `${basePrice}g`,
-                    style: {
-                      color: '#666',
-                      fontSize: '12px',
-                      textDecoration: 'line-through',
-                    },
-                  } as DisplayElement,
-                  {
-                    type: 'text',
-                    id: `item-price-${itemPath}`,
-                    content: `${price}g`,
-                    style: { color: '#fbbf24', fontSize: '12px', fontWeight: 'bold' },
-                  } as DisplayElement,
-                ]
-              : [
-                  {
-                    type: 'text',
-                    id: `item-price-${itemPath}`,
-                    content: `${price}g`,
-                    style: { color: '#fbbf24', fontSize: '12px' },
-                  } as DisplayElement,
-                ],
+            style: { alignItems: 'center' },
+            children: priceChildren,
           },
         ],
       },
       {
-        type: 'button',
-        id: `add-buy-${itemPath}`,
-        name: `add-buy-${itemPath}`,
-        label: inCart ? '...' : '+',
-        action: 'custom' as const,
-        customAction: `add-buy-${itemPath}`,
-        variant: 'ghost',
-        disabled: disabled,
-        style: { width: '28px', height: '28px', padding: '0' },
-      } as InputElement,
+        type: 'horizontal',
+        gap: '2px',
+        style: { alignItems: 'center' },
+        children: quantityControls,
+      },
     ],
   };
 }
@@ -1097,6 +1175,27 @@ async function handleShopResponse(
     if (customAction.startsWith('add-buy-')) {
       const itemPath = customAction.slice('add-buy-'.length);
       merchant.addToBuyCart(player, itemPath);
+      await updateShopModal(player, merchant);
+      return;
+    }
+
+    // Handle increment quantity in buy cart
+    if (customAction.startsWith('inc-buy-')) {
+      const itemPath = customAction.slice('inc-buy-'.length);
+      merchant.addToBuyCart(player, itemPath, 1);
+      await updateShopModal(player, merchant);
+      return;
+    }
+
+    // Handle decrement quantity in buy cart
+    if (customAction.startsWith('dec-buy-')) {
+      const itemPath = customAction.slice('dec-buy-'.length);
+      const currentQty = merchant.getQuantityInCart(player, itemPath);
+      if (currentQty > 1) {
+        merchant.setCartQuantity(player, itemPath, currentQty - 1);
+      } else {
+        merchant.removeFromBuyCart(player, itemPath);
+      }
       await updateShopModal(player, merchant);
       return;
     }

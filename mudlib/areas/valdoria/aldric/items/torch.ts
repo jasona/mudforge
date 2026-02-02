@@ -5,7 +5,7 @@
  * in dark areas and help detect hidden creatures.
  */
 
-import { Item } from '../../std/item.js';
+import { Item } from '../../../../std/item.js';
 
 export class Torch extends Item {
   constructor() {
