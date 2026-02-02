@@ -48,7 +48,7 @@ interface ShopPlayer extends Living {
   gold: number;
   addGold(amount: number): void;
   removeGold(amount: number): boolean;
-  stats?: { charisma?: number };
+  getStat(stat: 'charisma'): number;
   objectId: string;
   inventory: Item[];
 }
@@ -262,7 +262,7 @@ export class Merchant extends NPC {
    * Higher charisma = better deals (positive modifier).
    */
   getCharismaModifier(player: ShopPlayer): number {
-    const charisma = player.stats?.charisma ?? 10;
+    const charisma = player.getStat('charisma');
     // Positive modifier = better deal for player
     return (charisma - 10) * this._charismaEffect;
   }
