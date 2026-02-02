@@ -1177,6 +1177,11 @@ export class NPC extends Living {
     this.maxHealth = Math.round(baseHP * mult.hp);
     this.health = this.maxHealth;
 
+    // Auto-calculate MP: 50 + level * 10
+    const baseMP = 50 + (level * 10);
+    this.maxMana = Math.round(baseMP * mult.hp);
+    this.mana = this.maxMana;
+
     // Auto-calculate stats: max(1, floor(level / 2) + 1) - matches player starting stats
     const baseStat = Math.max(1, Math.floor(level / 2) + 1);
     const stats: StatName[] = ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma', 'luck'];

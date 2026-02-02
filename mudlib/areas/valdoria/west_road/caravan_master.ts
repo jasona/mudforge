@@ -13,9 +13,7 @@ export class CaravanMaster extends NPC {
     this.name = 'Garrett Ironwheel';
     this.shortDesc = 'a weathered human merchant with a sturdy wagon';
     this.longDesc = `Garrett Ironwheel stands beside a well-maintained wooden wagon, its iron-reinforced wheels gleaming despite the dust of countless miles. Their sun-weathered face bears the confident expression of someone who has traveled these roads for decades, while calloused hands rest easily on the wagon's side. A practical traveler's cloak hangs from broad shoulders, and their keen eyes constantly scan the horizon for both opportunity and danger.`;
-    this.level = 15;
-    this.maxHealth = 50;
-    this.health = 50;
+    this.setLevel(15, 'normal');
     this.gender = 'male';
     this.keywords = ['garrett', 'master'];
     this.wandering = false;

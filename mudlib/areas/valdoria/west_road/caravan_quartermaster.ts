@@ -13,9 +13,7 @@ export class CaravanQuartermaster extends NPC {
     this.name = 'Bess Tallow, the Caravan Quartermaster.';
     this.shortDesc = 'a weathered human woman counting supplies beside a laden wagon';
     this.longDesc = `Bess Tallow stands with the practiced efficiency of someone who has spent decades managing the lifeblood of merchant caravans. Her sun-bronzed hands move swiftly across ledgers and cargo manifests, while her sharp grey eyes miss nothing as they catalog every barrel, crate, and bundle secured to the heavy wagon behind her. Despite the dust of the Western Road coating her practical leather apron and sturdy boots, she maintains an air of unshakeable competence that speaks to countless successful journeys across dangerous terrain.`;
-    this.level = 10;
-    this.maxHealth = 50;
-    this.health = 50;
+    this.setLevel(10, 'normal');
     this.gender = 'female';
     this.keywords = ['bess', 'quartermaster'];
     this.wandering = false;

@@ -13,9 +13,7 @@ export class TraderMetal extends NPC {
     this.name = 'A trader, dealing in tools and metalwork.';
     this.shortDesc = 'a weathered trader with calloused hands';
     this.longDesc = `This middle-aged human bears the marks of countless hours working with metal and stone, their hands stained dark from forge work and scarred from sharp tools. Heavy leather pouches and canvas sacks hang from their sturdy frame, clinking softly with the sound of hammers, chisels, and various metal implements. Their keen eyes appraise everything with the practiced gaze of one who knows quality craftsmanship when they see it.`;
-    this.level = 8;
-    this.maxHealth = 50;
-    this.health = 50;
+    this.setLevel(8, 'normal');
     this.gender = 'male';
     this.keywords = ['trader', 'tool trader', 'metalwork trader'];
     this.wandering = false;

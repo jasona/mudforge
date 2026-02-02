@@ -13,9 +13,7 @@ export class Calla extends NPC {
     this.name = 'Calla, the Veiled Woman. ';
     this.shortDesc = 'a mysterious woman shrouded in dark veils';
     this.longDesc = `Calla stands motionless beside the dusty road, her entire form wrapped in layers of midnight-black silk that flutter gently in the western breeze. Only her pale hands are visible beneath the veils, clasped serenely before her as she gazes toward the horizon with an otherworldly stillness. There is something ancient and knowing in her posture, as if she has been waiting here for travelers far longer than any mortal should.`;
-    this.level = 25;
-    this.maxHealth = 50;
-    this.health = 50;
+    this.setLevel(25, 'normal');
     this.gender = 'female';
     this.keywords = ['calla', 'veiled woman', 'woman'];
     this.wandering = false;
