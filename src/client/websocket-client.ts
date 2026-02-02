@@ -310,6 +310,7 @@ export class WebSocketClient {
   private sessionToken: string | null = null;
   private sessionExpiresAt: number = 0;
 
+
   /**
    * Check if connected.
    */
@@ -598,6 +599,9 @@ export class WebSocketClient {
             const oneWayLatency = Math.abs(clientTimeMs - serverTimeMs);
             timeMessage.latencyMs = Math.min(oneWayLatency, 9999); // Cap at 9999ms
             this.emit('time-message', timeMessage);
+
+            // Send ACK back to server so it knows we're alive
+            this.sendTimeAck();
           } catch {
             // Ignore parse errors - still serves as keepalive
           }
@@ -940,6 +944,23 @@ export class WebSocketClient {
       // Ignore sessionStorage errors
     }
   }
+
+  /**
+   * Send a TIME acknowledgment to the server.
+   * This lets the server know the client is still alive.
+   */
+  private sendTimeAck(): void {
+    if (!this.isConnected || !this.socket) {
+      return;
+    }
+
+    try {
+      this.socket.send('\x00[TIME_ACK]\n');
+    } catch {
+      // Ignore send errors - if socket is dead, stale check will handle it
+    }
+  }
+
 }
 
 export default WebSocketClient;
