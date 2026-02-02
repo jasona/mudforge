@@ -61,6 +61,11 @@ export class Weapon extends Item {
   private _specialAttack: SpecialAttackCallback | null = null;
   private _toHit: number = 0; // Accuracy bonus from weapon quality
 
+  // Parry/riposte properties
+  private _toParry: number = 0; // Parry bonus when wielded
+  private _toRiposte: number = 0; // Riposte bonus when wielded
+  private _canParry: boolean = true; // Whether weapon can parry (false for ranged)
+
   // Auto-balance item level
   private _itemLevel: number = 1;
 
@@ -233,6 +238,51 @@ export class Weapon extends Item {
    */
   set toHit(value: number) {
     this._toHit = value;
+  }
+
+  // ========== Parry/Riposte ==========
+
+  /**
+   * Get parry bonus from this weapon.
+   */
+  get toParry(): number {
+    return this._toParry;
+  }
+
+  /**
+   * Set parry bonus.
+   */
+  set toParry(value: number) {
+    this._toParry = value;
+  }
+
+  /**
+   * Get riposte bonus from this weapon.
+   */
+  get toRiposte(): number {
+    return this._toRiposte;
+  }
+
+  /**
+   * Set riposte bonus.
+   */
+  set toRiposte(value: number) {
+    this._toRiposte = value;
+  }
+
+  /**
+   * Check if this weapon can be used to parry.
+   * Most melee weapons can parry, but ranged weapons typically cannot.
+   */
+  get canParry(): boolean {
+    return this._canParry;
+  }
+
+  /**
+   * Set whether this weapon can parry.
+   */
+  set canParry(value: boolean) {
+    this._canParry = value;
   }
 
   // ========== Special Attacks ==========
@@ -438,6 +488,16 @@ export class Weapon extends Item {
       wielder.addCombatStatModifier('toHit', this._toHit);
     }
 
+    // Apply parry modifier
+    if (this._toParry !== 0) {
+      wielder.addCombatStatModifier('toParry', this._toParry);
+    }
+
+    // Apply riposte modifier
+    if (this._toRiposte !== 0) {
+      wielder.addCombatStatModifier('toRiposte', this._toRiposte);
+    }
+
     this.onWield(wielder);
     return { success: true, message: `You wield ${this.shortDesc}.` };
   }
@@ -457,6 +517,16 @@ export class Weapon extends Item {
     // Remove toHit combat modifier
     if (this._toHit !== 0) {
       previousWielder.addCombatStatModifier('toHit', -this._toHit);
+    }
+
+    // Remove parry modifier
+    if (this._toParry !== 0) {
+      previousWielder.addCombatStatModifier('toParry', -this._toParry);
+    }
+
+    // Remove riposte modifier
+    if (this._toRiposte !== 0) {
+      previousWielder.addCombatStatModifier('toRiposte', -this._toRiposte);
     }
 
     // Unregister from living's equipment system
@@ -548,6 +618,9 @@ export class Weapon extends Item {
     specialAttackChance?: number;
     itemLevel?: number;
     toHit?: number;
+    toParry?: number;
+    toRiposte?: number;
+    canParry?: boolean;
   }): void {
     // Set handedness first (it may adjust size)
     if (options.handedness) this.handedness = options.handedness;
@@ -575,6 +648,9 @@ export class Weapon extends Item {
     if (options.specialAttackChance !== undefined) this.specialAttackChance = options.specialAttackChance;
     // Explicit toHit overrides itemLevel
     if (options.toHit !== undefined) this.toHit = options.toHit;
+    if (options.toParry !== undefined) this.toParry = options.toParry;
+    if (options.toRiposte !== undefined) this.toRiposte = options.toRiposte;
+    if (options.canParry !== undefined) this.canParry = options.canParry;
   }
 }
 

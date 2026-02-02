@@ -13,9 +13,7 @@ export class BrotherMace extends NPC {
     this.name = 'Brother Mace, a traveler heading west.';
     this.shortDesc = 'a weathered monk in simple brown robes';
     this.longDesc = `Brother Mace stands with the quiet confidence of one who has walked many roads in service to his faith. His sun-weathered face bears the lines of countless miles, while calloused hands grip a worn wooden staff that has clearly seen both travel and combat. Dust from the western road clings to his simple brown robes, and his keen eyes hold the steady gaze of a man accustomed to facing whatever dangers the wilderness might offer.`;
-    this.level = 4;
-    this.maxHealth = 50;
-    this.health = 50;
+    this.setLevel(4, 'normal');
     this.gender = 'male';
     this.keywords = ['mace', 'traveler'];
     this.wandering = false;

@@ -13,9 +13,7 @@ export class SpiceTrader extends NPC {
     this.name = 'A trader, peddling spices.';
     this.shortDesc = 'a weathered spice trader with sun-darkened skin';
     this.longDesc = `This middle-aged human bears the marks of countless journeys along dusty trade routes, their skin bronzed by years under the open sky. Colorful fabric pouches and small ceramic jars hang from their worn leather belt, each container carefully sealed and emanating exotic aromas that speak of distant lands. Their eyes hold the shrewd gleam of one who has bargained in a dozen different tongues, while calloused hands gesture expressively as they describe their wares to potential customers.`;
-    this.level = 8;
-    this.maxHealth = 50;
-    this.health = 50;
+    this.setLevel(8, 'normal');
     this.gender = 'male';
     this.keywords = ['trader', 'spice trader'];
     this.wandering = false;

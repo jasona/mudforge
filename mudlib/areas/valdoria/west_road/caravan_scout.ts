@@ -13,9 +13,7 @@ export class CaravanScout extends NPC {
     this.name = 'Seren Vay, the Caravan Scout.';
     this.shortDesc = 'a weathered half-elf with keen eyes and travel-worn gear';
     this.longDesc = `Seren Vay stands with the easy confidence of one who has spent countless seasons navigating treacherous roads and unpredictable weather. Their androgynous features bear the subtle pointed ears of elven heritage, while sun-darkened skin and calloused hands speak to years of hard travel under Moradin's open sky. A well-maintained crossbow rests across their back, and their sharp amber eyes constantly scan the horizon with the practiced vigilance of someone who knows that danger can emerge from any bend in the road.`;
-    this.level = 12;
-    this.maxHealth = 50;
-    this.health = 50;
+    this.setLevel(12, 'normal');
     this.gender = 'female';
     this.keywords = ['seren', 'scout'];
     this.wandering = false;

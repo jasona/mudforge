@@ -13,9 +13,7 @@ export class CaravanCook extends NPC {
     this.name = 'Ruda, the Caravan cook.';
     this.shortDesc = 'a weathered human woman tending a large iron cooking pot';
     this.longDesc = `Ruda is a sturdy middle-aged woman with calloused hands and flour-dusted apron, her graying hair pulled back in a practical bun. Her face bears the lines of countless miles traveled and meals prepared under the open sky, while her keen brown eyes constantly assess the quality of ingredients and the hunger of travelers. The rich aroma of hearty stew and fresh bread emanates from her mobile kitchen, a testament to her skill at creating comfort food from whatever provisions the caravan can procure along the dusty western roads.`;
-    this.level = 12;
-    this.maxHealth = 50;
-    this.health = 50;
+    this.setLevel(12, 'normal');
     this.gender = 'female';
     this.keywords = ['ruda', 'cook'];
     this.wandering = false;

@@ -52,6 +52,10 @@ export interface CombatStats {
   toBlock: number;
   /** Dodge/evasion chance bonus (percentage, 0-100) */
   toDodge: number;
+  /** Parry chance bonus (percentage, 0-100, requires weapon) */
+  toParry: number;
+  /** Riposte chance bonus (percentage, 0-100, after successful parry) */
+  toRiposte: number;
   /** Attack speed modifier (1.0 = normal, higher = faster) */
   attackSpeed: number;
   /** Damage bonus (flat addition to all damage) */
@@ -68,6 +72,8 @@ export const DEFAULT_COMBAT_STATS: CombatStats = {
   toCritical: 5, // Base 5% crit chance
   toBlock: 0,
   toDodge: 0,
+  toParry: 0,
+  toRiposte: 0,
   attackSpeed: 1.0,
   damageBonus: 0,
   armorBonus: 0,
@@ -96,6 +102,14 @@ export interface AttackResult {
   blocked: boolean;
   /** Whether the attack was dodged */
   dodged: boolean;
+  /** Whether the attack was parried by weapon */
+  parried: boolean;
+  /** Whether this was a glancing blow (near-miss that deals partial damage) */
+  glancingBlow: boolean;
+  /** Whether a riposte counter-attack was triggered */
+  riposteTriggered: boolean;
+  /** Whether combatants circled without attacking this round */
+  circling: boolean;
 
   /** Damage before reductions */
   baseDamage: number;

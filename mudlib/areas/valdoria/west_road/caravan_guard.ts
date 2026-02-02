@@ -13,9 +13,7 @@ export class CaravanGuard extends NPC {
     this.name = 'Holst, a grizzled caravan guard';
     this.shortDesc = 'a grizzled caravan guard with weathered hands';
     this.longDesc = `Holst stands with the practiced ease of someone who has spent decades protecting merchant wagons along dangerous roads. Their sun-beaten face bears the scars of countless skirmishes, while keen eyes constantly scan the horizon for signs of trouble. A well-maintained sword hangs at their hip, and their travel-worn leather armor speaks of many miles traversed under Moradin's watchful sky.`;
-    this.level = 18;
-    this.maxHealth = 50;
-    this.health = 50;
+    this.setLevel(18, 'normal');
     this.gender = 'male';
     this.keywords = ['holst', 'guard'];
     this.wandering = false;
