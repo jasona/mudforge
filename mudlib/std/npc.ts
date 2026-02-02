@@ -157,6 +157,7 @@ export class NPC extends Living {
 
   /**
    * Spawn all configured items into this NPC's inventory.
+   * Automatically wields weapons and wears armor.
    */
   async spawnItems(): Promise<void> {
     if (typeof efuns === 'undefined' || !efuns.cloneObject || this._spawnItems.length === 0) {
@@ -168,6 +169,23 @@ export class NPC extends Living {
         const item = await efuns.cloneObject(itemPath);
         if (item) {
           await item.moveTo(this);
+
+          // Try to wield if it's a weapon
+          if ('wield' in item && typeof (item as { wield: (wielder: Living) => { success: boolean } }).wield === 'function') {
+            try {
+              (item as { wield: (wielder: Living) => { success: boolean } }).wield(this);
+            } catch {
+              // Wield failed - item stays in inventory
+            }
+          }
+          // Try to wear if it's armor
+          else if ('wear' in item && typeof (item as { wear: (wearer: Living) => { success: boolean } }).wear === 'function') {
+            try {
+              (item as { wear: (wearer: Living) => { success: boolean } }).wear(this);
+            } catch {
+              // Wear failed - item stays in inventory
+            }
+          }
         }
       } catch (error) {
         console.error(`[NPC] Failed to clone item ${itemPath}:`, error);
