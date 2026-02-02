@@ -285,8 +285,17 @@ export class Connection extends EventEmitter {
 
     for (const line of lines) {
       if (line.length > 0) {
-        // Filter out TIME_ACK keepalive messages - they just update activity time
-        if (line === '\x00[TIME_ACK]') {
+        // Handle TIME_ACK keepalive messages - echo timestamp for RTT measurement
+        if (line.startsWith('\x00[TIME_ACK]')) {
+          const timestamp = line.slice(11); // Extract timestamp after prefix
+          if (timestamp) {
+            // Echo the timestamp back so client can calculate RTT
+            try {
+              this.socket.send(`\x00[TIME_PONG]${timestamp}`);
+            } catch {
+              // Ignore send errors
+            }
+          }
           continue;
         }
         this.emit('message', line);
