@@ -475,10 +475,12 @@ export class Connection extends EventEmitter {
       return;
     }
 
-    const bufferedAmount = this.socket.bufferedAmount || 0;
-
-    // Only drain if we have room
-    while (this._pendingMessages.length > 0 && bufferedAmount < BACKPRESSURE_THRESHOLD) {
+    // Only drain if we have room - check bufferedAmount each iteration
+    // to avoid overshooting the threshold
+    while (
+      this._pendingMessages.length > 0 &&
+      (this.socket.bufferedAmount || 0) < BACKPRESSURE_THRESHOLD
+    ) {
       const message = this._pendingMessages.shift()!;
       try {
         this.socket.send(message);
