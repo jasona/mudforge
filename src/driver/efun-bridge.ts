@@ -1683,6 +1683,93 @@ export class EfunBridge {
     return { success: true };
   }
 
+  // ========== Command Path Management ==========
+
+  /**
+   * Get a player's effective command paths.
+   * If no player name is provided, returns the calling player's paths.
+   * @param playerName Optional player name (defaults to calling player)
+   */
+  getCommandPaths(playerName?: string): string[] {
+    const player = this.context.thisPlayer as MudObject & { name?: string; permissionLevel?: number };
+
+    // If no player name provided, use calling player
+    if (!playerName) {
+      if (!player?.name) {
+        return ['player']; // Default fallback
+      }
+      const level = this.permissions.getLevel(player);
+      return this.permissions.getEffectiveCommandPaths(player.name, level);
+    }
+
+    // Get paths for specified player - requires knowledge of their level
+    const level = this.permissions.getLevel(playerName);
+    return this.permissions.getEffectiveCommandPaths(playerName, level);
+  }
+
+  /**
+   * Set a player's command paths explicitly.
+   * Requires admin permission.
+   * @param playerName The player's name
+   * @param paths The command paths to allow
+   */
+  setCommandPaths(playerName: string, paths: string[]): { success: boolean; error?: string } {
+    const player = this.context.thisPlayer;
+    if (!player || !this.permissions.isAdmin(player)) {
+      return { success: false, error: 'Admin permission required' };
+    }
+
+    this.permissions.setCommandPaths(playerName, paths);
+    return { success: true };
+  }
+
+  /**
+   * Add a command path to a player.
+   * Requires admin permission.
+   * @param playerName The player's name
+   * @param path The command path to add
+   */
+  addCommandPath(playerName: string, path: string): { success: boolean; error?: string } {
+    const player = this.context.thisPlayer;
+    if (!player || !this.permissions.isAdmin(player)) {
+      return { success: false, error: 'Admin permission required' };
+    }
+
+    this.permissions.addCommandPath(playerName, path);
+    return { success: true };
+  }
+
+  /**
+   * Remove a command path from a player.
+   * Requires admin permission.
+   * @param playerName The player's name
+   * @param path The command path to remove
+   */
+  removeCommandPath(playerName: string, path: string): { success: boolean; error?: string } {
+    const player = this.context.thisPlayer;
+    if (!player || !this.permissions.isAdmin(player)) {
+      return { success: false, error: 'Admin permission required' };
+    }
+
+    this.permissions.removeCommandPath(playerName, path);
+    return { success: true };
+  }
+
+  /**
+   * Clear a player's custom command paths (reset to level-derived defaults).
+   * Requires admin permission.
+   * @param playerName The player's name
+   */
+  clearCommandPaths(playerName: string): { success: boolean; error?: string } {
+    const player = this.context.thisPlayer;
+    if (!player || !this.permissions.isAdmin(player)) {
+      return { success: false, error: 'Admin permission required' };
+    }
+
+    this.permissions.clearCommandPaths(playerName);
+    return { success: true };
+  }
+
   // ========== Role-Based Path Efuns ==========
 
   /**
@@ -3671,6 +3758,13 @@ RULES:
       savePermissions: this.savePermissions.bind(this),
       addDomain: this.addDomain.bind(this),
       removeDomain: this.removeDomain.bind(this),
+
+      // Command Path Permissions
+      getCommandPaths: this.getCommandPaths.bind(this),
+      setCommandPaths: this.setCommandPaths.bind(this),
+      addCommandPath: this.addCommandPath.bind(this),
+      removeCommandPath: this.removeCommandPath.bind(this),
+      clearCommandPaths: this.clearCommandPaths.bind(this),
 
       // Role-Based Path Permissions
       getBuilderPaths: this.getBuilderPaths.bind(this),

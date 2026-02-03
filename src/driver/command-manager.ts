@@ -17,6 +17,7 @@ import { join, resolve } from 'path';
 import { pathToFileURL } from 'url';
 import type { MudObject } from './types.js';
 import type { Logger } from 'pino';
+import { getPermissions } from './permissions.js';
 
 /**
  * Permission levels matching the mudlib's PermissionLevel enum.
@@ -149,6 +150,25 @@ export class CommandManager {
 
     this.initialized = true;
     this.logger?.info({ commandCount: this.commands.size }, 'Command manager initialized');
+  }
+
+  /**
+   * Extract the command directory path from a file path.
+   * Supports nested directories (e.g., 'guilds/fighter').
+   * @param filePath The full path to the command file
+   * @returns The directory path (e.g., 'player', 'builder', 'guilds/fighter')
+   */
+  private getCommandDirectory(filePath: string): string {
+    const parts = filePath.split(/[/\\]/);
+    const cmdsIndex = parts.findIndex((p) => p === 'cmds');
+    if (cmdsIndex >= 0 && cmdsIndex < parts.length - 2) {
+      // Take all parts between 'cmds' and the filename
+      const dirParts = parts.slice(cmdsIndex + 1, parts.length - 1);
+      if (dirParts.length > 0) {
+        return dirParts.join('/');
+      }
+    }
+    return 'player';
   }
 
   /**
@@ -324,10 +344,21 @@ export class CommandManager {
       return false;
     }
 
-    // Check permission level
-    if (playerLevel < loaded.level) {
-      // Player doesn't have access to this command
-      return false;
+    // Check permission using path-based system
+    const playerWithName = player as MudObject & { name?: string };
+    if (playerWithName.name) {
+      const permissions = getPermissions();
+      const allowedPaths = permissions.getEffectiveCommandPaths(playerWithName.name, playerLevel);
+      const cmdDir = this.getCommandDirectory(loaded.filePath);
+      if (!allowedPaths.includes(cmdDir)) {
+        // Player doesn't have access to this command's directory
+        return false;
+      }
+    } else {
+      // Fallback for objects without names (NPCs, etc.)
+      if (playerLevel < loaded.level) {
+        return false;
+      }
     }
 
     // Create context
@@ -370,16 +401,38 @@ export class CommandManager {
 
   /**
    * Get all available commands for a permission level.
+   * @param level The player's permission level
+   * @param playerName Optional player name for path-based filtering
    */
-  getAvailableCommands(level: PermissionLevel): Command[] {
+  getAvailableCommands(level: PermissionLevel, playerName?: string): Command[] {
     const result: Command[] = [];
     const seen = new Set<Command>();
 
+    // Get allowed paths for this player
+    let allowedPaths: string[] | null = null;
+    if (playerName) {
+      const permissions = getPermissions();
+      allowedPaths = permissions.getEffectiveCommandPaths(playerName, level);
+    }
+
     for (const loaded of this.commands.values()) {
-      if (loaded.level <= level && !seen.has(loaded.command)) {
-        seen.add(loaded.command);
-        result.push(loaded.command);
+      if (seen.has(loaded.command)) continue;
+
+      // Check access using path-based system if player name provided
+      if (allowedPaths) {
+        const cmdDir = this.getCommandDirectory(loaded.filePath);
+        if (!allowedPaths.includes(cmdDir)) {
+          continue;
+        }
+      } else {
+        // Fallback to level-based check
+        if (loaded.level > level) {
+          continue;
+        }
       }
+
+      seen.add(loaded.command);
+      result.push(loaded.command);
     }
 
     return result.sort((a, b) => {

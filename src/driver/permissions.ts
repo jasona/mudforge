@@ -63,6 +63,7 @@ export class Permissions {
   private config: PermissionsConfig;
   private levels: Map<string, PermissionLevel> = new Map();
   private domains: Map<string, string[]> = new Map();
+  private commandPaths: Map<string, string[]> = new Map();
   private auditLog: AuditEntry[] = [];
   private maxAuditEntries: number = 10000;
 
@@ -487,6 +488,99 @@ export class Permissions {
     return result;
   }
 
+  // ========== Command Path Management ==========
+
+  /**
+   * Get the default command paths for a given permission level.
+   * @param level The permission level
+   */
+  private getDefaultCommandPathsForLevel(level: PermissionLevel): string[] {
+    const paths = ['player'];
+    if (level >= PermissionLevel.Builder) paths.push('builder');
+    if (level >= PermissionLevel.SeniorBuilder) paths.push('senior');
+    if (level >= PermissionLevel.Administrator) paths.push('admin');
+    return paths;
+  }
+
+  /**
+   * Get a player's custom command paths (if any).
+   * @param playerName The player's name
+   */
+  getCommandPaths(playerName: string): string[] | undefined {
+    return this.commandPaths.get(playerName.toLowerCase());
+  }
+
+  /**
+   * Set a player's command paths explicitly.
+   * @param playerName The player's name
+   * @param paths The command paths to allow
+   */
+  setCommandPaths(playerName: string, paths: string[]): void {
+    this.commandPaths.set(playerName.toLowerCase(), [...paths]);
+  }
+
+  /**
+   * Add a command path to a player.
+   * @param playerName The player's name
+   * @param path The command path to add
+   */
+  addCommandPath(playerName: string, path: string): void {
+    const name = playerName.toLowerCase();
+    const paths = this.commandPaths.get(name) ?? [];
+    if (!paths.includes(path)) {
+      paths.push(path);
+      this.commandPaths.set(name, paths);
+    }
+  }
+
+  /**
+   * Remove a command path from a player.
+   * @param playerName The player's name
+   * @param path The command path to remove
+   */
+  removeCommandPath(playerName: string, path: string): void {
+    const name = playerName.toLowerCase();
+    const paths = this.commandPaths.get(name) ?? [];
+    const index = paths.indexOf(path);
+    if (index >= 0) {
+      paths.splice(index, 1);
+      this.commandPaths.set(name, paths);
+    }
+  }
+
+  /**
+   * Clear a player's custom command paths (reset to level-derived defaults).
+   * @param playerName The player's name
+   */
+  clearCommandPaths(playerName: string): void {
+    this.commandPaths.delete(playerName.toLowerCase());
+  }
+
+  /**
+   * Get the effective command paths for a player.
+   * If the player has custom paths set, returns those.
+   * Otherwise, returns the default paths for their permission level.
+   * @param playerName The player's name
+   * @param level The player's permission level
+   */
+  getEffectiveCommandPaths(playerName: string, level: PermissionLevel): string[] {
+    const customPaths = this.commandPaths.get(playerName.toLowerCase());
+    if (customPaths !== undefined) {
+      return [...customPaths];
+    }
+    return this.getDefaultCommandPathsForLevel(level);
+  }
+
+  /**
+   * Check if a player has a specific command path.
+   * @param playerName The player's name
+   * @param path The command path
+   * @param level The player's permission level (for fallback)
+   */
+  hasCommandPath(playerName: string, path: string, level: PermissionLevel): boolean {
+    return this.getEffectiveCommandPaths(playerName, level).includes(path);
+  }
+
   // ========== Audit Log ==========
 
   /**
@@ -549,6 +643,7 @@ export class Permissions {
   export(): {
     levels: Record<string, PermissionLevel>;
     domains: Record<string, string[]>;
+    commandPaths: Record<string, string[]>;
     protectedPaths: string[];
     forbiddenFiles: string[];
     builderPaths: string[];
@@ -564,9 +659,15 @@ export class Permissions {
       domains[name] = paths;
     }
 
+    const commandPaths: Record<string, string[]> = {};
+    for (const [name, paths] of this.commandPaths) {
+      commandPaths[name] = paths;
+    }
+
     return {
       levels,
       domains,
+      commandPaths,
       protectedPaths: [...this.protectedPaths],
       forbiddenFiles: [...this.forbiddenFiles],
       builderPaths: [...this.builderPaths],
@@ -580,6 +681,7 @@ export class Permissions {
   import(data: {
     levels?: Record<string, PermissionLevel>;
     domains?: Record<string, string[]>;
+    commandPaths?: Record<string, string[]>;
     protectedPaths?: string[];
     forbiddenFiles?: string[];
     builderPaths?: string[];
@@ -594,6 +696,12 @@ export class Permissions {
     if (data.domains) {
       for (const [name, paths] of Object.entries(data.domains)) {
         this.domains.set(name.toLowerCase(), paths);
+      }
+    }
+
+    if (data.commandPaths) {
+      for (const [name, paths] of Object.entries(data.commandPaths)) {
+        this.commandPaths.set(name.toLowerCase(), paths);
       }
     }
 
