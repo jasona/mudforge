@@ -1770,6 +1770,44 @@ export class EfunBridge {
     return { success: true };
   }
 
+  // ========== Guild Command Path Efuns ==========
+
+  /**
+   * Add a guild command path to a player.
+   * This is designed for the guild daemon to call when a player joins a guild.
+   * Only paths starting with 'guilds/' are allowed to prevent abuse.
+   * Does not require admin permission (guild daemon use).
+   * @param playerName The player's name
+   * @param path The guild command path (must start with 'guilds/')
+   */
+  guildAddCommandPath(playerName: string, path: string): { success: boolean; error?: string } {
+    // Validate path starts with 'guilds/' to prevent abuse
+    if (!path.startsWith('guilds/')) {
+      return { success: false, error: 'Guild command paths must start with "guilds/"' };
+    }
+
+    this.permissions.addCommandPath(playerName, path);
+    return { success: true };
+  }
+
+  /**
+   * Remove a guild command path from a player.
+   * This is designed for the guild daemon to call when a player leaves a guild.
+   * Only paths starting with 'guilds/' are allowed to prevent abuse.
+   * Does not require admin permission (guild daemon use).
+   * @param playerName The player's name
+   * @param path The guild command path (must start with 'guilds/')
+   */
+  guildRemoveCommandPath(playerName: string, path: string): { success: boolean; error?: string } {
+    // Validate path starts with 'guilds/' to prevent abuse
+    if (!path.startsWith('guilds/')) {
+      return { success: false, error: 'Guild command paths must start with "guilds/"' };
+    }
+
+    this.permissions.removeCommandPath(playerName, path);
+    return { success: true };
+  }
+
   // ========== Role-Based Path Efuns ==========
 
   /**
@@ -3765,6 +3803,10 @@ RULES:
       addCommandPath: this.addCommandPath.bind(this),
       removeCommandPath: this.removeCommandPath.bind(this),
       clearCommandPaths: this.clearCommandPaths.bind(this),
+
+      // Guild Command Path Permissions (no admin check for guild daemon use)
+      guildAddCommandPath: this.guildAddCommandPath.bind(this),
+      guildRemoveCommandPath: this.guildRemoveCommandPath.bind(this),
 
       // Role-Based Path Permissions
       getBuilderPaths: this.getBuilderPaths.bind(this),

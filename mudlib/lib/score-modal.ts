@@ -13,6 +13,8 @@ import type {
 import { STAT_SHORT_NAMES, type StatName } from '../std/living.js';
 import { getPortraitDaemon } from '../daemons/portrait.js';
 import { getRaceDaemon } from '../daemons/race.js';
+import { getGuildDaemon } from '../daemons/guild.js';
+import { getGuildXPRequired } from '../std/guild/types.js';
 import type { RaceId } from '../std/race/types.js';
 
 /**
@@ -524,6 +526,68 @@ function buildInfoSection(player: ScorePlayer): LayoutContainer {
 }
 
 /**
+ * Build the guilds section.
+ */
+function buildGuildsSection(player: ScorePlayer): LayoutContainer | null {
+  const guildDaemon = getGuildDaemon();
+  const guildData = player.getProperty('guildData') as { guilds: Array<{ guildId: string; guildLevel: number; guildXP: number }> } | undefined;
+
+  if (!guildData || guildData.guilds.length === 0) {
+    return null;
+  }
+
+  const guildRows: LayoutContainer[] = guildData.guilds.map((membership) => {
+    const guild = guildDaemon.getGuild(membership.guildId);
+    const guildName = guild?.name ?? membership.guildId;
+    const xpNeeded = getGuildXPRequired(membership.guildLevel);
+    const xpPercent = Math.round((membership.guildXP / xpNeeded) * 100);
+
+    return {
+      type: 'horizontal',
+      gap: '8px',
+      style: { alignItems: 'center', marginBottom: '4px' },
+      children: [
+        {
+          type: 'text',
+          id: `score-guild-${membership.guildId}-name`,
+          content: guildName,
+          style: { color: '#ddd', fontSize: '13px', width: '100px' },
+        } as DisplayElement,
+        {
+          type: 'text',
+          id: `score-guild-${membership.guildId}-level`,
+          content: `Lv ${membership.guildLevel}`,
+          style: { color: '#4ade80', fontSize: '13px', width: '45px' },
+        } as DisplayElement,
+        {
+          type: 'progress',
+          id: `score-guild-${membership.guildId}-bar`,
+          progress: xpPercent,
+          progressColor: '#60a5fa',
+          style: { flex: '1', height: '10px' },
+        } as DisplayElement,
+        {
+          type: 'text',
+          id: `score-guild-${membership.guildId}-xp`,
+          content: `${membership.guildXP}/${xpNeeded}`,
+          style: { color: '#888', fontSize: '11px', width: '70px', textAlign: 'right' },
+        } as DisplayElement,
+      ],
+    };
+  });
+
+  return {
+    type: 'vertical',
+    gap: '4px',
+    style: { marginTop: '16px' },
+    children: [
+      buildSectionHeader('GUILDS', 'score-guilds-header'),
+      ...guildRows,
+    ],
+  };
+}
+
+/**
  * Get the player's avatar/portrait image.
  * Prefers profilePortrait over avatar ID.
  */
@@ -556,22 +620,32 @@ export function openScoreModal(player: ScorePlayer): void {
 
   const avatarSrc = getPlayerImage(player);
 
+  // Build optional sections
+  const guildsSection = buildGuildsSection(player);
+
   // Build the full modal layout
+  const children: (LayoutContainer | DisplayElement)[] = [
+    buildHeroSection(player, avatarSrc),
+    {
+      type: 'divider',
+      id: 'score-divider-1',
+      style: { marginBottom: '16px' },
+    } as unknown as LayoutContainer,
+    buildExperienceSection(player),
+    buildVitalsSection(player),
+    buildStatsSection(player),
+    buildInfoSection(player),
+  ];
+
+  // Add guilds section if player is in any guilds
+  if (guildsSection) {
+    children.push(guildsSection);
+  }
+
   const layout: LayoutContainer = {
     type: 'vertical',
     gap: '0',
-    children: [
-      buildHeroSection(player, avatarSrc),
-      {
-        type: 'divider',
-        id: 'score-divider-1',
-        style: { marginBottom: '16px' },
-      } as unknown as LayoutContainer,
-      buildExperienceSection(player),
-      buildVitalsSection(player),
-      buildStatsSection(player),
-      buildInfoSection(player),
-    ],
+    children,
   };
 
   // Send the modal

@@ -317,6 +317,11 @@ export class GuildDaemon extends MudObject {
     // Set player's guild property for channel access
     player.setProperty('guild', guildId);
 
+    // Add command path for guild skills
+    if (typeof efuns !== 'undefined' && efuns.guildAddCommandPath) {
+      efuns.guildAddCommandPath(player.name, `guilds/${guildId}`);
+    }
+
     this.savePlayerGuildData(player, data);
 
     return {
@@ -368,6 +373,11 @@ export class GuildDaemon extends MudObject {
       // Set to another guild if member of one, otherwise clear
       const nextGuild = data.guilds[0]?.guildId;
       player.setProperty('guild', nextGuild ?? null);
+    }
+
+    // Remove command path for guild skills
+    if (typeof efuns !== 'undefined' && efuns.guildRemoveCommandPath) {
+      efuns.guildRemoveCommandPath(player.name, `guilds/${guildId}`);
     }
 
     this.savePlayerGuildData(player, data);
@@ -1066,11 +1076,30 @@ export class GuildDaemon extends MudObject {
   applyAllPassives(player: GuildPlayer): void {
     const data = this.getPlayerGuildData(player);
 
+    // Sync command paths for existing guild members (migration support)
+    this.syncCommandPaths(player);
+
     for (const playerSkill of data.skills) {
       const skill = this.getSkill(playerSkill.skillId);
       if (skill && skill.type === 'passive') {
         this.applyPassiveSkill(player, skill, playerSkill.level);
       }
+    }
+  }
+
+  /**
+   * Sync command paths for a player's guild memberships.
+   * Ensures command paths are set correctly for all guilds the player belongs to.
+   * Called on login for migration support.
+   */
+  syncCommandPaths(player: GuildPlayer): void {
+    if (typeof efuns === 'undefined' || !efuns.guildAddCommandPath) {
+      return;
+    }
+
+    const data = this.getPlayerGuildData(player);
+    for (const membership of data.guilds) {
+      efuns.guildAddCommandPath(player.name, `guilds/${membership.guildId}`);
     }
   }
 

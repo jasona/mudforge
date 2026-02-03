@@ -564,11 +564,17 @@ export class Permissions {
    * @param level The player's permission level
    */
   getEffectiveCommandPaths(playerName: string, level: PermissionLevel): string[] {
+    // Always start with default paths for the player's permission level
+    const defaultPaths = this.getDefaultCommandPathsForLevel(level);
     const customPaths = this.commandPaths.get(playerName.toLowerCase());
-    if (customPaths !== undefined) {
-      return [...customPaths];
+
+    if (customPaths === undefined || customPaths.length === 0) {
+      return defaultPaths;
     }
-    return this.getDefaultCommandPathsForLevel(level);
+
+    // Merge default paths with custom paths (custom paths are additive)
+    const allPaths = new Set([...defaultPaths, ...customPaths]);
+    return Array.from(allPaths);
   }
 
   /**

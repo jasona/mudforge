@@ -1,11 +1,13 @@
 /**
- * Skills command - View and manage learned skills.
+ * Skills command - View learned skills.
  *
  * Usage:
  *   skills               - List all learned skills
  *   skills <guild>       - List skills from a specific guild
  *   skill info <name>    - Detailed skill info
- *   skill use <name> [target] - Use a skill (also works as direct command)
+ *   skill available      - Show skills available to learn
+ *
+ * Note: To use skills, type the skill name directly (e.g., "bash goblin", "heal").
  */
 
 import type { MudObject } from '../../lib/std.js';
@@ -28,8 +30,8 @@ interface GuildPlayer extends Living {
 }
 
 export const name = ['skills', 'skill', 'spells', 'abilities'];
-export const description = 'View and use your skills';
-export const usage = 'skills [guild] | skill info <name> | skill use <name> [target]';
+export const description = 'View your skills';
+export const usage = 'skills [guild] | skill info <name> | skill available';
 
 export async function execute(ctx: CommandContext): Promise<void> {
   const args = ctx.args.trim();
@@ -53,15 +55,6 @@ export async function execute(ctx: CommandContext): Promise<void> {
         return;
       }
       showSkillInfo(ctx, player, guildDaemon, remainder);
-      break;
-
-    case 'use':
-    case 'cast':
-      if (!remainder) {
-        ctx.sendLine('{yellow}Usage: skill use <skill name> [target]{/}');
-        return;
-      }
-      handleUseSkill(ctx, player, guildDaemon, remainder);
       break;
 
     case 'available':
@@ -128,7 +121,7 @@ function showAllSkills(
     ctx.sendLine('');
   }
 
-  ctx.sendLine('{dim}Use "skill info <name>" for details or "skill use <name>" to use.{/}');
+  ctx.sendLine('{dim}Use "skill info <name>" for details. Type a skill name to use it (e.g., "bash goblin").{/}');
 }
 
 /**
@@ -285,76 +278,6 @@ function showSkillInfo(
   } else {
     ctx.sendLine(`{dim}You have not learned this skill.{/}`);
     ctx.sendLine(`Learn Cost: {yellow}${skill.learnCost} gold{/}`);
-  }
-}
-
-/**
- * Handle using a skill.
- */
-function handleUseSkill(
-  ctx: CommandContext,
-  player: GuildPlayer,
-  guildDaemon: ReturnType<typeof getGuildDaemon>,
-  args: string
-): void {
-  const parts = args.split(/\s+/);
-  const skillName = parts[0];
-  const targetName = parts.slice(1).join(' ');
-
-  if (!skillName) {
-    ctx.sendLine('{yellow}Usage: skill use <skill name> [target]{/}');
-    return;
-  }
-
-  // Find skill by name
-  const playerSkills = guildDaemon.getPlayerSkills(player);
-  const skillMatch = playerSkills.find(
-    ps => ps.skill.id.toLowerCase() === skillName.toLowerCase() ||
-          ps.skill.name.toLowerCase() === skillName.toLowerCase() ||
-          ps.skill.name.toLowerCase().includes(skillName.toLowerCase())
-  );
-
-  if (!skillMatch) {
-    ctx.sendLine(`{red}You don't know a skill called "${skillName}".{/}`);
-    return;
-  }
-
-  const skill = skillMatch.skill;
-
-  // Find target if needed
-  let target: Living | undefined;
-  if (skill.target === 'single' && targetName) {
-    // Look for target in room
-    const room = player.environment;
-    if (room && 'inventory' in room) {
-      const inventory = (room as MudObject & { inventory: MudObject[] }).inventory;
-      const found = inventory.find(obj => {
-        const living = obj as Living & { name?: string };
-        return living.name?.toLowerCase().includes(targetName.toLowerCase());
-      });
-      if (found && 'health' in found) {
-        target = found as Living;
-      }
-    }
-
-    if (!target) {
-      ctx.sendLine(`{red}Cannot find "${targetName}" here.{/}`);
-      return;
-    }
-  } else if (skill.target === 'single' && !targetName) {
-    // Check if in combat with a target
-    if (player.combatTarget) {
-      target = player.combatTarget as Living;
-    }
-  }
-
-  // Use the skill
-  const result = guildDaemon.useSkill(player, skill.id, target);
-
-  if (result.success) {
-    ctx.sendLine(`{green}${result.message}{/}`);
-  } else {
-    ctx.sendLine(`{red}${result.message}{/}`);
   }
 }
 
