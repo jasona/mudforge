@@ -5,7 +5,7 @@
  * and transitions to the game terminal after successful authentication.
  */
 
-import type { WebSocketClient, AuthResponseMessage } from './websocket-client.js';
+import type { WebSocketClient, AuthResponseMessage, SessionResumeMessage } from './websocket-client.js';
 import { getAvatarSvg, getAvatarList } from './avatars.js';
 
 /**
@@ -667,6 +667,15 @@ export class Launcher {
     // Auth response handler
     this.wsClient.on('auth-response', (response: unknown) => {
       this.handleAuthResponse(response as AuthResponseMessage);
+    });
+
+    // Session resume handler - transition to game if session restored successfully
+    this.wsClient.on('session-resume', (message: unknown) => {
+      const sessionMessage = message as SessionResumeMessage;
+      if (sessionMessage.type === 'session_resume' && sessionMessage.success) {
+        // Session restored - skip launcher and go straight to game
+        this.transitionToGame();
+      }
     });
   }
 
