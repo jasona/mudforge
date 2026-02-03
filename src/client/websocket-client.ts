@@ -315,11 +315,10 @@ export class WebSocketClient {
   // Latency measurement (updated via TIME_PONG responses)
   private lastMeasuredLatency: number = 0;
 
-  // Client-side heartbeat monitoring for stale connection detection
+  // Track when we last received a TIME message (informational only, not used for stale detection)
+  // Note: Client-side stale detection via timers is unreliable due to browser timer throttling
+  // when tabs are backgrounded. We trust the server's RFC 6455 ping/pong mechanism instead.
   private lastTimeReceived: number = Date.now();
-  private healthCheckInterval: ReturnType<typeof setInterval> | null = null;
-  private readonly STALE_THRESHOLD_MS = 90000; // 2x server heartbeat (45s)
-  private readonly HEALTH_CHECK_INTERVAL_MS = 15000; // Check every 15 seconds
 
 
   /**
@@ -419,68 +418,31 @@ export class WebSocketClient {
   }
 
   /**
-   * Start the client-side health check interval.
-   * Detects stale connections before the server does.
-   */
-  private startHealthCheck(): void {
-    this.stopHealthCheck();
-    this.healthCheckInterval = setInterval(() => {
-      const timeSinceLastTime = Date.now() - this.lastTimeReceived;
-      if (timeSinceLastTime > this.STALE_THRESHOLD_MS && this._connectionState === 'connected') {
-        console.warn('[WS] Connection appears stale, initiating reconnect');
-        this.handleStaleConnection();
-      }
-    }, this.HEALTH_CHECK_INTERVAL_MS);
-  }
-
-  /**
-   * Stop the health check interval.
-   */
-  private stopHealthCheck(): void {
-    if (this.healthCheckInterval !== null) {
-      clearInterval(this.healthCheckInterval);
-      this.healthCheckInterval = null;
-    }
-  }
-
-  /**
-   * Handle a stale connection detected by client-side monitoring.
-   */
-  private handleStaleConnection(): void {
-    this.emit('connection-stale');
-    // Close with custom code to indicate client-detected stale connection
-    this.socket?.close(4000, 'Client detected stale connection');
-    // onclose handler will trigger reconnection
-  }
-
-  /**
    * Set up visibility change handler.
-   * Reconnects immediately when user returns to a tab with a stale connection.
+   * Only acts when already disconnected - speeds up reconnection when tab becomes visible.
+   * Does NOT kill healthy connections - browser timer throttling makes client-side
+   * stale detection unreliable. We trust the server's RFC 6455 ping/pong mechanism.
    */
   private setupVisibilityHandler(): void {
     document.addEventListener('visibilitychange', () => {
       if (!document.hidden) {
-        // Tab became visible
+        // Tab became visible - only act if we're already trying to reconnect
         if (this._connectionState === 'reconnecting' || this._connectionState === 'failed') {
           // Reset backoff and try immediately
+          console.log('[WS] Tab visible, attempting reconnect');
           this.reconnectAttempts = 0;
           this.cancelReconnect();
           this.createConnection();
-        } else if (this._connectionState === 'connected') {
-          // Check if connection is actually healthy
-          const timeSinceLastTime = Date.now() - this.lastTimeReceived;
-          if (timeSinceLastTime > this.STALE_THRESHOLD_MS) {
-            console.log('[WS] Tab visible, connection stale, reconnecting');
-            this.handleStaleConnection();
-          }
         }
+        // DO NOT check staleness here - trust the server's ping/pong
       }
     });
   }
 
   /**
    * Set up network change handler.
-   * Detects WiFi/cellular switches and proactively checks connection health.
+   * Only triggers reconnect if already in a bad state.
+   * Does NOT proactively kill connections - trust server's ping/pong.
    */
   private setupNetworkHandler(): void {
     // Navigator.connection is experimental and not available in all browsers
@@ -492,14 +454,14 @@ export class WebSocketClient {
     const connection = nav.connection;
     if (connection) {
       connection.addEventListener('change', () => {
-        if (this._connectionState === 'connected') {
-          // Network changed - verify connection health
-          const timeSinceLastTime = Date.now() - this.lastTimeReceived;
-          if (timeSinceLastTime > 60000) { // 1 minute stale
-            console.log('[WS] Network changed, connection may be stale');
-            this.handleStaleConnection();
-          }
+        // Network changed - only act if already disconnected
+        if (this._connectionState === 'reconnecting' || this._connectionState === 'failed') {
+          console.log('[WS] Network changed, attempting reconnect');
+          this.reconnectAttempts = 0;
+          this.cancelReconnect();
+          this.createConnection();
         }
+        // DO NOT proactively kill connections - trust server's ping/pong
       });
     }
   }
@@ -558,9 +520,6 @@ export class WebSocketClient {
       this.setConnectionState('connected');
       this.emit('connected');
 
-      // Start client-side health monitoring
-      this.startHealthCheck();
-
       // If we have a valid session token, attempt to resume
       if (this.hasValidSession) {
         this.sendSessionResume();
@@ -574,9 +533,6 @@ export class WebSocketClient {
       const reason = event.reason || `Code ${event.code}`;
       this.emit('disconnected', reason);
       this.socket = null;
-
-      // Stop health monitoring
-      this.stopHealthCheck();
 
       // Only skip reconnect if the user explicitly called disconnect()
       if (this.intentionalDisconnect) {
@@ -939,7 +895,6 @@ export class WebSocketClient {
     // This prevents the close handler from trying to reconnect
     this.intentionalDisconnect = true;
     this.cancelReconnect();
-    this.stopHealthCheck();
 
     if (this.socket) {
       try {
