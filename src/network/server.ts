@@ -106,7 +106,7 @@ export class Server extends EventEmitter {
     // Register WebSocket support
     await this.fastify.register(fastifyWebsocket, {
       options: {
-        maxPayload: 64 * 1024, // 64KB max message size
+        maxPayload: 1024 * 1024, // 1MB max message size (for IDE saves, portraits, etc.)
       },
     });
 
