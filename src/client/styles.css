@@ -188,6 +188,27 @@ body {
   animation: pulse 1.5s infinite;
 }
 
+/* High latency warning state - yellow */
+#status.warning {
+  color: var(--warning);
+  background-color: var(--warning-subtle);
+}
+
+#status.warning::before {
+  background-color: var(--warning);
+}
+
+/* Reconnecting state - orange (distinct from connecting) */
+#status.reconnecting {
+  color: #f97316;
+  background-color: rgba(249, 115, 22, 0.15);
+}
+
+#status.reconnecting::before {
+  background-color: #f97316;
+  animation: pulse 1s infinite;
+}
+
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.4; }

@@ -295,8 +295,18 @@ class MudClient {
     // Reconnection progress feedback
     this.wsClient.on('reconnect-progress', (p: ReconnectProgress) => {
       const statusText = `Reconnecting (${p.attempt}/${p.maxAttempts})...`;
-      this.setStatus('connecting', statusText);
+      this.setStatus('reconnecting', statusText);
       this.terminal.addSystemLine(`Reconnecting in ${Math.round(p.delayMs / 1000)}s (attempt ${p.attempt}/${p.maxAttempts})...`);
+    });
+
+    // Connection stale detection feedback
+    this.wsClient.on('connection-stale', () => {
+      this.terminal.addSystemLine('{yellow}Connection appears stale, reconnecting...{/}');
+    });
+
+    // Latency updates for connection quality indicator
+    this.wsClient.on('latency-update', (latencyMs: number) => {
+      this.updateConnectionIndicator(latencyMs);
     });
 
     this.wsClient.on('reconnect-failed', (_progress: ReconnectProgress) => {
@@ -468,9 +478,33 @@ class MudClient {
   /**
    * Set the connection status display.
    */
-  private setStatus(state: 'connecting' | 'connected' | 'disconnected', text: string): void {
+  private setStatus(state: 'connecting' | 'connected' | 'disconnected' | 'warning' | 'reconnecting', text: string): void {
     this.statusElement.className = state;
     this.statusElement.textContent = text;
+    // Update tooltip with latency info if available
+    if (state === 'connected' || state === 'warning') {
+      const latency = this.wsClient.latency;
+      if (latency > 0) {
+        this.statusElement.title = `Latency: ${latency}ms`;
+      }
+    } else {
+      this.statusElement.title = '';
+    }
+  }
+
+  /**
+   * Update connection indicator based on latency.
+   */
+  private updateConnectionIndicator(latencyMs: number): void {
+    if (this.wsClient.connectionState !== 'connected') {
+      return; // Only update when connected
+    }
+
+    if (latencyMs > 500) {
+      this.setStatus('warning', `High Latency (${latencyMs}ms)`);
+    } else {
+      this.setStatus('connected', 'Connected');
+    }
   }
 
   /**

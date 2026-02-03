@@ -774,20 +774,26 @@ export class CombatDaemon extends MudObject {
 
     // Calculate damage
     let baseDamage = this.calculateBaseDamage(attacker, weapon);
+    let critBonusDamage = 0;
+
     if (critical) {
-      baseDamage *= 2;
+      // Critical bonus damage bypasses armor entirely
+      // This ensures crits feel impactful even against armored targets
+      critBonusDamage = baseDamage;
       result.critical = true;
     }
     if (blocked) {
       baseDamage *= 0.5;
+      critBonusDamage *= 0.5; // Blocking reduces crit bonus too
       result.blocked = true;
     }
 
     result.hit = true;
-    result.baseDamage = baseDamage;
+    result.baseDamage = baseDamage + critBonusDamage;
 
-    // Apply armor and resistances
-    let finalDamage = this.applyDefenses(defender, baseDamage, result.damageType, attacker);
+    // Apply armor and resistances to base damage only
+    // Critical bonus damage bypasses defenses
+    let finalDamage = this.applyDefenses(defender, baseDamage, result.damageType, attacker) + critBonusDamage;
 
     // Handle invulnerability
     if (defender.isInvulnerable()) {

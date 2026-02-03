@@ -79,7 +79,9 @@ type WebSocketClientEvent =
   | 'queue-flushed'
   | 'session-token'
   | 'session-resume'
-  | 'time-message';
+  | 'time-message'
+  | 'connection-stale'
+  | 'latency-update';
 
 /**
  * Equipment slot data for stats display.
@@ -313,6 +315,12 @@ export class WebSocketClient {
   // Latency measurement (updated via TIME_PONG responses)
   private lastMeasuredLatency: number = 0;
 
+  // Client-side heartbeat monitoring for stale connection detection
+  private lastTimeReceived: number = Date.now();
+  private healthCheckInterval: ReturnType<typeof setInterval> | null = null;
+  private readonly STALE_THRESHOLD_MS = 90000; // 2x server heartbeat (45s)
+  private readonly HEALTH_CHECK_INTERVAL_MS = 15000; // Check every 15 seconds
+
 
   /**
    * Check if connected.
@@ -347,6 +355,20 @@ export class WebSocketClient {
    */
   get hasValidSession(): boolean {
     return this.sessionToken !== null && Date.now() < this.sessionExpiresAt;
+  }
+
+  /**
+   * Get the current measured latency in milliseconds.
+   */
+  get latency(): number {
+    return this.lastMeasuredLatency;
+  }
+
+  /**
+   * Get milliseconds since last TIME message was received.
+   */
+  get timeSinceLastHeartbeat(): number {
+    return Date.now() - this.lastTimeReceived;
   }
 
   /**
@@ -397,6 +419,92 @@ export class WebSocketClient {
   }
 
   /**
+   * Start the client-side health check interval.
+   * Detects stale connections before the server does.
+   */
+  private startHealthCheck(): void {
+    this.stopHealthCheck();
+    this.healthCheckInterval = setInterval(() => {
+      const timeSinceLastTime = Date.now() - this.lastTimeReceived;
+      if (timeSinceLastTime > this.STALE_THRESHOLD_MS && this._connectionState === 'connected') {
+        console.warn('[WS] Connection appears stale, initiating reconnect');
+        this.handleStaleConnection();
+      }
+    }, this.HEALTH_CHECK_INTERVAL_MS);
+  }
+
+  /**
+   * Stop the health check interval.
+   */
+  private stopHealthCheck(): void {
+    if (this.healthCheckInterval !== null) {
+      clearInterval(this.healthCheckInterval);
+      this.healthCheckInterval = null;
+    }
+  }
+
+  /**
+   * Handle a stale connection detected by client-side monitoring.
+   */
+  private handleStaleConnection(): void {
+    this.emit('connection-stale');
+    // Close with custom code to indicate client-detected stale connection
+    this.socket?.close(4000, 'Client detected stale connection');
+    // onclose handler will trigger reconnection
+  }
+
+  /**
+   * Set up visibility change handler.
+   * Reconnects immediately when user returns to a tab with a stale connection.
+   */
+  private setupVisibilityHandler(): void {
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) {
+        // Tab became visible
+        if (this._connectionState === 'reconnecting' || this._connectionState === 'failed') {
+          // Reset backoff and try immediately
+          this.reconnectAttempts = 0;
+          this.cancelReconnect();
+          this.createConnection();
+        } else if (this._connectionState === 'connected') {
+          // Check if connection is actually healthy
+          const timeSinceLastTime = Date.now() - this.lastTimeReceived;
+          if (timeSinceLastTime > this.STALE_THRESHOLD_MS) {
+            console.log('[WS] Tab visible, connection stale, reconnecting');
+            this.handleStaleConnection();
+          }
+        }
+      }
+    });
+  }
+
+  /**
+   * Set up network change handler.
+   * Detects WiFi/cellular switches and proactively checks connection health.
+   */
+  private setupNetworkHandler(): void {
+    // Navigator.connection is experimental and not available in all browsers
+    const nav = navigator as Navigator & {
+      connection?: EventTarget & {
+        addEventListener: (type: string, listener: () => void) => void;
+      };
+    };
+    const connection = nav.connection;
+    if (connection) {
+      connection.addEventListener('change', () => {
+        if (this._connectionState === 'connected') {
+          // Network changed - verify connection health
+          const timeSinceLastTime = Date.now() - this.lastTimeReceived;
+          if (timeSinceLastTime > 60000) { // 1 minute stale
+            console.log('[WS] Network changed, connection may be stale');
+            this.handleStaleConnection();
+          }
+        }
+      });
+    }
+  }
+
+  /**
    * Connect to the server.
    */
   connect(url: string): void {
@@ -407,7 +515,13 @@ export class WebSocketClient {
     this.url = url;
     this.reconnectAttempts = 0;
     this.intentionalDisconnect = false;
+    this.lastTimeReceived = Date.now(); // Reset on new connection
     this.setConnectionState('connecting');
+
+    // Set up browser event handlers (only once)
+    this.setupVisibilityHandler();
+    this.setupNetworkHandler();
+
     this.createConnection();
   }
 
@@ -440,8 +554,12 @@ export class WebSocketClient {
 
     this.socket.onopen = () => {
       this.reconnectAttempts = 0;
+      this.lastTimeReceived = Date.now(); // Reset heartbeat tracking
       this.setConnectionState('connected');
       this.emit('connected');
+
+      // Start client-side health monitoring
+      this.startHealthCheck();
 
       // If we have a valid session token, attempt to resume
       if (this.hasValidSession) {
@@ -457,6 +575,9 @@ export class WebSocketClient {
       this.emit('disconnected', reason);
       this.socket = null;
 
+      // Stop health monitoring
+      this.stopHealthCheck();
+
       // Only skip reconnect if the user explicitly called disconnect()
       if (this.intentionalDisconnect) {
         this.setConnectionState('disconnected');
@@ -468,6 +589,7 @@ export class WebSocketClient {
       // - 1001: Going away (server shutdown, browser navigation)
       // - 1005: No status code (server crash, network issue)
       // - 1006: Abnormal closure (network error)
+      // - 4000: Client-detected stale connection
       // - Any other code: unexpected disconnect
       this.scheduleReconnect(reason);
     };
@@ -591,6 +713,8 @@ export class WebSocketClient {
           const jsonStr = line.slice(7); // Remove \x00[TIME] prefix
           try {
             const timeMessage = JSON.parse(jsonStr) as TimeMessage;
+            // Track when we last received a heartbeat from server
+            this.lastTimeReceived = Date.now();
             // Use the last measured RTT latency (from TIME_PONG responses)
             timeMessage.latencyMs = this.lastMeasuredLatency;
             this.emit('time-message', timeMessage);
@@ -598,7 +722,8 @@ export class WebSocketClient {
             // Send ACK with timestamp for RTT measurement
             this.sendTimeAck();
           } catch {
-            // Ignore parse errors - still serves as keepalive
+            // Still update heartbeat tracking even if parse fails
+            this.lastTimeReceived = Date.now();
           }
         } else if (line.startsWith('\x00[TIME_PONG]')) {
           // Server echoed our timestamp - calculate RTT
@@ -606,6 +731,7 @@ export class WebSocketClient {
           const sentTime = parseInt(timestampStr, 10);
           if (!isNaN(sentTime)) {
             this.lastMeasuredLatency = Date.now() - sentTime;
+            this.emit('latency-update', this.lastMeasuredLatency);
           }
         } else {
           this.emit('message', line);
@@ -672,24 +798,28 @@ export class WebSocketClient {
   /**
    * Send a message to the server.
    * If disconnected but reconnecting, queues the message for later delivery.
+   * @returns true if sent immediately, false if queued or failed
    */
-  send(message: string): void {
+  send(message: string): boolean {
     if (!this.isConnected) {
       // Queue the message if we're trying to reconnect
       if (this._connectionState === 'reconnecting' || this._connectionState === 'connecting') {
         this.queueMessage(message);
+        return false;
       } else {
         this.emit('error', 'Not connected');
+        return false;
       }
-      return;
     }
 
     try {
       this.socket!.send(message + '\n');
+      return true;
     } catch (error) {
       this.emit('error', `Failed to send: ${error}`);
       // Queue the message in case we reconnect
       this.queueMessage(message);
+      return false;
     }
   }
 
@@ -809,6 +939,7 @@ export class WebSocketClient {
     // This prevents the close handler from trying to reconnect
     this.intentionalDisconnect = true;
     this.cancelReconnect();
+    this.stopHealthCheck();
 
     if (this.socket) {
       try {

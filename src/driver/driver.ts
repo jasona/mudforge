@@ -1049,7 +1049,8 @@ export class Driver {
     }
 
     // Transfer connection to this player (handles old connection cleanup)
-    this.transferConnection(connection, player);
+    // Capture buffered messages from old connection for replay
+    const bufferedMessages = this.transferConnection(connection, player);
 
     // Restore player to previous location if in void
     if (playerWithEnv.previousLocation && playerWithEnv.environment?.objectPath === '/areas/void/void') {
@@ -1085,6 +1086,22 @@ export class Driver {
       expiresAt,
     });
 
+    // Replay buffered messages from the old connection (if any)
+    if (bufferedMessages.length > 0) {
+      // Limit to last 20 messages to avoid overwhelming the client
+      const replayMessages = bufferedMessages.slice(-20);
+      this.logger.info(
+        { count: replayMessages.length, total: bufferedMessages.length },
+        'Replaying buffered messages on session resume'
+      );
+      // Send a "catching up" indicator
+      connection.send('{dim}--- Replaying missed messages ---{/}\n');
+      for (const msg of replayMessages) {
+        connection.send(msg);
+      }
+      connection.send('{dim}--- End of replay ---{/}\n');
+    }
+
     // Send a welcome back message
     const playerWithReceive = player as MudObject & { receive?: (msg: string) => void };
     if (playerWithReceive.receive) {
@@ -1103,7 +1120,7 @@ export class Driver {
     }
 
     this.logger.info(
-      { name: playerWithEnv.name, connectionId: connection.id },
+      { name: playerWithEnv.name, connectionId: connection.id, bufferedMessages: bufferedMessages.length },
       'Session resumed successfully'
     );
   }
@@ -1581,11 +1598,17 @@ ${allLogs || 'No logs captured'}
   /**
    * Transfer a connection to a different player, disconnecting the old connection.
    * Used for session takeover when a player reconnects.
+   * @returns Buffered messages from the old connection for replay
    */
-  transferConnection(newConnection: Connection, existingPlayer: MudObject): void {
+  transferConnection(newConnection: Connection, existingPlayer: MudObject): string[] {
+    let bufferedMessages: string[] = [];
+
     // Find and disconnect the old connection
     for (const [oldConnection, handler] of this.connectionHandlers.entries()) {
       if (handler === existingPlayer) {
+        // Capture buffered messages before closing
+        bufferedMessages = oldConnection.getBufferedMessages();
+
         // Notify the old connection
         oldConnection.send('\nAnother connection has taken over this session.\n');
         // Remove the old connection binding
@@ -1607,6 +1630,8 @@ ${allLogs || 'No logs captured'}
     if (playerWithBind.bindConnection) {
       playerWithBind.bindConnection(newConnection);
     }
+
+    return bufferedMessages;
   }
 
   /**
