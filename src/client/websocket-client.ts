@@ -320,6 +320,10 @@ export class WebSocketClient {
   // when tabs are backgrounded. We trust the server's RFC 6455 ping/pong mechanism instead.
   private lastTimeReceived: number = Date.now();
 
+  // Track whether browser event handlers have been set up (to prevent duplicates on reconnect)
+  private visibilityHandlerSetup: boolean = false;
+  private networkHandlerSetup: boolean = false;
+
 
   /**
    * Check if connected.
@@ -480,9 +484,15 @@ export class WebSocketClient {
     this.lastTimeReceived = Date.now(); // Reset on new connection
     this.setConnectionState('connecting');
 
-    // Set up browser event handlers (only once)
-    this.setupVisibilityHandler();
-    this.setupNetworkHandler();
+    // Set up browser event handlers (only once per WebSocketClient instance)
+    if (!this.visibilityHandlerSetup) {
+      this.setupVisibilityHandler();
+      this.visibilityHandlerSetup = true;
+    }
+    if (!this.networkHandlerSetup) {
+      this.setupNetworkHandler();
+      this.networkHandlerSetup = true;
+    }
 
     this.createConnection();
   }
@@ -521,12 +531,13 @@ export class WebSocketClient {
       this.emit('connected');
 
       // If we have a valid session token, attempt to resume
+      // Don't flush queue here - wait for session resume response
       if (this.hasValidSession) {
         this.sendSessionResume();
+      } else {
+        // No session to resume, flush immediately
+        this.flushMessageQueue();
       }
-
-      // Flush any queued messages
-      this.flushMessageQueue();
     };
 
     this.socket.onclose = (event) => {
@@ -922,7 +933,7 @@ export class WebSocketClient {
 
     this.intentionalDisconnect = false;
     this.reconnectAttempts = 0;
-    this._connectionState = 'disconnected';
+    this.setConnectionState('disconnected'); // Use setter to emit state-change event
     this.createConnection();
   }
 
@@ -972,6 +983,10 @@ export class WebSocketClient {
       this.clearSession();
     }
     this.emit('session-resume', message);
+
+    // Flush queue after session resume completes (success or failure)
+    // This ensures queued commands execute AFTER authentication is resolved
+    this.flushMessageQueue();
   }
 
   /**

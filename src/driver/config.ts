@@ -201,8 +201,8 @@ export function loadConfig(): DriverConfig {
     discordChannelId: process.env['DISCORD_CHANNEL_ID'] ?? '',
 
     // WebSocket reliability
-    wsHeartbeatIntervalMs: parseNumber(process.env['WS_HEARTBEAT_INTERVAL_MS'], 45000),
-    wsMaxMissedPongs: parseNumber(process.env['WS_MAX_MISSED_PONGS'], 2),
+    wsHeartbeatIntervalMs: parseNumber(process.env['WS_HEARTBEAT_INTERVAL_MS'], 25000),
+    wsMaxMissedPongs: parseNumber(process.env['WS_MAX_MISSED_PONGS'], 20),
     wsSessionTokenTtlMs: parseNumber(process.env['WS_SESSION_TOKEN_TTL_MS'], 15 * 60 * 1000), // 15 minutes
     wsSessionSecret: process.env['WS_SESSION_SECRET'] ?? '', // Auto-generated if empty
     wsSessionValidateIp: parseBoolean(process.env['WS_SESSION_VALIDATE_IP'], false),

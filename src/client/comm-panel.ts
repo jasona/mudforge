@@ -77,6 +77,12 @@ export class CommPanel {
   // GIF click callback
   private onGifClick?: (gifId: string) => void;
 
+  // Bound event handlers (stored for cleanup)
+  private boundDragMove: (e: MouseEvent) => void;
+  private boundDragEnd: () => void;
+  private boundTouchMove: (e: TouchEvent) => void;
+  private boundTouchEnd: () => void;
+
   constructor(containerId: string, options?: CommPanelOptions) {
     // Get or create container
     const existing = document.getElementById(containerId);
@@ -126,6 +132,12 @@ export class CommPanel {
     // Store options
     this.onGifClick = options?.onGifClick;
 
+    // Pre-bind event handlers for proper cleanup
+    this.boundDragMove = this.onDragMove.bind(this);
+    this.boundDragEnd = this.onDragEnd.bind(this);
+    this.boundTouchMove = this.onTouchMove.bind(this);
+    this.boundTouchEnd = this.onDragEnd.bind(this);
+
     // Restore saved layout
     this.restoreLayout();
 
@@ -170,11 +182,11 @@ export class CommPanel {
       });
     }
 
-    // Global mouse/touch move and up handlers
-    document.addEventListener('mousemove', this.onDragMove.bind(this));
-    document.addEventListener('mouseup', this.onDragEnd.bind(this));
-    document.addEventListener('touchmove', this.onTouchMove.bind(this), { passive: false });
-    document.addEventListener('touchend', this.onDragEnd.bind(this));
+    // Global mouse/touch move and up handlers (use pre-bound handlers for cleanup)
+    document.addEventListener('mousemove', this.boundDragMove);
+    document.addEventListener('mouseup', this.boundDragEnd);
+    document.addEventListener('touchmove', this.boundTouchMove, { passive: false });
+    document.addEventListener('touchend', this.boundTouchEnd);
 
     // GIF link click handler
     if (this.content) {
@@ -587,6 +599,21 @@ export class CommPanel {
    */
   get visible(): boolean {
     return this.isVisible && !this.isCollapsed;
+  }
+
+  /**
+   * Clean up event listeners and resources.
+   * Call this when the panel is permanently removed.
+   */
+  destroy(): void {
+    // Remove global event listeners
+    document.removeEventListener('mousemove', this.boundDragMove);
+    document.removeEventListener('mouseup', this.boundDragEnd);
+    document.removeEventListener('touchmove', this.boundTouchMove);
+    document.removeEventListener('touchend', this.boundTouchEnd);
+
+    // Remove panel from DOM
+    this.panel.remove();
   }
 }
 
