@@ -215,6 +215,7 @@ export class Connection extends EventEmitter {
   private _backpressureWarned: boolean = false;
   private _pendingMessages: string[] = [];
   private _drainScheduled: boolean = false;
+  private _drainTimeout: ReturnType<typeof setTimeout> | null = null;
 
   // Message buffer for session resume replay
   private _messageBuffer: string[] = [];
@@ -460,11 +461,23 @@ export class Connection extends EventEmitter {
 
     this._drainScheduled = true;
 
-    // Check again after a short delay
-    setTimeout(() => {
+    // Check again after a short delay (store handle for cleanup)
+    this._drainTimeout = setTimeout(() => {
+      this._drainTimeout = null;
       this._drainScheduled = false;
       this.drainPendingMessages();
     }, 50);
+  }
+
+  /**
+   * Clear the drain timeout if pending.
+   */
+  private clearDrainTimeout(): void {
+    if (this._drainTimeout !== null) {
+      clearTimeout(this._drainTimeout);
+      this._drainTimeout = null;
+      this._drainScheduled = false;
+    }
   }
 
   /**
@@ -828,11 +841,34 @@ export class Connection extends EventEmitter {
 
     this._state = 'closing';
 
+    // Clean up resources
+    this.cleanup();
+
     try {
       this.socket.close(closeCode, closeReason);
     } catch (error) {
       this.emit('error', error as Error);
     }
+  }
+
+  /**
+   * Clean up connection resources.
+   * Removes event listeners and clears buffers to prevent memory leaks.
+   */
+  private cleanup(): void {
+    // Clear pending drain timeout
+    this.clearDrainTimeout();
+
+    // Remove all listeners from the socket to prevent memory leaks
+    this.socket.removeAllListeners();
+
+    // Remove all listeners from this EventEmitter
+    this.removeAllListeners();
+
+    // Clear message buffers
+    this._messageBuffer = [];
+    this._pendingMessages = [];
+    this._inputBuffer = '';
   }
 
   /**
@@ -844,11 +880,15 @@ export class Connection extends EventEmitter {
     console.log(`[WS-TERMINATE] Missed pongs at termination: ${this._missedPongs}`);
     console.log(`[WS-TERMINATE] Called from:`, new Error('terminate() call trace').stack);
 
+    // Clean up resources before terminating
+    this.cleanup();
+
     try {
       this.socket.terminate();
       this._state = 'closed';
     } catch (error) {
-      this.emit('error', error as Error);
+      // Can't emit error after cleanup removed listeners, just log it
+      console.error(`[WS-TERMINATE] Error terminating connection ${this._id}:`, error);
     }
   }
 }

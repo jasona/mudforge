@@ -106,6 +106,10 @@ export class DebugPanel {
   // Interval reference for cleanup
   private statusBarInterval: number | null = null;
 
+  // Bound event handlers (stored for cleanup)
+  private boundOnDrag: (e: MouseEvent) => void;
+  private boundEndDrag: () => void;
+
   // Maximum log entries to keep in DOM (prevents memory bloat on long sessions)
   private static MAX_LOG_ENTRIES = 200;
 
@@ -132,6 +136,10 @@ export class DebugPanel {
     this.pingEl = this.statusBar.querySelector('.debug-ping');
     this.uptimeEl = this.statusBar.querySelector('.debug-uptime');
     this.countEl = this.statusBar.querySelector('.debug-log-count');
+
+    // Pre-bind event handlers for proper cleanup
+    this.boundOnDrag = this.onDrag.bind(this);
+    this.boundEndDrag = this.endDrag.bind(this);
 
     // Set up event handlers
     this.setupEventHandlers();
@@ -224,10 +232,10 @@ export class DebugPanel {
     const sendReportBtn = this.panel.querySelector('.debug-send-report-btn');
     sendReportBtn?.addEventListener('click', () => this.sendBugReport());
 
-    // Drag handling
+    // Drag handling (use pre-bound handlers for cleanup)
     this.header.addEventListener('mousedown', (e) => this.startDrag(e));
-    document.addEventListener('mousemove', (e) => this.onDrag(e));
-    document.addEventListener('mouseup', () => this.endDrag());
+    document.addEventListener('mousemove', this.boundOnDrag);
+    document.addEventListener('mouseup', this.boundEndDrag);
 
     // Update uptime periodically (store reference for potential cleanup)
     this.statusBarInterval = window.setInterval(() => this.updateStatusBar(), 1000);
@@ -550,6 +558,10 @@ export class DebugPanel {
       window.clearInterval(this.statusBarInterval);
       this.statusBarInterval = null;
     }
+
+    // Remove global event listeners
+    document.removeEventListener('mousemove', this.boundOnDrag);
+    document.removeEventListener('mouseup', this.boundEndDrag);
   }
 
   /**

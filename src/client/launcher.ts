@@ -81,6 +81,9 @@ export class Launcher {
     all: AnnouncementData[];
   } = { latest: null, all: [] };
 
+  // WebSocket event listeners (stored for cleanup on transition)
+  private wsListeners: Array<{ event: string; handler: (...args: unknown[]) => void }> = [];
+
   constructor(wsClient: WebSocketClient, onLoginSuccess: () => void) {
     this.wsClient = wsClient;
     this.onLoginSuccess = onLoginSuccess;
@@ -649,34 +652,44 @@ export class Launcher {
       this.hideAnnouncementsList();
     });
 
-    // WebSocket events
-    this.wsClient.on('connected', () => {
+    // WebSocket events (store references for cleanup on transition)
+    const connectedHandler = () => {
       this.isConnected = true;
       this.clearError();
-    });
+    };
+    this.wsClient.on('connected', connectedHandler);
+    this.wsListeners.push({ event: 'connected', handler: connectedHandler });
 
-    this.wsClient.on('disconnected', () => {
+    const disconnectedHandler = () => {
       this.isConnected = false;
       this.showError('Disconnected from server');
-    });
+    };
+    this.wsClient.on('disconnected', disconnectedHandler);
+    this.wsListeners.push({ event: 'disconnected', handler: disconnectedHandler });
 
-    this.wsClient.on('error', (error: unknown) => {
+    const errorHandler = (error: unknown) => {
       this.showError(error as string);
-    });
+    };
+    this.wsClient.on('error', errorHandler);
+    this.wsListeners.push({ event: 'error', handler: errorHandler });
 
     // Auth response handler
-    this.wsClient.on('auth-response', (response: unknown) => {
+    const authHandler = (response: unknown) => {
       this.handleAuthResponse(response as AuthResponseMessage);
-    });
+    };
+    this.wsClient.on('auth-response', authHandler);
+    this.wsListeners.push({ event: 'auth-response', handler: authHandler });
 
     // Session resume handler - transition to game if session restored successfully
-    this.wsClient.on('session-resume', (message: unknown) => {
+    const sessionResumeHandler = (message: unknown) => {
       const sessionMessage = message as SessionResumeMessage;
       if (sessionMessage.type === 'session_resume' && sessionMessage.success) {
         // Session restored - skip launcher and go straight to game
         this.transitionToGame();
       }
-    });
+    };
+    this.wsClient.on('session-resume', sessionResumeHandler);
+    this.wsListeners.push({ event: 'session-resume', handler: sessionResumeHandler });
   }
 
   /**
@@ -870,6 +883,12 @@ export class Launcher {
   private transitionToGame(): void {
     // Hide registration modal if open
     this.registerModal?.classList.add('hidden');
+
+    // Remove launcher-specific WebSocket listeners to prevent duplicate handling
+    for (const { event, handler } of this.wsListeners) {
+      this.wsClient.off(event as 'connected' | 'disconnected' | 'error' | 'auth-response' | 'session-resume', handler);
+    }
+    this.wsListeners = [];
 
     // Hide launcher with fade out
     if (this.launcher) {

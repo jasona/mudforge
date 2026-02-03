@@ -72,6 +72,9 @@ let sessionManagerInstance: SessionManager | null = null;
 /**
  * Session manager for creating and validating reconnection tokens.
  */
+/** Maximum number of sessions to prevent unbounded memory growth */
+const MAX_SESSIONS = 10000;
+
 export class SessionManager {
   private secret: string;
   private ttlMs: number;
@@ -95,6 +98,17 @@ export class SessionManager {
     token: string;
     expiresAt: number;
   } {
+    // Check if we're at the session limit
+    if (this.activeSessions.size >= MAX_SESSIONS) {
+      // Force cleanup of expired sessions
+      this.cleanupExpiredSessions();
+
+      // If still at limit after cleanup, reject new session creation
+      if (this.activeSessions.size >= MAX_SESSIONS) {
+        throw new Error('Session limit reached');
+      }
+    }
+
     const now = Date.now();
     const expiresAt = now + this.ttlMs;
     const nonce = randomBytes(8).toString('hex');

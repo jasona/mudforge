@@ -1608,6 +1608,8 @@ ${allLogs || 'No logs captured'}
       if (handler === existingPlayer) {
         // Capture buffered messages before closing
         bufferedMessages = oldConnection.getBufferedMessages();
+        // Clear the buffer on the old connection to free memory
+        oldConnection.clearMessageBuffer();
 
         // Notify the old connection
         oldConnection.send('\nAnother connection has taken over this session.\n');

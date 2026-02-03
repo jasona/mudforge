@@ -138,6 +138,10 @@ export class SoundManager {
   private pendingSounds: Array<{ category: SoundCategory; sound: string; volume?: number }> = [];
   private pendingLoops: Array<{ category: SoundCategory; sound: string; id: string; volume?: number }> = [];
 
+  // Audio unlock tracking
+  private audioUnlockAttempts: number = 0;
+  private static MAX_AUDIO_UNLOCK_ATTEMPTS = 20;
+
   constructor() {
     this.settings = this.loadSettings();
     this.setupAudioUnlock();
@@ -148,11 +152,26 @@ export class SoundManager {
    * macOS Chrome and Safari require user interaction before audio can play.
    */
   private setupAudioUnlock(): void {
+    // Listen for user interactions that unlock audio
+    // Use capture phase to get events before they're handled
+    const events = ['click', 'touchstart', 'touchend', 'keydown'];
+
     const unlockAudio = (event: Event) => {
       if (this.audioUnlocked) return;
 
       // Only respond to trusted (real user) events
       if (!event.isTrusted) return;
+
+      // Track attempts to prevent indefinite listener persistence
+      this.audioUnlockAttempts++;
+      if (this.audioUnlockAttempts >= SoundManager.MAX_AUDIO_UNLOCK_ATTEMPTS) {
+        // Give up and remove listeners to prevent memory leak
+        console.warn('[SoundManager] Max audio unlock attempts reached, giving up');
+        events.forEach(evt => {
+          document.removeEventListener(evt, unlockAudio, true);
+        });
+        return;
+      }
 
       // Try to play a silent audio element to unlock HTML5 Audio
       const silentAudio = new Audio();
@@ -172,9 +191,6 @@ export class SoundManager {
       });
     };
 
-    // Listen for user interactions that unlock audio
-    // Use capture phase to get events before they're handled
-    const events = ['click', 'touchstart', 'touchend', 'keydown'];
     events.forEach(event => {
       document.addEventListener(event, unlockAudio, true);
     });

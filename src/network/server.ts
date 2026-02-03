@@ -204,17 +204,29 @@ export class Server extends EventEmitter {
     const connection = new Connection(socket, id, remoteAddress);
     this.connectionManager.add(connection);
 
-    // Forward events
+    // Forward events with error boundaries to prevent exceptions from affecting other connections
     connection.on('message', (message: string) => {
-      this.emit('message', connection, message);
+      try {
+        this.emit('message', connection, message);
+      } catch (error) {
+        this.config.logger?.error({ connectionId: connection.id, error }, 'Error in message handler');
+      }
     });
 
     connection.on('close', (code: number, reason: string) => {
-      this.emit('disconnect', connection, code, reason);
+      try {
+        this.emit('disconnect', connection, code, reason);
+      } catch (error) {
+        this.config.logger?.error({ connectionId: connection.id, error }, 'Error in disconnect handler');
+      }
     });
 
     connection.on('error', (error: Error) => {
-      this.emit('error', error);
+      try {
+        this.emit('error', error);
+      } catch (emitError) {
+        this.config.logger?.error({ connectionId: connection.id, error, emitError }, 'Error in error handler');
+      }
     });
 
     // Emit connection event
@@ -255,33 +267,37 @@ export class Server extends EventEmitter {
     this.heartbeatInterval = setInterval(() => {
       const connections = this.connectionManager.getAll();
       for (const connection of connections) {
-        // Increment missed pongs counter before sending new ping
-        const missedPongs = connection.incrementMissedPongs();
+        try {
+          // Increment missed pongs counter before sending new ping
+          const missedPongs = connection.incrementMissedPongs();
 
-        if (missedPongs > this.maxMissedPongs) {
-          // Connection has missed too many heartbeats - terminate it
-          const metrics = connection.getHealthMetrics();
-          this.config.logger?.warn(
-            {
-              id: connection.id,
-              ...metrics,
-            },
-            'Connection terminated: missed too many heartbeats'
-          );
-          connection.terminate();
-          continue;
+          if (missedPongs > this.maxMissedPongs) {
+            // Connection has missed too many heartbeats - terminate it
+            const metrics = connection.getHealthMetrics();
+            this.config.logger?.warn(
+              {
+                id: connection.id,
+                ...metrics,
+              },
+              'Connection terminated: missed too many heartbeats'
+            );
+            connection.terminate();
+            continue;
+          }
+
+          // Send WebSocket ping frame (application-level heartbeat)
+          connection.ping();
+
+          // Also send a time message with server timestamp
+          // This creates actual WebSocket data frames that load balancers/proxies
+          // recognize as "activity", preventing idle connection timeouts
+          // The client displays this as a clock in the header
+          // Include game version for cache invalidation detection
+          const gameVersion = getGameConfig()?.version;
+          connection.sendTime(gameVersion);
+        } catch (error) {
+          this.config.logger?.error({ connectionId: connection.id, error }, 'Error in heartbeat for connection');
         }
-
-        // Send WebSocket ping frame (application-level heartbeat)
-        connection.ping();
-
-        // Also send a time message with server timestamp
-        // This creates actual WebSocket data frames that load balancers/proxies
-        // recognize as "activity", preventing idle connection timeouts
-        // The client displays this as a clock in the header
-        // Include game version for cache invalidation detection
-        const gameVersion = getGameConfig()?.version;
-        connection.sendTime(gameVersion);
       }
     }, this.heartbeatIntervalMs);
   }

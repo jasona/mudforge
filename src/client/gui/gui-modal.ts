@@ -39,6 +39,7 @@ export class GUIModal {
   private renderer: GUIRenderer;
   private onMessage: GUIMessageHandler;
   private escapeHandler: ((e: KeyboardEvent) => void) | null = null;
+  private enterKeyHandler: ((e: KeyboardEvent) => void) | null = null;
   private formData: Record<string, unknown> = {};
   private layout: LayoutContainer | null = null;
 
@@ -264,7 +265,8 @@ export class GUIModal {
   private setupEnterKeyHandler(): void {
     if (!this.modal) return;
 
-    this.modal.addEventListener('keydown', (e: KeyboardEvent) => {
+    // Store handler reference for cleanup
+    this.enterKeyHandler = (e: KeyboardEvent) => {
       if (e.key === 'Enter' && !e.shiftKey) {
         const target = e.target as HTMLElement;
         // Only handle Enter on text inputs (not textareas)
@@ -283,7 +285,8 @@ export class GUIModal {
           }
         }
       }
-    });
+    };
+    this.modal.addEventListener('keydown', this.enterKeyHandler);
   }
 
   /**
@@ -599,6 +602,12 @@ export class GUIModal {
     if (this.escapeHandler) {
       document.removeEventListener('keydown', this.escapeHandler, true);
       this.escapeHandler = null;
+    }
+
+    // Remove enter key handler if set
+    if (this.enterKeyHandler && this.modal) {
+      this.modal.removeEventListener('keydown', this.enterKeyHandler);
+      this.enterKeyHandler = null;
     }
 
     // Clean up global action handler
