@@ -196,6 +196,9 @@ const BACKPRESSURE_THRESHOLD = 64 * 1024;
 /** Maximum send buffer size before dropping messages (256KB) */
 const MAX_BUFFER_SIZE = 256 * 1024;
 
+/** Maximum number of messages to buffer for session resume replay */
+const MAX_MESSAGE_BUFFER_SIZE = 50;
+
 /**
  * A single client connection.
  */
@@ -212,6 +215,9 @@ export class Connection extends EventEmitter {
   private _backpressureWarned: boolean = false;
   private _pendingMessages: string[] = [];
   private _drainScheduled: boolean = false;
+
+  // Message buffer for session resume replay
+  private _messageBuffer: string[] = [];
 
   constructor(socket: WebSocket, id: string, remoteAddress: string = 'unknown') {
     super();
@@ -407,9 +413,41 @@ export class Connection extends EventEmitter {
 
     try {
       this.socket.send(message);
+
+      // Buffer messages for session resume replay (only if player is bound)
+      if (this._player) {
+        this.bufferMessage(message);
+      }
     } catch (error) {
       this.emit('error', error as Error);
     }
+  }
+
+  /**
+   * Add a message to the replay buffer.
+   * Maintains a circular buffer of recent messages.
+   */
+  private bufferMessage(message: string): void {
+    this._messageBuffer.push(message);
+    if (this._messageBuffer.length > MAX_MESSAGE_BUFFER_SIZE) {
+      this._messageBuffer.shift();
+    }
+  }
+
+  /**
+   * Get buffered messages for session resume replay.
+   * Returns a copy of the message buffer.
+   */
+  getBufferedMessages(): string[] {
+    return [...this._messageBuffer];
+  }
+
+  /**
+   * Clear the message buffer.
+   * Called after successful session transfer to new connection.
+   */
+  clearMessageBuffer(): void {
+    this._messageBuffer = [];
   }
 
   /**
