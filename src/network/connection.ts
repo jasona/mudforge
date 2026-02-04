@@ -204,13 +204,13 @@ const MAX_BUFFER_SIZE = 256 * 1024;
 const HARD_STOP_BUFFER_SIZE = 512 * 1024;
 
 /**
- * Critical buffer size threshold (2MB).
+ * Critical buffer size threshold (1MB).
  * If buffer exceeds this, the connection is considered broken - likely the client
  * can't receive data but TCP hasn't detected it yet. We should terminate to avoid
  * accumulating unbounded data and to allow the player to reconnect.
- * Lowered from 5MB to catch stuck connections faster.
+ * Lowered from 2MB to catch stuck connections faster.
  */
-const CRITICAL_BUFFER_SIZE = 2 * 1024 * 1024;
+const CRITICAL_BUFFER_SIZE = 1 * 1024 * 1024;
 
 /** Maximum number of messages to buffer for session resume replay */
 const MAX_MESSAGE_BUFFER_SIZE = 50;
@@ -234,6 +234,7 @@ export class Connection extends EventEmitter {
   private _drainScheduled: boolean = false;
   private _drainTimeout: ReturnType<typeof setTimeout> | null = null;
   private _tabVisible: boolean = true; // Client tab visibility (for pausing updates)
+  private _maxBufferSeen: number = 0; // Track max buffer for debugging
 
   // Message buffer for session resume replay
   private _messageBuffer: string[] = [];
@@ -379,6 +380,12 @@ export class Connection extends EventEmitter {
         if (line.startsWith('\x00[TIME_ACK]')) {
           const timestamp = line.slice(11); // Extract timestamp after prefix
           if (timestamp) {
+            // Check buffer before sending (same as other send methods)
+            const bufferedAmount = this.socket.bufferedAmount || 0;
+            if (bufferedAmount > HARD_STOP_BUFFER_SIZE) {
+              // Don't add to buffer if it's already too full
+              continue;
+            }
             // Echo the timestamp back so client can calculate RTT
             try {
               this.socket.send(`\x00[TIME_PONG]${timestamp}`);
@@ -486,6 +493,21 @@ export class Connection extends EventEmitter {
     }
 
     const bufferedAmount = this.socket.bufferedAmount || 0;
+    const messageSize = Buffer.byteLength(message, 'utf8');
+
+    // Track max buffer and log at every 100KB threshold crossed
+    const threshold100KB = Math.floor(bufferedAmount / (100 * 1024)) * 100 * 1024;
+    if (bufferedAmount > this._maxBufferSeen && threshold100KB > this._maxBufferSeen) {
+      const playerName = this._player ? (this._player as { name?: string }).name || 'unknown' : 'no-player';
+      console.warn(`[CONN-BUFFER-GROWTH] ${this._id} (${playerName}) NEW MAX buffer=${(bufferedAmount / 1024).toFixed(0)}KB msgSize=${messageSize}B`);
+      this._maxBufferSeen = threshold100KB;
+    }
+
+    // DIAGNOSTIC: Log whenever buffer exceeds 1MB to catch the growth pattern
+    if (bufferedAmount > 1024 * 1024) {
+      const playerName = this._player ? (this._player as { name?: string }).name || 'unknown' : 'no-player';
+      console.error(`[CONN-BUFFER-ALERT] ${this._id} (${playerName}) buffer=${(bufferedAmount / 1024).toFixed(0)}KB (OVER 1MB!) msgSize=${messageSize}B`);
+    }
 
     // HARD STOP: If buffer is very large, refuse to send anything
     // This prevents runaway buffer growth between heartbeat checks
@@ -495,7 +517,7 @@ export class Connection extends EventEmitter {
       const now = Date.now();
       if (!this._lastHardStopLog || now - this._lastHardStopLog > 1000) {
         this._lastHardStopLog = now;
-        console.error(`[CONN-HARD-STOP] ${this._id} (${playerName}) buffer=${(bufferedAmount / 1024).toFixed(0)}KB - refusing to send, waiting for drain`);
+        console.error(`[CONN-HARD-STOP] ${this._id} (${playerName}) buffer=${(bufferedAmount / 1024).toFixed(0)}KB msgSize=${messageSize}B - refusing to send, waiting for drain`);
       }
       // Queue the message if possible (it will be sent when buffer drains)
       if (this._pendingMessages.length < 100) {
@@ -672,6 +694,18 @@ export class Connection extends EventEmitter {
     }
 
     const bufferedAmount = this.socket.bufferedAmount || 0;
+    const messageSize = Buffer.byteLength(message, 'utf8');
+
+    // DIAGNOSTIC: Log whenever buffer exceeds 1MB
+    if (bufferedAmount > 1024 * 1024) {
+      const playerName = this._player ? (this._player as { name?: string }).name || 'unknown' : 'no-player';
+      console.error(`[CONN-PROTO-BUFFER-ALERT] ${this._id} (${playerName}) buffer=${(bufferedAmount / 1024).toFixed(0)}KB (OVER 1MB!) msgSize=${messageSize}B`);
+    }
+
+    // HARD STOP: Protocol messages also respect hard stop
+    if (bufferedAmount > HARD_STOP_BUFFER_SIZE) {
+      return false;
+    }
 
     // Log when buffer is high (but not on every message)
     if (bufferedAmount > BACKPRESSURE_THRESHOLD && !this._backpressureWarned) {
