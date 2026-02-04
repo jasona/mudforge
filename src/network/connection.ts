@@ -236,10 +236,6 @@ export class Connection extends EventEmitter {
   private _tabVisible: boolean = true; // Client tab visibility (for pausing updates)
   private _maxBufferSeen: number = 0; // Track max buffer for debugging
 
-  // Pending protocol messages - only keep the LAST one of each type
-  // When buffer drains, we send the most recent state, not a history
-  private _pendingProtocolMessages: Map<string, string> = new Map();
-
   // Message buffer for session resume replay
   private _messageBuffer: string[] = [];
 
@@ -406,9 +402,22 @@ export class Connection extends EventEmitter {
           const json = line.slice(12); // Extract JSON after "[VISIBILITY]"
           try {
             const { visible } = JSON.parse(json) as { visible: boolean };
+            const wasHidden = !this._tabVisible;
             this._tabVisible = visible;
-            const playerName = this._player ? (this._player as { name?: string }).name || 'unknown' : 'no-player';
-            console.log(`[CONN-VISIBILITY] ${this._id} (${playerName}) tab ${visible ? 'visible' : 'hidden'}`);
+            const playerName = this._player
+              ? ((this._player as { name?: string }).name || 'unknown')
+              : 'no-player';
+            console.log(
+              `[CONN-VISIBILITY] ${this._id} (${playerName}) tab ${visible ? 'visible' : 'hidden'}`
+            );
+
+            // When tab becomes visible, flush any queued messages to catch up
+            if (visible && wasHidden && this._pendingMessages.length > 0) {
+              console.log(
+                `[CONN-VISIBILITY] ${this._id} (${playerName}) flushing ${this._pendingMessages.length} queued messages`
+              );
+              this.drainPendingMessages();
+            }
           } catch (e) {
             console.error(`[CONN-VISIBILITY] Failed to parse: "${json}", error:`, e);
           }
@@ -489,10 +498,22 @@ export class Connection extends EventEmitter {
   /**
    * Send a message to the client.
    * Implements backpressure handling to prevent memory exhaustion.
+   * When tab is hidden, messages are queued instead of sent to prevent buffer growth.
    * @param message The message to send
    */
   send(message: string): void {
     if (this._state !== 'open') {
+      return;
+    }
+
+    // When tab is hidden, queue messages instead of sending
+    // This prevents buffer growth while the browser isn't reading
+    // Messages will be flushed when tab becomes visible
+    if (!this._tabVisible) {
+      this._pendingMessages.push(message);
+      while (this._pendingMessages.length > 100) {
+        this._pendingMessages.shift(); // Drop oldest, keep newest
+      }
       return;
     }
 
@@ -502,15 +523,23 @@ export class Connection extends EventEmitter {
     // Track max buffer and log at every 100KB threshold crossed
     const threshold100KB = Math.floor(bufferedAmount / (100 * 1024)) * 100 * 1024;
     if (bufferedAmount > this._maxBufferSeen && threshold100KB > this._maxBufferSeen) {
-      const playerName = this._player ? (this._player as { name?: string }).name || 'unknown' : 'no-player';
-      console.warn(`[CONN-BUFFER-GROWTH] ${this._id} (${playerName}) NEW MAX buffer=${(bufferedAmount / 1024).toFixed(0)}KB msgSize=${messageSize}B`);
+      const playerName = this._player
+        ? ((this._player as { name?: string }).name || 'unknown')
+        : 'no-player';
+      console.warn(
+        `[CONN-BUFFER-GROWTH] ${this._id} (${playerName}) NEW MAX buffer=${(bufferedAmount / 1024).toFixed(0)}KB msgSize=${messageSize}B`
+      );
       this._maxBufferSeen = threshold100KB;
     }
 
     // DIAGNOSTIC: Log whenever buffer exceeds 1MB to catch the growth pattern
     if (bufferedAmount > 1024 * 1024) {
-      const playerName = this._player ? (this._player as { name?: string }).name || 'unknown' : 'no-player';
-      console.error(`[CONN-BUFFER-ALERT] ${this._id} (${playerName}) buffer=${(bufferedAmount / 1024).toFixed(0)}KB (OVER 1MB!) msgSize=${messageSize}B`);
+      const playerName = this._player
+        ? ((this._player as { name?: string }).name || 'unknown')
+        : 'no-player';
+      console.error(
+        `[CONN-BUFFER-ALERT] ${this._id} (${playerName}) buffer=${(bufferedAmount / 1024).toFixed(0)}KB (OVER 1MB!) msgSize=${messageSize}B`
+      );
     }
 
     // HARD STOP: If buffer is very large, queue instead of sending
@@ -635,14 +664,11 @@ export class Connection extends EventEmitter {
    * Drain pending messages when buffer has space.
    */
   private drainPendingMessages(): void {
-    const hasRegularMessages = this._pendingMessages.length > 0;
-    const hasProtocolMessages = this._pendingProtocolMessages.size > 0;
-
-    if (this._state !== 'open' || (!hasRegularMessages && !hasProtocolMessages)) {
+    if (this._state !== 'open' || this._pendingMessages.length === 0) {
       return;
     }
 
-    // Drain regular messages first
+    // Drain regular messages
     while (
       this._pendingMessages.length > 0 &&
       (this.socket.bufferedAmount || 0) < BACKPRESSURE_THRESHOLD
@@ -656,24 +682,8 @@ export class Connection extends EventEmitter {
       }
     }
 
-    // Drain protocol messages (only the latest of each type)
-    if ((this.socket.bufferedAmount || 0) < BACKPRESSURE_THRESHOLD) {
-      for (const [type, message] of this._pendingProtocolMessages) {
-        if ((this.socket.bufferedAmount || 0) >= BACKPRESSURE_THRESHOLD) {
-          break;
-        }
-        try {
-          this.socket.send(message);
-          this._pendingProtocolMessages.delete(type);
-        } catch (error) {
-          this.emit('error', error as Error);
-          break;
-        }
-      }
-    }
-
     // Schedule another drain if we still have messages
-    if (this._pendingMessages.length > 0 || this._pendingProtocolMessages.size > 0) {
+    if (this._pendingMessages.length > 0) {
       this.scheduleDrain();
     }
   }
@@ -703,42 +713,55 @@ export class Connection extends EventEmitter {
 
   /**
    * Internal method for sending protocol messages with backpressure awareness.
-   * Unlike regular send(), protocol messages are not queued when buffer is full -
-   * they're dropped since they're typically ephemeral updates that will be
-   * superseded by newer data anyway.
-   * @returns true if message was sent, false if dropped due to backpressure
+   * When tab is hidden, only COMM (chat) messages are sent - all other protocol
+   * messages (STATS, MAP, TIME, COMBAT) are state updates that will be refreshed
+   * when the tab becomes visible again.
+   * @returns true if message was sent, false if dropped
    */
   private sendProtocolMessage(message: string): boolean {
     if (this._state !== 'open') {
       return false;
     }
 
-    const bufferedAmount = this.socket.bufferedAmount || 0;
-    const messageSize = Buffer.byteLength(message, 'utf8');
-
-    // DIAGNOSTIC: Log whenever buffer exceeds 1MB
-    if (bufferedAmount > 1024 * 1024) {
-      const playerName = this._player ? (this._player as { name?: string }).name || 'unknown' : 'no-player';
-      console.error(`[CONN-PROTO-BUFFER-ALERT] ${this._id} (${playerName}) buffer=${(bufferedAmount / 1024).toFixed(0)}KB (OVER 1MB!) msgSize=${messageSize}B`);
-    }
-
     // Extract protocol type from message (e.g., "\x00[STATS]..." -> "STATS")
     const typeMatch = message.match(/^\x00\[([A-Z_]+)\]/);
     const protoType = typeMatch?.[1] ?? 'UNKNOWN';
 
-    // If buffer is too full, store only the LAST message of this type
-    // When buffer drains, we'll send the most recent state
+    // When tab is hidden, only send COMM (chat) messages
+    // All other protocol messages are state updates - skip until visible
+    // Player.heartbeat() will send a full refresh when tab becomes visible
+    if (!this._tabVisible && protoType !== 'COMM') {
+      return false; // Silently skip - will refresh when visible
+    }
+
+    const bufferedAmount = this.socket.bufferedAmount || 0;
+
+    // DIAGNOSTIC: Log whenever buffer exceeds 1MB
+    if (bufferedAmount > 1024 * 1024) {
+      const playerName = this._player
+        ? ((this._player as { name?: string }).name || 'unknown')
+        : 'no-player';
+      const messageSize = Buffer.byteLength(message, 'utf8');
+      console.error(
+        `[CONN-PROTO-BUFFER-ALERT] ${this._id} (${playerName}) buffer=${(bufferedAmount / 1024).toFixed(0)}KB (OVER 1MB!) msgSize=${messageSize}B`
+      );
+    }
+
+    // If buffer is too full, skip this protocol message entirely
+    // Protocol messages are state snapshots - missing one doesn't matter
     if (bufferedAmount > MAX_BUFFER_SIZE) {
-      this._pendingProtocolMessages.set(protoType, message);
-      this.scheduleDrain();
       return false;
     }
 
     // Log when buffer is high (but not on every message)
     if (bufferedAmount > BACKPRESSURE_THRESHOLD && !this._backpressureWarned) {
       this._backpressureWarned = true;
-      const playerName = this._player ? (this._player as { name?: string }).name || 'unknown' : 'no-player';
-      console.warn(`[CONN-BACKPRESSURE] ${this._id} (${playerName}) buffer=${bufferedAmount} exceeds threshold, queueing latest protocol messages`);
+      const playerName = this._player
+        ? ((this._player as { name?: string }).name || 'unknown')
+        : 'no-player';
+      console.warn(
+        `[CONN-BACKPRESSURE] ${this._id} (${playerName}) buffer=${bufferedAmount} exceeds threshold`
+      );
       this.emit('backpressure', bufferedAmount);
     } else if (bufferedAmount <= BACKPRESSURE_THRESHOLD) {
       this._backpressureWarned = false;
@@ -1052,7 +1075,6 @@ export class Connection extends EventEmitter {
     // Clear message buffers
     this._messageBuffer = [];
     this._pendingMessages = [];
-    this._pendingProtocolMessages.clear();
     this._inputBuffer = '';
   }
 
