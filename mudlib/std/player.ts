@@ -161,6 +161,10 @@ export interface Connection {
   sendCombat?(message: CombatMessage): void;
   close(): void;
   isConnected(): boolean;
+  // Connection health metrics (already exist on driver's Connection class)
+  hasBackpressure?: boolean;         // true if buffer > 64KB
+  hasCriticalBackpressure?: boolean; // true if buffer > 5MB
+  missedPongs?: number;              // count of missed ping responses
 }
 
 /**
@@ -298,6 +302,9 @@ export class Player extends Living {
   // Regeneration accumulators (for fractional healing per heartbeat)
   private _hpRegenAccumulator: number = 0;
   private _mpRegenAccumulator: number = 0;
+
+  // Heartbeat counter for adaptive stats frequency
+  private _statsHeartbeatCount: number = 0;
 
   constructor() {
     super();
@@ -1210,16 +1217,63 @@ export class Player extends Living {
   }
 
   /**
+   * Determine if STATS should be sent based on connection health and player activity.
+   * Implements adaptive frequency: healthy+active=2s, idle=10-60s, unhealthy=skip.
+   */
+  private shouldSendStats(): boolean {
+    if (!this._connection?.sendStats) {
+      return false;
+    }
+
+    // NEVER send if connection has critical backpressure (> 5MB buffer)
+    if (this._connection.hasCriticalBackpressure) {
+      return false;
+    }
+
+    // Don't send if connection has backpressure (> 64KB buffer)
+    if (this._connection.hasBackpressure) {
+      return false;
+    }
+
+    // Don't send if multiple pings have gone unanswered
+    if (this._connection.missedPongs && this._connection.missedPongs > 2) {
+      return false;
+    }
+
+    // ALWAYS send during combat - real-time HP updates are critical
+    if (this.inCombat) {
+      return true;
+    }
+
+    // Adaptive frequency for idle players
+    const idle = this.idleTime;
+    const count = this._statsHeartbeatCount;
+
+    if (idle < 60) {
+      return true;                    // Active: every heartbeat (2s)
+    } else if (idle < 300) {
+      return count % 5 === 0;         // 1-5 min idle: every 10s
+    } else if (idle < 1800) {
+      return count % 15 === 0;        // 5-30 min idle: every 30s
+    } else {
+      return count % 30 === 0;        // 30+ min idle: every 60s
+    }
+  }
+
+  /**
    * Called each heartbeat. Sends stats to client and shows vitals monitor if enabled.
    */
   override heartbeat(): void {
     super.heartbeat();
 
-    // Process regeneration
+    // Increment counter for adaptive stats frequency (wrap at 1000)
+    this._statsHeartbeatCount = (this._statsHeartbeatCount + 1) % 1000;
+
+    // Process regeneration (ALWAYS - this is game logic, not display)
     this.processRegeneration();
 
-    // Send stats update to client (for graphical display)
-    if (this._connection?.sendStats) {
+    // Send stats update to client only if appropriate
+    if (this.shouldSendStats()) {
       const profilePortrait = this.getProperty('profilePortrait');
 
       // Build equipment data from getAllEquipped()
