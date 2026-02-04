@@ -145,8 +145,10 @@ export interface PlayerSkill {
   skillId: string;
   /** Current skill level (1-100) */
   level: number;
-  /** XP invested in this skill */
+  /** XP invested in this skill (from manual advancement) */
   xpInvested: number;
+  /** XP gained from using this skill */
+  usageXP: number;
 }
 
 /**
@@ -266,12 +268,33 @@ export function getGuildXPRequired(currentLevel: number): number {
 }
 
 /**
- * Calculate XP required to advance a skill to the next level.
+ * Calculate XP required to advance a skill to the next level (manual advancement).
  * @param currentLevel Current skill level
  * @param costPerLevel Base cost per level from skill definition
  */
 export function getSkillXPRequired(currentLevel: number, costPerLevel: number): number {
   return currentLevel * costPerLevel;
+}
+
+/**
+ * Calculate usage XP required for a skill to auto-level through use.
+ * Uses the same formula as manual advancement for consistency.
+ * @param currentLevel Current skill level
+ * @param costPerLevel Base cost per level from skill definition
+ */
+export function getSkillUsageXPRequired(currentLevel: number, costPerLevel: number): number {
+  return currentLevel * costPerLevel;
+}
+
+/**
+ * Calculate diminished usage XP based on skill level.
+ * At level 1: 100%, at level 50: ~50%, at level 100: ~33%
+ * @param baseXP Base XP amount before diminishing
+ * @param skillLevel Current skill level
+ */
+export function calculateSkillUsageXP(baseXP: number, skillLevel: number): number {
+  const levelPenalty = 1 / (1 + (skillLevel - 1) * 0.02);
+  return Math.max(1, Math.ceil(baseXP * levelPenalty));
 }
 
 // Re-export for convenience

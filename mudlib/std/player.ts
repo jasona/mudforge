@@ -25,6 +25,7 @@ import { Item } from './item.js';
 import { colorize, stripColors, wordWrap } from '../lib/colors.js';
 import { getChannelDaemon } from '../daemons/channels.js';
 import { getCombatDaemon } from '../daemons/combat.js';
+import { getGuildDaemon } from '../daemons/guild.js';
 import { Corpse } from './corpse.js';
 import {
   getConfigOption,
@@ -1468,6 +1469,14 @@ export class Player extends Living {
     if (amount <= 0) return;
     this._experience += amount;
     this.receive(`{yellow}You gain ${amount} experience points!{/}\n`);
+
+    // Award usage XP to passive skills based on combat XP gained
+    try {
+      const guildDaemon = getGuildDaemon();
+      guildDaemon.awardPassiveUsageXP(this as Parameters<typeof guildDaemon.awardPassiveUsageXP>[0], amount);
+    } catch {
+      // Guild daemon may not be initialized yet
+    }
   }
 
   /**

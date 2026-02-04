@@ -19,6 +19,7 @@ import {
   type GuildId,
   type GuildDefinition,
   type SkillDefinition,
+  type SkillType,
   type PlayerGuildData,
   type PlayerGuildMembership,
   type PlayerSkill,
@@ -31,6 +32,8 @@ import {
   GUILD_CONSTANTS,
   getGuildXPRequired,
   getSkillXPRequired,
+  getSkillUsageXPRequired,
+  calculateSkillUsageXP,
 } from '../std/guild/types.js';
 import { capitalizeName } from '../lib/text-utils.js';
 import {
@@ -565,6 +568,7 @@ export class GuildDaemon extends MudObject {
       skillId,
       level: 1,
       xpInvested: 0,
+      usageXP: 0,
     });
 
     this.savePlayerGuildData(player, data);
@@ -636,6 +640,106 @@ export class GuildDaemon extends MudObject {
       newLevel: playerSkill.level,
       xpSpent: xpRequired,
     };
+  }
+
+  // ==================== Skill Usage XP ====================
+
+  /**
+   * Get base usage XP for a skill type.
+   */
+  private getBaseUsageXP(skillType: SkillType): number {
+    switch (skillType) {
+      case 'combat': return 5;   // Used frequently
+      case 'buff': return 8;     // Used less often
+      case 'debuff': return 8;
+      case 'utility': return 10; // Used rarely
+      case 'crafting': return 15; // Used very rarely
+      case 'passive': return 0;  // Passives use different XP method
+      default: return 5;
+    }
+  }
+
+  /**
+   * Award usage XP to a skill and check for auto-leveling.
+   */
+  awardSkillUsageXP(
+    player: GuildPlayer,
+    skillId: string,
+    baseAmount: number
+  ): { xpAwarded: number; leveledUp: boolean; newLevel?: number } {
+    const skill = this.getSkill(skillId);
+    if (!skill) {
+      return { xpAwarded: 0, leveledUp: false };
+    }
+
+    const data = this.getPlayerGuildData(player);
+    const playerSkill = data.skills.find(s => s.skillId === skillId);
+    if (!playerSkill) {
+      return { xpAwarded: 0, leveledUp: false };
+    }
+
+    // Check if skill is at max level
+    if (playerSkill.level >= skill.maxLevel) {
+      return { xpAwarded: 0, leveledUp: false };
+    }
+
+    // Apply diminishing returns based on skill level
+    const xpAwarded = calculateSkillUsageXP(baseAmount, playerSkill.level);
+
+    // Initialize usageXP if needed (migration for existing players)
+    if (playerSkill.usageXP === undefined) {
+      playerSkill.usageXP = 0;
+    }
+
+    playerSkill.usageXP += xpAwarded;
+
+    // Check for auto-level
+    const xpRequired = getSkillUsageXPRequired(playerSkill.level, skill.advanceCostPerLevel);
+    let leveledUp = false;
+    let newLevel: number | undefined;
+
+    if (playerSkill.usageXP >= xpRequired) {
+      // Remove passive effect at old level if applicable
+      if (skill.type === 'passive') {
+        this.removePassiveSkill(player, skill, playerSkill.level);
+      }
+
+      // Level up
+      playerSkill.level += 1;
+      playerSkill.usageXP -= xpRequired; // Keep overflow XP
+      leveledUp = true;
+      newLevel = playerSkill.level;
+
+      // Apply passive effect at new level
+      if (skill.type === 'passive') {
+        this.applyPassiveSkill(player, skill, playerSkill.level);
+      }
+    }
+
+    this.savePlayerGuildData(player, data);
+
+    return { xpAwarded, leveledUp, newLevel };
+  }
+
+  /**
+   * Award usage XP to all passive skills based on combat XP gained.
+   * Called when player earns combat XP from kills.
+   */
+  awardPassiveUsageXP(player: GuildPlayer, combatXPGained: number): void {
+    const data = this.getPlayerGuildData(player);
+
+    for (const playerSkill of data.skills) {
+      const skill = this.getSkill(playerSkill.skillId);
+      if (skill && skill.type === 'passive') {
+        // Award 10% of combat XP as usage XP to passive skills
+        const baseXP = Math.ceil(combatXPGained * 0.1);
+        const result = this.awardSkillUsageXP(player, playerSkill.skillId, baseXP);
+
+        if (result.leveledUp && result.newLevel !== undefined) {
+          player.receive(`\n{green}Your ${skill.name} has improved to level ${result.newLevel}!{/}\n`);
+        }
+      }
+    }
   }
 
   // ==================== Skill Execution ====================
@@ -753,6 +857,13 @@ export class GuildDaemon extends MudObject {
       // Start cooldown
       if (skill.cooldown > 0) {
         this.startCooldown(player, skillId, skill.cooldown);
+      }
+
+      // Award usage XP
+      const baseXP = this.getBaseUsageXP(skill.type);
+      const xpResult = this.awardSkillUsageXP(player, skillId, baseXP);
+      if (xpResult.leveledUp && xpResult.newLevel !== undefined) {
+        player.receive(`\n{green}Your ${skill.name} has improved to level ${xpResult.newLevel}!{/}\n`);
       }
     }
 

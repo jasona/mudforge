@@ -9,7 +9,7 @@
 
 import type { MudObject } from '../../lib/std.js';
 import { getGuildDaemon } from '../../daemons/guild.js';
-import { GUILD_CONSTANTS, getGuildXPRequired, getSkillXPRequired } from '../../std/guild/types.js';
+import { GUILD_CONSTANTS, getGuildXPRequired, getSkillXPRequired, getSkillUsageXPRequired } from '../../std/guild/types.js';
 
 interface CommandContext {
   player: MudObject;
@@ -139,10 +139,12 @@ function showAdvancementOptions(
   // Show skill advancement options
   if (data.skills.length > 0) {
     ctx.sendLine('{bold}Skill Advancement:{/}');
+    ctx.sendLine('{dim}(Skills can be advanced with XP or improved through usage){/}');
+    ctx.sendLine('');
 
     // Group by whether they can be advanced
-    const canAdvanceNow: Array<{ name: string; id: string; level: number; maxLevel: number; xpCost: number }> = [];
-    const needsXP: Array<{ name: string; level: number; maxLevel: number; xpCost: number; currentXP: number }> = [];
+    const canAdvanceNow: Array<{ name: string; id: string; level: number; maxLevel: number; xpCost: number; usageXP: number; usageXPRequired: number }> = [];
+    const needsXP: Array<{ name: string; level: number; maxLevel: number; xpCost: number; currentXP: number; usageXP: number; usageXPRequired: number }> = [];
 
     for (const playerSkill of data.skills) {
       const skill = guildDaemon.getSkill(playerSkill.skillId);
@@ -151,6 +153,8 @@ function showAdvancementOptions(
       if (playerSkill.level >= skill.maxLevel) continue;
 
       const xpCost = getSkillXPRequired(playerSkill.level, skill.advanceCostPerLevel);
+      const usageXP = playerSkill.usageXP ?? 0;
+      const usageXPRequired = getSkillUsageXPRequired(playerSkill.level, skill.advanceCostPerLevel);
 
       if (playerXP >= xpCost) {
         canAdvanceNow.push({
@@ -159,6 +163,8 @@ function showAdvancementOptions(
           level: playerSkill.level,
           maxLevel: skill.maxLevel,
           xpCost,
+          usageXP,
+          usageXPRequired,
         });
       } else {
         needsXP.push({
@@ -167,15 +173,18 @@ function showAdvancementOptions(
           maxLevel: skill.maxLevel,
           xpCost,
           currentXP: playerXP,
+          usageXP,
+          usageXPRequired,
         });
       }
     }
 
     // Show skills ready to advance
     if (canAdvanceNow.length > 0) {
-      ctx.sendLine('  {green}Ready to advance:{/}');
+      ctx.sendLine('  {green}Ready to advance (with XP):{/}');
       for (const skill of canAdvanceNow.slice(0, 5)) {
-        ctx.sendLine(`    {bold}${skill.name}{/} ${skill.level} -> ${skill.level + 1} ({yellow}${skill.xpCost} XP{/})`);
+        const usageProgress = `{yellow}${skill.usageXP}/${skill.usageXPRequired}{/}`;
+        ctx.sendLine(`    {bold}${skill.name}{/} ${skill.level} -> ${skill.level + 1} ({yellow}${skill.xpCost} XP{/}) | Usage: ${usageProgress}`);
       }
       if (canAdvanceNow.length > 5) {
         ctx.sendLine(`    {dim}...and ${canAdvanceNow.length - 5} more{/}`);
@@ -185,16 +194,18 @@ function showAdvancementOptions(
 
     // Show skills needing more XP
     if (needsXP.length > 0 && canAdvanceNow.length < 3) {
-      ctx.sendLine('  {dim}Need more XP:{/}');
+      ctx.sendLine('  {dim}Need more XP (or use skill to level up):{/}');
       for (const skill of needsXP.slice(0, 3)) {
         const needed = skill.xpCost - skill.currentXP;
-        ctx.sendLine(`    {dim}${skill.name} ${skill.level} -> ${skill.level + 1} (need ${needed} more XP){/}`);
+        const usageProgress = `${skill.usageXP}/${skill.usageXPRequired}`;
+        ctx.sendLine(`    {dim}${skill.name} ${skill.level} -> ${skill.level + 1} (need ${needed} XP) | Usage: ${usageProgress}{/}`);
       }
       ctx.sendLine('');
     }
   }
 
-  ctx.sendLine('{dim}Type "advance <name>" to advance a guild or skill.{/}');
+  ctx.sendLine('{dim}Type "advance <name>" to spend XP to advance a skill instantly.{/}');
+  ctx.sendLine('{dim}Skills also level up automatically through use!{/}');
 }
 
 export default { name, description, usage, execute };
