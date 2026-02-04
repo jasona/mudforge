@@ -236,6 +236,10 @@ export class Connection extends EventEmitter {
   private _tabVisible: boolean = true; // Client tab visibility (for pausing updates)
   private _maxBufferSeen: number = 0; // Track max buffer for debugging
 
+  // Pending protocol messages - only keep the LAST one of each type
+  // When buffer drains, we send the most recent state, not a history
+  private _pendingProtocolMessages: Map<string, string> = new Map();
+
   // Message buffer for session resume replay
   private _messageBuffer: string[] = [];
 
@@ -631,12 +635,14 @@ export class Connection extends EventEmitter {
    * Drain pending messages when buffer has space.
    */
   private drainPendingMessages(): void {
-    if (this._state !== 'open' || this._pendingMessages.length === 0) {
+    const hasRegularMessages = this._pendingMessages.length > 0;
+    const hasProtocolMessages = this._pendingProtocolMessages.size > 0;
+
+    if (this._state !== 'open' || (!hasRegularMessages && !hasProtocolMessages)) {
       return;
     }
 
-    // Only drain if we have room - check bufferedAmount each iteration
-    // to avoid overshooting the threshold
+    // Drain regular messages first
     while (
       this._pendingMessages.length > 0 &&
       (this.socket.bufferedAmount || 0) < BACKPRESSURE_THRESHOLD
@@ -650,8 +656,24 @@ export class Connection extends EventEmitter {
       }
     }
 
+    // Drain protocol messages (only the latest of each type)
+    if ((this.socket.bufferedAmount || 0) < BACKPRESSURE_THRESHOLD) {
+      for (const [type, message] of this._pendingProtocolMessages) {
+        if ((this.socket.bufferedAmount || 0) >= BACKPRESSURE_THRESHOLD) {
+          break;
+        }
+        try {
+          this.socket.send(message);
+          this._pendingProtocolMessages.delete(type);
+        } catch (error) {
+          this.emit('error', error as Error);
+          break;
+        }
+      }
+    }
+
     // Schedule another drain if we still have messages
-    if (this._pendingMessages.length > 0) {
+    if (this._pendingMessages.length > 0 || this._pendingProtocolMessages.size > 0) {
       this.scheduleDrain();
     }
   }
@@ -700,8 +722,15 @@ export class Connection extends EventEmitter {
       console.error(`[CONN-PROTO-BUFFER-ALERT] ${this._id} (${playerName}) buffer=${(bufferedAmount / 1024).toFixed(0)}KB (OVER 1MB!) msgSize=${messageSize}B`);
     }
 
-    // HARD STOP: Protocol messages also respect hard stop
-    if (bufferedAmount > HARD_STOP_BUFFER_SIZE) {
+    // Extract protocol type from message (e.g., "\x00[STATS]..." -> "STATS")
+    const typeMatch = message.match(/^\x00\[([A-Z_]+)\]/);
+    const protoType = typeMatch?.[1] ?? 'UNKNOWN';
+
+    // If buffer is too full, store only the LAST message of this type
+    // When buffer drains, we'll send the most recent state
+    if (bufferedAmount > MAX_BUFFER_SIZE) {
+      this._pendingProtocolMessages.set(protoType, message);
+      this.scheduleDrain();
       return false;
     }
 
@@ -709,15 +738,10 @@ export class Connection extends EventEmitter {
     if (bufferedAmount > BACKPRESSURE_THRESHOLD && !this._backpressureWarned) {
       this._backpressureWarned = true;
       const playerName = this._player ? (this._player as { name?: string }).name || 'unknown' : 'no-player';
-      console.warn(`[CONN-BACKPRESSURE] ${this._id} (${playerName}) buffer=${bufferedAmount} exceeds threshold, dropping protocol messages`);
+      console.warn(`[CONN-BACKPRESSURE] ${this._id} (${playerName}) buffer=${bufferedAmount} exceeds threshold, queueing latest protocol messages`);
       this.emit('backpressure', bufferedAmount);
     } else if (bufferedAmount <= BACKPRESSURE_THRESHOLD) {
       this._backpressureWarned = false;
-    }
-
-    // Drop message if buffer is too full - protocol messages are ephemeral
-    if (bufferedAmount > MAX_BUFFER_SIZE) {
-      return false;
     }
 
     try {
@@ -1028,6 +1052,7 @@ export class Connection extends EventEmitter {
     // Clear message buffers
     this._messageBuffer = [];
     this._pendingMessages = [];
+    this._pendingProtocolMessages.clear();
     this._inputBuffer = '';
   }
 
