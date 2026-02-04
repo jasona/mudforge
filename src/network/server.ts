@@ -48,14 +48,16 @@ export interface ServerEvents {
   error: (error: Error) => void;
 }
 
-/** Default heartbeat interval in milliseconds (45 seconds) */
-const DEFAULT_HEARTBEAT_INTERVAL_MS = 45000;
+/** Default heartbeat interval in milliseconds (10 seconds).
+ * Reduced from 45s to catch buffer buildup and stuck connections faster.
+ */
+const DEFAULT_HEARTBEAT_INTERVAL_MS = 10000;
 
 /** Default maximum missed pong responses before terminating connection.
- * Set high to allow connections to survive browser tab suspension and device sleep.
- * At 45s heartbeat interval, 100 missed pongs = ~75 minutes of tolerance.
+ * At 10s heartbeat interval, 18 missed pongs = 3 minutes of tolerance.
+ * This allows time for brief network hiccups while still detecting truly stuck connections.
  */
-const DEFAULT_MAX_MISSED_PONGS = 100;
+const DEFAULT_MAX_MISSED_PONGS = 18;
 
 /**
  * MUD server handling HTTP and WebSocket connections.
@@ -297,6 +299,27 @@ export class Server extends EventEmitter {
             continue;
           }
 
+          // Check for critically large buffer - this indicates the client can't receive data
+          // (e.g., network issue, suspended browser tab, laptop sleeping).
+          // Terminate these connections immediately to prevent unbounded memory growth
+          // and allow the player to reconnect when their connection is restored.
+          const bufferedAmount = connection.bufferedAmount;
+          if (connection.hasCriticalBackpressure) {
+            this.config.logger?.warn(
+              {
+                id: connection.id,
+                bufferedAmount,
+                bufferedMB: (bufferedAmount / (1024 * 1024)).toFixed(2),
+              },
+              'Connection terminated: critical buffer backlog (client cannot receive data)'
+            );
+            console.error(`[HEARTBEAT] ${connection.id} (${playerName}): TERMINATING - critical buffer backlog ${(bufferedAmount / (1024 * 1024)).toFixed(2)}MB (client cannot receive data, allowing reconnect)`);
+            connection.terminate();
+            this.connectionManager.remove(connection.id);
+            this.emit('disconnect', connection, 1006, 'Buffer backlog exceeded');
+            continue;
+          }
+
           // Get metrics for potential logging
           const metrics = connection.getHealthMetrics();
 
@@ -304,6 +327,16 @@ export class Server extends EventEmitter {
           // (missed pongs, high lastActivity, etc.)
           if (metrics.missedPongs > 0 || metrics.lastActivity > this.heartbeatIntervalMs * 2) {
             console.log(`[HEARTBEAT] ${connection.id} (${playerName}): missedPongs=${metrics.missedPongs}, state=${metrics.state}, lastActivity=${metrics.lastActivity}ms ago`);
+          }
+
+          // If connection has significant backpressure, skip ping - it would just queue behind
+          // the existing data and never reach the client anyway. The buffer check above will
+          // catch connections that are truly stuck.
+          if (connection.hasBackpressure) {
+            console.warn(`[HEARTBEAT] ${connection.id} (${playerName}): SKIPPING ping - backpressure (buffer=${(bufferedAmount / 1024).toFixed(0)}KB)`);
+            // Still increment missed pongs since we're not sending a ping the client could respond to
+            connection.incrementMissedPongs();
+            continue;
           }
 
           // Increment missed pongs counter before sending new ping
