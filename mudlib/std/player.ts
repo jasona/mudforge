@@ -307,6 +307,9 @@ export class Player extends Living {
   // Heartbeat counter for adaptive stats frequency
   private _statsHeartbeatCount: number = 0;
 
+  // Tab visibility tracking for state refresh on return
+  private _lastTabVisible: boolean = true;
+
   constructor() {
     super();
     this.shortDesc = 'a player';
@@ -757,6 +760,29 @@ export class Player extends Living {
       });
     } catch (error) {
       console.error(`[Player] Error sending combat target update for ${this.name}:`, error);
+    }
+  }
+
+  /**
+   * Send a complete state refresh to the client.
+   * Called when tab becomes visible after being hidden.
+   * Sends current STATS, MAP position, and COMBAT target.
+   */
+  private async sendFullStateRefresh(): Promise<void> {
+    if (!this._connection) {
+      return;
+    }
+
+    // Force send stats on next heartbeat check by ensuring shouldSendStats() returns true
+    // We do this by setting the counter to 0 which always triggers for active players
+    this._statsHeartbeatCount = 0;
+
+    // Send current map position (player may have moved while tab was hidden)
+    await this.sendMapUpdate();
+
+    // Send current combat target (if any)
+    if (this.inCombat && this.combatTarget) {
+      await this.sendCombatTarget(this.combatTarget);
     }
   }
 
@@ -1220,7 +1246,8 @@ export class Player extends Living {
   /**
    * Determine if STATS should be sent based on connection health and player activity.
    * Implements adaptive frequency: healthy+active=2s, idle=10-60s, unhealthy=skip.
-   * When tab is hidden, drastically reduces frequency to prevent buffer buildup.
+   * Note: When tab is hidden, connection.sendProtocolMessage() skips STATS entirely
+   * and we send a full refresh when tab becomes visible again.
    */
   private shouldSendStats(): boolean {
     if (!this._connection?.sendStats) {
@@ -1242,20 +1269,12 @@ export class Player extends Living {
       return false;
     }
 
-    const count = this._statsHeartbeatCount;
-
-    // If tab is hidden, drastically reduce updates to prevent buffer buildup
-    // Browser throttles JS when tab is backgrounded, causing receive buffer to fill
-    if (this._connection.tabVisible === false) {
-      // Even during combat, reduce to every 30s when tab is hidden
-      // The player can't see the updates anyway
-      return count % 15 === 0;        // Every 30s when tab hidden
-    }
-
     // ALWAYS send during combat - real-time HP updates are critical
     if (this.inCombat) {
       return true;
     }
+
+    const count = this._statsHeartbeatCount;
 
     // Adaptive frequency for idle players
     const idle = this.idleTime;
@@ -1276,6 +1295,15 @@ export class Player extends Living {
    */
   override heartbeat(): void {
     super.heartbeat();
+
+    // Check for tab visibility change (hidden → visible)
+    // When tab becomes visible again, send a full state refresh
+    const currentVisible = this._connection?.tabVisible ?? true;
+    if (currentVisible && !this._lastTabVisible) {
+      // Tab just became visible - send full state refresh
+      void this.sendFullStateRefresh();
+    }
+    this._lastTabVisible = currentVisible;
 
     // Increment counter for adaptive stats frequency (wrap at 1000)
     this._statsHeartbeatCount = (this._statsHeartbeatCount + 1) % 1000;

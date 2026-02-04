@@ -5,7 +5,7 @@
  * and transitions to the game terminal after successful authentication.
  */
 
-import type { WebSocketClient, AuthResponseMessage, SessionResumeMessage } from './websocket-client.js';
+import type { WebSocketClient, AuthResponseMessage, SessionResumeMessage } from './shared-websocket-client.js';
 import { getAvatarSvg, getAvatarList } from './avatars.js';
 
 /**

@@ -204,13 +204,13 @@ const MAX_BUFFER_SIZE = 256 * 1024;
 const HARD_STOP_BUFFER_SIZE = 512 * 1024;
 
 /**
- * Critical buffer size threshold (2MB).
+ * Critical buffer size threshold (1MB).
  * If buffer exceeds this, the connection is considered broken - likely the client
  * can't receive data but TCP hasn't detected it yet. We should terminate to avoid
  * accumulating unbounded data and to allow the player to reconnect.
- * Lowered from 5MB to catch stuck connections faster.
+ * Lowered from 2MB to catch stuck connections faster.
  */
-const CRITICAL_BUFFER_SIZE = 2 * 1024 * 1024;
+const CRITICAL_BUFFER_SIZE = 1 * 1024 * 1024;
 
 /** Maximum number of messages to buffer for session resume replay */
 const MAX_MESSAGE_BUFFER_SIZE = 50;
@@ -234,6 +234,7 @@ export class Connection extends EventEmitter {
   private _drainScheduled: boolean = false;
   private _drainTimeout: ReturnType<typeof setTimeout> | null = null;
   private _tabVisible: boolean = true; // Client tab visibility (for pausing updates)
+  private _maxBufferSeen: number = 0; // Track max buffer for debugging
 
   // Message buffer for session resume replay
   private _messageBuffer: string[] = [];
@@ -379,6 +380,12 @@ export class Connection extends EventEmitter {
         if (line.startsWith('\x00[TIME_ACK]')) {
           const timestamp = line.slice(11); // Extract timestamp after prefix
           if (timestamp) {
+            // Check buffer before sending (same as other send methods)
+            const bufferedAmount = this.socket.bufferedAmount || 0;
+            if (bufferedAmount > HARD_STOP_BUFFER_SIZE) {
+              // Don't add to buffer if it's already too full
+              continue;
+            }
             // Echo the timestamp back so client can calculate RTT
             try {
               this.socket.send(`\x00[TIME_PONG]${timestamp}`);
@@ -395,9 +402,22 @@ export class Connection extends EventEmitter {
           const json = line.slice(12); // Extract JSON after "[VISIBILITY]"
           try {
             const { visible } = JSON.parse(json) as { visible: boolean };
+            const wasHidden = !this._tabVisible;
             this._tabVisible = visible;
-            const playerName = this._player ? (this._player as { name?: string }).name || 'unknown' : 'no-player';
-            console.log(`[CONN-VISIBILITY] ${this._id} (${playerName}) tab ${visible ? 'visible' : 'hidden'}`);
+            const playerName = this._player
+              ? ((this._player as { name?: string }).name || 'unknown')
+              : 'no-player';
+            console.log(
+              `[CONN-VISIBILITY] ${this._id} (${playerName}) tab ${visible ? 'visible' : 'hidden'}`
+            );
+
+            // When tab becomes visible, flush any queued messages to catch up
+            if (visible && wasHidden && this._pendingMessages.length > 0) {
+              console.log(
+                `[CONN-VISIBILITY] ${this._id} (${playerName}) flushing ${this._pendingMessages.length} queued messages`
+              );
+              this.drainPendingMessages();
+            }
           } catch (e) {
             console.error(`[CONN-VISIBILITY] Failed to parse: "${json}", error:`, e);
           }
@@ -478,6 +498,7 @@ export class Connection extends EventEmitter {
   /**
    * Send a message to the client.
    * Implements backpressure handling to prevent memory exhaustion.
+   * When tab is hidden, messages are queued instead of sent to prevent buffer growth.
    * @param message The message to send
    */
   send(message: string): void {
@@ -485,9 +506,43 @@ export class Connection extends EventEmitter {
       return;
     }
 
-    const bufferedAmount = this.socket.bufferedAmount || 0;
+    // When tab is hidden, queue messages instead of sending
+    // This prevents buffer growth while the browser isn't reading
+    // Messages will be flushed when tab becomes visible
+    if (!this._tabVisible) {
+      this._pendingMessages.push(message);
+      while (this._pendingMessages.length > 100) {
+        this._pendingMessages.shift(); // Drop oldest, keep newest
+      }
+      return;
+    }
 
-    // HARD STOP: If buffer is very large, refuse to send anything
+    const bufferedAmount = this.socket.bufferedAmount || 0;
+    const messageSize = Buffer.byteLength(message, 'utf8');
+
+    // Track max buffer and log at every 100KB threshold crossed
+    const threshold100KB = Math.floor(bufferedAmount / (100 * 1024)) * 100 * 1024;
+    if (bufferedAmount > this._maxBufferSeen && threshold100KB > this._maxBufferSeen) {
+      const playerName = this._player
+        ? ((this._player as { name?: string }).name || 'unknown')
+        : 'no-player';
+      console.warn(
+        `[CONN-BUFFER-GROWTH] ${this._id} (${playerName}) NEW MAX buffer=${(bufferedAmount / 1024).toFixed(0)}KB msgSize=${messageSize}B`
+      );
+      this._maxBufferSeen = threshold100KB;
+    }
+
+    // DIAGNOSTIC: Log whenever buffer exceeds 1MB to catch the growth pattern
+    if (bufferedAmount > 1024 * 1024) {
+      const playerName = this._player
+        ? ((this._player as { name?: string }).name || 'unknown')
+        : 'no-player';
+      console.error(
+        `[CONN-BUFFER-ALERT] ${this._id} (${playerName}) buffer=${(bufferedAmount / 1024).toFixed(0)}KB (OVER 1MB!) msgSize=${messageSize}B`
+      );
+    }
+
+    // HARD STOP: If buffer is very large, queue instead of sending
     // This prevents runaway buffer growth between heartbeat checks
     if (bufferedAmount > HARD_STOP_BUFFER_SIZE) {
       const playerName = this._player ? (this._player as { name?: string }).name || 'unknown' : 'no-player';
@@ -495,13 +550,14 @@ export class Connection extends EventEmitter {
       const now = Date.now();
       if (!this._lastHardStopLog || now - this._lastHardStopLog > 1000) {
         this._lastHardStopLog = now;
-        console.error(`[CONN-HARD-STOP] ${this._id} (${playerName}) buffer=${(bufferedAmount / 1024).toFixed(0)}KB - refusing to send, waiting for drain`);
+        console.error(`[CONN-HARD-STOP] ${this._id} (${playerName}) buffer=${(bufferedAmount / 1024).toFixed(0)}KB msgSize=${messageSize}B - queueing, waiting for drain`);
       }
-      // Queue the message if possible (it will be sent when buffer drains)
-      if (this._pendingMessages.length < 100) {
-        this._pendingMessages.push(message);
-        this.scheduleDrain();
+      // Queue the new message - drop oldest if queue is full (keep newest)
+      this._pendingMessages.push(message);
+      while (this._pendingMessages.length > 100) {
+        this._pendingMessages.shift(); // Drop oldest
       }
+      this.scheduleDrain();
       return;
     }
 
@@ -523,15 +579,12 @@ export class Connection extends EventEmitter {
 
       // If buffer is critically full, queue the message
       if (bufferedAmount > MAX_BUFFER_SIZE) {
-        // Queue message for later (limited queue size)
-        if (this._pendingMessages.length < 100) {
-          this._pendingMessages.push(message);
-          this.scheduleDrain();
-        } else {
-          // Drop message if queue is also full (prevents memory exhaustion)
-          const playerName = this._player ? (this._player as { name?: string }).name || 'unknown' : 'no-player';
-          console.error(`[CONN-DROP] ${this._id} (${playerName}) dropping message - queue full (${this._pendingMessages.length} queued)`);
+        // Queue new message, drop oldest if queue is full (keep newest)
+        this._pendingMessages.push(message);
+        while (this._pendingMessages.length > 100) {
+          this._pendingMessages.shift(); // Drop oldest
         }
+        this.scheduleDrain();
         return;
       }
     } else {
@@ -615,8 +668,7 @@ export class Connection extends EventEmitter {
       return;
     }
 
-    // Only drain if we have room - check bufferedAmount each iteration
-    // to avoid overshooting the threshold
+    // Drain regular messages
     while (
       this._pendingMessages.length > 0 &&
       (this.socket.bufferedAmount || 0) < BACKPRESSURE_THRESHOLD
@@ -661,31 +713,58 @@ export class Connection extends EventEmitter {
 
   /**
    * Internal method for sending protocol messages with backpressure awareness.
-   * Unlike regular send(), protocol messages are not queued when buffer is full -
-   * they're dropped since they're typically ephemeral updates that will be
-   * superseded by newer data anyway.
-   * @returns true if message was sent, false if dropped due to backpressure
+   * When tab is hidden, only COMM (chat) messages are sent - all other protocol
+   * messages (STATS, MAP, TIME, COMBAT) are state updates that will be refreshed
+   * when the tab becomes visible again.
+   * @returns true if message was sent, false if dropped
    */
   private sendProtocolMessage(message: string): boolean {
     if (this._state !== 'open') {
       return false;
     }
 
+    // Extract protocol type from message (e.g., "\x00[STATS]..." -> "STATS")
+    const typeMatch = message.match(/^\x00\[([A-Z_]+)\]/);
+    const protoType = typeMatch?.[1] ?? 'UNKNOWN';
+
+    // When tab is hidden, only send COMM (chat) messages
+    // All other protocol messages are state updates - skip until visible
+    // Player.heartbeat() will send a full refresh when tab becomes visible
+    if (!this._tabVisible && protoType !== 'COMM') {
+      return false; // Silently skip - will refresh when visible
+    }
+
     const bufferedAmount = this.socket.bufferedAmount || 0;
+
+    // DIAGNOSTIC: Log whenever buffer exceeds 1MB
+    if (bufferedAmount > 1024 * 1024) {
+      const playerName = this._player
+        ? ((this._player as { name?: string }).name || 'unknown')
+        : 'no-player';
+      const messageSize = Buffer.byteLength(message, 'utf8');
+      console.error(
+        `[CONN-PROTO-BUFFER-ALERT] ${this._id} (${playerName}) buffer=${(bufferedAmount / 1024).toFixed(0)}KB (OVER 1MB!) msgSize=${messageSize}B`
+      );
+    }
+
+    // If buffer is too full, skip this protocol message entirely
+    // Protocol messages are state snapshots - missing one doesn't matter
+    if (bufferedAmount > MAX_BUFFER_SIZE) {
+      return false;
+    }
 
     // Log when buffer is high (but not on every message)
     if (bufferedAmount > BACKPRESSURE_THRESHOLD && !this._backpressureWarned) {
       this._backpressureWarned = true;
-      const playerName = this._player ? (this._player as { name?: string }).name || 'unknown' : 'no-player';
-      console.warn(`[CONN-BACKPRESSURE] ${this._id} (${playerName}) buffer=${bufferedAmount} exceeds threshold, dropping protocol messages`);
+      const playerName = this._player
+        ? ((this._player as { name?: string }).name || 'unknown')
+        : 'no-player';
+      console.warn(
+        `[CONN-BACKPRESSURE] ${this._id} (${playerName}) buffer=${bufferedAmount} exceeds threshold`
+      );
       this.emit('backpressure', bufferedAmount);
     } else if (bufferedAmount <= BACKPRESSURE_THRESHOLD) {
       this._backpressureWarned = false;
-    }
-
-    // Drop message if buffer is too full - protocol messages are ephemeral
-    if (bufferedAmount > MAX_BUFFER_SIZE) {
-      return false;
     }
 
     try {

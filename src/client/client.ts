@@ -19,7 +19,7 @@ import {
   TimeMessage,
   ReconnectProgress,
   ConnectionState,
-} from './websocket-client.js';
+} from './shared-websocket-client.js';
 import { InputHandler } from './input-handler.js';
 import { IdeEditorLoader } from './ide-editor-loader.js';
 import { MapPanel } from './map-panel.js';
