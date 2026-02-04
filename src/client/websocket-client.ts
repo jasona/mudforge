@@ -454,6 +454,7 @@ export class WebSocketClient {
   /**
    * Send visibility state to server.
    * Server uses this to pause/resume high-frequency updates like STATS.
+   * Note: Uses [VISIBILITY] prefix without null byte for better compatibility.
    */
   private sendVisibilityState(visible: boolean): void {
     if (!this.isConnected || !this.socket) {
@@ -462,7 +463,8 @@ export class WebSocketClient {
 
     try {
       const message = JSON.stringify({ visible });
-      this.socket.send(`\x00[VISIBILITY]${message}\n`);
+      // Use plain prefix - null byte can cause issues with some WebSocket implementations
+      this.socket.send(`[VISIBILITY]${message}\n`);
       console.log(`[WS-VISIBILITY] Sent visibility state: ${visible ? 'visible' : 'hidden'}`);
     } catch {
       // Ignore send errors - connection might be closing

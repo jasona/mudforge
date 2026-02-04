@@ -390,15 +390,16 @@ export class Connection extends EventEmitter {
         }
 
         // Handle VISIBILITY messages - client tab hidden/visible state
-        if (line.startsWith('\x00[VISIBILITY]')) {
-          const json = line.slice(13); // Extract JSON after prefix
+        // Plain prefix (no null byte) for better WebSocket compatibility
+        if (line.startsWith('[VISIBILITY]')) {
+          const json = line.slice(12); // Extract JSON after "[VISIBILITY]"
           try {
             const { visible } = JSON.parse(json) as { visible: boolean };
             this._tabVisible = visible;
             const playerName = this._player ? (this._player as { name?: string }).name || 'unknown' : 'no-player';
             console.log(`[CONN-VISIBILITY] ${this._id} (${playerName}) tab ${visible ? 'visible' : 'hidden'}`);
-          } catch {
-            // Ignore parse errors
+          } catch (e) {
+            console.error(`[CONN-VISIBILITY] Failed to parse: "${json}", error:`, e);
           }
           continue;
         }
