@@ -509,7 +509,7 @@ export class Connection extends EventEmitter {
       console.error(`[CONN-BUFFER-ALERT] ${this._id} (${playerName}) buffer=${(bufferedAmount / 1024).toFixed(0)}KB (OVER 1MB!) msgSize=${messageSize}B`);
     }
 
-    // HARD STOP: If buffer is very large, refuse to send anything
+    // HARD STOP: If buffer is very large, queue instead of sending
     // This prevents runaway buffer growth between heartbeat checks
     if (bufferedAmount > HARD_STOP_BUFFER_SIZE) {
       const playerName = this._player ? (this._player as { name?: string }).name || 'unknown' : 'no-player';
@@ -517,13 +517,14 @@ export class Connection extends EventEmitter {
       const now = Date.now();
       if (!this._lastHardStopLog || now - this._lastHardStopLog > 1000) {
         this._lastHardStopLog = now;
-        console.error(`[CONN-HARD-STOP] ${this._id} (${playerName}) buffer=${(bufferedAmount / 1024).toFixed(0)}KB msgSize=${messageSize}B - refusing to send, waiting for drain`);
+        console.error(`[CONN-HARD-STOP] ${this._id} (${playerName}) buffer=${(bufferedAmount / 1024).toFixed(0)}KB msgSize=${messageSize}B - queueing, waiting for drain`);
       }
-      // Queue the message if possible (it will be sent when buffer drains)
-      if (this._pendingMessages.length < 100) {
-        this._pendingMessages.push(message);
-        this.scheduleDrain();
+      // Queue the new message - drop oldest if queue is full (keep newest)
+      this._pendingMessages.push(message);
+      while (this._pendingMessages.length > 100) {
+        this._pendingMessages.shift(); // Drop oldest
       }
+      this.scheduleDrain();
       return;
     }
 
@@ -545,15 +546,12 @@ export class Connection extends EventEmitter {
 
       // If buffer is critically full, queue the message
       if (bufferedAmount > MAX_BUFFER_SIZE) {
-        // Queue message for later (limited queue size)
-        if (this._pendingMessages.length < 100) {
-          this._pendingMessages.push(message);
-          this.scheduleDrain();
-        } else {
-          // Drop message if queue is also full (prevents memory exhaustion)
-          const playerName = this._player ? (this._player as { name?: string }).name || 'unknown' : 'no-player';
-          console.error(`[CONN-DROP] ${this._id} (${playerName}) dropping message - queue full (${this._pendingMessages.length} queued)`);
+        // Queue new message, drop oldest if queue is full (keep newest)
+        this._pendingMessages.push(message);
+        while (this._pendingMessages.length > 100) {
+          this._pendingMessages.shift(); // Drop oldest
         }
+        this.scheduleDrain();
         return;
       }
     } else {
