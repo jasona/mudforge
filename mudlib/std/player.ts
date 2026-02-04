@@ -165,6 +165,7 @@ export interface Connection {
   hasBackpressure?: boolean;         // true if buffer > 64KB
   hasCriticalBackpressure?: boolean; // true if buffer > 5MB
   missedPongs?: number;              // count of missed ping responses
+  tabVisible?: boolean;              // false if browser tab is hidden
 }
 
 /**
@@ -1219,13 +1220,14 @@ export class Player extends Living {
   /**
    * Determine if STATS should be sent based on connection health and player activity.
    * Implements adaptive frequency: healthy+active=2s, idle=10-60s, unhealthy=skip.
+   * When tab is hidden, drastically reduces frequency to prevent buffer buildup.
    */
   private shouldSendStats(): boolean {
     if (!this._connection?.sendStats) {
       return false;
     }
 
-    // NEVER send if connection has critical backpressure (> 5MB buffer)
+    // NEVER send if connection has critical backpressure (> 2MB buffer)
     if (this._connection.hasCriticalBackpressure) {
       return false;
     }
@@ -1240,6 +1242,16 @@ export class Player extends Living {
       return false;
     }
 
+    const count = this._statsHeartbeatCount;
+
+    // If tab is hidden, drastically reduce updates to prevent buffer buildup
+    // Browser throttles JS when tab is backgrounded, causing receive buffer to fill
+    if (this._connection.tabVisible === false) {
+      // Even during combat, reduce to every 30s when tab is hidden
+      // The player can't see the updates anyway
+      return count % 15 === 0;        // Every 30s when tab hidden
+    }
+
     // ALWAYS send during combat - real-time HP updates are critical
     if (this.inCombat) {
       return true;
@@ -1247,7 +1259,6 @@ export class Player extends Living {
 
     // Adaptive frequency for idle players
     const idle = this.idleTime;
-    const count = this._statsHeartbeatCount;
 
     if (idle < 60) {
       return true;                    // Active: every heartbeat (2s)

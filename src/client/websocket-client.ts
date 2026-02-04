@@ -424,25 +424,49 @@ export class WebSocketClient {
 
   /**
    * Set up visibility change handler.
-   * Only acts when already disconnected - speeds up reconnection when tab becomes visible.
-   * Does NOT kill healthy connections - browser timer throttling makes client-side
-   * stale detection unreliable. We trust the server's RFC 6455 ping/pong mechanism.
+   * - Notifies server when tab is hidden/visible so it can pause/resume updates
+   * - Speeds up reconnection when tab becomes visible if already disconnected
    */
   private setupVisibilityHandler(): void {
     document.addEventListener('visibilitychange', () => {
-      console.log(`[WS-VISIBILITY] Document visibility: ${document.hidden ? 'hidden' : 'visible'}, state=${this._connectionState}`);
-      if (!document.hidden) {
-        // Tab became visible - only act if we're already trying to reconnect
+      const isHidden = document.hidden;
+      console.log(`[WS-VISIBILITY] Document visibility: ${isHidden ? 'hidden' : 'visible'}, state=${this._connectionState}`);
+
+      if (isHidden) {
+        // Tab became hidden - tell server to pause high-frequency updates
+        // This prevents buffer buildup while the tab is backgrounded
+        this.sendVisibilityState(false);
+      } else {
+        // Tab became visible
+        this.sendVisibilityState(true);
+
+        // If we're already trying to reconnect, speed it up
         if (this._connectionState === 'reconnecting' || this._connectionState === 'failed') {
-          // Reset backoff and try immediately
           console.log('[WS-VISIBILITY] Tab visible, attempting reconnect');
           this.reconnectAttempts = 0;
           this.cancelReconnect();
           this.createConnection();
         }
-        // DO NOT check staleness here - trust the server's ping/pong
       }
     });
+  }
+
+  /**
+   * Send visibility state to server.
+   * Server uses this to pause/resume high-frequency updates like STATS.
+   */
+  private sendVisibilityState(visible: boolean): void {
+    if (!this.isConnected || !this.socket) {
+      return;
+    }
+
+    try {
+      const message = JSON.stringify({ visible });
+      this.socket.send(`\x00[VISIBILITY]${message}\n`);
+      console.log(`[WS-VISIBILITY] Sent visibility state: ${visible ? 'visible' : 'hidden'}`);
+    } catch {
+      // Ignore send errors - connection might be closing
+    }
   }
 
   /**

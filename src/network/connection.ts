@@ -233,6 +233,7 @@ export class Connection extends EventEmitter {
   private _pendingMessages: string[] = [];
   private _drainScheduled: boolean = false;
   private _drainTimeout: ReturnType<typeof setTimeout> | null = null;
+  private _tabVisible: boolean = true; // Client tab visibility (for pausing updates)
 
   // Message buffer for session resume replay
   private _messageBuffer: string[] = [];
@@ -384,6 +385,20 @@ export class Connection extends EventEmitter {
             } catch {
               // Ignore send errors
             }
+          }
+          continue;
+        }
+
+        // Handle VISIBILITY messages - client tab hidden/visible state
+        if (line.startsWith('\x00[VISIBILITY]')) {
+          const json = line.slice(13); // Extract JSON after prefix
+          try {
+            const { visible } = JSON.parse(json) as { visible: boolean };
+            this._tabVisible = visible;
+            const playerName = this._player ? (this._player as { name?: string }).name || 'unknown' : 'no-player';
+            console.log(`[CONN-VISIBILITY] ${this._id} (${playerName}) tab ${visible ? 'visible' : 'hidden'}`);
+          } catch {
+            // Ignore parse errors
           }
           continue;
         }
@@ -806,6 +821,14 @@ export class Connection extends EventEmitter {
    */
   get missedPongs(): number {
     return this._missedPongs;
+  }
+
+  /**
+   * Check if the client's browser tab is visible.
+   * Used to pause high-frequency updates when tab is backgrounded.
+   */
+  get tabVisible(): boolean {
+    return this._tabVisible;
   }
 
   /**
