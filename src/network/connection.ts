@@ -320,8 +320,11 @@ export class Connection extends EventEmitter {
 
     // Handle pong responses for keepalive
     this.socket.on('pong', () => {
-      const playerName = this._player ? (this._player as { name?: string }).name || 'unknown' : 'no-player';
-      console.log(`[CONN-PONG] ${this._id} (${playerName}) received pong, resetting missedPongs from ${this._missedPongs} to 0`);
+      // Only log pong if we had actual missed pongs (missedPongs > 1 means previous ping had no response)
+      if (this._missedPongs > 1) {
+        const playerName = this._player ? (this._player as { name?: string }).name || 'unknown' : 'no-player';
+        console.log(`[CONN-PONG] ${this._id} (${playerName}) received pong, resetting missedPongs from ${this._missedPongs} to 0`);
+      }
       this._missedPongs = 0;
       this._lastActivityTime = Date.now();
     });
@@ -806,21 +809,30 @@ export class Connection extends EventEmitter {
   /**
    * Increment the missed pong counter and return the new value.
    * Called before sending each ping.
+   *
+   * Note: Counter going 0→1 is normal (incremented before ping, reset on pong).
+   * Counter going 1→2 means the previous ping got no response - that's concerning.
    */
   incrementMissedPongs(): number {
     const previousCount = this._missedPongs;
     const newCount = ++this._missedPongs;
     const playerName = this._player ? (this._player as { name?: string }).name || 'unknown' : 'no-player';
 
-    // Log extra details when first pong is missed - this is the critical moment to diagnose
-    if (previousCount === 0 && newCount === 1) {
-      console.warn(`[CONN-MISSED] ${this._id} (${playerName}) FIRST MISSED PONG - connection may be going stale`);
-      console.warn(`[CONN-MISSED] ${this._id} socket.readyState=${this.socket.readyState} (0=CONNECTING, 1=OPEN, 2=CLOSING, 3=CLOSED)`);
-      console.warn(`[CONN-MISSED] ${this._id} socket.bufferedAmount=${this.socket.bufferedAmount}`);
-      console.warn(`[CONN-MISSED] ${this._id} lastActivityTime was ${Date.now() - this._lastActivityTime}ms ago`);
-    } else {
-      console.log(`[CONN-MISSED] ${this._id} (${playerName}) missedPongs incremented to ${newCount}`);
+    // Only log when we're actually missing pongs (previous ping had no response)
+    // 0→1 is normal (pre-ping increment), 1→2 means first actual missed pong
+    if (previousCount >= 1) {
+      if (previousCount === 1) {
+        // First ACTUAL missed pong - previous ping never got a response
+        console.warn(`[CONN-MISSED] ${this._id} (${playerName}) FIRST MISSED PONG - connection may be going stale`);
+        console.warn(`[CONN-MISSED] ${this._id} socket.readyState=${this.socket.readyState} (0=CONNECTING, 1=OPEN, 2=CLOSING, 3=CLOSED)`);
+        console.warn(`[CONN-MISSED] ${this._id} socket.bufferedAmount=${this.socket.bufferedAmount}`);
+        console.warn(`[CONN-MISSED] ${this._id} lastActivityTime was ${Date.now() - this._lastActivityTime}ms ago`);
+      } else {
+        // Subsequent missed pongs
+        console.warn(`[CONN-MISSED] ${this._id} (${playerName}) missedPongs=${newCount} (no response to last ${previousCount} pings)`);
+      }
     }
+    // Don't log 0→1 transitions - that's just the normal pre-ping increment
 
     return newCount;
   }
@@ -858,8 +870,11 @@ export class Connection extends EventEmitter {
       return;
     }
 
-    const playerName = this._player ? (this._player as { name?: string }).name || 'unknown' : 'no-player';
-    console.log(`[CONN-PING] ${this._id} (${playerName}) sending ping (missedPongs: ${this._missedPongs})`);
+    // Only log pings when there are already missed pongs (potential issue)
+    if (this._missedPongs > 1) {
+      const playerName = this._player ? (this._player as { name?: string }).name || 'unknown' : 'no-player';
+      console.log(`[CONN-PING] ${this._id} (${playerName}) sending ping (missedPongs: ${this._missedPongs})`);
+    }
 
     try {
       this.socket.ping();

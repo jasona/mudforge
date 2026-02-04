@@ -275,10 +275,11 @@ export class Server extends EventEmitter {
 
       const connections = this.connectionManager.getAll();
 
-      // Log heartbeat execution with drift detection
+      // Log heartbeat execution only when there's an issue or periodically (every 100 heartbeats ~= 40 minutes)
       if (drift > 1000) {
         console.warn(`[HEARTBEAT #${heartbeatCount}] DELAYED by ${drift}ms - checking ${connections.length} connections`);
-      } else {
+      } else if (heartbeatCount % 100 === 0) {
+        // Periodic health check log
         console.log(`[HEARTBEAT #${heartbeatCount}] Checking ${connections.length} connections (drift: ${drift}ms)`);
       }
 
@@ -296,9 +297,14 @@ export class Server extends EventEmitter {
             continue;
           }
 
-          // Log each connection's status
+          // Get metrics for potential logging
           const metrics = connection.getHealthMetrics();
-          console.log(`[HEARTBEAT] ${connection.id} (${playerName}): missedPongs=${metrics.missedPongs}, state=${metrics.state}, lastActivity=${metrics.lastActivity}ms ago`);
+
+          // Only log connection status when there's something concerning
+          // (missed pongs, high lastActivity, etc.)
+          if (metrics.missedPongs > 0 || metrics.lastActivity > this.heartbeatIntervalMs * 2) {
+            console.log(`[HEARTBEAT] ${connection.id} (${playerName}): missedPongs=${metrics.missedPongs}, state=${metrics.state}, lastActivity=${metrics.lastActivity}ms ago`);
+          }
 
           // Increment missed pongs counter before sending new ping
           const missedPongs = connection.incrementMissedPongs();
