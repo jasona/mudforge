@@ -251,6 +251,7 @@ export class Server extends EventEmitter {
       this.running = true;
       this.startHeartbeat();
       console.log(`Server listening on ${this.config.host}:${this.config.port}`);
+      console.log(`[WS-CONFIG] heartbeatIntervalMs=${this.heartbeatIntervalMs}, maxMissedPongs=${this.maxMissedPongs}`);
     } catch (error) {
       this.emit('error', error as Error);
       throw error;
@@ -264,16 +265,46 @@ export class Server extends EventEmitter {
    * Also sends data-frame keep-alives to satisfy load balancer idle timeouts.
    */
   private startHeartbeat(): void {
+    let heartbeatCount = 0;
+    const startTime = Date.now();
+
     this.heartbeatInterval = setInterval(() => {
+      heartbeatCount++;
+      const expectedTime = startTime + (heartbeatCount * this.heartbeatIntervalMs);
+      const drift = Date.now() - expectedTime;
+
       const connections = this.connectionManager.getAll();
+
+      // Log heartbeat execution with drift detection
+      if (drift > 1000) {
+        console.warn(`[HEARTBEAT #${heartbeatCount}] DELAYED by ${drift}ms - checking ${connections.length} connections`);
+      } else {
+        console.log(`[HEARTBEAT #${heartbeatCount}] Checking ${connections.length} connections (drift: ${drift}ms)`);
+      }
+
       for (const connection of connections) {
         try {
+          const playerName = connection.player ? (connection.player as { name?: string }).name || 'unknown' : 'no-player';
+
+          // Skip connections that are already closed or closing
+          // This prevents repeatedly processing terminated connections
+          if (connection.state === 'closed' || connection.state === 'closing') {
+            console.log(`[HEARTBEAT] ${connection.id} (${playerName}): SKIPPING - state=${connection.state}, removing from manager`);
+            // Clean up: remove from connection manager and emit disconnect
+            this.connectionManager.remove(connection.id);
+            this.emit('disconnect', connection, 1006, 'Connection already closed');
+            continue;
+          }
+
+          // Log each connection's status
+          const metrics = connection.getHealthMetrics();
+          console.log(`[HEARTBEAT] ${connection.id} (${playerName}): missedPongs=${metrics.missedPongs}, state=${metrics.state}, lastActivity=${metrics.lastActivity}ms ago`);
+
           // Increment missed pongs counter before sending new ping
           const missedPongs = connection.incrementMissedPongs();
 
           if (missedPongs > this.maxMissedPongs) {
             // Connection has missed too many heartbeats - terminate it
-            const metrics = connection.getHealthMetrics();
             this.config.logger?.warn(
               {
                 id: connection.id,
@@ -281,7 +312,15 @@ export class Server extends EventEmitter {
               },
               'Connection terminated: missed too many heartbeats'
             );
+            console.warn(`[HEARTBEAT] ${connection.id} (${playerName}): TERMINATING - missedPongs ${missedPongs} > max ${this.maxMissedPongs}`);
             connection.terminate();
+
+            // IMPORTANT: terminate() calls cleanup() which removes listeners before socket.terminate()
+            // This means the normal close event won't fire, so we must manually clean up:
+            // 1. Remove from connection manager
+            this.connectionManager.remove(connection.id);
+            // 2. Emit disconnect event so driver can clean up connectionHandlers
+            this.emit('disconnect', connection, 1006, 'Heartbeat timeout');
             continue;
           }
 
@@ -297,6 +336,7 @@ export class Server extends EventEmitter {
           connection.sendTime(gameVersion);
         } catch (error) {
           this.config.logger?.error({ connectionId: connection.id, error }, 'Error in heartbeat for connection');
+          console.error(`[HEARTBEAT] Error for connection ${connection.id}:`, error);
         }
       }
     }, this.heartbeatIntervalMs);

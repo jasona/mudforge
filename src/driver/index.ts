@@ -28,6 +28,28 @@ process.on('unhandledRejection', (reason, promise) => {
   // Don't exit - let the process continue if possible
 });
 
+/**
+ * Start event loop lag monitoring.
+ * Logs warnings when the event loop is delayed by more than 100ms.
+ */
+function startEventLoopMonitor(): void {
+  let lastCheck = Date.now();
+  let checkCount = 0;
+
+  setInterval(() => {
+    checkCount++;
+    const now = Date.now();
+    const elapsed = now - lastCheck;
+    const lag = elapsed - 1000; // Expected 1s interval
+
+    if (lag > 100) {
+      console.warn(`[EVENT-LOOP-LAG] Check #${checkCount}: ${lag}ms delay (elapsed: ${elapsed}ms)`);
+    }
+
+    lastCheck = now;
+  }, 1000);
+}
+
 async function main(): Promise<void> {
   // Get driver instance (loads config)
   const driver = getDriver();
@@ -85,6 +107,9 @@ async function main(): Promise<void> {
 
   await server.start();
   logger.info('MudForge Driver initialized successfully');
+
+  // Start event loop lag monitoring for debugging connection issues
+  startEventLoopMonitor();
 
   // Handle graceful shutdown
   const shutdown = async (signal: string) => {

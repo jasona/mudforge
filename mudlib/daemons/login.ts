@@ -466,11 +466,15 @@ ${'='.repeat(bannerWidth)}
   private async completeLogin(session: LoginSession, newPlayer?: Player): Promise<void> {
     let player: Player;
 
+    console.log(`[LOGIN] completeLogin called for "${session.name}", newPlayer=${newPlayer ? 'yes' : 'no'}`);
+
     // Check if player is already in the game world (active but possibly disconnected)
     if (!newPlayer && typeof efuns !== 'undefined' && efuns.findActivePlayer) {
+      console.log(`[LOGIN] Checking for existing active player "${session.name}"...`);
       const existingPlayer = efuns.findActivePlayer(session.name) as Player | undefined;
       if (existingPlayer) {
         // Reconnecting to existing player in game world
+        console.log(`[LOGIN] Found existing player "${session.name}" (${existingPlayer.objectId}), will reconnect`);
         player = existingPlayer;
 
         // Cancel disconnect timer if running
@@ -484,12 +488,15 @@ ${'='.repeat(bannerWidth)}
 
         // Check if they're currently connected (session takeover) or disconnected (reconnect)
         const isConnected = efuns.findConnectedPlayer?.(session.name) !== undefined;
+        console.log(`[LOGIN] isConnected for "${session.name}": ${isConnected}`);
 
         if (isConnected) {
           // Session takeover - transfer connection from old to new
+          console.log(`[LOGIN] Session takeover - transferring connection for "${session.name}"`);
           efuns.transferConnection(session.connection, player);
         } else {
           // Reconnecting after disconnect - just bind the new connection
+          console.log(`[LOGIN] Reconnecting after disconnect - binding new connection for "${session.name}"`);
           player.bindConnection(session.connection);
           efuns.bindPlayerToConnection(session.connection, player);
         }
@@ -555,15 +562,20 @@ ${'='.repeat(bannerWidth)}
         // Update session state and clean up
         session.state = 'playing';
         this._sessions.delete(session.connection);
+        console.log(`[LOGIN] Reconnect complete for "${session.name}", exiting early`);
         return;
+      } else {
+        console.log(`[LOGIN] No existing active player found for "${session.name}", will create new`);
       }
     }
 
     if (newPlayer) {
       // New player just created
+      console.log(`[LOGIN] Using newly created player for "${session.name}"`);
       player = newPlayer;
     } else {
       // Existing player - restore from saved data
+      console.log(`[LOGIN] Restoring saved player data for "${session.name}"`);
       player = new Player();
 
       // Set up player identity (objectId) - players don't go through cloneObject
@@ -602,10 +614,12 @@ ${'='.repeat(bannerWidth)}
     }
 
     // Bind connection to player (both at player level and driver level)
+    console.log(`[LOGIN] Binding connection ${session.connection.id} to player "${session.name}" (${player.objectId})`);
     player.bindConnection(session.connection);
     if (typeof efuns !== 'undefined') {
       efuns.bindPlayerToConnection(session.connection, player);
       // Register as active player in the game world
+      console.log(`[LOGIN] Registering "${session.name}" as active player`);
       efuns.registerActivePlayer(player);
     }
 
