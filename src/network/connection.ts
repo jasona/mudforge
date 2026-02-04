@@ -190,19 +190,27 @@ export interface ConnectionEvents {
   error: (error: Error) => void;
 }
 
-/** Backpressure threshold in bytes (64KB) */
+/** Backpressure threshold in bytes (64KB) - start warning and slow down */
 const BACKPRESSURE_THRESHOLD = 64 * 1024;
 
-/** Maximum send buffer size before dropping messages (256KB) */
+/** Maximum send buffer size before queuing messages (256KB) */
 const MAX_BUFFER_SIZE = 256 * 1024;
 
 /**
- * Critical buffer size threshold (5MB).
+ * Hard stop threshold (512KB).
+ * If buffer exceeds this, stop sending entirely to let it drain.
+ * This prevents runaway buffer growth between heartbeat checks.
+ */
+const HARD_STOP_BUFFER_SIZE = 512 * 1024;
+
+/**
+ * Critical buffer size threshold (2MB).
  * If buffer exceeds this, the connection is considered broken - likely the client
  * can't receive data but TCP hasn't detected it yet. We should terminate to avoid
  * accumulating unbounded data and to allow the player to reconnect.
+ * Lowered from 5MB to catch stuck connections faster.
  */
-const CRITICAL_BUFFER_SIZE = 5 * 1024 * 1024;
+const CRITICAL_BUFFER_SIZE = 2 * 1024 * 1024;
 
 /** Maximum number of messages to buffer for session resume replay */
 const MAX_MESSAGE_BUFFER_SIZE = 50;
@@ -221,6 +229,7 @@ export class Connection extends EventEmitter {
   private _missedPongs: number = 0;
   private _lastActivityTime: number = Date.now();
   private _backpressureWarned: boolean = false;
+  private _lastHardStopLog: number = 0;
   private _pendingMessages: string[] = [];
   private _drainScheduled: boolean = false;
   private _drainTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -461,6 +470,24 @@ export class Connection extends EventEmitter {
     }
 
     const bufferedAmount = this.socket.bufferedAmount || 0;
+
+    // HARD STOP: If buffer is very large, refuse to send anything
+    // This prevents runaway buffer growth between heartbeat checks
+    if (bufferedAmount > HARD_STOP_BUFFER_SIZE) {
+      const playerName = this._player ? (this._player as { name?: string }).name || 'unknown' : 'no-player';
+      // Only log once per second to avoid log spam
+      const now = Date.now();
+      if (!this._lastHardStopLog || now - this._lastHardStopLog > 1000) {
+        this._lastHardStopLog = now;
+        console.error(`[CONN-HARD-STOP] ${this._id} (${playerName}) buffer=${(bufferedAmount / 1024).toFixed(0)}KB - refusing to send, waiting for drain`);
+      }
+      // Queue the message if possible (it will be sent when buffer drains)
+      if (this._pendingMessages.length < 100) {
+        this._pendingMessages.push(message);
+        this.scheduleDrain();
+      }
+      return;
+    }
 
     // Log when buffer is getting full (approaching threshold)
     if (bufferedAmount > BACKPRESSURE_THRESHOLD / 2) {

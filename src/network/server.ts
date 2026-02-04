@@ -48,14 +48,16 @@ export interface ServerEvents {
   error: (error: Error) => void;
 }
 
-/** Default heartbeat interval in milliseconds (45 seconds) */
-const DEFAULT_HEARTBEAT_INTERVAL_MS = 45000;
+/** Default heartbeat interval in milliseconds (10 seconds).
+ * Reduced from 45s to catch buffer buildup and stuck connections faster.
+ */
+const DEFAULT_HEARTBEAT_INTERVAL_MS = 10000;
 
 /** Default maximum missed pong responses before terminating connection.
- * Set high to allow connections to survive browser tab suspension and device sleep.
- * At 45s heartbeat interval, 100 missed pongs = ~75 minutes of tolerance.
+ * At 10s heartbeat interval, 18 missed pongs = 3 minutes of tolerance.
+ * This allows time for brief network hiccups while still detecting truly stuck connections.
  */
-const DEFAULT_MAX_MISSED_PONGS = 100;
+const DEFAULT_MAX_MISSED_PONGS = 18;
 
 /**
  * MUD server handling HTTP and WebSocket connections.
