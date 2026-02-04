@@ -432,6 +432,32 @@ declare global {
      */
     removeForbiddenFile(path: string): { success: boolean; error?: string };
 
+    // ========== Guild Command Path Efuns ==========
+
+    /**
+     * Add a command path for a player when joining a guild.
+     * This does NOT require admin permission - it's for guild daemon use.
+     * The path must start with "guilds/" to prevent abuse.
+     * @param playerName The player's name
+     * @param path The command path (must start with "guilds/")
+     */
+    guildAddCommandPath(
+      playerName: string,
+      path: string
+    ): { success: boolean; error?: string };
+
+    /**
+     * Remove a command path from a player when leaving a guild.
+     * This does NOT require admin permission - it's for guild daemon use.
+     * The path must start with "guilds/" to prevent abuse.
+     * @param playerName The player's name
+     * @param path The command path (must start with "guilds/")
+     */
+    guildRemoveCommandPath(
+      playerName: string,
+      path: string
+    ): { success: boolean; error?: string };
+
     // ========== Scheduler Efuns ==========
 
     /** Set heartbeat for an object */

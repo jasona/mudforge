@@ -17,6 +17,7 @@ import { join, resolve } from 'path';
 import { pathToFileURL } from 'url';
 import type { MudObject } from './types.js';
 import type { Logger } from 'pino';
+import { getPermissions } from './permissions.js';
 
 /**
  * Permission levels matching the mudlib's PermissionLevel enum.
@@ -100,6 +101,12 @@ const LEVEL_DIRS: Record<string, PermissionLevel> = {
 };
 
 /**
+ * Directories that should be scanned recursively for commands.
+ * These directories contain subdirectories with commands (e.g., guilds/<guild>/).
+ */
+const RECURSIVE_DIRS = ['guilds'];
+
+/**
  * Single-character commands that should be treated as prefixes.
  * When a user types e.g. 'hello, we parse it as "say hello".
  * This is intentionally limited to avoid issues with direction shortcuts
@@ -142,6 +149,12 @@ export class CommandManager {
       await this.loadCommandsFromDirectory(dirPath, level);
     }
 
+    // Load commands from recursive directories (e.g., guilds/<guild>/)
+    for (const recursiveDir of RECURSIVE_DIRS) {
+      const dirPath = join(this.config.cmdsPath, recursiveDir);
+      await this.loadCommandsFromDirectoryRecursive(dirPath, PermissionLevel.Player);
+    }
+
     // Start watching if enabled
     if (this.config.watchEnabled) {
       this.startWatching();
@@ -149,6 +162,25 @@ export class CommandManager {
 
     this.initialized = true;
     this.logger?.info({ commandCount: this.commands.size }, 'Command manager initialized');
+  }
+
+  /**
+   * Extract the command directory path from a file path.
+   * Supports nested directories (e.g., 'guilds/fighter').
+   * @param filePath The full path to the command file
+   * @returns The directory path (e.g., 'player', 'builder', 'guilds/fighter')
+   */
+  private getCommandDirectory(filePath: string): string {
+    const parts = filePath.split(/[/\\]/);
+    const cmdsIndex = parts.findIndex((p) => p === 'cmds');
+    if (cmdsIndex >= 0 && cmdsIndex < parts.length - 2) {
+      // Take all parts between 'cmds' and the filename
+      const dirParts = parts.slice(cmdsIndex + 1, parts.length - 1);
+      if (dirParts.length > 0) {
+        return dirParts.join('/');
+      }
+    }
+    return 'player';
   }
 
   /**
@@ -169,6 +201,33 @@ export class CommandManager {
       if (file.startsWith('_') && file.endsWith('.ts')) {
         const filePath = join(dirPath, file);
         await this.loadCommand(filePath, level);
+      }
+    }
+  }
+
+  /**
+   * Recursively load commands from a directory and all subdirectories.
+   * Used for guild commands and other nested command structures.
+   */
+  private async loadCommandsFromDirectoryRecursive(dirPath: string, level: PermissionLevel): Promise<void> {
+    try {
+      const stats = await stat(dirPath);
+      if (!stats.isDirectory()) return;
+    } catch {
+      // Directory doesn't exist yet, that's ok
+      return;
+    }
+
+    const entries = await readdir(dirPath, { withFileTypes: true });
+
+    for (const entry of entries) {
+      const fullPath = join(dirPath, entry.name);
+      if (entry.isDirectory()) {
+        // Recurse into subdirectories
+        await this.loadCommandsFromDirectoryRecursive(fullPath, level);
+      } else if (entry.name.startsWith('_') && entry.name.endsWith('.ts')) {
+        // Load command files
+        await this.loadCommand(fullPath, level);
       }
     }
   }
@@ -280,6 +339,49 @@ export class CommandManager {
       }
     }
 
+    // Watch recursive directories (e.g., guilds/) with recursive option
+    for (const recursiveDir of RECURSIVE_DIRS) {
+      const dirPath = join(this.config.cmdsPath, recursiveDir);
+
+      try {
+        const watcher = watch(dirPath, { recursive: true }, async (eventType, filename) => {
+          if (!filename || !filename.endsWith('.ts')) {
+            return;
+          }
+
+          // Check if this is a command file (ends with _*.ts)
+          const basename = filename.split(/[/\\]/).pop();
+          if (!basename || !basename.startsWith('_')) {
+            return;
+          }
+
+          const filePath = join(dirPath, filename);
+
+          if (eventType === 'rename') {
+            // File added or removed
+            try {
+              await stat(filePath);
+              // File exists - load/reload it
+              this.logger?.info({ filename }, 'Guild command file added/changed, reloading');
+              await this.loadCommand(filePath, PermissionLevel.Player);
+            } catch {
+              // File removed
+              this.logger?.info({ filename }, 'Guild command file removed, unloading');
+              this.unloadCommand(filePath);
+            }
+          } else if (eventType === 'change') {
+            // File modified
+            this.logger?.info({ filename }, 'Guild command file changed, reloading');
+            await this.loadCommand(filePath, PermissionLevel.Player);
+          }
+        });
+
+        this.watchers.push(watcher);
+      } catch {
+        // Directory might not exist, that's ok
+      }
+    }
+
     this.logger?.info('Command hot-reload watching enabled');
   }
 
@@ -324,10 +426,21 @@ export class CommandManager {
       return false;
     }
 
-    // Check permission level
-    if (playerLevel < loaded.level) {
-      // Player doesn't have access to this command
-      return false;
+    // Check permission using path-based system
+    const playerWithName = player as MudObject & { name?: string };
+    if (playerWithName.name) {
+      const permissions = getPermissions();
+      const allowedPaths = permissions.getEffectiveCommandPaths(playerWithName.name, playerLevel);
+      const cmdDir = this.getCommandDirectory(loaded.filePath);
+      if (!allowedPaths.includes(cmdDir)) {
+        // Player doesn't have access to this command's directory
+        return false;
+      }
+    } else {
+      // Fallback for objects without names (NPCs, etc.)
+      if (playerLevel < loaded.level) {
+        return false;
+      }
     }
 
     // Create context
@@ -370,16 +483,38 @@ export class CommandManager {
 
   /**
    * Get all available commands for a permission level.
+   * @param level The player's permission level
+   * @param playerName Optional player name for path-based filtering
    */
-  getAvailableCommands(level: PermissionLevel): Command[] {
+  getAvailableCommands(level: PermissionLevel, playerName?: string): Command[] {
     const result: Command[] = [];
     const seen = new Set<Command>();
 
+    // Get allowed paths for this player
+    let allowedPaths: string[] | null = null;
+    if (playerName) {
+      const permissions = getPermissions();
+      allowedPaths = permissions.getEffectiveCommandPaths(playerName, level);
+    }
+
     for (const loaded of this.commands.values()) {
-      if (loaded.level <= level && !seen.has(loaded.command)) {
-        seen.add(loaded.command);
-        result.push(loaded.command);
+      if (seen.has(loaded.command)) continue;
+
+      // Check access using path-based system if player name provided
+      if (allowedPaths) {
+        const cmdDir = this.getCommandDirectory(loaded.filePath);
+        if (!allowedPaths.includes(cmdDir)) {
+          continue;
+        }
+      } else {
+        // Fallback to level-based check
+        if (loaded.level > level) {
+          continue;
+        }
       }
+
+      seen.add(loaded.command);
+      result.push(loaded.command);
     }
 
     return result.sort((a, b) => {
@@ -415,12 +550,18 @@ export class CommandManager {
       await this.loadCommandsFromDirectory(dirPath, level);
     }
 
+    // Reload recursive directories
+    for (const recursiveDir of RECURSIVE_DIRS) {
+      const dirPath = join(this.config.cmdsPath, recursiveDir);
+      await this.loadCommandsFromDirectoryRecursive(dirPath, PermissionLevel.Player);
+    }
+
     this.logger?.info({ commandCount: this.commands.size }, 'Commands reloaded');
   }
 
   /**
    * Reload a single command by mudlib path.
-   * @param mudlibPath The path like "/cmds/player/_look"
+   * @param mudlibPath The path like "/cmds/player/_look" or "/cmds/guilds/fighter/_bash"
    * @returns Success status and any error message
    */
   async reloadCommand(mudlibPath: string): Promise<{ success: boolean; error?: string }> {
@@ -428,12 +569,34 @@ export class CommandManager {
     const normalizedPath = mudlibPath.startsWith('/') ? mudlibPath.slice(1) : mudlibPath;
     const parts = normalizedPath.split('/');
 
-    // Expected format: cmds/<level>/_command
+    // Expected format: cmds/<level>/_command or cmds/guilds/<guild>/_command
     if (parts.length < 3 || parts[0] !== 'cmds') {
       return { success: false, error: 'Invalid command path format. Expected /cmds/<level>/_command' };
     }
 
     const levelDir = parts[1];
+
+    // Check for recursive directories (e.g., guilds)
+    if (levelDir && RECURSIVE_DIRS.includes(levelDir)) {
+      // Guild command: cmds/guilds/<guild>/_command
+      if (parts.length < 4) {
+        return { success: false, error: 'Invalid guild command path format. Expected /cmds/guilds/<guild>/_command' };
+      }
+      const fileName = parts.slice(2).join('/') + '.ts';
+      const filePath = join(this.config.cmdsPath, levelDir, fileName);
+
+      try {
+        await this.loadCommand(filePath, PermissionLevel.Player);
+        return { success: true };
+      } catch (error) {
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : String(error),
+        };
+      }
+    }
+
+    // Standard permission-level directory
     if (!levelDir || !(levelDir in LEVEL_DIRS)) {
       return { success: false, error: `Unknown command level directory: ${levelDir}` };
     }

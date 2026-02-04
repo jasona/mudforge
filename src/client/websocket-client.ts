@@ -380,6 +380,7 @@ export class WebSocketClient {
   private setConnectionState(newState: ConnectionState): void {
     const oldState = this._connectionState;
     if (oldState !== newState) {
+      console.log(`[WS-STATE] ${oldState} -> ${newState} at ${new Date().toISOString()}`);
       this._connectionState = newState;
       this.emit('state-change', newState, oldState);
     }
@@ -429,11 +430,12 @@ export class WebSocketClient {
    */
   private setupVisibilityHandler(): void {
     document.addEventListener('visibilitychange', () => {
+      console.log(`[WS-VISIBILITY] Document visibility: ${document.hidden ? 'hidden' : 'visible'}, state=${this._connectionState}`);
       if (!document.hidden) {
         // Tab became visible - only act if we're already trying to reconnect
         if (this._connectionState === 'reconnecting' || this._connectionState === 'failed') {
           // Reset backoff and try immediately
-          console.log('[WS] Tab visible, attempting reconnect');
+          console.log('[WS-VISIBILITY] Tab visible, attempting reconnect');
           this.reconnectAttempts = 0;
           this.cancelReconnect();
           this.createConnection();
@@ -458,9 +460,10 @@ export class WebSocketClient {
     const connection = nav.connection;
     if (connection) {
       connection.addEventListener('change', () => {
+        console.log(`[WS-NETWORK] Network changed, online=${navigator.onLine}, state=${this._connectionState}`);
         // Network changed - only act if already disconnected
         if (this._connectionState === 'reconnecting' || this._connectionState === 'failed') {
-          console.log('[WS] Network changed, attempting reconnect');
+          console.log('[WS-NETWORK] Network changed, attempting reconnect');
           this.reconnectAttempts = 0;
           this.cancelReconnect();
           this.createConnection();
@@ -525,6 +528,7 @@ export class WebSocketClient {
     if (!this.socket) return;
 
     this.socket.onopen = () => {
+      console.log(`[WS-OPEN] Connected at ${new Date().toISOString()}`);
       this.reconnectAttempts = 0;
       this.lastTimeReceived = Date.now(); // Reset heartbeat tracking
       this.setConnectionState('connected');
@@ -541,12 +545,15 @@ export class WebSocketClient {
     };
 
     this.socket.onclose = (event) => {
+      console.log(`[WS-CLOSE] code=${event.code}, reason="${event.reason}", wasClean=${event.wasClean} at ${new Date().toISOString()}`);
+      console.log(`[WS-CLOSE] Close code meanings: 1000=normal, 1001=going-away, 1005=no-status, 1006=abnormal`);
       const reason = event.reason || `Code ${event.code}`;
       this.emit('disconnected', reason);
       this.socket = null;
 
       // Only skip reconnect if the user explicitly called disconnect()
       if (this.intentionalDisconnect) {
+        console.log(`[WS-CLOSE] Intentional disconnect, not reconnecting`);
         this.setConnectionState('disconnected');
         return;
       }
@@ -561,7 +568,8 @@ export class WebSocketClient {
       this.scheduleReconnect(reason);
     };
 
-    this.socket.onerror = () => {
+    this.socket.onerror = (event) => {
+      console.error(`[WS-ERROR] Error at ${new Date().toISOString()}:`, event);
       this.emit('error', 'WebSocket error');
     };
 
@@ -681,7 +689,15 @@ export class WebSocketClient {
           try {
             const timeMessage = JSON.parse(jsonStr) as TimeMessage;
             // Track when we last received a heartbeat from server
-            this.lastTimeReceived = Date.now();
+            const now = Date.now();
+            const timeSinceLast = now - this.lastTimeReceived;
+            console.log(`[WS-TIME] Received TIME message, ${timeSinceLast}ms since last`);
+
+            if (timeSinceLast > 60000) { // More than 60s gap
+              console.warn(`[WS-TIME-GAP] Large gap: ${timeSinceLast}ms since last TIME message`);
+            }
+
+            this.lastTimeReceived = now;
             // Use the last measured RTT latency (from TIME_PONG responses)
             timeMessage.latencyMs = this.lastMeasuredLatency;
             this.emit('time-message', timeMessage);
@@ -712,7 +728,10 @@ export class WebSocketClient {
    * Uses exponential backoff with jitter, capped at maxReconnectDelay.
    */
   private scheduleReconnect(reason?: string): void {
+    console.log(`[WS-RECONNECT] Scheduling reconnect #${this.reconnectAttempts + 1}, reason: ${reason}`);
+
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+      console.log(`[WS-RECONNECT] Max attempts (${this.maxReconnectAttempts}) reached, giving up`);
       this.setConnectionState('failed');
       this.emit('reconnect-failed', {
         attempt: this.reconnectAttempts,
@@ -724,6 +743,7 @@ export class WebSocketClient {
     }
 
     if (this.reconnectTimer !== null) {
+      console.log(`[WS-RECONNECT] Reconnect already scheduled, skipping`);
       return; // Already scheduled
     }
 
@@ -738,6 +758,8 @@ export class WebSocketClient {
     this.reconnectAttempts++;
     this.setConnectionState('reconnecting');
 
+    console.log(`[WS-RECONNECT] Attempt #${this.reconnectAttempts} scheduled in ${finalDelay}ms`);
+
     // Emit progress event so UI can show feedback
     this.emit('reconnect-progress', {
       attempt: this.reconnectAttempts,
@@ -748,6 +770,7 @@ export class WebSocketClient {
 
     this.reconnectTimer = window.setTimeout(() => {
       this.reconnectTimer = null;
+      console.log(`[WS-RECONNECT] Attempting reconnect #${this.reconnectAttempts}`);
       this.createConnection();
     }, finalDelay);
   }
@@ -794,10 +817,11 @@ export class WebSocketClient {
    * Queue a message for later delivery when reconnected.
    */
   private queueMessage(message: string): void {
+    console.log(`[WS-QUEUE] Queueing message (${this.messageQueue.length + 1} in queue)`);
     if (this.messageQueue.length >= this.maxQueueSize) {
       // Remove oldest message to make room
       this.messageQueue.shift();
-      console.warn('Message queue full, dropping oldest message');
+      console.warn(`[WS-QUEUE-FULL] Message queue full, dropping oldest message`);
     }
     this.messageQueue.push(message);
     this.emit('message-queued', message, this.messageQueue.length);
@@ -812,7 +836,7 @@ export class WebSocketClient {
     }
 
     const count = this.messageQueue.length;
-    console.log(`Flushing ${count} queued messages`);
+    console.log(`[WS-QUEUE] Flushing ${count} queued messages`);
 
     // Send all queued messages
     while (this.messageQueue.length > 0) {

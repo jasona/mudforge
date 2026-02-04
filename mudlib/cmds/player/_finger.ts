@@ -13,6 +13,7 @@ import type { MudObject } from '../../lib/std.js';
 import type { PlayerSaveData } from '../../std/player.js';
 import { canSee } from '../../std/visibility/index.js';
 import type { Living } from '../../std/living.js';
+import { getGuildDaemon } from '../../daemons/guild.js';
 
 interface CommandContext {
   player: MudObject;
@@ -194,6 +195,22 @@ async function displayPlayerInfo(
   const permLevel = player.permissionLevel ?? 0;
   const role = getRoleName(permLevel);
   ctx.sendLine(`   ${padLabel('Role:', labelWidth)}${role}`);
+
+  // Guild memberships
+  const guildDaemon = getGuildDaemon();
+  const playerWithProps = player as unknown as { getProperty(key: string): unknown };
+  const guildData = playerWithProps.getProperty?.('guildData') as { guilds: Array<{ guildId: string; guildLevel: number }> } | undefined;
+  if (guildData && guildData.guilds.length > 0) {
+    const guildList = guildData.guilds
+      .map(g => {
+        const guild = guildDaemon.getGuild(g.guildId);
+        return `${guild?.name ?? g.guildId} (Lv ${g.guildLevel})`;
+      })
+      .join(', ');
+    ctx.sendLine(`   ${padLabel('Guilds:', labelWidth)}{cyan}${guildList}{/}`);
+  } else {
+    ctx.sendLine(`   ${padLabel('Guilds:', labelWidth)}{dim}None{/}`);
+  }
 
   // Divider
   ctx.sendLine(`{cyan}╠══════════════════════════════════════════════════════════════╣{/}`);

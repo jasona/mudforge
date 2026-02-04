@@ -13,6 +13,8 @@ import type { MudObject } from '../../lib/std.js';
 import { STAT_SHORT_NAMES, type StatName, Living } from '../../std/living.js';
 import { getVisibilityLevelName } from '../../std/visibility/index.js';
 import { openScoreModal } from '../../lib/score-modal.js';
+import { getGuildDaemon } from '../../daemons/guild.js';
+import { getGuildXPRequired } from '../../std/guild/types.js';
 
 interface StatsPlayer extends MudObject {
   name: string;
@@ -309,6 +311,20 @@ export function execute(ctx: CommandContext): void {
   ctx.sendLine(`  {bold}Status:{/}    ${player.alive ? '{green}Alive{/}' : '{red}Dead{/}'}`);
 
   ctx.sendLine('');
+
+  // Guild memberships
+  const guildDaemon = getGuildDaemon();
+  const guildData = player.getProperty('guildData') as { guilds: Array<{ guildId: string; guildLevel: number; guildXP: number }> } | undefined;
+  if (guildData && guildData.guilds.length > 0) {
+    ctx.sendLine('{bold}{yellow}── Guilds ──{/}');
+    for (const membership of guildData.guilds) {
+      const guild = guildDaemon.getGuild(membership.guildId);
+      const xpNeeded = getGuildXPRequired(membership.guildLevel);
+      const guildName = guild?.name ?? membership.guildId;
+      ctx.sendLine(`  {bold}${guildName}:{/} Level {cyan}${membership.guildLevel}{/} (${membership.guildXP}/${xpNeeded} XP)`);
+    }
+    ctx.sendLine('');
+  }
 
   // Visibility
   const playerLiving = player as unknown as Living;

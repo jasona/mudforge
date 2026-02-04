@@ -1,17 +1,20 @@
 /**
- * Skills command - View and manage learned skills.
+ * Skills command - View learned skills.
  *
  * Usage:
  *   skills               - List all learned skills
  *   skills <guild>       - List skills from a specific guild
  *   skill info <name>    - Detailed skill info
- *   skill use <name> [target] - Use a skill (also works as direct command)
+ *   skill available      - Show skills available to learn
+ *
+ * Note: To use skills, type the skill name directly (e.g., "bash goblin", "heal").
  */
 
 import type { MudObject } from '../../lib/std.js';
 import type { Living } from '../../std/living.js';
 import { getGuildDaemon } from '../../daemons/guild.js';
-import type { GuildId, SkillDefinition } from '../../std/guild/types.js';
+import type { GuildId, SkillDefinition, PlayerSkill } from '../../std/guild/types.js';
+import { getSkillUsageXPRequired } from '../../std/guild/types.js';
 
 interface CommandContext {
   player: MudObject;
@@ -28,8 +31,8 @@ interface GuildPlayer extends Living {
 }
 
 export const name = ['skills', 'skill', 'spells', 'abilities'];
-export const description = 'View and use your skills';
-export const usage = 'skills [guild] | skill info <name> | skill use <name> [target]';
+export const description = 'View your skills';
+export const usage = 'skills [guild] | skill info <name> | skill available';
 
 export async function execute(ctx: CommandContext): Promise<void> {
   const args = ctx.args.trim();
@@ -53,15 +56,6 @@ export async function execute(ctx: CommandContext): Promise<void> {
         return;
       }
       showSkillInfo(ctx, player, guildDaemon, remainder);
-      break;
-
-    case 'use':
-    case 'cast':
-      if (!remainder) {
-        ctx.sendLine('{yellow}Usage: skill use <skill name> [target]{/}');
-        return;
-      }
-      handleUseSkill(ctx, player, guildDaemon, remainder);
       break;
 
     case 'available':
@@ -117,18 +111,20 @@ function showAllSkills(
   for (const [guildId, skills] of byGuild) {
     const guild = guildDaemon.getGuild(guildId);
     ctx.sendLine(`{bold}${guild?.name || guildId}{/}`);
+    ctx.sendLine('');
 
     for (const { skill, level } of skills) {
       const typeColor = getTypeColor(skill.type);
       const cooldownInfo = getCooldownInfo(player, guildDaemon, skill.id);
       const levelBar = createLevelBar(level, skill.maxLevel);
+      const usageXPBar = createUsageXPBar(player, guildDaemon, skill);
 
-      ctx.sendLine(`  {${typeColor}}${skill.name}{/} ${levelBar} ${cooldownInfo}`);
+      ctx.sendLine(`  {${typeColor}}${skill.name}{/} ${levelBar}  ${usageXPBar} ${cooldownInfo}`);
     }
     ctx.sendLine('');
   }
 
-  ctx.sendLine('{dim}Use "skill info <name>" for details or "skill use <name>" to use.{/}');
+  ctx.sendLine('{dim}Use "skills <guild>" to filter, "skill info <name>" for details, or type a skill name to use it.{/}');
 }
 
 /**
@@ -159,13 +155,15 @@ function showGuildSkills(
     if (learned) {
       const levelBar = createLevelBar(playerSkillLevel, skill.maxLevel);
       const cooldownInfo = getCooldownInfo(player, guildDaemon, skill.id);
-      ctx.sendLine(`  {${typeColor}}${skill.name}{/} ${levelBar} ${cooldownInfo}`);
+      const usageXPBar = createUsageXPBar(player, guildDaemon, skill);
+      ctx.sendLine(`  {${typeColor}}${skill.name}{/} ${levelBar}  ${usageXPBar} ${cooldownInfo}`);
     } else {
       ctx.sendLine(`  {dim}${skill.name} (Level ${skill.guildLevelRequired}){/}`);
     }
   }
 
   ctx.sendLine('');
+  ctx.sendLine('{dim}Use "skills <guild>" to filter, "skill info <name>" for details, or type a skill name to use it.{/}');
 }
 
 /**
@@ -225,26 +223,25 @@ function showSkillInfo(
   const playerLevel = guildDaemon.getSkillLevel(player, skill.id);
   const learned = playerLevel > 0;
 
+  // Helper for aligned labels
+  const label = (text: string) => efuns.sprintf('%-14s', text);
+
   ctx.sendLine(`{bold}{cyan}=== ${skill.name} ==={/}`);
   ctx.sendLine('');
   ctx.sendLine(skill.description);
   ctx.sendLine('');
 
-  // Type and targeting
-  const typeColor = getTypeColor(skill.type);
-  ctx.sendLine(`Type: {${typeColor}}${skill.type}{/}  |  Target: {dim}${skill.target}{/}`);
-  ctx.sendLine(`Guild: {bold}${guild?.name}{/}  |  Required Level: {cyan}${skill.guildLevelRequired}{/}`);
-  ctx.sendLine('');
+  // Guild and requirements
+  ctx.sendLine(`${label('Guild:')}{bold}${guild?.name}{/}`);
+  ctx.sendLine(`${label('Level Req:')}{cyan}${skill.guildLevelRequired}{/}`);
 
   // Cost info
   if (skill.manaCost > 0) {
-    ctx.sendLine(`Mana Cost: {blue}${skill.manaCost} MP{/}`);
+    ctx.sendLine(`${label('Mana Cost:')}{blue}${skill.manaCost} MP{/}`);
   }
   if (skill.cooldown > 0) {
-    ctx.sendLine(`Cooldown: {dim}${skill.cooldown / 1000} seconds{/}`);
+    ctx.sendLine(`${label('Cooldown:')}{dim}${skill.cooldown / 1000} seconds{/}`);
   }
-
-  ctx.sendLine('');
 
   // Effect info
   const effect = skill.effect;
@@ -252,16 +249,19 @@ function showSkillInfo(
     const magAtLevel1 = effect.baseMagnitude;
     const magAtMax = effect.baseMagnitude + (effect.magnitudePerLevel * (skill.maxLevel - 1));
     const effectType = effect.healing ? 'Healing' : 'Damage';
-    ctx.sendLine(`${effectType}: {green}${Math.round(magAtLevel1)}{/} at level 1, {green}${Math.round(magAtMax)}{/} at level ${skill.maxLevel}`);
+    ctx.sendLine(`${label(effectType + ':')}{green}${Math.round(magAtLevel1)}{/} at level 1, {green}${Math.round(magAtMax)}{/} at level ${skill.maxLevel}`);
   }
   if (effect.duration) {
-    ctx.sendLine(`Duration: {dim}${effect.duration / 1000} seconds{/}`);
+    ctx.sendLine(`${label('Duration:')}{dim}${effect.duration / 1000} seconds{/}`);
   }
   if (effect.statModifier) {
-    ctx.sendLine(`Stat Bonus: {cyan}+${effect.baseMagnitude} ${effect.statModifier}{/} per level`);
+    ctx.sendLine(`${label('Stat Bonus:')}{cyan}+${effect.baseMagnitude} ${effect.statModifier}{/} per level`);
   }
 
-  ctx.sendLine('');
+  // Type and targeting
+  const typeColor = getTypeColor(skill.type);
+  ctx.sendLine(`${label('Type:')}{${typeColor}}${skill.type}{/}`);
+  ctx.sendLine(`${label('Target:')}{dim}${skill.target}{/}`);
 
   // Prerequisites
   if (skill.prerequisites && skill.prerequisites.length > 0) {
@@ -269,92 +269,33 @@ function showSkillInfo(
       const prereq = guildDaemon.getSkill(id);
       return prereq?.name || id;
     }).join(', ');
-    ctx.sendLine(`Prerequisites: {yellow}${prereqNames}{/}`);
-    ctx.sendLine('');
+    ctx.sendLine(`${label('Prereqs:')}{yellow}${prereqNames}{/}`);
   }
+
+  ctx.sendLine('');
 
   // Player's status with this skill
   if (learned) {
     const levelBar = createLevelBar(playerLevel, skill.maxLevel);
-    ctx.sendLine(`Your Level: ${levelBar}`);
+    ctx.sendLine(`${label('Your Level:')}${levelBar}`);
+
+    // Show usage XP progress
+    const playerSkillData = guildDaemon.getPlayerSkill(player, skill.id);
+    if (playerSkillData && playerLevel < skill.maxLevel) {
+      const usageXPBar = createUsageXPBar(player, guildDaemon, skill);
+      ctx.sendLine(`${label('Usage XP:')}${usageXPBar}`);
+      ctx.sendLine('');
+      ctx.sendLine('{dim}Skills also improve through use - keep using this skill to level up!{/}');
+    }
 
     const cooldownRemaining = guildDaemon.getCooldownRemaining(player, skill.id);
     if (cooldownRemaining > 0) {
+      ctx.sendLine('');
       ctx.sendLine(`{yellow}On cooldown: ${cooldownRemaining} seconds remaining{/}`);
     }
   } else {
     ctx.sendLine(`{dim}You have not learned this skill.{/}`);
-    ctx.sendLine(`Learn Cost: {yellow}${skill.learnCost} gold{/}`);
-  }
-}
-
-/**
- * Handle using a skill.
- */
-function handleUseSkill(
-  ctx: CommandContext,
-  player: GuildPlayer,
-  guildDaemon: ReturnType<typeof getGuildDaemon>,
-  args: string
-): void {
-  const parts = args.split(/\s+/);
-  const skillName = parts[0];
-  const targetName = parts.slice(1).join(' ');
-
-  if (!skillName) {
-    ctx.sendLine('{yellow}Usage: skill use <skill name> [target]{/}');
-    return;
-  }
-
-  // Find skill by name
-  const playerSkills = guildDaemon.getPlayerSkills(player);
-  const skillMatch = playerSkills.find(
-    ps => ps.skill.id.toLowerCase() === skillName.toLowerCase() ||
-          ps.skill.name.toLowerCase() === skillName.toLowerCase() ||
-          ps.skill.name.toLowerCase().includes(skillName.toLowerCase())
-  );
-
-  if (!skillMatch) {
-    ctx.sendLine(`{red}You don't know a skill called "${skillName}".{/}`);
-    return;
-  }
-
-  const skill = skillMatch.skill;
-
-  // Find target if needed
-  let target: Living | undefined;
-  if (skill.target === 'single' && targetName) {
-    // Look for target in room
-    const room = player.environment;
-    if (room && 'inventory' in room) {
-      const inventory = (room as MudObject & { inventory: MudObject[] }).inventory;
-      const found = inventory.find(obj => {
-        const living = obj as Living & { name?: string };
-        return living.name?.toLowerCase().includes(targetName.toLowerCase());
-      });
-      if (found && 'health' in found) {
-        target = found as Living;
-      }
-    }
-
-    if (!target) {
-      ctx.sendLine(`{red}Cannot find "${targetName}" here.{/}`);
-      return;
-    }
-  } else if (skill.target === 'single' && !targetName) {
-    // Check if in combat with a target
-    if (player.combatTarget) {
-      target = player.combatTarget as Living;
-    }
-  }
-
-  // Use the skill
-  const result = guildDaemon.useSkill(player, skill.id, target);
-
-  if (result.success) {
-    ctx.sendLine(`{green}${result.message}{/}`);
-  } else {
-    ctx.sendLine(`{red}${result.message}{/}`);
+    ctx.sendLine(`${label('Learn Cost:')}{yellow}${skill.learnCost} gold{/}`);
   }
 }
 
@@ -404,6 +345,37 @@ function getCooldownInfo(
     return `{yellow}(${remaining}s){/}`;
   }
   return '{green}[READY]{/}';
+}
+
+/**
+ * Create a visual usage XP bar.
+ */
+function createUsageXPBar(
+  player: GuildPlayer,
+  guildDaemon: ReturnType<typeof getGuildDaemon>,
+  skill: SkillDefinition
+): string {
+  const playerSkillData = guildDaemon.getPlayerSkill(player, skill.id);
+  if (!playerSkillData) {
+    return '';
+  }
+
+  const level = playerSkillData.level;
+
+  // At max level, no usage XP bar needed
+  if (level >= skill.maxLevel) {
+    return '{cyan}[MAX]{/}';
+  }
+
+  const usageXP = playerSkillData.usageXP ?? 0;
+  const xpRequired = getSkillUsageXPRequired(level, skill.advanceCostPerLevel);
+
+  const barLength = 10;
+  const filled = Math.min(barLength, Math.round((usageXP / xpRequired) * barLength));
+  const empty = barLength - filled;
+  const bar = '{yellow}' + '\u2588'.repeat(filled) + '{/}{dim}' + '\u2591'.repeat(empty) + '{/}';
+
+  return `[${bar}] {yellow}${usageXP}{/}/${xpRequired} XP`;
 }
 
 export default { name, description, usage, execute };

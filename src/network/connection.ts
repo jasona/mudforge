@@ -227,8 +227,63 @@ export class Connection extends EventEmitter {
     this._remoteAddress = remoteAddress;
     this._connectedAt = new Date();
 
-    console.log(`[WS-CONNECT] New connection ${id} from ${remoteAddress}`);
+    console.log(`[CONN-CREATE] ${id} created at ${new Date().toISOString()} from ${remoteAddress}`);
+
+    // Enable TCP keepalive on the underlying socket to detect dead connections at OS level
+    // This helps catch half-open connections that WebSocket ping/pong might miss
+    this.enableTcpKeepalive();
+
     this.setupEventHandlers();
+  }
+
+  /**
+   * Enable TCP keepalive on the underlying socket and monitor TCP-level events.
+   * This helps detect dead connections at the OS level, complementing WebSocket ping/pong.
+   */
+  private enableTcpKeepalive(): void {
+    try {
+      // Access the underlying net.Socket from the ws WebSocket
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const rawSocket = (this.socket as any)._socket;
+      if (rawSocket && typeof rawSocket.setKeepAlive === 'function') {
+        // Enable keepalive with 30 second initial delay
+        rawSocket.setKeepAlive(true, 30000);
+        console.log(`[CONN-KEEPALIVE] ${this._id} TCP keepalive enabled (30s delay)`);
+
+        // Monitor TCP-level events for debugging connection issues
+        rawSocket.on('timeout', () => {
+          console.warn(`[CONN-TCP] ${this._id} TCP socket timeout`);
+        });
+
+        rawSocket.on('end', () => {
+          console.log(`[CONN-TCP] ${this._id} TCP socket received FIN (remote end closed)`);
+        });
+
+        rawSocket.on('error', (err: Error) => {
+          console.error(`[CONN-TCP] ${this._id} TCP socket error: ${err.message}`);
+        });
+
+        // Log when data stops flowing (could indicate network issues)
+        rawSocket.on('drain', () => {
+          console.log(`[CONN-TCP] ${this._id} TCP socket drained (write buffer empty)`);
+        });
+      } else {
+        console.log(`[CONN-KEEPALIVE] ${this._id} Could not access underlying socket for keepalive`);
+      }
+    } catch (error) {
+      console.warn(`[CONN-KEEPALIVE] ${this._id} Failed to enable TCP keepalive:`, error);
+    }
+  }
+
+  /**
+   * Set the connection state and log the change.
+   */
+  private setState(newState: ConnectionState): void {
+    const oldState = this._state;
+    if (oldState !== newState) {
+      this._state = newState;
+      console.log(`[CONN-STATE] ${this._id}: ${oldState} -> ${newState}`);
+    }
   }
 
   /**
@@ -236,7 +291,7 @@ export class Connection extends EventEmitter {
    */
   private setupEventHandlers(): void {
     this.socket.on('open', () => {
-      this._state = 'open';
+      this.setState('open');
     });
 
     this.socket.on('message', (data: Buffer | string) => {
@@ -247,31 +302,41 @@ export class Connection extends EventEmitter {
     this.socket.on('close', (code: number, reason: Buffer) => {
       const reasonStr = reason.toString();
       const playerName = this._player ? (this._player as { name?: string }).name || 'unknown' : 'no-player';
-      console.log(`[WS-CLOSE] Connection ${this._id} (${playerName}) closed - code: ${code}, reason: "${reasonStr}"`);
-      console.log(`[WS-CLOSE] Close code meanings: 1000=normal, 1001=going-away, 1005=no-status, 1006=abnormal, 1011=server-error`);
-      console.log(`[WS-CLOSE] Connection was open for ${Date.now() - this._connectedAt.getTime()}ms, missed pongs: ${this._missedPongs}`);
+      console.log(`[CONN-SOCKET-CLOSE] ${this._id} (${playerName}) socket closed: code=${code}, reason="${reasonStr}"`);
+      console.log(`[CONN-SOCKET-CLOSE] Close code meanings: 1000=normal, 1001=going-away, 1005=no-status, 1006=abnormal, 1011=server-error`);
+      console.log(`[CONN-SOCKET-CLOSE] Connection was open for ${Date.now() - this._connectedAt.getTime()}ms, missed pongs: ${this._missedPongs}`);
       // Capture stack trace to see what triggered the close
-      console.log(`[WS-CLOSE] Stack trace:`, new Error('Close event trace').stack);
-      this._state = 'closed';
+      console.log(`[CONN-SOCKET-CLOSE] Stack trace:`, new Error('Close event trace').stack);
+      this.setState('closed');
       this.emit('close', code, reason.toString());
     });
 
     this.socket.on('error', (error: Error) => {
       const playerName = this._player ? (this._player as { name?: string }).name || 'unknown' : 'no-player';
-      console.error(`[WS-ERROR] Connection ${this._id} (${playerName}) error:`, error.message);
-      console.error(`[WS-ERROR] Stack:`, error.stack);
+      console.error(`[CONN-ERROR] ${this._id} (${playerName}) socket error:`, error.message);
+      console.error(`[CONN-ERROR] Stack:`, error.stack);
       this.emit('error', error);
     });
 
     // Handle pong responses for keepalive
     this.socket.on('pong', () => {
+      // Only log pong if we had actual missed pongs (missedPongs > 1 means previous ping had no response)
+      if (this._missedPongs > 1) {
+        const playerName = this._player ? (this._player as { name?: string }).name || 'unknown' : 'no-player';
+        console.log(`[CONN-PONG] ${this._id} (${playerName}) received pong, resetting missedPongs from ${this._missedPongs} to 0`);
+      }
       this._missedPongs = 0;
       this._lastActivityTime = Date.now();
     });
 
+    // Handle unexpected responses (shouldn't happen with WebSocket, but log if it does)
+    this.socket.on('unexpected-response', (_req: unknown, res: { statusCode?: number }) => {
+      console.error(`[CONN-UNEXPECTED] ${this._id} unexpected response: ${res.statusCode}`);
+    });
+
     // Mark as open if socket is already open
     if (this.socket.readyState === this.socket.OPEN) {
-      this._state = 'open';
+      this.setState('open');
     }
   }
 
@@ -389,11 +454,19 @@ export class Connection extends EventEmitter {
 
     const bufferedAmount = this.socket.bufferedAmount || 0;
 
+    // Log when buffer is getting full (approaching threshold)
+    if (bufferedAmount > BACKPRESSURE_THRESHOLD / 2) {
+      const playerName = this._player ? (this._player as { name?: string }).name || 'unknown' : 'no-player';
+      console.log(`[CONN-BUFFER] ${this._id} (${playerName}) bufferedAmount=${bufferedAmount} (threshold: ${BACKPRESSURE_THRESHOLD})`);
+    }
+
     // Check for backpressure
     if (bufferedAmount > BACKPRESSURE_THRESHOLD) {
       // Warn once per backpressure episode
       if (!this._backpressureWarned) {
         this._backpressureWarned = true;
+        const playerName = this._player ? (this._player as { name?: string }).name || 'unknown' : 'no-player';
+        console.warn(`[CONN-BACKPRESSURE] ${this._id} (${playerName}) hit backpressure threshold, queueing messages`);
         this.emit('backpressure', bufferedAmount);
       }
 
@@ -403,8 +476,11 @@ export class Connection extends EventEmitter {
         if (this._pendingMessages.length < 100) {
           this._pendingMessages.push(message);
           this.scheduleDrain();
+        } else {
+          // Drop message if queue is also full (prevents memory exhaustion)
+          const playerName = this._player ? (this._player as { name?: string }).name || 'unknown' : 'no-player';
+          console.error(`[CONN-DROP] ${this._id} (${playerName}) dropping message - queue full (${this._pendingMessages.length} queued)`);
         }
-        // Drop message if queue is also full (prevents memory exhaustion)
         return;
       }
     } else {
@@ -733,9 +809,32 @@ export class Connection extends EventEmitter {
   /**
    * Increment the missed pong counter and return the new value.
    * Called before sending each ping.
+   *
+   * Note: Counter going 0→1 is normal (incremented before ping, reset on pong).
+   * Counter going 1→2 means the previous ping got no response - that's concerning.
    */
   incrementMissedPongs(): number {
-    return ++this._missedPongs;
+    const previousCount = this._missedPongs;
+    const newCount = ++this._missedPongs;
+    const playerName = this._player ? (this._player as { name?: string }).name || 'unknown' : 'no-player';
+
+    // Only log when we're actually missing pongs (previous ping had no response)
+    // 0→1 is normal (pre-ping increment), 1→2 means first actual missed pong
+    if (previousCount >= 1) {
+      if (previousCount === 1) {
+        // First ACTUAL missed pong - previous ping never got a response
+        console.warn(`[CONN-MISSED] ${this._id} (${playerName}) FIRST MISSED PONG - connection may be going stale`);
+        console.warn(`[CONN-MISSED] ${this._id} socket.readyState=${this.socket.readyState} (0=CONNECTING, 1=OPEN, 2=CLOSING, 3=CLOSED)`);
+        console.warn(`[CONN-MISSED] ${this._id} socket.bufferedAmount=${this.socket.bufferedAmount}`);
+        console.warn(`[CONN-MISSED] ${this._id} lastActivityTime was ${Date.now() - this._lastActivityTime}ms ago`);
+      } else {
+        // Subsequent missed pongs
+        console.warn(`[CONN-MISSED] ${this._id} (${playerName}) missedPongs=${newCount} (no response to last ${previousCount} pings)`);
+      }
+    }
+    // Don't log 0→1 transitions - that's just the normal pre-ping increment
+
+    return newCount;
   }
 
   /**
@@ -769,6 +868,12 @@ export class Connection extends EventEmitter {
   ping(): void {
     if (this._state !== 'open') {
       return;
+    }
+
+    // Only log pings when there are already missed pongs (potential issue)
+    if (this._missedPongs > 1) {
+      const playerName = this._player ? (this._player as { name?: string }).name || 'unknown' : 'no-player';
+      console.log(`[CONN-PING] ${this._id} (${playerName}) sending ping (missedPongs: ${this._missedPongs})`);
     }
 
     try {
@@ -836,10 +941,10 @@ export class Connection extends EventEmitter {
     const playerName = this._player ? (this._player as { name?: string }).name || 'unknown' : 'no-player';
     const closeCode = code || 1000;
     const closeReason = reason || 'Connection closed';
-    console.log(`[WS-CLOSE-CALL] Closing connection ${this._id} (${playerName}) - code: ${closeCode}, reason: "${closeReason}"`);
-    console.log(`[WS-CLOSE-CALL] Called from:`, new Error('close() call trace').stack);
+    console.log(`[CONN-CLOSE] ${this._id} (${playerName}) closing with code=${closeCode}, reason="${closeReason}"`);
+    console.log(`[CONN-CLOSE] Called from:`, new Error('close() call trace').stack);
 
-    this._state = 'closing';
+    this.setState('closing');
 
     // Clean up resources
     this.cleanup();
@@ -876,9 +981,8 @@ export class Connection extends EventEmitter {
    */
   terminate(): void {
     const playerName = this._player ? (this._player as { name?: string }).name || 'unknown' : 'no-player';
-    console.log(`[WS-TERMINATE] Terminating connection ${this._id} (${playerName}) forcefully`);
-    console.log(`[WS-TERMINATE] Missed pongs at termination: ${this._missedPongs}`);
-    console.log(`[WS-TERMINATE] Called from:`, new Error('terminate() call trace').stack);
+    console.log(`[CONN-TERMINATE] ${this._id} (${playerName}) terminated forcefully, missedPongs=${this._missedPongs}`);
+    console.log(`[CONN-TERMINATE] Called from:`, new Error('terminate() call trace').stack);
 
     // Clean up resources before terminating
     this.cleanup();
@@ -886,9 +990,10 @@ export class Connection extends EventEmitter {
     try {
       this.socket.terminate();
       this._state = 'closed';
+      console.log(`[CONN-STATE] ${this._id}: closing -> closed (terminated)`);
     } catch (error) {
       // Can't emit error after cleanup removed listeners, just log it
-      console.error(`[WS-TERMINATE] Error terminating connection ${this._id}:`, error);
+      console.error(`[CONN-TERMINATE] Error terminating connection ${this._id}:`, error);
     }
   }
 }

@@ -87,8 +87,20 @@ export class GuildMaster extends NPC {
       return undefined;
     });
 
-    // Add response for skill requests
-    this.addResponse(/teach|learn|skill|train/i, (speaker: MudObject) => {
+    // Add response for skill requests with optional skill name
+    this.addResponse(/(?:teach|learn|train)\s+(.+)/i, (speaker: MudObject, message: string) => {
+      // Extract skill name from the message
+      const match = message.match(/(?:teach|learn|train)\s+(.+)/i);
+      if (match && match[1]) {
+        void this.handleLearnSkill(speaker as GuildPlayer, match[1].trim());
+      } else {
+        void this.showSkillOptions(speaker as GuildPlayer);
+      }
+      return undefined;
+    });
+
+    // Add response for just "skills" or "learn" without a skill name
+    this.addResponse(/^(?:skills?|learn|teach|train)$/i, (speaker: MudObject) => {
       void this.showSkillOptions(speaker as GuildPlayer);
       return undefined;
     });
