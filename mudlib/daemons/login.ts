@@ -643,11 +643,19 @@ ${'='.repeat(bannerWidth)}
     }
 
     // Move to starting room (or last location for returning players)
-    let startLocation = '/areas/valdoria/aldric/center';
-    if (session.savedData?.location) {
+    // NEVER place player in the void - use default location instead
+    const DEFAULT_LOCATION = '/areas/valdoria/aldric/center';
+    const VOID_PATH = '/areas/void/void';
+    let startLocation = DEFAULT_LOCATION;
+    if (session.savedData?.location && session.savedData.location !== VOID_PATH) {
       startLocation = session.savedData.location;
     }
-    const room = typeof efuns !== 'undefined' ? efuns.findObject(startLocation) : undefined;
+    let room = typeof efuns !== 'undefined' ? efuns.findObject(startLocation) : undefined;
+    // If the saved room doesn't exist, fall back to default
+    if (!room && startLocation !== DEFAULT_LOCATION) {
+      console.warn(`[LOGIN] Saved location "${startLocation}" not found, using default`);
+      room = typeof efuns !== 'undefined' ? efuns.findObject(DEFAULT_LOCATION) : undefined;
+    }
     if (room) {
       await player.moveTo(room);
     }

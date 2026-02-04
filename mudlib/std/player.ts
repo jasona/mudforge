@@ -1893,6 +1893,16 @@ export class Player extends Living {
       }
     }
 
+    // Determine the save location - NEVER save the void as the location
+    // If player is in void (disconnected), use previousLocation instead
+    const DEFAULT_LOCATION = '/areas/valdoria/aldric/center';
+    const VOID_PATH = '/areas/void/void';
+    let saveLocation = this.environment?.objectPath || DEFAULT_LOCATION;
+    if (saveLocation === VOID_PATH) {
+      // Player is in void - use their previous location, or default if none
+      saveLocation = this._previousLocation || DEFAULT_LOCATION;
+    }
+
     return {
       name: this.name,
       title: this.title,
@@ -1904,7 +1914,7 @@ export class Player extends Living {
       mana: this.mana,
       maxMana: this.maxMana,
       stats: this.getBaseStats(),
-      location: this.environment?.objectPath || '/areas/valdoria/aldric/center',
+      location: saveLocation,
       inventory: inventoryPaths,
       equipment: equipment.length > 0 ? equipment : undefined,
       properties: this._serializeProperties(),
