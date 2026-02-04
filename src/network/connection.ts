@@ -196,6 +196,14 @@ const BACKPRESSURE_THRESHOLD = 64 * 1024;
 /** Maximum send buffer size before dropping messages (256KB) */
 const MAX_BUFFER_SIZE = 256 * 1024;
 
+/**
+ * Critical buffer size threshold (5MB).
+ * If buffer exceeds this, the connection is considered broken - likely the client
+ * can't receive data but TCP hasn't detected it yet. We should terminate to avoid
+ * accumulating unbounded data and to allow the player to reconnect.
+ */
+const CRITICAL_BUFFER_SIZE = 5 * 1024 * 1024;
+
 /** Maximum number of messages to buffer for session resume replay */
 const MAX_MESSAGE_BUFFER_SIZE = 50;
 
@@ -600,6 +608,53 @@ export class Connection extends EventEmitter {
   }
 
   /**
+   * Check if the connection has a critically large buffer.
+   * This indicates the client likely can't receive data (network issue,
+   * suspended tab, etc.) but TCP hasn't detected it yet.
+   */
+  get hasCriticalBackpressure(): boolean {
+    return (this.socket.bufferedAmount || 0) > CRITICAL_BUFFER_SIZE;
+  }
+
+  /**
+   * Internal method for sending protocol messages with backpressure awareness.
+   * Unlike regular send(), protocol messages are not queued when buffer is full -
+   * they're dropped since they're typically ephemeral updates that will be
+   * superseded by newer data anyway.
+   * @returns true if message was sent, false if dropped due to backpressure
+   */
+  private sendProtocolMessage(message: string): boolean {
+    if (this._state !== 'open') {
+      return false;
+    }
+
+    const bufferedAmount = this.socket.bufferedAmount || 0;
+
+    // Log when buffer is high (but not on every message)
+    if (bufferedAmount > BACKPRESSURE_THRESHOLD && !this._backpressureWarned) {
+      this._backpressureWarned = true;
+      const playerName = this._player ? (this._player as { name?: string }).name || 'unknown' : 'no-player';
+      console.warn(`[CONN-BACKPRESSURE] ${this._id} (${playerName}) buffer=${bufferedAmount} exceeds threshold, dropping protocol messages`);
+      this.emit('backpressure', bufferedAmount);
+    } else if (bufferedAmount <= BACKPRESSURE_THRESHOLD) {
+      this._backpressureWarned = false;
+    }
+
+    // Drop message if buffer is too full - protocol messages are ephemeral
+    if (bufferedAmount > MAX_BUFFER_SIZE) {
+      return false;
+    }
+
+    try {
+      this.socket.send(message);
+      return true;
+    } catch (error) {
+      this.emit('error', error as Error);
+      return false;
+    }
+  }
+
+  /**
    * Get the number of pending messages waiting to be sent.
    */
   get pendingMessageCount(): number {
@@ -620,16 +675,8 @@ export class Connection extends EventEmitter {
    * @param message The map message to send
    */
   sendMap(message: MapMessage): void {
-    if (this._state !== 'open') {
-      return;
-    }
-
-    try {
-      const json = JSON.stringify(message);
-      this.socket.send(`\x00[MAP]${json}`);
-    } catch (error) {
-      this.emit('error', error as Error);
-    }
+    const json = JSON.stringify(message);
+    this.sendProtocolMessage(`\x00[MAP]${json}`);
   }
 
   /**
@@ -638,16 +685,8 @@ export class Connection extends EventEmitter {
    * @param message The stats message to send
    */
   sendStats(message: StatsMessage): void {
-    if (this._state !== 'open') {
-      return;
-    }
-
-    try {
-      const json = JSON.stringify(message);
-      this.socket.send(`\x00[STATS]${json}`);
-    } catch (error) {
-      this.emit('error', error as Error);
-    }
+    const json = JSON.stringify(message);
+    this.sendProtocolMessage(`\x00[STATS]${json}`);
   }
 
   /**
@@ -656,16 +695,8 @@ export class Connection extends EventEmitter {
    * @param message The GUI message to send
    */
   sendGUI(message: GUIMessage): void {
-    if (this._state !== 'open') {
-      return;
-    }
-
-    try {
-      const json = JSON.stringify(message);
-      this.socket.send(`\x00[GUI]${json}`);
-    } catch (error) {
-      this.emit('error', error as Error);
-    }
+    const json = JSON.stringify(message);
+    this.sendProtocolMessage(`\x00[GUI]${json}`);
   }
 
   /**
@@ -674,16 +705,8 @@ export class Connection extends EventEmitter {
    * @param message The quest message to send
    */
   sendQuest(message: QuestMessage): void {
-    if (this._state !== 'open') {
-      return;
-    }
-
-    try {
-      const json = JSON.stringify(message);
-      this.socket.send(`\x00[QUEST]${json}`);
-    } catch (error) {
-      this.emit('error', error as Error);
-    }
+    const json = JSON.stringify(message);
+    this.sendProtocolMessage(`\x00[QUEST]${json}`);
   }
 
   /**
@@ -692,16 +715,8 @@ export class Connection extends EventEmitter {
    * @param message The completion message to send
    */
   sendCompletion(message: CompletionMessage): void {
-    if (this._state !== 'open') {
-      return;
-    }
-
-    try {
-      const json = JSON.stringify(message);
-      this.socket.send(`\x00[COMPLETE]${json}`);
-    } catch (error) {
-      this.emit('error', error as Error);
-    }
+    const json = JSON.stringify(message);
+    this.sendProtocolMessage(`\x00[COMPLETE]${json}`);
   }
 
   /**
@@ -711,16 +726,8 @@ export class Connection extends EventEmitter {
    * @param message The comm message to send
    */
   sendComm(message: CommMessage): void {
-    if (this._state !== 'open') {
-      return;
-    }
-
-    try {
-      const json = JSON.stringify(message);
-      this.socket.send(`\x00[COMM]${json}`);
-    } catch (error) {
-      this.emit('error', error as Error);
-    }
+    const json = JSON.stringify(message);
+    this.sendProtocolMessage(`\x00[COMM]${json}`);
   }
 
   /**
@@ -730,16 +737,8 @@ export class Connection extends EventEmitter {
    * @param message The auth response message to send
    */
   sendAuthResponse(message: AuthResponseMessage): void {
-    if (this._state !== 'open') {
-      return;
-    }
-
-    try {
-      const json = JSON.stringify(message);
-      this.socket.send(`\x00[AUTH]${json}`);
-    } catch (error) {
-      this.emit('error', error as Error);
-    }
+    const json = JSON.stringify(message);
+    this.sendProtocolMessage(`\x00[AUTH]${json}`);
   }
 
   /**
@@ -749,16 +748,8 @@ export class Connection extends EventEmitter {
    * @param message The combat message to send
    */
   sendCombat(message: CombatMessage): void {
-    if (this._state !== 'open') {
-      return;
-    }
-
-    try {
-      const json = JSON.stringify(message);
-      this.socket.send(`\x00[COMBAT]${json}`);
-    } catch (error) {
-      this.emit('error', error as Error);
-    }
+    const json = JSON.stringify(message);
+    this.sendProtocolMessage(`\x00[COMBAT]${json}`);
   }
 
   /**
@@ -768,16 +759,8 @@ export class Connection extends EventEmitter {
    * @param message The sound message to send
    */
   sendSound(message: SoundMessage): void {
-    if (this._state !== 'open') {
-      return;
-    }
-
-    try {
-      const json = JSON.stringify(message);
-      this.socket.send(`\x00[SOUND]${json}`);
-    } catch (error) {
-      this.emit('error', error as Error);
-    }
+    const json = JSON.stringify(message);
+    this.sendProtocolMessage(`\x00[SOUND]${json}`);
   }
 
   /**
@@ -787,16 +770,8 @@ export class Connection extends EventEmitter {
    * @param message The session message to send
    */
   sendSession(message: SessionTokenMessage | SessionResumeResponse): void {
-    if (this._state !== 'open') {
-      return;
-    }
-
-    try {
-      const json = JSON.stringify(message);
-      this.socket.send(`\x00[SESSION]${json}`);
-    } catch (error) {
-      this.emit('error', error as Error);
-    }
+    const json = JSON.stringify(message);
+    this.sendProtocolMessage(`\x00[SESSION]${json}`);
   }
 
   /**
@@ -896,36 +871,33 @@ export class Connection extends EventEmitter {
       return;
     }
 
-    try {
-      const now = new Date();
-      const name = Intl.DateTimeFormat().resolvedOptions().timeZone;
-      const abbreviation =
-        now.toLocaleTimeString('en-US', { timeZoneName: 'short' }).split(' ').pop() || '';
-      const offsetMinutes = now.getTimezoneOffset();
-      const sign = offsetMinutes <= 0 ? '+' : '-';
-      const hours = Math.floor(Math.abs(offsetMinutes) / 60)
-        .toString()
-        .padStart(2, '0');
-      const minutes = (Math.abs(offsetMinutes) % 60).toString().padStart(2, '0');
+    const now = new Date();
+    const name = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const abbreviation =
+      now.toLocaleTimeString('en-US', { timeZoneName: 'short' }).split(' ').pop() || '';
+    const offsetMinutes = now.getTimezoneOffset();
+    const sign = offsetMinutes <= 0 ? '+' : '-';
+    const hours = Math.floor(Math.abs(offsetMinutes) / 60)
+      .toString()
+      .padStart(2, '0');
+    const minutes = (Math.abs(offsetMinutes) % 60).toString().padStart(2, '0');
 
-      const message: {
-        timestamp: number;
-        timezone: { name: string; abbreviation: string; offset: string };
-        gameVersion?: string;
-      } = {
-        timestamp: Math.floor(now.getTime() / 1000),
-        timezone: { name, abbreviation, offset: `${sign}${hours}:${minutes}` },
-      };
+    const message: {
+      timestamp: number;
+      timezone: { name: string; abbreviation: string; offset: string };
+      gameVersion?: string;
+    } = {
+      timestamp: Math.floor(now.getTime() / 1000),
+      timezone: { name, abbreviation, offset: `${sign}${hours}:${minutes}` },
+    };
 
-      // Include game version if provided (for cache invalidation)
-      if (gameVersion) {
-        message.gameVersion = gameVersion;
-      }
-
-      this.socket.send(`\x00[TIME]${JSON.stringify(message)}`);
-    } catch {
-      // Don't emit error for time failures - ping will catch dead connections
+    // Include game version if provided (for cache invalidation)
+    if (gameVersion) {
+      message.gameVersion = gameVersion;
     }
+
+    // Use protocol message handling for backpressure awareness
+    this.sendProtocolMessage(`\x00[TIME]${JSON.stringify(message)}`);
   }
 
   /**
