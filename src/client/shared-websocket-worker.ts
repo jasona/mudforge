@@ -339,6 +339,13 @@ function handleConnect(port: MessagePort): void {
             connectedPort.visible = message.visible;
             console.log(`[SharedWorker] Tab ${tabId} visibility: ${message.visible ? 'visible' : 'hidden'}`);
 
+            // If a tab becomes visible, reset the staleness timer
+            // The server stops sending when tabs are hidden, so we can't judge staleness
+            // based on messages received while hidden
+            if (message.visible) {
+              lastServerMessage = Date.now();
+            }
+
             // If a tab becomes visible and we were disconnected/failed, try to reconnect
             if (message.visible && (connectionState === 'failed' || connectionState === 'disconnected')) {
               console.log('[SharedWorker] Tab became visible, attempting reconnect');
@@ -383,6 +390,12 @@ function handleConnect(port: MessagePort): void {
  * to detect if we're not receiving anything.
  */
 function checkStaleness(): void {
+  // Don't check staleness when all tabs are hidden
+  // The server stops sending messages when tab is hidden to prevent buffer growth
+  if (!anyTabVisible()) {
+    return;
+  }
+
   const timeSinceLastMessage = Date.now() - lastServerMessage;
 
   // If we haven't received any message in 2 minutes, something is wrong
