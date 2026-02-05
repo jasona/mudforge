@@ -41,6 +41,10 @@ export class StatsPanel {
   private encumbranceText: HTMLElement | null = null;
   private encumbranceDetail: HTMLElement | null = null;
 
+  // Cached portrait (received via EQUIPMENT protocol, separate from STATS)
+  private cachedPortrait: string | null = null;
+  private cachedAvatarId: string | null = null;
+
   constructor(containerId: string, options: StatsPanelOptions = {}) {
     this.options = options;
     // Get or create container
@@ -169,11 +173,18 @@ export class StatsPanel {
   handleMessage(message: StatsMessage): void {
     if (message.type !== 'update') return;
 
-    // Update avatar - prefer AI portrait if available
+    // Cache avatar ID for fallback
+    if (message.avatar) {
+      this.cachedAvatarId = message.avatar;
+    }
+
+    // Update avatar - prefer portrait from message, then cached, then avatar SVG
+    // Note: profilePortrait is now sent via EQUIPMENT protocol (not every heartbeat)
     if (this.avatarContainer) {
-      if (message.profilePortrait && message.profilePortrait.startsWith('data:')) {
-        // Use AI-generated portrait
-        this.avatarContainer.innerHTML = `<img src="${message.profilePortrait}" alt="Portrait" class="stats-avatar-img" />`;
+      const portrait = message.profilePortrait || this.cachedPortrait;
+      if (portrait && portrait.startsWith('data:')) {
+        // Use AI-generated portrait (from STATS or cached from EQUIPMENT)
+        this.avatarContainer.innerHTML = `<img src="${portrait}" alt="Portrait" class="stats-avatar-img" />`;
       } else if (message.avatar) {
         // Fall back to base avatar SVG
         this.avatarContainer.innerHTML = getAvatarSvg(message.avatar);
@@ -316,6 +327,20 @@ export class StatsPanel {
    */
   get visible(): boolean {
     return this.isVisible && !this.isCollapsed;
+  }
+
+  /**
+   * Update portrait from EQUIPMENT protocol.
+   * This is called when portrait is sent separately from STATS (bandwidth optimization).
+   */
+  updatePortrait(portrait: string): void {
+    // Cache the portrait for future STATS messages
+    this.cachedPortrait = portrait;
+
+    // Update the display immediately
+    if (this.avatarContainer && portrait.startsWith('data:')) {
+      this.avatarContainer.innerHTML = `<img src="${portrait}" alt="Portrait" class="stats-avatar-img" />`;
+    }
   }
 }
 

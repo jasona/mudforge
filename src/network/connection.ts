@@ -40,6 +40,8 @@ export interface EquipmentSlotData {
 
 /**
  * STATS protocol message type for HP/MP/XP display.
+ * NOTE: Equipment images and profile portraits are sent via separate
+ * EQUIPMENT protocol messages to avoid sending large images every heartbeat.
  */
 export interface StatsMessage {
   type: 'update';
@@ -54,9 +56,29 @@ export interface StatsMessage {
   bankedGold: number;
   permissionLevel: number;
   cwd: string;
+  avatar?: string;            // Avatar ID (small, OK to send every heartbeat)
+  profilePortrait?: string;   // Only sent on login/change, not every heartbeat
   equipment?: {
     [slot: string]: EquipmentSlotData | null;
   };
+}
+
+/**
+ * EQUIPMENT protocol message type for equipment image updates.
+ * Sent separately from STATS to avoid sending large images every heartbeat.
+ * Only sent when equipment actually changes.
+ */
+export interface EquipmentMessage {
+  type: 'equipment_update';
+  /** Map of slot name to image data URI (or null if empty/no image) */
+  slots: {
+    [slot: string]: {
+      image: string | null;
+      name: string;
+    } | null;
+  };
+  /** Optional profile portrait update (only included when portrait changes) */
+  profilePortrait?: string;
 }
 
 /**
@@ -908,6 +930,17 @@ export class Connection extends EventEmitter {
   sendSession(message: SessionTokenMessage | SessionResumeResponse): void {
     const json = JSON.stringify(message);
     this.sendProtocolMessage(`\x00[SESSION]${json}`);
+  }
+
+  /**
+   * Send an EQUIPMENT protocol message to the client.
+   * EQUIPMENT messages are prefixed with \x00[EQUIPMENT] to distinguish them from regular text.
+   * Used for equipment image updates (sent only when equipment changes, not every heartbeat).
+   * @param message The equipment message to send
+   */
+  sendEquipment(message: EquipmentMessage): void {
+    const json = JSON.stringify(message);
+    this.sendProtocolMessage(`\x00[EQUIPMENT]${json}`);
   }
 
   /**

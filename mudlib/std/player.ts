@@ -161,6 +161,23 @@ export interface CombatTargetClearMessage {
 export type CombatMessage = CombatTargetUpdateMessage | CombatHealthUpdateMessage | CombatTargetClearMessage;
 
 /**
+ * Equipment image update message (sent separately from STATS to reduce bandwidth).
+ * Only sent when equipment actually changes, not every heartbeat.
+ */
+export interface EquipmentMessage {
+  type: 'equipment_update';
+  /** Map of slot name to image data URI (or null if empty/no image) */
+  slots: {
+    [slot: string]: {
+      image: string | null;
+      name: string;
+    } | null;
+  };
+  /** Optional profile portrait update (only included when portrait changes) */
+  profilePortrait?: string;
+}
+
+/**
  * Connection interface (implemented by driver's Connection class).
  */
 export interface Connection {
@@ -170,6 +187,7 @@ export interface Connection {
   sendGUI?(message: GUIMessage): void;
   sendCompletion?(message: CompletionMessage): void;
   sendCombat?(message: CombatMessage): void;
+  sendEquipment?(message: EquipmentMessage): void;
   close(): void;
   isConnected(): boolean;
   // Connection health metrics (already exist on driver's Connection class)
@@ -323,6 +341,13 @@ export class Player extends Living {
 
   // Combat target tracking - avoid resending portrait every round
   private _lastCombatTargetId: string | null = null;
+
+  // Equipment image tracking - only send images when they change
+  // Maps slot name to simple hash of image data (or 'empty' if no image)
+  private _lastSentEquipmentImages: Map<string, string> = new Map();
+
+  // Profile portrait tracking - only send when it changes
+  private _lastSentPortraitHash: string = '';
 
   constructor() {
     super();
@@ -806,7 +831,7 @@ export class Player extends Living {
   /**
    * Send a complete state refresh to the client.
    * Called when tab becomes visible after being hidden.
-   * Sends current STATS, MAP position, and COMBAT target.
+   * Sends current STATS, MAP position, COMBAT target, and equipment images.
    */
   private async sendFullStateRefresh(): Promise<void> {
     if (!this._connection) {
@@ -816,6 +841,11 @@ export class Player extends Living {
     // Force send stats on next heartbeat check by ensuring shouldSendStats() returns true
     // We do this by setting the counter to 0 which always triggers for active players
     this._statsHeartbeatCount = 0;
+
+    // Clear equipment/portrait tracking to force resending images
+    // This ensures the client gets fresh image data after being hidden
+    this._lastSentEquipmentImages.clear();
+    this._lastSentPortraitHash = '';
 
     // Send current map position (player may have moved while tab was hidden)
     await this.sendMapUpdate();
@@ -1353,23 +1383,31 @@ export class Player extends Living {
 
     // Send stats update to client only if appropriate
     if (this.shouldSendStats()) {
-      const profilePortrait = this.getProperty('profilePortrait');
-
       // Build equipment data from getAllEquipped()
+      // NOTE: Images are NOT included here - they're sent separately via EQUIPMENT message
       const equipmentData: Record<string, EquipmentSlotData | null> = {};
       const equipped = this.getAllEquipped();
       const slots = ['head', 'chest', 'hands', 'legs', 'feet', 'cloak', 'main_hand', 'off_hand'];
+
+      // Track current equipment images for change detection
+      const currentEquipmentImages: Map<string, { hash: string; image: string | null; name: string }> = new Map();
+
       for (const slot of slots) {
         const item = equipped.get(slot as 'head' | 'chest' | 'hands' | 'legs' | 'feet' | 'cloak' | 'main_hand' | 'off_hand');
         if (item) {
           const isWeapon = 'wield' in item;
           const itemType = isWeapon ? 'weapon' : 'armor';
           const cachedImage = item.getProperty('cachedImage');
+          const imageStr = typeof cachedImage === 'string' ? cachedImage : null;
 
-          // Build slot data with tooltip info
+          // Track image for change detection (use first 50 chars as simple hash)
+          const imageHash = imageStr ? imageStr.substring(0, 50) : 'empty';
+          currentEquipmentImages.set(slot, { hash: imageHash, image: imageStr, name: item.shortDesc });
+
+          // Build slot data WITHOUT image (image sent separately via EQUIPMENT)
           const slotData: EquipmentSlotData = {
             name: item.shortDesc,
-            image: typeof cachedImage === 'string' ? cachedImage : undefined,
+            // NOTE: image omitted here - sent via EQUIPMENT protocol instead
             itemType: itemType as 'weapon' | 'armor',
             description: item.longDesc,
             weight: 'weight' in item ? (item as unknown as { weight: number }).weight : undefined,
@@ -1401,9 +1439,48 @@ export class Player extends Living {
           equipmentData[slot] = slotData;
         } else {
           equipmentData[slot] = null;
+          currentEquipmentImages.set(slot, { hash: 'empty', image: null, name: '' });
         }
       }
 
+      // Check for portrait changes
+      const profilePortrait = this.getProperty('profilePortrait');
+      const currentPortraitHash = typeof profilePortrait === 'string' ? profilePortrait.substring(0, 50) : 'empty';
+      const portraitChanged = currentPortraitHash !== this._lastSentPortraitHash;
+
+      // Check for equipment image changes
+      const changedSlots: Record<string, { image: string | null; name: string } | null> = {};
+      let hasEquipmentChanges = false;
+
+      for (const slot of slots) {
+        const current = currentEquipmentImages.get(slot);
+        const lastHash = this._lastSentEquipmentImages.get(slot) || 'unset';
+
+        if (current && current.hash !== lastHash) {
+          hasEquipmentChanges = true;
+          changedSlots[slot] = current.image ? { image: current.image, name: current.name } : null;
+          this._lastSentEquipmentImages.set(slot, current.hash);
+        }
+      }
+
+      // Send EQUIPMENT message only if images changed (or portrait changed)
+      if ((hasEquipmentChanges || portraitChanged) && this._connection.sendEquipment) {
+        const equipmentMsg: EquipmentMessage = {
+          type: 'equipment_update',
+          slots: changedSlots,
+        };
+
+        // Include portrait only if it changed
+        if (portraitChanged && typeof profilePortrait === 'string') {
+          equipmentMsg.profilePortrait = profilePortrait;
+          this._lastSentPortraitHash = currentPortraitHash;
+        }
+
+        this._connection.sendEquipment(equipmentMsg);
+      }
+
+      // Send STATS message (without large images - much smaller now!)
+      // Avatar ID is small (~10 chars), so it's OK to include every heartbeat
       this._connection.sendStats({
         type: 'update',
         hp: this.health,
@@ -1418,7 +1495,7 @@ export class Player extends Living {
         permissionLevel: this._permissionLevel,
         cwd: this._cwd,
         avatar: this._avatar,
-        profilePortrait: typeof profilePortrait === 'string' ? profilePortrait : undefined,
+        // NOTE: profilePortrait and equipment images sent via EQUIPMENT protocol
         carriedWeight: this.getCarriedWeight(),
         maxCarryWeight: this.getMaxCarryWeight(),
         encumbrancePercent: this.getEncumbrancePercent(),

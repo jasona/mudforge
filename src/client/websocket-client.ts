@@ -64,6 +64,7 @@ type WebSocketClientEvent =
   | 'ide-message'
   | 'map-message'
   | 'stats-message'
+  | 'equipment-message'
   | 'gui-message'
   | 'quest-message'
   | 'completion-message'
@@ -129,6 +130,24 @@ export interface StatsMessage {
   equipment?: {
     [slot: string]: EquipmentSlotData | null;
   };
+}
+
+/**
+ * Equipment image update message.
+ * Sent separately from STATS to avoid sending large images every heartbeat.
+ * Only sent when equipment actually changes.
+ */
+export interface EquipmentMessage {
+  type: 'equipment_update';
+  /** Map of slot name to image data (only changed slots are included) */
+  slots: {
+    [slot: string]: {
+      image: string | null;
+      name: string;
+    } | null;
+  };
+  /** Optional profile portrait update (only included when portrait changes) */
+  profilePortrait?: string;
 }
 
 /**
@@ -644,6 +663,14 @@ export class WebSocketClient {
             this.emit('stats-message', statsMessage);
           } catch (error) {
             console.error('Failed to parse STATS message:', error);
+          }
+        } else if (line.startsWith('\x00[EQUIPMENT]')) {
+          const jsonStr = line.slice(12); // Remove \x00[EQUIPMENT] prefix
+          try {
+            const equipmentMessage = JSON.parse(jsonStr) as EquipmentMessage;
+            this.emit('equipment-message', equipmentMessage);
+          } catch (error) {
+            console.error('Failed to parse EQUIPMENT message:', error);
           }
         } else if (line.startsWith('\x00[GUI]')) {
           const jsonStr = line.slice(6); // Remove \x00[GUI] prefix

@@ -9,6 +9,7 @@ import {
   WebSocketClient,
   IdeMessage,
   StatsMessage,
+  EquipmentMessage,
   GUIMessage,
   QuestMessage,
   CompletionMessage,
@@ -371,6 +372,15 @@ class MudClient {
       // Track permission level and cwd for tab completion
       this.permissionLevel = message.permissionLevel ?? 0;
       this.cwd = message.cwd ?? '/';
+    });
+
+    // Equipment image events (sent separately from STATS to reduce bandwidth)
+    this.wsClient.on('equipment-message', (message: EquipmentMessage) => {
+      this.equipmentPanel.handleEquipmentUpdate(message);
+      // Also update stats panel if portrait is included
+      if (message.profilePortrait) {
+        this.statsPanel.updatePortrait(message.profilePortrait);
+      }
     });
 
     // GUI events

@@ -25,6 +25,7 @@ export type {
   TimeMessage,
   EquipmentSlotData,
   StatsMessage,
+  EquipmentMessage,
   CompletionMessage,
   IdeMessage,
   GUIMessage,
@@ -48,6 +49,7 @@ import type {
   SessionResumeMessage,
   TimeMessage,
   StatsMessage,
+  EquipmentMessage,
   CompletionMessage,
   IdeMessage,
   GUIMessage,
@@ -71,6 +73,7 @@ type WebSocketClientEvent =
   | 'ide-message'
   | 'map-message'
   | 'stats-message'
+  | 'equipment-message'
   | 'gui-message'
   | 'quest-message'
   | 'completion-message'
@@ -500,6 +503,14 @@ export class SharedWorkerWebSocketClient {
           this.emit('stats-message', statsMessage);
         } catch (error) {
           console.error('Failed to parse STATS message:', error);
+        }
+      } else if (line.startsWith('\x00[EQUIPMENT]')) {
+        const jsonStr = line.slice(12);
+        try {
+          const equipmentMessage = JSON.parse(jsonStr) as EquipmentMessage;
+          this.emit('equipment-message', equipmentMessage);
+        } catch (error) {
+          console.error('Failed to parse EQUIPMENT message:', error);
         }
       } else if (line.startsWith('\x00[GUI]')) {
         const jsonStr = line.slice(6);
