@@ -136,11 +136,22 @@ export interface CombatTargetUpdateMessage {
   };
 }
 
+/**
+ * Lightweight health-only update for combat rounds.
+ * Avoids resending the portrait (which can be 50-200KB) every round.
+ */
+export interface CombatHealthUpdateMessage {
+  type: 'health_update';
+  health: number;
+  maxHealth: number;
+  healthPercent: number;
+}
+
 export interface CombatTargetClearMessage {
   type: 'target_clear';
 }
 
-export type CombatMessage = CombatTargetUpdateMessage | CombatTargetClearMessage;
+export type CombatMessage = CombatTargetUpdateMessage | CombatHealthUpdateMessage | CombatTargetClearMessage;
 
 /**
  * Sound category types.

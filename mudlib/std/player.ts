@@ -141,13 +141,24 @@ export interface CombatTargetUpdateMessage {
 }
 
 /**
+ * Lightweight health-only update for combat rounds.
+ * Avoids resending the portrait (which can be 50-200KB) every round.
+ */
+export interface CombatHealthUpdateMessage {
+  type: 'health_update';
+  health: number;
+  maxHealth: number;
+  healthPercent: number;
+}
+
+/**
  * Combat target clear message.
  */
 export interface CombatTargetClearMessage {
   type: 'target_clear';
 }
 
-export type CombatMessage = CombatTargetUpdateMessage | CombatTargetClearMessage;
+export type CombatMessage = CombatTargetUpdateMessage | CombatHealthUpdateMessage | CombatTargetClearMessage;
 
 /**
  * Connection interface (implemented by driver's Connection class).
@@ -309,6 +320,9 @@ export class Player extends Living {
 
   // Tab visibility tracking for state refresh on return
   private _lastTabVisible: boolean = true;
+
+  // Combat target tracking - avoid resending portrait every round
+  private _lastCombatTargetId: string | null = null;
 
   constructor() {
     super();
@@ -720,9 +734,16 @@ export class Player extends Living {
   /**
    * Send combat target update to the client.
    * Called when combat starts, damage is dealt, or combat ends.
+   *
+   * Optimization: Only sends full target data (including portrait) when the
+   * target changes. For subsequent updates to the same target (e.g., HP changes
+   * during combat rounds), sends a lightweight health-only update.
+   * This prevents 50-200KB portrait data from being sent every combat round.
+   *
    * @param target The combat target (null to clear the panel)
+   * @param forceFullUpdate Force a full update even if target hasn't changed (e.g., after reconnect)
    */
-  async sendCombatTarget(target: Living | null): Promise<void> {
+  async sendCombatTarget(target: Living | null, forceFullUpdate: boolean = false): Promise<void> {
     // Check if connection supports combat messages
     if (!this._connection?.sendCombat) {
       return;
@@ -730,10 +751,26 @@ export class Player extends Living {
 
     // Clear the panel if no target
     if (!target) {
+      this._lastCombatTargetId = null;
       this._connection.sendCombat({ type: 'target_clear' });
       return;
     }
 
+    const targetId = target.objectId;
+    const isNewTarget = targetId !== this._lastCombatTargetId;
+
+    // If same target and not forced, just send health update (much smaller)
+    if (!isNewTarget && !forceFullUpdate) {
+      this._connection.sendCombat({
+        type: 'health_update',
+        health: target.health,
+        maxHealth: target.maxHealth,
+        healthPercent: target.healthPercent,
+      });
+      return;
+    }
+
+    // New target or forced update - send full data including portrait
     try {
       // Dynamic import to avoid circular dependency
       const { getPortraitDaemon } = await import('../daemons/portrait.js');
@@ -745,7 +782,10 @@ export class Player extends Living {
       // Determine if target is a player
       const isPlayer = 'permissionLevel' in target && typeof (target as unknown as { permissionLevel: number }).permissionLevel === 'number';
 
-      // Send target update
+      // Update tracking
+      this._lastCombatTargetId = targetId;
+
+      // Send full target update
       this._connection.sendCombat({
         type: 'target_update',
         target: {
@@ -780,9 +820,9 @@ export class Player extends Living {
     // Send current map position (player may have moved while tab was hidden)
     await this.sendMapUpdate();
 
-    // Send current combat target (if any)
+    // Send current combat target (if any) - force full update after reconnect
     if (this.inCombat && this.combatTarget) {
-      await this.sendCombatTarget(this.combatTarget);
+      await this.sendCombatTarget(this.combatTarget, true);
     }
   }
 
