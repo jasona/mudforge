@@ -344,14 +344,15 @@ function handleConnect(port: MessagePort): void {
             // based on messages received while hidden
             if (message.visible) {
               lastServerMessage = Date.now();
-            }
 
-            // If a tab becomes visible and we were disconnected/failed, try to reconnect
-            if (message.visible && (connectionState === 'failed' || connectionState === 'disconnected')) {
-              console.log('[SharedWorker] Tab became visible, attempting reconnect');
-              reconnectAttempts = 0;
-              cancelReconnect();
-              createConnection();
+              // If not connected, try to reconnect immediately
+              // This handles: frozen setTimeout during sleep, failed state, disconnected state
+              if (connectionState !== 'connected' && connectionState !== 'connecting') {
+                console.log(`[SharedWorker] Tab became visible while ${connectionState}, reconnecting immediately`);
+                reconnectAttempts = 0;
+                cancelReconnect();
+                createConnection();
+              }
             }
           }
           break;
