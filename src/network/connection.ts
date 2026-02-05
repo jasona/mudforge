@@ -713,9 +713,10 @@ export class Connection extends EventEmitter {
 
   /**
    * Internal method for sending protocol messages with backpressure awareness.
-   * When tab is hidden, only COMM (chat) messages are sent - all other protocol
-   * messages (STATS, MAP, TIME, COMBAT) are state updates that will be refreshed
-   * when the tab becomes visible again.
+   * When tab is hidden, only COMM (chat) and TIME messages are sent.
+   * COMM preserves chat history; TIME keeps load balancer/proxy connections alive.
+   * All other protocol messages (STATS, MAP, COMBAT) are state updates that
+   * will be refreshed when the tab becomes visible again.
    * @returns true if message was sent, false if dropped
    */
   private sendProtocolMessage(message: string): boolean {
@@ -727,10 +728,12 @@ export class Connection extends EventEmitter {
     const typeMatch = message.match(/^\x00\[([A-Z_]+)\]/);
     const protoType = typeMatch?.[1] ?? 'UNKNOWN';
 
-    // When tab is hidden, only send COMM (chat) messages
+    // When tab is hidden, only send COMM (chat) and TIME messages
+    // COMM: chat events need history preservation
+    // TIME: data-frame keepalive that prevents load balancer/proxy idle timeouts
+    //       (proxies often ignore WebSocket ping/pong protocol frames)
     // All other protocol messages are state updates - skip until visible
-    // Player.heartbeat() will send a full refresh when tab becomes visible
-    if (!this._tabVisible && protoType !== 'COMM') {
+    if (!this._tabVisible && protoType !== 'COMM' && protoType !== 'TIME') {
       return false; // Silently skip - will refresh when visible
     }
 
