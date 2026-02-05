@@ -147,6 +147,9 @@ export class SharedWorkerWebSocketClient {
   // Track whether handlers are set up
   private visibilityHandlerSetup: boolean = false;
 
+  // Worker health check
+  private _workerPongReceived: boolean = false;
+
   /**
    * Check if connected.
    */
@@ -259,7 +262,60 @@ export class SharedWorkerWebSocketClient {
       if (this.isConnected) {
         this.sendVisibilityState(!isHidden);
       }
+
+      // When tab becomes visible, verify the worker is alive
+      // If the worker died (browser killed it during sleep), we need to recreate it
+      if (!isHidden) {
+        this.verifyWorkerAlive();
+      }
     });
+  }
+
+  /**
+   * Verify the SharedWorker is still alive by pinging it.
+   * If no response within 3 seconds, recreate the worker.
+   */
+  private verifyWorkerAlive(): void {
+    this._workerPongReceived = false;
+    this.sendToWorker({ type: 'ping' });
+
+    setTimeout(() => {
+      if (!this._workerPongReceived && this._connectionState !== 'connected') {
+        console.warn('[SharedWS] Worker not responding, recreating');
+        this.recreateWorker();
+      }
+    }, 3000);
+  }
+
+  /**
+   * Recreate the SharedWorker if it died.
+   */
+  private recreateWorker(): void {
+    console.log('[SharedWS] Recreating SharedWorker');
+
+    // Clean up old port
+    if (this.port) {
+      this.port.onmessage = null;
+      this.port = null;
+    }
+
+    // Create new worker using same params as connect()
+    try {
+      this.worker = new SharedWorker(new URL('./shared-websocket-worker.js', import.meta.url), {
+        type: 'module',
+        name: 'mudforge-websocket',
+      });
+      this.port = this.worker.port;
+      this.setupWorkerHandlers();
+      this.port.start();
+
+      // Reconnect if we had a URL
+      if (this.url) {
+        this.sendToWorker({ type: 'connect', url: this.url });
+      }
+    } catch (error) {
+      console.error('[SharedWS] Failed to recreate worker:', error);
+    }
   }
 
   /**
@@ -397,7 +453,7 @@ export class SharedWorkerWebSocketClient {
             break;
 
           case 'pong':
-            // Health check response - could use for monitoring
+            this._workerPongReceived = true;
             break;
         }
       } catch (error) {
