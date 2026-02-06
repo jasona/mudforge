@@ -69,6 +69,41 @@ export interface StatsMessage {
 }
 
 /**
+ * STATS delta message - contains only fields that changed since last send.
+ * Sent between full snapshots to reduce bandwidth.
+ * Client merges delta into its cached full StatsMessage before rendering.
+ */
+export interface StatsDeltaMessage {
+  type: 'delta';
+  hp?: number;
+  maxHp?: number;
+  mp?: number;
+  maxMp?: number;
+  level?: number;
+  xp?: number;
+  xpToLevel?: number;
+  gold?: number;
+  bankedGold?: number;
+  permissionLevel?: number;
+  cwd?: string;
+  avatar?: string;
+  profilePortrait?: string;
+  carriedWeight?: number;
+  maxCarryWeight?: number;
+  encumbrancePercent?: number;
+  encumbranceLevel?: 'none' | 'light' | 'medium' | 'heavy';
+  equipment?: {
+    [slot: string]: EquipmentSlotData | null;
+  };
+}
+
+/**
+ * Union of full stats snapshot and delta update.
+ * Clients should check `type` to determine how to process.
+ */
+export type StatsUpdate = StatsMessage | StatsDeltaMessage;
+
+/**
  * EQUIPMENT protocol message type for equipment image updates.
  * Sent separately from STATS to avoid sending large images every heartbeat.
  * Only sent when equipment actually changes.

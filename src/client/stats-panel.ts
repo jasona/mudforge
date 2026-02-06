@@ -5,7 +5,7 @@
  * plus level and gold information. Docked in the left sidebar.
  */
 
-import type { StatsMessage } from './websocket-client.js';
+import type { StatsMessage, StatsUpdate } from './websocket-client.js';
 import { getAvatarSvg } from './avatars.js';
 
 /**
@@ -44,6 +44,9 @@ export class StatsPanel {
   // Cached portrait (received via EQUIPMENT protocol, separate from STATS)
   private cachedPortrait: string | null = null;
   private cachedAvatarId: string | null = null;
+
+  // Cached full stats for delta merging
+  private _cachedStats: StatsMessage | null = null;
 
   constructor(containerId: string, options: StatsPanelOptions = {}) {
     this.options = options;
@@ -168,73 +171,88 @@ export class StatsPanel {
   }
 
   /**
-   * Handle incoming stats message.
+   * Handle incoming stats message (full snapshot or delta).
    */
-  handleMessage(message: StatsMessage): void {
-    if (message.type !== 'update') return;
+  handleMessage(message: StatsUpdate): void {
+    let stats: StatsMessage;
+    if (message.type === 'update') {
+      // Full snapshot - cache it
+      stats = message;
+      this._cachedStats = stats;
+    } else if (message.type === 'delta') {
+      // Delta - merge into cached stats
+      if (!this._cachedStats) {
+        return; // Can't apply delta without a base; wait for full snapshot
+      }
+      Object.assign(this._cachedStats, message);
+      this._cachedStats.type = 'update'; // Keep type as 'update' for rendering
+      stats = this._cachedStats;
+    } else {
+      return;
+    }
 
     // Cache avatar ID for fallback
-    if (message.avatar) {
-      this.cachedAvatarId = message.avatar;
+    if (stats.avatar) {
+      this.cachedAvatarId = stats.avatar;
     }
 
     // Update avatar - prefer portrait from message, then cached, then avatar SVG
     // Note: profilePortrait is now sent via EQUIPMENT protocol (not every heartbeat)
     if (this.avatarContainer) {
-      const portrait = message.profilePortrait || this.cachedPortrait;
+      const portrait = stats.profilePortrait || this.cachedPortrait;
       if (portrait && portrait.startsWith('data:')) {
         // Use AI-generated portrait (from STATS or cached from EQUIPMENT)
         this.avatarContainer.innerHTML = `<img src="${portrait}" alt="Portrait" class="stats-avatar-img" />`;
-      } else if (message.avatar) {
+      } else if (stats.avatar) {
         // Fall back to base avatar SVG
-        this.avatarContainer.innerHTML = getAvatarSvg(message.avatar);
+        this.avatarContainer.innerHTML = getAvatarSvg(stats.avatar);
       }
     }
 
     // Update level
     if (this.levelText) {
-      this.levelText.textContent = String(message.level);
+      this.levelText.textContent = String(stats.level);
     }
 
     // Update HP bar
-    const hpPercent = message.maxHp > 0 ? (message.hp / message.maxHp) * 100 : 0;
+    const hpPercent = stats.maxHp > 0 ? (stats.hp / stats.maxHp) * 100 : 0;
     if (this.hpBar) {
       this.hpBar.style.width = `${hpPercent}%`;
       this.hpBar.className = 'stats-bar-fill ' + this.getHpColorClass(hpPercent);
     }
     if (this.hpText) {
-      this.hpText.textContent = `${message.hp}/${message.maxHp}`;
+      this.hpText.textContent = `${stats.hp}/${stats.maxHp}`;
     }
 
     // Update MP bar
-    const mpPercent = message.maxMp > 0 ? (message.mp / message.maxMp) * 100 : 0;
+    const mpPercent = stats.maxMp > 0 ? (stats.mp / stats.maxMp) * 100 : 0;
     if (this.mpBar) {
       this.mpBar.style.width = `${mpPercent}%`;
       this.mpBar.className = 'stats-bar-fill ' + this.getMpColorClass(mpPercent);
     }
     if (this.mpText) {
-      this.mpText.textContent = `${message.mp}/${message.maxMp}`;
+      this.mpText.textContent = `${stats.mp}/${stats.maxMp}`;
     }
 
     // Update XP bar
-    const xpPercent = message.xpToLevel > 0 ? (message.xp / message.xpToLevel) * 100 : 0;
+    const xpPercent = stats.xpToLevel > 0 ? (stats.xp / stats.xpToLevel) * 100 : 0;
     if (this.xpBar) {
       this.xpBar.style.width = `${xpPercent}%`;
     }
     if (this.xpText) {
-      this.xpText.textContent = `${message.xp}/${message.xpToLevel}`;
+      this.xpText.textContent = `${stats.xp}/${stats.xpToLevel}`;
     }
 
     // Update gold
     if (this.goldText) {
-      this.goldText.textContent = this.formatGold(message.gold);
+      this.goldText.textContent = this.formatGold(stats.gold);
     }
     if (this.bankText) {
-      this.bankText.textContent = this.formatGold(message.bankedGold);
+      this.bankText.textContent = this.formatGold(stats.bankedGold);
     }
 
     // Update encumbrance bar
-    const encPercent = message.encumbrancePercent ?? 0;
+    const encPercent = stats.encumbrancePercent ?? 0;
     const encColorClass = this.getEncumbranceColorClass(encPercent);
     if (this.encumbranceBar) {
       // Cap display at 100% but keep actual value for calculation
@@ -247,8 +265,8 @@ export class StatsPanel {
     }
     if (this.encumbranceDetail) {
       const levelLabel = this.getEncumbranceLevelLabel(encPercent);
-      const carried = Math.round(message.carriedWeight ?? 0);
-      const max = Math.round(message.maxCarryWeight ?? 0);
+      const carried = Math.round(stats.carriedWeight ?? 0);
+      const max = Math.round(stats.maxCarryWeight ?? 0);
       this.encumbranceDetail.textContent = `${levelLabel} (${carried}/${max} lbs)`;
     }
   }

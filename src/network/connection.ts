@@ -13,6 +13,8 @@ import type {
   MapMessage,
   EquipmentSlotData,
   StatsMessage,
+  StatsDeltaMessage,
+  StatsUpdate,
   EquipmentMessage,
   CompletionMessage,
   GUIMessage,
@@ -35,6 +37,8 @@ export type {
   MapMessage,
   EquipmentSlotData,
   StatsMessage,
+  StatsDeltaMessage,
+  StatsUpdate,
   EquipmentMessage,
   CompletionMessage,
   GUIMessage,
@@ -254,52 +258,6 @@ export class Connection extends EventEmitter {
 
     for (const line of lines) {
       if (line.length > 0) {
-        // Handle TIME_ACK keepalive messages - echo timestamp for RTT measurement
-        if (line.startsWith('\x00[TIME_ACK]')) {
-          const timestamp = line.slice(11); // Extract timestamp after prefix
-          if (timestamp) {
-            // Check buffer before sending (same as other send methods)
-            const bufferedAmount = this.socket.bufferedAmount || 0;
-            if (bufferedAmount > HARD_STOP_BUFFER_SIZE) {
-              // Don't add to buffer if it's already too full
-              continue;
-            }
-            // Echo the timestamp back so client can calculate RTT
-            try {
-              this.socket.send(`\x00[TIME_PONG]${timestamp}`);
-            } catch {
-              // Ignore send errors
-            }
-          }
-          continue;
-        }
-
-        // Handle VISIBILITY messages - client tab hidden/visible state
-        if (line.startsWith('\x00[VISIBILITY]')) {
-          const json = line.slice(13); // Extract JSON after "\x00[VISIBILITY]"
-          try {
-            const { visible } = JSON.parse(json) as { visible: boolean };
-            const wasHidden = !this._tabVisible;
-            this._tabVisible = visible;
-            const playerName = this._player
-              ? ((this._player as { name?: string }).name || 'unknown')
-              : 'no-player';
-            console.log(
-              `[CONN-VISIBILITY] ${this._id} (${playerName}) tab ${visible ? 'visible' : 'hidden'}`
-            );
-
-            // When tab becomes visible, flush any queued messages to catch up
-            if (visible && wasHidden && this._pendingMessages.length > 0) {
-              console.log(
-                `[CONN-VISIBILITY] ${this._id} (${playerName}) flushing ${this._pendingMessages.length} queued messages`
-              );
-              this.drainPendingMessages();
-            }
-          } catch (e) {
-            console.error(`[CONN-VISIBILITY] Failed to parse: "${json}", error:`, e);
-          }
-          continue;
-        }
         this.emit('message', line);
       }
     }
@@ -684,9 +642,10 @@ export class Connection extends EventEmitter {
   /**
    * Send a STATS protocol message to the client.
    * STATS messages are prefixed with \x00[STATS] to distinguish them from regular text.
+   * Accepts both full snapshots (type: 'update') and deltas (type: 'delta').
    * @param message The stats message to send
    */
-  sendStats(message: StatsMessage): void {
+  sendStats(message: StatsUpdate): void {
     const json = JSON.stringify(message);
     this.sendProtocolMessage(`\x00[STATS]${json}`);
   }
@@ -800,6 +759,46 @@ export class Connection extends EventEmitter {
    */
   get tabVisible(): boolean {
     return this._tabVisible;
+  }
+
+  /**
+   * Set tab visibility state and drain queued messages on hidden→visible transition.
+   * Called by the driver when it receives a VISIBILITY protocol message.
+   */
+  setTabVisible(visible: boolean): void {
+    const wasHidden = !this._tabVisible;
+    this._tabVisible = visible;
+    const playerName = this._player
+      ? ((this._player as { name?: string }).name || 'unknown')
+      : 'no-player';
+    console.log(
+      `[CONN-VISIBILITY] ${this._id} (${playerName}) tab ${visible ? 'visible' : 'hidden'}`
+    );
+
+    // When tab becomes visible, flush any queued messages to catch up
+    if (visible && wasHidden && this._pendingMessages.length > 0) {
+      console.log(
+        `[CONN-VISIBILITY] ${this._id} (${playerName}) flushing ${this._pendingMessages.length} queued messages`
+      );
+      this.drainPendingMessages();
+    }
+  }
+
+  /**
+   * Send a TIME_PONG response for RTT measurement.
+   * Called by the driver when it receives a TIME_ACK protocol message.
+   * Checks buffer before sending to avoid adding to an already full buffer.
+   */
+  sendTimePong(timestamp: string): void {
+    const bufferedAmount = this.socket.bufferedAmount || 0;
+    if (bufferedAmount > HARD_STOP_BUFFER_SIZE) {
+      return; // Don't add to buffer if it's already too full
+    }
+    try {
+      this.socket.send(`\x00[TIME_PONG]${timestamp}`);
+    } catch {
+      // Ignore send errors
+    }
   }
 
   /**

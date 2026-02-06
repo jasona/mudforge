@@ -9,6 +9,7 @@ import {
   WebSocketClient,
   IdeMessage,
   StatsMessage,
+  StatsUpdate,
   EquipmentMessage,
   GUIMessage,
   QuestMessage,
@@ -365,13 +366,20 @@ class MudClient {
       this.mapPanel.handleMessage(message);
     });
 
-    // Stats events
-    this.wsClient.on('stats-message', (message: StatsMessage) => {
+    // Stats events (full snapshots and deltas)
+    this.wsClient.on('stats-message', (message: StatsUpdate) => {
       this.statsPanel.handleMessage(message);
-      this.equipmentPanel.handleMessage(message);
-      // Track permission level and cwd for tab completion
-      this.permissionLevel = message.permissionLevel ?? 0;
-      this.cwd = message.cwd ?? '/';
+      // Equipment panel only needs full snapshots (it checks for equipment field)
+      if (message.type === 'update') {
+        this.equipmentPanel.handleMessage(message);
+      }
+      // Track permission level and cwd for tab completion (present in both types)
+      if ('permissionLevel' in message && message.permissionLevel !== undefined) {
+        this.permissionLevel = message.permissionLevel;
+      }
+      if ('cwd' in message && message.cwd !== undefined) {
+        this.cwd = message.cwd;
+      }
     });
 
     // Equipment image events (sent separately from STATS to reduce bandwidth)

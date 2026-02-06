@@ -110,10 +110,25 @@ export interface StatsMessage {
   bankedGold: number;
   permissionLevel: number;
   cwd: string;
+  avatar: string;
+  carriedWeight: number;
+  maxCarryWeight: number;
+  encumbrancePercent: number;
+  encumbranceLevel: 'none' | 'light' | 'medium' | 'heavy';
   equipment?: {
     [slot: string]: EquipmentSlotData | null;
   };
 }
+
+/**
+ * STATS delta message - only changed fields since last send.
+ */
+export interface StatsDeltaMessage {
+  type: 'delta';
+  [key: string]: unknown;
+}
+
+export type StatsUpdate = StatsMessage | StatsDeltaMessage;
 
 /**
  * Tab completion response message.
@@ -183,7 +198,7 @@ export interface EquipmentMessage {
 export interface Connection {
   send(message: string): void;
   sendMap?(message: MapMessage): void;
-  sendStats?(message: StatsMessage): void;
+  sendStats?(message: StatsUpdate): void;
   sendGUI?(message: GUIMessage): void;
   sendCompletion?(message: CompletionMessage): void;
   sendCombat?(message: CombatMessage): void;
@@ -348,6 +363,10 @@ export class Player extends Living {
 
   // Profile portrait tracking - only send when it changes
   private _lastSentPortraitHash: string = '';
+
+  // Delta compression for STATS: cached last-sent values and send counter
+  private _lastSentStats: Record<string, unknown> = {};
+  private _statsSendCount: number = 0;
 
   constructor() {
     super();
@@ -841,6 +860,10 @@ export class Player extends Living {
     // Force send stats on next heartbeat check by ensuring shouldSendStats() returns true
     // We do this by setting the counter to 0 which always triggers for active players
     this._statsHeartbeatCount = 0;
+
+    // Reset delta compression to force full snapshot on next send
+    this._statsSendCount = 0;
+    this._lastSentStats = {};
 
     // Clear equipment/portrait tracking to force resending images
     // This ensures the client gets fresh image data after being hidden
@@ -1479,9 +1502,8 @@ export class Player extends Living {
         this._connection.sendEquipment(equipmentMsg);
       }
 
-      // Send STATS message (without large images - much smaller now!)
-      // Avatar ID is small (~10 chars), so it's OK to include every heartbeat
-      this._connection.sendStats({
+      // Build full stats object
+      const fullStats: StatsMessage = {
         type: 'update',
         hp: this.health,
         maxHp: this.maxHealth,
@@ -1501,7 +1523,42 @@ export class Player extends Living {
         encumbrancePercent: this.getEncumbrancePercent(),
         encumbranceLevel: this.getEncumbranceLevel(),
         equipment: equipmentData,
-      });
+      };
+
+      // Delta compression: send full snapshot every 10th send, otherwise only changed fields
+      this._statsSendCount++;
+      if (this._statsSendCount % 10 === 1 || Object.keys(this._lastSentStats).length === 0) {
+        // Full snapshot
+        this._connection.sendStats(fullStats);
+        this._lastSentStats = { ...fullStats };
+        delete this._lastSentStats.type;
+      } else {
+        // Compute delta against last sent stats
+        const delta: Record<string, unknown> = { type: 'delta' };
+        let hasChanges = false;
+        for (const [key, value] of Object.entries(fullStats)) {
+          if (key === 'type') continue;
+          if (key === 'equipment') {
+            if (JSON.stringify(value) !== JSON.stringify(this._lastSentStats[key])) {
+              delta[key] = value;
+              hasChanges = true;
+            }
+          } else if (value !== this._lastSentStats[key]) {
+            delta[key] = value;
+            hasChanges = true;
+          }
+        }
+        if (hasChanges) {
+          this._connection.sendStats(delta as StatsDeltaMessage);
+          // Update cache with changed values
+          for (const [key, value] of Object.entries(delta)) {
+            if (key !== 'type') {
+              this._lastSentStats[key] = value;
+            }
+          }
+        }
+        // If no changes, skip sending entirely (100% savings for idle)
+      }
     }
 
     // Show text-based vitals monitor if enabled
