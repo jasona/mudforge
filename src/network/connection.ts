@@ -8,173 +8,51 @@
 import type { WebSocket } from 'ws';
 import { EventEmitter } from 'events';
 
-/**
- * MAP protocol message type.
- * This is a minimal type - actual messages are defined in mudlib/lib/map-types.ts
- */
-export interface MapMessage {
-  type: string;
-  [key: string]: unknown;
-}
+// Protocol message types - canonical definitions in shared module
+import type {
+  MapMessage,
+  EquipmentSlotData,
+  StatsMessage,
+  EquipmentMessage,
+  CompletionMessage,
+  GUIMessage,
+  QuestMessage,
+  CommType,
+  CommMessage,
+  AuthResponseMessage,
+  CombatTargetUpdateMessage,
+  CombatHealthUpdateMessage,
+  CombatTargetClearMessage,
+  CombatMessage,
+  SoundCategory,
+  SoundMessage,
+  SessionTokenMessage,
+  SessionResumeMessage,
+} from '../shared/protocol-types.js';
 
-/**
- * Equipment slot data for stats display.
- */
-export interface EquipmentSlotData {
-  name: string;
-  image?: string;
-  itemType: 'weapon' | 'armor';
-  // Tooltip data
-  description?: string;
-  weight?: number;
-  value?: number;
-  // Weapon-specific
-  minDamage?: number;
-  maxDamage?: number;
-  damageType?: string;
-  handedness?: string;
-  // Armor-specific
-  armor?: number;
-  slot?: string;
-}
+// Re-export all protocol types so existing imports from connection.ts continue to work
+export type {
+  MapMessage,
+  EquipmentSlotData,
+  StatsMessage,
+  EquipmentMessage,
+  CompletionMessage,
+  GUIMessage,
+  QuestMessage,
+  CommType,
+  CommMessage,
+  AuthResponseMessage,
+  CombatTargetUpdateMessage,
+  CombatHealthUpdateMessage,
+  CombatTargetClearMessage,
+  CombatMessage,
+  SoundCategory,
+  SoundMessage,
+  SessionTokenMessage,
+};
 
-/**
- * STATS protocol message type for HP/MP/XP display.
- */
-export interface StatsMessage {
-  type: 'update';
-  hp: number;
-  maxHp: number;
-  mp: number;
-  maxMp: number;
-  level: number;
-  xp: number;
-  xpToLevel: number;
-  gold: number;
-  bankedGold: number;
-  permissionLevel: number;
-  cwd: string;
-  equipment?: {
-    [slot: string]: EquipmentSlotData | null;
-  };
-}
-
-/**
- * Tab completion response message.
- */
-export interface CompletionMessage {
-  type: 'completion';
-  prefix: string;
-  completions: string[];
-}
-
-/**
- * GUI protocol message type for modal dialogs.
- * Full message types are defined in mudlib/lib/gui-types.ts
- */
-export interface GUIMessage {
-  action: string;
-  [key: string]: unknown;
-}
-
-/**
- * Quest panel update message.
- */
-export interface QuestMessage {
-  type: 'update';
-  quests: Array<{
-    questId: string;
-    name: string;
-    progress: number;
-    progressText: string;
-    status: 'active' | 'completed';
-  }>;
-}
-
-/**
- * Communication message types for the comm panel.
- */
-export type CommType = 'say' | 'tell' | 'channel';
-
-/**
- * COMM protocol message type for say/tell/channel messages.
- */
-export interface CommMessage {
-  type: 'comm';
-  commType: CommType;
-  sender: string;
-  message: string;
-  channel?: string;      // For channel messages
-  recipients?: string[]; // For group tells
-  timestamp: number;
-  isSender?: boolean;    // True if recipient is the one who sent this message
-}
-
-/**
- * AUTH protocol message type for launcher authentication responses.
- */
-export interface AuthResponseMessage {
-  success: boolean;
-  error?: string;
-  errorCode?: 'invalid_credentials' | 'user_not_found' | 'name_taken' | 'validation_error';
-  requiresRegistration?: boolean;
-}
-
-/**
- * COMBAT protocol message types for combat target display.
- */
-export interface CombatTargetUpdateMessage {
-  type: 'target_update';
-  target: {
-    name: string;
-    level: number;
-    portrait: string;      // SVG markup or avatar ID
-    health: number;
-    maxHealth: number;
-    healthPercent: number;
-    isPlayer: boolean;
-  };
-}
-
-export interface CombatTargetClearMessage {
-  type: 'target_clear';
-}
-
-export type CombatMessage = CombatTargetUpdateMessage | CombatTargetClearMessage;
-
-/**
- * Sound category types.
- */
-export type SoundCategory = 'combat' | 'spell' | 'skill' | 'potion' | 'quest' | 'celebration' | 'discussion' | 'alert' | 'ambient' | 'ui';
-
-/**
- * SOUND protocol message type for audio playback.
- */
-export interface SoundMessage {
-  type: 'play' | 'loop' | 'stop';
-  category: SoundCategory;
-  sound: string;
-  volume?: number;
-  id?: string;
-}
-
-/**
- * SESSION protocol message for session token.
- */
-export interface SessionTokenMessage {
-  type: 'session_token';
-  token: string;
-  expiresAt: number;
-}
-
-/**
- * SESSION protocol message for session resume response.
- */
-export interface SessionResumeResponse {
-  type: 'session_resume' | 'session_invalid';
-  success?: boolean;
-  error?: string;
-}
+/** @deprecated Use SessionResumeMessage from shared/protocol-types instead */
+export type SessionResumeResponse = SessionResumeMessage;
 
 /**
  * Connection state.
@@ -397,9 +275,8 @@ export class Connection extends EventEmitter {
         }
 
         // Handle VISIBILITY messages - client tab hidden/visible state
-        // Plain prefix (no null byte) for better WebSocket compatibility
-        if (line.startsWith('[VISIBILITY]')) {
-          const json = line.slice(12); // Extract JSON after "[VISIBILITY]"
+        if (line.startsWith('\x00[VISIBILITY]')) {
+          const json = line.slice(13); // Extract JSON after "\x00[VISIBILITY]"
           try {
             const { visible } = JSON.parse(json) as { visible: boolean };
             const wasHidden = !this._tabVisible;
@@ -894,9 +771,20 @@ export class Connection extends EventEmitter {
    * Used for session token delivery and session resume responses.
    * @param message The session message to send
    */
-  sendSession(message: SessionTokenMessage | SessionResumeResponse): void {
+  sendSession(message: SessionTokenMessage | SessionResumeMessage): void {
     const json = JSON.stringify(message);
     this.sendProtocolMessage(`\x00[SESSION]${json}`);
+  }
+
+  /**
+   * Send an EQUIPMENT protocol message to the client.
+   * EQUIPMENT messages are prefixed with \x00[EQUIPMENT] to distinguish them from regular text.
+   * Used for equipment image updates (sent only when equipment changes, not every heartbeat).
+   * @param message The equipment message to send
+   */
+  sendEquipment(message: EquipmentMessage): void {
+    const json = JSON.stringify(message);
+    this.sendProtocolMessage(`\x00[EQUIPMENT]${json}`);
   }
 
   /**

@@ -15,16 +15,16 @@
  *   regular WebSocketClient instead.
  */
 
-import type { MapMessage } from './map-renderer.js';
-
 // Re-export all types from websocket-client for consumers
 export type { ConnectionState, ReconnectProgress } from './websocket-client.js';
 export type {
+  MapMessage,
   SessionTokenMessage,
   SessionResumeMessage,
   TimeMessage,
   EquipmentSlotData,
   StatsMessage,
+  EquipmentMessage,
   CompletionMessage,
   IdeMessage,
   GUIMessage,
@@ -44,20 +44,17 @@ export type {
 import type {
   ConnectionState,
   ReconnectProgress,
+} from './websocket-client.js';
+
+import type {
   SessionTokenMessage,
   SessionResumeMessage,
   TimeMessage,
-  StatsMessage,
-  CompletionMessage,
   IdeMessage,
   GUIMessage,
-  AuthResponseMessage,
-  QuestMessage,
-  CommMessage,
-  CombatMessage,
-  SoundMessage,
-  GiphyMessage,
-} from './websocket-client.js';
+} from '../shared/protocol-types.js';
+
+import { parseProtocolMessage } from './protocol-parser.js';
 
 /**
  * Event types for the WebSocket client.
@@ -71,6 +68,7 @@ type WebSocketClientEvent =
   | 'ide-message'
   | 'map-message'
   | 'stats-message'
+  | 'equipment-message'
   | 'gui-message'
   | 'quest-message'
   | 'completion-message'
@@ -280,8 +278,9 @@ export class SharedWorkerWebSocketClient {
     this.sendToWorker({ type: 'ping' });
 
     setTimeout(() => {
-      if (!this._workerPongReceived && this._connectionState !== 'connected') {
+      if (!this._workerPongReceived) {
         console.warn('[SharedWS] Worker not responding, recreating');
+        this.setConnectionState('disconnected');
         this.recreateWorker();
       }
     }, 3000);
@@ -326,7 +325,7 @@ export class SharedWorkerWebSocketClient {
 
     try {
       const message = JSON.stringify({ visible });
-      this.sendToWorker({ type: 'send', data: `[VISIBILITY]${message}\n` });
+      this.sendToWorker({ type: 'send', data: `\x00[VISIBILITY]${message}\n` });
     } catch {
       // Ignore
     }
@@ -476,128 +475,39 @@ export class SharedWorkerWebSocketClient {
       const line = lines[i];
       if (i === lines.length - 1 && line.length === 0) continue;
 
-      // Parse protocol messages (same logic as WebSocketClient)
-      if (line.startsWith('\x00[IDE]')) {
-        const jsonStr = line.slice(6);
-        try {
-          const ideMessage = JSON.parse(jsonStr) as IdeMessage;
-          this.emit('ide-message', ideMessage);
-        } catch (error) {
-          console.error('Failed to parse IDE message:', error);
+      const parsed = parseProtocolMessage(line);
+
+      if (!parsed) {
+        this.emit('message', line);
+        continue;
+      }
+
+      // Special handling for messages that need more than parse-and-emit
+      if (parsed.event === 'session-message' && parsed.data) {
+        const sessionMessage = parsed.data as { type: string };
+        if (sessionMessage.type === 'session_token') {
+          this.handleSessionToken(sessionMessage as SessionTokenMessage);
+        } else if (sessionMessage.type === 'session_resume' || sessionMessage.type === 'session_invalid') {
+          this.handleSessionResume(sessionMessage as SessionResumeMessage);
         }
-      } else if (line.startsWith('\x00[MAP]')) {
-        const jsonStr = line.slice(6);
-        try {
-          const mapMessage = JSON.parse(jsonStr) as MapMessage;
-          this.emit('map-message', mapMessage);
-        } catch (error) {
-          console.error('Failed to parse MAP message:', error);
-        }
-      } else if (line.startsWith('\x00[STATS]')) {
-        const jsonStr = line.slice(8);
-        try {
-          const statsMessage = JSON.parse(jsonStr) as StatsMessage;
-          this.emit('stats-message', statsMessage);
-        } catch (error) {
-          console.error('Failed to parse STATS message:', error);
-        }
-      } else if (line.startsWith('\x00[GUI]')) {
-        const jsonStr = line.slice(6);
-        try {
-          const guiMessage = JSON.parse(jsonStr) as GUIMessage;
-          this.emit('gui-message', guiMessage);
-        } catch (error) {
-          console.error('Failed to parse GUI message:', error);
-        }
-      } else if (line.startsWith('\x00[QUEST]')) {
-        const jsonStr = line.slice(8);
-        try {
-          const questMessage = JSON.parse(jsonStr) as QuestMessage;
-          this.emit('quest-message', questMessage);
-        } catch (error) {
-          console.error('Failed to parse QUEST message:', error);
-        }
-      } else if (line.startsWith('\x00[COMPLETE]')) {
-        const jsonStr = line.slice(11);
-        try {
-          const completionMessage = JSON.parse(jsonStr) as CompletionMessage;
-          this.emit('completion-message', completionMessage);
-        } catch (error) {
-          console.error('Failed to parse COMPLETE message:', error);
-        }
-      } else if (line.startsWith('\x00[COMM]')) {
-        const jsonStr = line.slice(7);
-        try {
-          const commMessage = JSON.parse(jsonStr) as CommMessage;
-          this.emit('comm-message', commMessage);
-        } catch (error) {
-          console.error('Failed to parse COMM message:', error);
-        }
-      } else if (line.startsWith('\x00[AUTH]')) {
-        const jsonStr = line.slice(7);
-        try {
-          const authMessage = JSON.parse(jsonStr) as AuthResponseMessage;
-          this.emit('auth-response', authMessage);
-        } catch (error) {
-          console.error('Failed to parse AUTH message:', error);
-        }
-      } else if (line.startsWith('\x00[COMBAT]')) {
-        const jsonStr = line.slice(9);
-        try {
-          const combatMessage = JSON.parse(jsonStr) as CombatMessage;
-          this.emit('combat-message', combatMessage);
-        } catch (error) {
-          console.error('Failed to parse COMBAT message:', error);
-        }
-      } else if (line.startsWith('\x00[SOUND]')) {
-        const jsonStr = line.slice(8);
-        try {
-          const soundMessage = JSON.parse(jsonStr) as SoundMessage;
-          this.emit('sound-message', soundMessage);
-        } catch (error) {
-          console.error('Failed to parse SOUND message:', error);
-        }
-      } else if (line.startsWith('\x00[GIPHY]')) {
-        const jsonStr = line.slice(8);
-        try {
-          const giphyMessage = JSON.parse(jsonStr) as GiphyMessage;
-          this.emit('giphy-message', giphyMessage);
-        } catch (error) {
-          console.error('Failed to parse GIPHY message:', error);
-        }
-      } else if (line.startsWith('\x00[SESSION]')) {
-        const jsonStr = line.slice(10);
-        try {
-          const sessionMessage = JSON.parse(jsonStr);
-          if (sessionMessage.type === 'session_token') {
-            this.handleSessionToken(sessionMessage as SessionTokenMessage);
-          } else if (sessionMessage.type === 'session_resume' || sessionMessage.type === 'session_invalid') {
-            this.handleSessionResume(sessionMessage as SessionResumeMessage);
-          }
-        } catch (error) {
-          console.error('Failed to parse SESSION message:', error);
-        }
-      } else if (line.startsWith('\x00[TIME]')) {
-        const jsonStr = line.slice(7);
-        try {
-          const timeMessage = JSON.parse(jsonStr) as TimeMessage;
-          const now = Date.now();
-          this.lastTimeReceived = now;
+      } else if (parsed.event === 'time-message') {
+        const now = Date.now();
+        this.lastTimeReceived = now;
+        if (parsed.data) {
+          const timeMessage = parsed.data as TimeMessage;
           timeMessage.latencyMs = this.lastMeasuredLatency;
           this.emit('time-message', timeMessage);
-          this.sendTimeAck();
-        } catch {
-          this.lastTimeReceived = Date.now();
         }
-      } else if (line.startsWith('\x00[TIME_PONG]')) {
-        const timestampStr = line.slice(12);
-        const sentTime = parseInt(timestampStr, 10);
+        this.sendTimeAck();
+      } else if (parsed.event === 'time-pong') {
+        const sentTime = parseInt(parsed.raw, 10);
         if (!isNaN(sentTime)) {
           this.lastMeasuredLatency = Date.now() - sentTime;
           this.emit('latency-update', this.lastMeasuredLatency);
         }
-      } else {
-        this.emit('message', line);
+      } else if (parsed.data) {
+        // Standard protocol messages: just emit
+        this.emit(parsed.event as WebSocketClientEvent, parsed.data);
       }
     }
   }

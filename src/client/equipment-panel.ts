@@ -5,7 +5,7 @@
  * Items show as icons at their corresponding body positions.
  */
 
-import type { StatsMessage, EquipmentSlotData } from './websocket-client.js';
+import type { StatsMessage, EquipmentSlotData, EquipmentMessage } from './websocket-client.js';
 
 /**
  * Equipment slot names and display properties.
@@ -279,6 +279,10 @@ export class EquipmentPanel {
   private slots: Map<EquipmentSlotName, HTMLElement> = new Map();
   private currentEquipment: Map<EquipmentSlotName, EquipmentSlotData | null> = new Map();
 
+  // Cached equipment images (received via EQUIPMENT protocol, separate from STATS)
+  // This allows displaying images even when STATS doesn't include them
+  private cachedImages: Map<EquipmentSlotName, string | null> = new Map();
+
   // Equipment body container for delegated events
   private equipmentBody: HTMLElement | null = null;
 
@@ -488,6 +492,7 @@ export class EquipmentPanel {
 
   /**
    * Update a single equipment slot.
+   * Uses cached image if STATS doesn't include image data (bandwidth optimization).
    */
   private updateSlot(slot: EquipmentSlotName, equipment: EquipmentSlotData | null): void {
     const slotEl = this.slots.get(slot);
@@ -499,17 +504,52 @@ export class EquipmentPanel {
       // Slot is equipped
       slotEl.classList.add('equipped');
 
-      if (equipment.image) {
+      // Use image from STATS if present, otherwise use cached image from EQUIPMENT protocol
+      const image = equipment.image || this.cachedImages.get(slot);
+
+      if (image) {
         // Show item image
-        slotEl.innerHTML = `<img src="${equipment.image}" alt="${escapeHtml(equipment.name)}" class="equipment-slot-icon" />`;
+        slotEl.innerHTML = `<img src="${image}" alt="${escapeHtml(equipment.name)}" class="equipment-slot-icon" />`;
       } else {
         // Show fallback icon
         slotEl.innerHTML = `<span class="equipment-slot-fallback">${SLOT_ICONS[slot]}</span>`;
       }
     } else {
-      // Slot is empty
+      // Slot is empty - clear cached image
+      this.cachedImages.delete(slot);
       slotEl.classList.remove('equipped');
       slotEl.innerHTML = `<span class="equipment-slot-empty">+</span>`;
+    }
+  }
+
+  /**
+   * Handle equipment image update from EQUIPMENT protocol.
+   * This receives images separately from STATS to reduce bandwidth.
+   */
+  handleEquipmentUpdate(message: EquipmentMessage): void {
+    if (message.type !== 'equipment_update') return;
+
+    // Update cached images for changed slots
+    for (const [slot, data] of Object.entries(message.slots)) {
+      const slotName = slot as EquipmentSlotName;
+      if (!EQUIPMENT_SLOTS.includes(slotName as (typeof EQUIPMENT_SLOTS)[number])) continue;
+
+      if (data === null) {
+        // Slot is now empty
+        this.cachedImages.delete(slotName);
+      } else {
+        // Update cached image
+        this.cachedImages.set(slotName, data.image);
+      }
+
+      // Re-render the slot with new image
+      const equipment = this.currentEquipment.get(slotName);
+      if (equipment) {
+        this.updateSlot(slotName, equipment);
+      } else if (data === null) {
+        // Slot became empty
+        this.updateSlot(slotName, null);
+      }
     }
   }
 

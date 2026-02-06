@@ -93,8 +93,12 @@ export class SessionManager {
 
   /**
    * Create a session token for a player.
+   * @param playerName Player name
+   * @param connectionId Connection ID
+   * @param remoteAddress Remote IP address
+   * @param ttlMsOverride Optional TTL override (e.g., to match runtime disconnect timeout)
    */
-  createToken(playerName: string, connectionId: string, remoteAddress: string): {
+  createToken(playerName: string, connectionId: string, remoteAddress: string, ttlMsOverride?: number): {
     token: string;
     expiresAt: number;
   } {
@@ -110,7 +114,7 @@ export class SessionManager {
     }
 
     const now = Date.now();
-    const expiresAt = now + this.ttlMs;
+    const expiresAt = now + (ttlMsOverride ?? this.ttlMs);
     const nonce = randomBytes(8).toString('hex');
 
     // Create payload

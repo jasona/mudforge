@@ -6,7 +6,7 @@
  * Positioned to the left of the map widget.
  */
 
-import type { CombatMessage, CombatTargetUpdateMessage } from './websocket-client.js';
+import type { CombatMessage, CombatTargetUpdateMessage, CombatHealthUpdateMessage } from './websocket-client.js';
 import { getAvatarSvg } from './avatars.js';
 import { isAvatarId, getFallbackPortrait, isValidSvg, isDataUri } from './npc-portraits.js';
 
@@ -177,6 +177,13 @@ export class CombatPanel {
     if (message.type === 'target_update') {
       this.updateTarget(message);
       this.show();
+      return;
+    }
+
+    if (message.type === 'health_update') {
+      this.updateHealth(message);
+      // Panel should already be visible, but ensure it is
+      this.show();
     }
   }
 
@@ -235,6 +242,22 @@ export class CombatPanel {
 
     // Reposition in case map moved
     this.positionPanel();
+  }
+
+  /**
+   * Update just the health bar (lightweight update without portrait).
+   */
+  private updateHealth(message: CombatHealthUpdateMessage): void {
+    const healthPercent = message.healthPercent;
+
+    if (this.healthBar) {
+      this.healthBar.style.width = `${healthPercent}%`;
+      this.healthBar.className = 'combat-health-fill ' + this.getHealthColorClass(healthPercent);
+    }
+
+    if (this.healthText) {
+      this.healthText.textContent = `${message.health}/${message.maxHealth}`;
+    }
   }
 
   /**
