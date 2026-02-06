@@ -891,6 +891,39 @@ export class Driver {
     }
 
     try {
+      // === Protocol message dispatch ===
+      // Routing order:
+      // 1. TIME_ACK    → echo TIME_PONG (connection-level, works pre-login)
+      // 2. VISIBILITY  → connection.setTabVisible() (connection-level, works pre-login)
+      // 3. AUTH_REQ    → handleAuthRequest()
+      // 4. SESSION     → handleSessionMessage()
+      // 5. GUI         → handleGUIMessage()
+      // 6. COMPLETE    → handleCompletionRequest()
+      // 7. BUG_REPORT  → handleBugReport()
+      // 8. (else)      → login daemon or player.processInput()
+      //    └─ IDE      → handled by mudlib input handler
+
+      // TIME_ACK keepalive - echo timestamp for RTT measurement
+      if (input.startsWith('\x00[TIME_ACK]')) {
+        const timestamp = input.slice(11);
+        if (timestamp) {
+          connection.sendTimePong(timestamp);
+        }
+        return;
+      }
+
+      // VISIBILITY - client tab hidden/visible state
+      if (input.startsWith('\x00[VISIBILITY]')) {
+        const json = input.slice(13);
+        try {
+          const { visible } = JSON.parse(json) as { visible: boolean };
+          connection.setTabVisible(visible);
+        } catch (e) {
+          this.logger.error({ error: e, json }, 'Failed to parse VISIBILITY message');
+        }
+        return;
+      }
+
       // Check for GUI auth request prefix (launcher login/registration)
       if (input.startsWith('\x00[AUTH_REQ]')) {
         await this.handleAuthRequest(connection, input.slice(11));

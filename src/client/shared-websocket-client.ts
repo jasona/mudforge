@@ -24,6 +24,8 @@ export type {
   TimeMessage,
   EquipmentSlotData,
   StatsMessage,
+  StatsDeltaMessage,
+  StatsUpdate,
   EquipmentMessage,
   CompletionMessage,
   IdeMessage,

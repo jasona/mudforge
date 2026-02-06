@@ -12,6 +12,8 @@ export type {
   MapMessage,
   EquipmentSlotData,
   StatsMessage,
+  StatsDeltaMessage,
+  StatsUpdate,
   EquipmentMessage,
   CompletionMessage,
   IdeMessage,
