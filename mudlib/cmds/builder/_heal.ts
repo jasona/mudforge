@@ -7,6 +7,7 @@
  */
 
 import type { MudObject } from '../../lib/std.js';
+import { findItem } from '../../lib/item-utils.js';
 
 interface CommandContext {
   player: MudObject;
@@ -26,11 +27,6 @@ interface Living extends MudObject {
 export const name = 'heal';
 export const description = 'Fully restore a target\'s health and mana (builder only)';
 export const usage = 'heal <target>';
-
-function findObject(name: string, objects: MudObject[]): MudObject | undefined {
-  const lowerName = name.toLowerCase();
-  return objects.find((obj) => obj.id(lowerName));
-}
 
 function isLiving(obj: MudObject): obj is Living {
   return 'health' in obj && 'maxHealth' in obj && 'alive' in obj;
@@ -61,7 +57,7 @@ export function execute(ctx: CommandContext): void {
       ctx.sendLine("{red}You're not in a room!{/}");
       return;
     }
-    target = findObject(targetName, room.inventory);
+    target = findItem(targetName, room.inventory);
   }
 
   if (!target) {
