@@ -26,30 +26,25 @@ export const description = 'Evaluate how difficult a target would be to fight';
 export const usage = 'consider <target>';
 
 /**
- * Check if an object is a Living.
- */
-function isLiving(obj: MudObject): obj is Living {
-  return 'health' in obj && 'alive' in obj && 'level' in obj;
-}
-
-/**
  * Find a target by name in a list of objects.
  */
 function findTarget(targetName: string, objects: MudObject[]): Living | undefined {
   const lowerName = targetName.toLowerCase();
 
   for (const obj of objects) {
-    if (!isLiving(obj)) continue;
+    if (!efuns.isLiving(obj)) continue;
 
     // Check ID
-    if (obj.id(lowerName)) {
-      return obj;
+    const living = obj as Living;
+
+    if (living.id(lowerName)) {
+      return living;
     }
 
     // Check name property if it exists
-    if ('name' in obj && typeof obj.name === 'string') {
-      if (obj.name.toLowerCase().includes(lowerName)) {
-        return obj;
+    if ('name' in living && typeof living.name === 'string') {
+      if (living.name.toLowerCase().includes(lowerName)) {
+        return living;
       }
     }
   }
@@ -117,7 +112,7 @@ export function execute(ctx: CommandContext): void {
   }
 
   // Check if player is a Living
-  if (!isLiving(player)) {
+  if (!efuns.isLiving(player)) {
     ctx.sendLine("You can't consider enemies!");
     return;
   }

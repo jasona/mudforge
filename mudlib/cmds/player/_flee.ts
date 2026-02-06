@@ -26,19 +26,12 @@ export const name = ['flee', 'escape', 'run'];
 export const description = 'Attempt to escape from combat';
 export const usage = 'flee [direction]';
 
-/**
- * Check if an object is a Living.
- */
-function isLiving(obj: MudObject): obj is Living {
-  return 'health' in obj && 'alive' in obj && 'inCombat' in obj;
-}
-
 export function execute(ctx: CommandContext): void {
   const { player, args } = ctx;
   const direction = args.trim() || undefined;
 
   // Check if player is a Living
-  if (!isLiving(player)) {
+  if (!efuns.isLiving(player)) {
     ctx.sendLine("You can't flee!");
     return;
   }

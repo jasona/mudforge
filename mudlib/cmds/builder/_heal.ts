@@ -28,10 +28,6 @@ export const name = 'heal';
 export const description = 'Fully restore a target\'s health and mana (builder only)';
 export const usage = 'heal <target>';
 
-function isLiving(obj: MudObject): obj is Living {
-  return 'health' in obj && 'maxHealth' in obj && 'alive' in obj;
-}
-
 export function execute(ctx: CommandContext): void {
   const { player, args } = ctx;
   const targetName = args.trim();
@@ -65,12 +61,14 @@ export function execute(ctx: CommandContext): void {
     return;
   }
 
-  if (!isLiving(target)) {
+  if (!efuns.isLiving(target)) {
     ctx.sendLine(`{red}${target.shortDesc} is not a living being.{/}`);
     return;
   }
 
-  if (!target.alive) {
+  const living = target as Living;
+
+  if (!living.alive) {
     ctx.sendLine(`{yellow}${target.shortDesc} is beyond healing.{/}`);
     return;
   }
@@ -79,14 +77,14 @@ export function execute(ctx: CommandContext): void {
   const thirdPerson = target === player ? player.name : desc;
 
   // Restore HP
-  const hpMissing = target.maxHealth - target.health;
-  target.health = target.maxHealth;
+  const hpMissing = living.maxHealth - living.health;
+  living.health = living.maxHealth;
 
   // Restore MP
   let mpMissing = 0;
-  if (typeof target.mana === 'number' && typeof target.maxMana === 'number') {
-    mpMissing = target.maxMana - target.mana;
-    target.mana = target.maxMana;
+  if (typeof living.mana === 'number' && typeof living.maxMana === 'number') {
+    mpMissing = living.maxMana - living.mana;
+    living.mana = living.maxMana;
   }
 
   // Build result

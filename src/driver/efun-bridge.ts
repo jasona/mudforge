@@ -1554,6 +1554,13 @@ export class EfunBridge {
   }
 
   /**
+   * Check if an object is a Living (has health, alive, combat stats, etc.).
+   */
+  isLiving(obj: MudObject): boolean {
+    return obj != null && 'isLiving' in obj && (obj as Record<string, unknown>).isLiving === true;
+  }
+
+  /**
    * Get the current player's permission level.
    */
   getPermissionLevel(): number {
@@ -3788,6 +3795,7 @@ RULES:
       checkWritePermission: this.checkWritePermission.bind(this),
       isAdmin: this.isAdmin.bind(this),
       isBuilder: this.isBuilder.bind(this),
+      isLiving: this.isLiving.bind(this),
       getPermissionLevel: this.getPermissionLevel.bind(this),
       getPlayerPermissionLevel: this.getPlayerPermissionLevel.bind(this),
       getDomains: this.getDomains.bind(this),

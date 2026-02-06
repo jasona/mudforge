@@ -127,13 +127,6 @@ export async function execute(ctx: CommandContext): Promise<void> {
 }
 
 /**
- * Check if an object is a Living (has health/alive properties).
- */
-function isLiving(obj: MudObject): boolean {
-  return 'health' in obj && 'alive' in obj;
-}
-
-/**
  * Find a target by name - players first, then NPCs in the room.
  */
 async function findTarget(ctx: CommandContext, name: string): Promise<MudObject | null> {
@@ -165,7 +158,7 @@ async function findTarget(ctx: CommandContext, name: string): Promise<MudObject 
       if (obj === ctx.player) continue;
 
       // Skip non-living objects
-      if (!isLiving(obj)) continue;
+      if (!efuns.isLiving(obj)) continue;
 
       // Check using id() method (like kill command does)
       if ('id' in obj && typeof (obj as MudObject & { id: (str: string) => boolean }).id === 'function') {
