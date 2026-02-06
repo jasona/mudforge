@@ -6,7 +6,40 @@
 
 /* global sessionStorage */
 
-import type { MapMessage } from './map-renderer.js';
+// Protocol message types - canonical definitions in shared module
+// Re-exported for consumers that import from websocket-client.ts
+export type {
+  MapMessage,
+  EquipmentSlotData,
+  StatsMessage,
+  EquipmentMessage,
+  CompletionMessage,
+  IdeMessage,
+  GUIMessage,
+  AuthRequest,
+  AuthResponseMessage,
+  QuestMessage,
+  CommType,
+  CommMessage,
+  CombatTargetUpdateMessage,
+  CombatHealthUpdateMessage,
+  CombatTargetClearMessage,
+  CombatMessage,
+  SoundCategory,
+  SoundMessage,
+  GiphyMessage,
+  SessionTokenMessage,
+  SessionResumeMessage,
+  TimeMessage,
+} from '../shared/protocol-types.js';
+
+import type {
+  SessionTokenMessage,
+  SessionResumeMessage,
+  TimeMessage,
+} from '../shared/protocol-types.js';
+
+import { parseProtocolMessage } from './protocol-parser.js';
 
 /**
  * Connection state machine states.
@@ -21,35 +54,6 @@ export interface ReconnectProgress {
   maxAttempts: number;
   delayMs: number;
   reason?: string;
-}
-
-/**
- * Session token message from server.
- */
-export interface SessionTokenMessage {
-  type: 'session_token';
-  token: string;
-  expiresAt: number;
-}
-
-/**
- * Session resume response from server.
- */
-export interface SessionResumeMessage {
-  type: 'session_resume' | 'session_invalid';
-  success?: boolean;
-  error?: string;
-}
-
-/**
- * Time message from server for clock display.
- */
-export interface TimeMessage {
-  timestamp: number;
-  timezone: { name: string; abbreviation: string; offset: string };
-  gameVersion?: string;
-  /** Calculated round-trip latency in milliseconds (added by client) */
-  latencyMs?: number;
 }
 
 /**
@@ -85,232 +89,6 @@ type WebSocketClientEvent =
   | 'latency-update';
 
 /**
- * Equipment slot data for stats display.
- */
-export interface EquipmentSlotData {
-  name: string;
-  image?: string;
-  itemType: 'weapon' | 'armor';
-  // Tooltip data
-  description?: string;
-  weight?: number;
-  value?: number;
-  // Weapon-specific
-  minDamage?: number;
-  maxDamage?: number;
-  damageType?: string;
-  handedness?: string;
-  // Armor-specific
-  armor?: number;
-  slot?: string;
-}
-
-/**
- * Stats message structure for HP/MP/XP display.
- */
-export interface StatsMessage {
-  type: 'update';
-  hp: number;
-  maxHp: number;
-  mp: number;
-  maxMp: number;
-  level: number;
-  xp: number;
-  xpToLevel: number;
-  gold: number;
-  bankedGold: number;
-  permissionLevel: number;
-  cwd: string;
-  avatar: string;
-  profilePortrait?: string; // AI-generated portrait data URI
-  carriedWeight: number;
-  maxCarryWeight: number;
-  encumbrancePercent: number;
-  encumbranceLevel: 'none' | 'light' | 'medium' | 'heavy';
-  equipment?: {
-    [slot: string]: EquipmentSlotData | null;
-  };
-}
-
-/**
- * Equipment image update message.
- * Sent separately from STATS to avoid sending large images every heartbeat.
- * Only sent when equipment actually changes.
- */
-export interface EquipmentMessage {
-  type: 'equipment_update';
-  /** Map of slot name to image data (only changed slots are included) */
-  slots: {
-    [slot: string]: {
-      image: string | null;
-      name: string;
-    } | null;
-  };
-  /** Optional profile portrait update (only included when portrait changes) */
-  profilePortrait?: string;
-}
-
-/**
- * Tab completion response message.
- */
-export interface CompletionMessage {
-  type: 'completion';
-  prefix: string;
-  completions: string[];
-}
-
-/**
- * IDE message structure.
- */
-export interface IdeMessage {
-  action: string;
-  path?: string;
-  content?: string;
-  readOnly?: boolean;
-  language?: string;
-  success?: boolean;
-  errors?: Array<{ line: number; column: number; message: string }>;
-  message?: string;
-  /** Mode for custom button text: 'bug' shows "Submit Bug" instead of "Save" */
-  mode?: 'bug';
-}
-
-/**
- * GUI message structure for modal dialogs.
- * Full types are in mudlib/lib/gui-types.ts
- */
-export interface GUIMessage {
-  action: string;
-  modalId?: string;
-  modal?: unknown;
-  layout?: unknown;
-  buttons?: unknown[];
-  data?: Record<string, unknown>;
-  [key: string]: unknown;
-}
-
-/**
- * Auth request message for launcher login/registration.
- */
-export interface AuthRequest {
-  type: 'login' | 'register';
-  name?: string;
-  password?: string;
-  confirmPassword?: string;
-  email?: string;
-  gender?: string;
-  avatar?: string;
-}
-
-/**
- * Auth response message from server.
- */
-export interface AuthResponseMessage {
-  success: boolean;
-  error?: string;
-  errorCode?: 'invalid_credentials' | 'user_not_found' | 'name_taken' | 'validation_error';
-  requiresRegistration?: boolean;
-}
-
-/**
- * Quest panel update message.
- */
-export interface QuestMessage {
-  type: 'update';
-  quests: Array<{
-    questId: string;
-    name: string;
-    progress: number;
-    progressText: string;
-    status: 'active' | 'completed';
-  }>;
-}
-
-/**
- * Communication message types.
- */
-export type CommType = 'say' | 'tell' | 'channel';
-
-/**
- * Communication panel message.
- */
-export interface CommMessage {
-  type: 'comm';
-  commType: CommType;
-  sender: string;
-  message: string;
-  channel?: string;
-  recipients?: string[];
-  timestamp: number;
-  isSender?: boolean;    // True if recipient is the one who sent this message
-  gifId?: string;        // GIF ID for clickable [View GIF] links
-}
-
-/**
- * Combat target update message.
- */
-export interface CombatTargetUpdateMessage {
-  type: 'target_update';
-  target: {
-    name: string;
-    level: number;
-    portrait: string;      // SVG markup or avatar ID
-    health: number;
-    maxHealth: number;
-    healthPercent: number;
-    isPlayer: boolean;
-  };
-}
-
-/**
- * Lightweight health-only update for combat rounds.
- * Avoids resending the portrait (which can be 50-200KB) every round.
- */
-export interface CombatHealthUpdateMessage {
-  type: 'health_update';
-  health: number;
-  maxHealth: number;
-  healthPercent: number;
-}
-
-/**
- * Combat target clear message.
- */
-export interface CombatTargetClearMessage {
-  type: 'target_clear';
-}
-
-export type CombatMessage = CombatTargetUpdateMessage | CombatHealthUpdateMessage | CombatTargetClearMessage;
-
-/**
- * Sound category types.
- */
-export type SoundCategory = 'combat' | 'spell' | 'skill' | 'potion' | 'quest' | 'celebration' | 'discussion' | 'alert' | 'ambient' | 'ui';
-
-/**
- * Sound message for audio playback.
- */
-export interface SoundMessage {
-  type: 'play' | 'loop' | 'stop';
-  category: SoundCategory;
-  sound: string;
-  volume?: number;
-  id?: string;
-}
-
-/**
- * Giphy message for floating GIF display.
- */
-export interface GiphyMessage {
-  type: 'show' | 'hide';
-  gifUrl?: string;
-  senderName?: string;
-  channelName?: string;
-  searchQuery?: string;
-  autoCloseMs?: number;
-}
-
-/**
  * Event handler type.
  */
 type EventHandler = (...args: unknown[]) => void;
@@ -322,9 +100,8 @@ export class WebSocketClient {
   private socket: WebSocket | null = null;
   private url: string = '';
   private reconnectAttempts: number = 0;
-  private maxReconnectAttempts: number = 10;
   private reconnectDelay: number = 1000;
-  private maxReconnectDelay: number = 30000;
+  private maxReconnectDelay: number = 300000; // 5 minutes max backoff
   private reconnectTimer: number | null = null;
   private handlers: Map<WebSocketClientEvent, Set<EventHandler>> = new Map();
 
@@ -470,9 +247,27 @@ export class WebSocketClient {
         // Tab became visible
         this.sendVisibilityState(true);
 
-        // If we're already trying to reconnect, speed it up
-        if (this._connectionState === 'reconnecting' || this._connectionState === 'failed') {
-          console.log('[WS-VISIBILITY] Tab visible, attempting reconnect');
+        // Mobile stale detection: if we haven't received a TIME message in >30s,
+        // the connection is likely dead. Close and reconnect immediately.
+        // This avoids reliance on throttled timers (which don't run on mobile when backgrounded).
+        if (this._connectionState === 'connected') {
+          const timeSinceHeartbeat = Date.now() - this.lastTimeReceived;
+          if (timeSinceHeartbeat > 30000) {
+            console.warn(`[WS-VISIBILITY] Stale connection detected: ${timeSinceHeartbeat}ms since last heartbeat, forcing reconnect`);
+            this.emit('connection-stale');
+            if (this.socket) {
+              try { this.socket.close(4000, 'Stale after visibility change'); } catch { /* ignore */ }
+              this.socket = null;
+            }
+            this.reconnectAttempts = 0;
+            this.createConnection();
+            return;
+          }
+        }
+
+        // If we're not connected, try to reconnect immediately
+        if (this._connectionState !== 'connected' && this._connectionState !== 'connecting' && !this.intentionalDisconnect) {
+          console.log(`[WS-VISIBILITY] Tab visible while ${this._connectionState}, attempting reconnect`);
           this.reconnectAttempts = 0;
           this.cancelReconnect();
           this.createConnection();
@@ -484,7 +279,6 @@ export class WebSocketClient {
   /**
    * Send visibility state to server.
    * Server uses this to pause/resume high-frequency updates like STATS.
-   * Note: Uses [VISIBILITY] prefix without null byte for better compatibility.
    */
   private sendVisibilityState(visible: boolean): void {
     if (!this.isConnected || !this.socket) {
@@ -493,8 +287,7 @@ export class WebSocketClient {
 
     try {
       const message = JSON.stringify({ visible });
-      // Use plain prefix - null byte can cause issues with some WebSocket implementations
-      this.socket.send(`[VISIBILITY]${message}\n`);
+      this.socket.send(`\x00[VISIBILITY]${message}\n`);
       console.log(`[WS-VISIBILITY] Sent visibility state: ${visible ? 'visible' : 'hidden'}`);
     } catch {
       // Ignore send errors - connection might be closing
@@ -631,157 +424,50 @@ export class WebSocketClient {
 
     this.socket.onmessage = (event) => {
       const data = event.data.toString();
-      // Split on newlines to handle multiple messages
       const lines = data.split(/\r?\n/);
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i];
-        // Skip the last empty line (trailing newline) but keep empty lines in the middle
-        if (i === lines.length - 1 && line.length === 0) {
+        if (i === lines.length - 1 && line.length === 0) continue;
+
+        const parsed = parseProtocolMessage(line);
+
+        if (!parsed) {
+          // Plain text message
+          this.emit('message', line);
           continue;
         }
-        // Check for IDE message prefix
-        if (line.startsWith('\x00[IDE]')) {
-          const jsonStr = line.slice(6); // Remove \x00[IDE] prefix
-          try {
-            const ideMessage = JSON.parse(jsonStr) as IdeMessage;
-            this.emit('ide-message', ideMessage);
-          } catch (error) {
-            console.error('Failed to parse IDE message:', error);
-          }
-        } else if (line.startsWith('\x00[MAP]')) {
-          const jsonStr = line.slice(6); // Remove \x00[MAP] prefix
-          try {
-            const mapMessage = JSON.parse(jsonStr) as MapMessage;
-            this.emit('map-message', mapMessage);
-          } catch (error) {
-            console.error('Failed to parse MAP message:', error);
-          }
-        } else if (line.startsWith('\x00[STATS]')) {
-          const jsonStr = line.slice(8); // Remove \x00[STATS] prefix
-          try {
-            const statsMessage = JSON.parse(jsonStr) as StatsMessage;
-            this.emit('stats-message', statsMessage);
-          } catch (error) {
-            console.error('Failed to parse STATS message:', error);
-          }
-        } else if (line.startsWith('\x00[EQUIPMENT]')) {
-          const jsonStr = line.slice(12); // Remove \x00[EQUIPMENT] prefix
-          try {
-            const equipmentMessage = JSON.parse(jsonStr) as EquipmentMessage;
-            this.emit('equipment-message', equipmentMessage);
-          } catch (error) {
-            console.error('Failed to parse EQUIPMENT message:', error);
-          }
-        } else if (line.startsWith('\x00[GUI]')) {
-          const jsonStr = line.slice(6); // Remove \x00[GUI] prefix
-          try {
-            const guiMessage = JSON.parse(jsonStr) as GUIMessage;
-            this.emit('gui-message', guiMessage);
-          } catch (error) {
-            console.error('Failed to parse GUI message:', error);
-          }
-        } else if (line.startsWith('\x00[QUEST]')) {
-          const jsonStr = line.slice(8); // Remove \x00[QUEST] prefix
-          try {
-            const questMessage = JSON.parse(jsonStr) as QuestMessage;
-            this.emit('quest-message', questMessage);
-          } catch (error) {
-            console.error('Failed to parse QUEST message:', error);
-          }
-        } else if (line.startsWith('\x00[COMPLETE]')) {
-          const jsonStr = line.slice(11); // Remove \x00[COMPLETE] prefix
-          try {
-            const completionMessage = JSON.parse(jsonStr) as CompletionMessage;
-            this.emit('completion-message', completionMessage);
-          } catch (error) {
-            console.error('Failed to parse COMPLETE message:', error);
-          }
-        } else if (line.startsWith('\x00[COMM]')) {
-          const jsonStr = line.slice(7); // Remove \x00[COMM] prefix
-          try {
-            const commMessage = JSON.parse(jsonStr) as CommMessage;
-            this.emit('comm-message', commMessage);
-          } catch (error) {
-            console.error('Failed to parse COMM message:', error);
-          }
-        } else if (line.startsWith('\x00[AUTH]')) {
-          const jsonStr = line.slice(7); // Remove \x00[AUTH] prefix
-          try {
-            const authMessage = JSON.parse(jsonStr) as AuthResponseMessage;
-            this.emit('auth-response', authMessage);
-          } catch (error) {
-            console.error('Failed to parse AUTH message:', error);
-          }
-        } else if (line.startsWith('\x00[COMBAT]')) {
-          const jsonStr = line.slice(9); // Remove \x00[COMBAT] prefix
-          try {
-            const combatMessage = JSON.parse(jsonStr) as CombatMessage;
-            this.emit('combat-message', combatMessage);
-          } catch (error) {
-            console.error('Failed to parse COMBAT message:', error);
-          }
-        } else if (line.startsWith('\x00[SOUND]')) {
-          const jsonStr = line.slice(8); // Remove \x00[SOUND] prefix
-          try {
-            const soundMessage = JSON.parse(jsonStr) as SoundMessage;
-            this.emit('sound-message', soundMessage);
-          } catch (error) {
-            console.error('Failed to parse SOUND message:', error);
-          }
-        } else if (line.startsWith('\x00[GIPHY]')) {
-          const jsonStr = line.slice(8); // Remove \x00[GIPHY] prefix
-          try {
-            const giphyMessage = JSON.parse(jsonStr) as GiphyMessage;
-            this.emit('giphy-message', giphyMessage);
-          } catch (error) {
-            console.error('Failed to parse GIPHY message:', error);
-          }
-        } else if (line.startsWith('\x00[SESSION]')) {
-          const jsonStr = line.slice(10); // Remove \x00[SESSION] prefix
-          try {
-            const sessionMessage = JSON.parse(jsonStr);
-            if (sessionMessage.type === 'session_token') {
-              this.handleSessionToken(sessionMessage as SessionTokenMessage);
-            } else if (sessionMessage.type === 'session_resume' || sessionMessage.type === 'session_invalid') {
-              this.handleSessionResume(sessionMessage as SessionResumeMessage);
-            }
-          } catch (error) {
-            console.error('Failed to parse SESSION message:', error);
-          }
-        } else if (line.startsWith('\x00[TIME]')) {
-          const jsonStr = line.slice(7); // Remove \x00[TIME] prefix
-          try {
-            const timeMessage = JSON.parse(jsonStr) as TimeMessage;
-            // Track when we last received a heartbeat from server
-            const now = Date.now();
-            const timeSinceLast = now - this.lastTimeReceived;
-            console.log(`[WS-TIME] Received TIME message, ${timeSinceLast}ms since last`);
 
-            if (timeSinceLast > 60000) { // More than 60s gap
-              console.warn(`[WS-TIME-GAP] Large gap: ${timeSinceLast}ms since last TIME message`);
-            }
-
-            this.lastTimeReceived = now;
-            // Use the last measured RTT latency (from TIME_PONG responses)
+        // Special handling for messages that need more than parse-and-emit
+        if (parsed.event === 'session-message' && parsed.data) {
+          const sessionMessage = parsed.data as { type: string };
+          if (sessionMessage.type === 'session_token') {
+            this.handleSessionToken(sessionMessage as SessionTokenMessage);
+          } else if (sessionMessage.type === 'session_resume' || sessionMessage.type === 'session_invalid') {
+            this.handleSessionResume(sessionMessage as SessionResumeMessage);
+          }
+        } else if (parsed.event === 'time-message') {
+          const now = Date.now();
+          const timeSinceLast = now - this.lastTimeReceived;
+          console.log(`[WS-TIME] Received TIME message, ${timeSinceLast}ms since last`);
+          if (timeSinceLast > 60000) {
+            console.warn(`[WS-TIME-GAP] Large gap: ${timeSinceLast}ms since last TIME message`);
+          }
+          this.lastTimeReceived = now;
+          if (parsed.data) {
+            const timeMessage = parsed.data as TimeMessage;
             timeMessage.latencyMs = this.lastMeasuredLatency;
             this.emit('time-message', timeMessage);
-
-            // Send ACK with timestamp for RTT measurement
-            this.sendTimeAck();
-          } catch {
-            // Still update heartbeat tracking even if parse fails
-            this.lastTimeReceived = Date.now();
           }
-        } else if (line.startsWith('\x00[TIME_PONG]')) {
-          // Server echoed our timestamp - calculate RTT
-          const timestampStr = line.slice(12); // Remove \x00[TIME_PONG] prefix
-          const sentTime = parseInt(timestampStr, 10);
+          this.sendTimeAck();
+        } else if (parsed.event === 'time-pong') {
+          const sentTime = parseInt(parsed.raw, 10);
           if (!isNaN(sentTime)) {
             this.lastMeasuredLatency = Date.now() - sentTime;
             this.emit('latency-update', this.lastMeasuredLatency);
           }
-        } else {
-          this.emit('message', line);
+        } else if (parsed.data) {
+          // Standard protocol messages: just emit
+          this.emit(parsed.event as WebSocketClientEvent, parsed.data);
         }
       }
     };
@@ -790,21 +476,11 @@ export class WebSocketClient {
   /**
    * Schedule a reconnection attempt.
    * Uses exponential backoff with jitter, capped at maxReconnectDelay.
+   * Reconnects indefinitely for network issues -- 'failed' state is reserved
+   * for server-side rejection (e.g., auth failure).
    */
   private scheduleReconnect(reason?: string): void {
     console.log(`[WS-RECONNECT] Scheduling reconnect #${this.reconnectAttempts + 1}, reason: ${reason}`);
-
-    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      console.log(`[WS-RECONNECT] Max attempts (${this.maxReconnectAttempts}) reached, giving up`);
-      this.setConnectionState('failed');
-      this.emit('reconnect-failed', {
-        attempt: this.reconnectAttempts,
-        maxAttempts: this.maxReconnectAttempts,
-        reason: reason || 'Max reconnection attempts reached',
-      } as ReconnectProgress);
-      this.emit('error', 'Max reconnection attempts reached');
-      return;
-    }
 
     if (this.reconnectTimer !== null) {
       console.log(`[WS-RECONNECT] Reconnect already scheduled, skipping`);
@@ -812,7 +488,7 @@ export class WebSocketClient {
     }
 
     // Calculate delay with exponential backoff, capped at max
-    const baseDelay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts);
+    const baseDelay = this.reconnectDelay * Math.pow(2, Math.min(this.reconnectAttempts, 20));
     const cappedDelay = Math.min(baseDelay, this.maxReconnectDelay);
 
     // Add jitter (±20%) to prevent thundering herd
@@ -827,7 +503,7 @@ export class WebSocketClient {
     // Emit progress event so UI can show feedback
     this.emit('reconnect-progress', {
       attempt: this.reconnectAttempts,
-      maxAttempts: this.maxReconnectAttempts,
+      maxAttempts: Infinity,
       delayMs: finalDelay,
       reason,
     } as ReconnectProgress);
@@ -1028,8 +704,8 @@ export class WebSocketClient {
   /**
    * Set reconnection options.
    */
-  setReconnectOptions(maxAttempts: number, baseDelay: number, maxDelay?: number): void {
-    this.maxReconnectAttempts = maxAttempts;
+  setReconnectOptions(_maxAttempts: number, baseDelay: number, maxDelay?: number): void {
+    // maxAttempts is ignored -- reconnection is now indefinite
     this.reconnectDelay = baseDelay;
     if (maxDelay !== undefined) {
       this.maxReconnectDelay = maxDelay;

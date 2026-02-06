@@ -55,12 +55,12 @@ const connectedPorts: Map<string, ConnectedPort> = new Map();
 let nextTabId: number = 0;
 
 // Reconnection config
-const MAX_RECONNECT_ATTEMPTS = 10;
 const BASE_RECONNECT_DELAY = 1000;
-const MAX_RECONNECT_DELAY = 30000;
+const MAX_RECONNECT_DELAY = 300000; // 5 minutes max backoff
 
 // Activity tracking
 let lastServerMessage: number = Date.now();
+let lastStaleCheckTime: number = Date.now();
 const STALE_CHECK_INTERVAL = 30000;
 
 /**
@@ -107,26 +107,15 @@ function tabCount(): number {
 
 /**
  * Schedule a reconnection attempt with exponential backoff.
+ * Reconnects indefinitely for network issues.
  */
 function scheduleReconnect(reason?: string): void {
-  if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-    console.log(`[SharedWorker] Max reconnect attempts (${MAX_RECONNECT_ATTEMPTS}) reached`);
-    setState('failed');
-    broadcast({
-      type: 'reconnect-failed',
-      attempt: reconnectAttempts,
-      maxAttempts: MAX_RECONNECT_ATTEMPTS,
-      reason: reason || 'Max reconnection attempts reached',
-    });
-    return;
-  }
-
   if (reconnectTimer !== null) {
     return; // Already scheduled
   }
 
-  // Calculate delay with exponential backoff
-  const baseDelay = BASE_RECONNECT_DELAY * Math.pow(2, reconnectAttempts);
+  // Calculate delay with exponential backoff, cap exponent to avoid overflow
+  const baseDelay = BASE_RECONNECT_DELAY * Math.pow(2, Math.min(reconnectAttempts, 20));
   const cappedDelay = Math.min(baseDelay, MAX_RECONNECT_DELAY);
   const jitter = cappedDelay * 0.2 * (Math.random() * 2 - 1);
   const finalDelay = Math.round(cappedDelay + jitter);
@@ -139,7 +128,7 @@ function scheduleReconnect(reason?: string): void {
   broadcast({
     type: 'reconnect-progress',
     attempt: reconnectAttempts,
-    maxAttempts: MAX_RECONNECT_ATTEMPTS,
+    maxAttempts: Infinity,
     delayMs: finalDelay,
     reason,
   });
@@ -387,17 +376,55 @@ function handleConnect(port: MessagePort): void {
 
 /**
  * Check connection staleness periodically.
+ * Also detects sleep/wake by comparing elapsed time vs expected interval.
  * Note: The server does ping/pong, but we track message activity
  * to detect if we're not receiving anything.
  */
 function checkStaleness(): void {
+  const now = Date.now();
+  const elapsed = now - lastStaleCheckTime;
+  lastStaleCheckTime = now;
+
+  // Detect sleep/wake: if elapsed time exceeds expected interval by >15s,
+  // the system was likely asleep. Immediately check connection health.
+  if (elapsed > STALE_CHECK_INTERVAL + 15000) {
+    console.warn(`[SharedWorker] Time drift detected: ${elapsed}ms elapsed (expected ~${STALE_CHECK_INTERVAL}ms) - possible sleep/wake`);
+
+    if (connectionState === 'connected') {
+      // Reset lastServerMessage since the gap was due to sleep, not a dead connection
+      // but verify the socket is still alive by checking if we get a message soon
+      const timeSinceLastMessage = now - lastServerMessage;
+      if (timeSinceLastMessage > STALE_CHECK_INTERVAL + 15000) {
+        console.warn(`[SharedWorker] Post-wake: connection likely dead, forcing reconnect`);
+        broadcast({ type: 'connection-stale' });
+        if (socket) {
+          try {
+            socket.close(4000, 'Post-wake stale connection');
+          } catch {
+            // Ignore
+          }
+          socket = null;
+        }
+        scheduleReconnect('Post-wake stale connection');
+        return;
+      }
+    } else if (connectionState !== 'connecting') {
+      // Not connected after wake - try to reconnect immediately
+      console.log(`[SharedWorker] Post-wake: not connected (${connectionState}), reconnecting`);
+      reconnectAttempts = 0;
+      cancelReconnect();
+      createConnection();
+      return;
+    }
+  }
+
   // Don't check staleness when all tabs are hidden
   // The server stops sending messages when tab is hidden to prevent buffer growth
   if (!anyTabVisible()) {
     return;
   }
 
-  const timeSinceLastMessage = Date.now() - lastServerMessage;
+  const timeSinceLastMessage = now - lastServerMessage;
 
   // If we haven't received any message in 2 minutes, something is wrong
   if (connectionState === 'connected' && timeSinceLastMessage > 120000) {

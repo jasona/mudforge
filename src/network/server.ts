@@ -109,6 +109,10 @@ export class Server extends EventEmitter {
     await this.fastify.register(fastifyWebsocket, {
       options: {
         maxPayload: 1024 * 1024, // 1MB max message size (for IDE saves, portraits, etc.)
+        perMessageDeflate: {
+          zlibDeflateOptions: { level: 6 },
+          threshold: 128, // Only compress messages > 128 bytes
+        },
       },
     });
 

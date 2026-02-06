@@ -1134,10 +1134,17 @@ export class Driver {
     const playerName = playerWithName.name || 'unknown';
     const remoteAddress = connection.getRemoteAddress();
 
+    // Use the runtime disconnect timeout as the session TTL so they stay aligned.
+    // If someone changes disconnect.timeoutMinutes via the config command, new tokens
+    // will automatically use the updated value.
+    const disconnectMinutes = this.efunBridge.getMudConfig<number>('disconnect.timeoutMinutes') ?? 15;
+    const sessionTtlMs = disconnectMinutes * 60 * 1000;
+
     const { token, expiresAt } = this.sessionManager.createToken(
       playerName,
       connection.id,
-      remoteAddress
+      remoteAddress,
+      sessionTtlMs,
     );
 
     // Send token to client
