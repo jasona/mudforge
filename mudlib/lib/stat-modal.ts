@@ -1186,20 +1186,27 @@ export async function openStatModal(
 
   efuns.guiSend(message);
 
-  // Async: fetch real images for equipped items and update
+  // Async: fetch real images for equipped items and update (parallel, non-blocking)
   const portraitDaemon = getPortraitDaemon();
-  const updates: Record<string, Partial<DisplayElement>> = {};
-
-  for (const [slot, item] of equipped) {
+  const imagePromises = [...equipped].map(async ([slot, item]) => {
     const type = detectObjectType(item);
     try {
       const actualImage = await portraitDaemon.getObjectImage(item, type);
       const fallbackImage = getFallbackImage(type);
       if (actualImage !== fallbackImage) {
-        updates[`eq-slot-img-${slot}`] = { src: actualImage };
+        return { key: `eq-slot-img-${slot}`, src: actualImage };
       }
     } catch {
       // Keep fallback
+    }
+    return null;
+  });
+
+  const results = await Promise.allSettled(imagePromises);
+  const updates: Record<string, Partial<DisplayElement>> = {};
+  for (const result of results) {
+    if (result.status === 'fulfilled' && result.value) {
+      updates[result.value.key] = { src: result.value.src };
     }
   }
 

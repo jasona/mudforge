@@ -1457,39 +1457,33 @@ export async function openLookModal(
 
   efuns.guiSend(message);
 
-  // Async: Generate/retrieve the actual portrait image
+  // Async: Generate/retrieve the actual portrait image (non-blocking)
   // Don't wait for non-shadowed players if they already have an image
   // Shadowed players should get a new image generated based on their transformation
   const skipPortraitFetch = type === 'player' && !isShadowed && getPlayerExistingImage(target);
 
-  if (!skipPortraitFetch) {
-    // Get the actual image (from cache or AI generation)
-    const extraContext = getExtraContext(target, type);
-    const actualImage = await portraitDaemon.getObjectImage(target, type, extraContext);
+  // Launch portrait fetch and equipment image fetches in parallel
+  const allImagePromises: Promise<void>[] = [];
 
-    // Update the modal with the actual image if it differs
-    if (actualImage !== initialImage) {
-      const updateMessage: GUIUpdateMessage = {
-        action: 'update',
-        modalId: 'look-modal',
-        updates: {
-          elements: {
-            'look-image': {
-              src: actualImage,
-            },
-          },
-        },
-      };
-      // Try to send the update - may fail if player closed the modal or disconnected
-      try {
-        efuns.guiSend(updateMessage);
-      } catch {
-        // Modal was closed or player disconnected - ignore
+  if (!skipPortraitFetch) {
+    allImagePromises.push((async () => {
+      const extraContext = getExtraContext(target, type);
+      const actualImage = await portraitDaemon.getObjectImage(target, type, extraContext);
+      if (actualImage !== initialImage) {
+        try {
+          efuns.guiSend({
+            action: 'update',
+            modalId: 'look-modal',
+            updates: { elements: { 'look-image': { src: actualImage } } },
+          } as GUIUpdateMessage);
+        } catch {
+          // Modal closed
+        }
       }
-    }
+    })());
   }
 
-  // Async: Fetch equipment images if target has equipment
+  // Fetch equipment images in parallel
   if (type === 'player' || type === 'npc') {
     const targetWithEquip = target as MudObject & {
       getAllEquipped?: () => Map<EquipmentSlot, MudObject>;
@@ -1497,35 +1491,40 @@ export async function openLookModal(
 
     if (targetWithEquip.getAllEquipped) {
       const equipped = targetWithEquip.getAllEquipped();
-      const equipmentUpdates: Record<string, Partial<DisplayElement>> = {};
 
-      for (const [slot, item] of equipped) {
+      const equipPromises = [...equipped].map(async ([slot, item]) => {
         const itemType = detectObjectType(item);
         const itemExtraContext = getExtraContext(item, itemType);
-
         try {
           const itemImage = await portraitDaemon.getObjectImage(item, itemType, itemExtraContext);
-          // Update the slot image source
-          equipmentUpdates[`equip-slot-${slot}`] = { src: itemImage };
+          return { key: `equip-slot-${slot}`, src: itemImage };
         } catch {
-          // Keep loading placeholder on error
+          return null;
         }
-      }
+      });
 
-      // Send equipment image updates if any
-      if (Object.keys(equipmentUpdates).length > 0) {
-        try {
-          efuns.guiSend({
-            action: 'update',
-            modalId: 'look-modal',
-            updates: {
-              elements: equipmentUpdates,
-            },
-          } as GUIUpdateMessage);
-        } catch {
-          // Modal was closed or player disconnected - ignore
+      allImagePromises.push((async () => {
+        const results = await Promise.allSettled(equipPromises);
+        const equipmentUpdates: Record<string, Partial<DisplayElement>> = {};
+        for (const result of results) {
+          if (result.status === 'fulfilled' && result.value) {
+            equipmentUpdates[result.value.key] = { src: result.value.src };
+          }
         }
-      }
+        if (Object.keys(equipmentUpdates).length > 0) {
+          try {
+            efuns.guiSend({
+              action: 'update',
+              modalId: 'look-modal',
+              updates: { elements: equipmentUpdates },
+            } as GUIUpdateMessage);
+          } catch {
+            // Modal closed
+          }
+        }
+      })());
     }
   }
+
+  await Promise.allSettled(allImagePromises);
 }

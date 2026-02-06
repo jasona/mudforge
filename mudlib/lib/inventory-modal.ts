@@ -1044,45 +1044,46 @@ async function buildAndSendModal(player: InventoryPlayer, defaultTab: number = 0
 
   efuns.guiSend(message);
 
-  // Now fetch actual images from cache/AI generation and update the modal
-  const updates: Record<string, Partial<DisplayElement>> = {};
+  // Fetch actual images from cache/AI generation in parallel and update the modal
   const equippedSet = new Set<MudObject>(equipped.values());
 
-  // Generate images for all inventory items
-  for (let i = 0; i < items.length; i++) {
-    const item = items[i];
+  // Fetch all inventory item images in parallel
+  const inventoryImagePromises = items.map(async (item, i) => {
     const type = detectObjectType(item);
     const extraContext = getExtraContext(item, type);
-
     try {
       const actualImage = await portraitDaemon.getObjectImage(item, type, extraContext);
       const fallbackImage = itemImages.get(item);
-
-      // Update item card image if it differs from fallback
-      if (actualImage !== fallbackImage) {
-        if (!equippedSet.has(item)) {
-          updates[`item-img-${i}`] = { src: actualImage };
-        }
+      if (actualImage !== fallbackImage && !equippedSet.has(item)) {
+        return { key: `item-img-${i}`, src: actualImage };
       }
     } catch {
-      // Keep fallback image on error
+      // Keep fallback
     }
-  }
+    return null;
+  });
 
-  // Generate images for equipped items in their slots
-  for (const [slot, item] of equipped) {
+  // Fetch all equipped item images in parallel
+  const equippedImagePromises = [...equipped].map(async ([slot, item]) => {
     const type = detectObjectType(item);
     const extraContext = getExtraContext(item, type);
-
     try {
       const actualImage = await portraitDaemon.getObjectImage(item, type, extraContext);
       const fallbackImage = getFallbackImage(type);
-
       if (actualImage !== fallbackImage) {
-        updates[`slot-img-${slot}`] = { src: actualImage };
+        return { key: `slot-img-${slot}`, src: actualImage };
       }
     } catch {
-      // Keep fallback image on error
+      // Keep fallback
+    }
+    return null;
+  });
+
+  const results = await Promise.allSettled([...inventoryImagePromises, ...equippedImagePromises]);
+  const updates: Record<string, Partial<DisplayElement>> = {};
+  for (const result of results) {
+    if (result.status === 'fulfilled' && result.value) {
+      updates[result.value.key] = { src: result.value.src };
     }
   }
 
