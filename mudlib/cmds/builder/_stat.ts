@@ -75,10 +75,6 @@ export const name = ['stat'];
 export const description = 'Show comprehensive player statistics (builder+)';
 export const usage = 'stat <player>';
 
-function capitalize(str: string): string {
-  return str.charAt(0).toUpperCase() + str.slice(1);
-}
-
 export async function execute(ctx: CommandContext): Promise<void> {
   const targetName = ctx.args.trim().toLowerCase();
 
@@ -125,7 +121,7 @@ export async function execute(ctx: CommandContext): Promise<void> {
       ctx.player as unknown as { name: string },
       target as unknown as Parameters<typeof openStatModal>[1]
     );
-    ctx.sendLine(`{green}Opened statistics for ${capitalize(target.name)}.{/}`);
+    ctx.sendLine(`{green}Opened statistics for ${efuns.capitalize(target.name)}.{/}`);
   } catch (error) {
     ctx.sendLine(`{red}Error opening stat modal: ${error}{/}`);
   }

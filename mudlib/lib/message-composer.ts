@@ -43,14 +43,6 @@ function getName(obj: MudObject | null): string {
 }
 
 /**
- * Capitalize first letter of a string.
- */
-function capitalize(str: string): string {
-  if (!str) return str;
-  return str.charAt(0).toUpperCase() + str.slice(1);
-}
-
-/**
  * Get reflexive pronoun based on gender.
  */
 function getReflexive(gender: Gender): string {
@@ -167,13 +159,13 @@ export function composeMessage(
 
   // Process tokens in order
   // $N/$n - Actor name ("You" for actor, name for others)
-  result = result.replace(/\$N/g, isActor ? 'You' : capitalize(actorName));
+  result = result.replace(/\$N/g, isActor ? 'You' : efuns.capitalize(actorName));
   result = result.replace(/\$n/g, isActor ? 'you' : actorName.toLowerCase());
 
   // $V - Verb conjugation (extract verb and conjugate)
   // Pattern: $vverb or $Vverb
   result = result.replace(/\$V(\w+)/g, (_, verb) => {
-    return isActor ? capitalize(verb) : capitalize(conjugateVerb(verb));
+    return isActor ? efuns.capitalize(verb) : efuns.capitalize(conjugateVerb(verb));
   });
   result = result.replace(/\$v(\w+)/g, (_, verb) => {
     return isActor ? verb : conjugateVerb(verb);
@@ -181,31 +173,31 @@ export function composeMessage(
 
   // $T/$t - Target name
   if (target) {
-    result = result.replace(/\$T/g, isTarget ? 'You' : capitalize(targetName));
+    result = result.replace(/\$T/g, isTarget ? 'You' : efuns.capitalize(targetName));
     result = result.replace(/\$t/g, isTarget ? 'you' : targetName.toLowerCase());
   } else {
     result = result.replace(/\$[Tt]/g, '');
   }
 
   // $P/$p - Actor's possessive pronoun ("your" for actor, "his/her/their" for others)
-  result = result.replace(/\$P/g, isActor ? 'Your' : capitalize(getPossessivePronoun(actorGender)));
+  result = result.replace(/\$P/g, isActor ? 'Your' : efuns.capitalize(getPossessivePronoun(actorGender)));
   result = result.replace(/\$p/g, isActor ? 'your' : getPossessivePronoun(actorGender));
 
   // $Q/$q - Target's possessive pronoun ("your" for target, "his/her/their" for others)
   if (target) {
     const targetGender = getGender(target);
-    result = result.replace(/\$Q/g, isTarget ? 'Your' : capitalize(getPossessivePronoun(targetGender)));
+    result = result.replace(/\$Q/g, isTarget ? 'Your' : efuns.capitalize(getPossessivePronoun(targetGender)));
     result = result.replace(/\$q/g, isTarget ? 'your' : getPossessivePronoun(targetGender));
   } else {
     result = result.replace(/\$[Qq]/g, '');
   }
 
   // $O/$o - Object string
-  result = result.replace(/\$O/g, capitalize(objectStr));
+  result = result.replace(/\$O/g, efuns.capitalize(objectStr));
   result = result.replace(/\$o/g, objectStr.toLowerCase());
 
   // $R/$r - Reflexive
-  result = result.replace(/\$R/g, isActor ? 'Yourself' : capitalize(getReflexive(actorGender)));
+  result = result.replace(/\$R/g, isActor ? 'Yourself' : efuns.capitalize(getReflexive(actorGender)));
   result = result.replace(/\$r/g, isActor ? 'yourself' : getReflexive(actorGender));
 
   // Clean up any double spaces

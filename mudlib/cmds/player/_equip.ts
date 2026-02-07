@@ -21,20 +21,6 @@ export const description = 'Wear or wield items from your inventory';
 export const usage = 'equip <item> | equip all';
 
 /**
- * Check if an item is a weapon (has wield method).
- */
-function isWeapon(item: MudObject): item is Weapon {
-  return 'wield' in item && typeof (item as Weapon).wield === 'function';
-}
-
-/**
- * Check if an item is armor (has wear method).
- */
-function isArmor(item: MudObject): item is Armor {
-  return 'wear' in item && typeof (item as Armor).wear === 'function';
-}
-
-/**
  * Get the slot an armor piece uses.
  */
 function getArmorSlot(armor: Armor): EquipmentSlot {
@@ -62,7 +48,7 @@ function equipItem(
 ): boolean {
   const room = living.environment as Room | null;
 
-  if (isWeapon(item)) {
+  if (efuns.isWeapon(item)) {
     const weapon = item as Weapon;
 
     // Skip if already wielded
@@ -91,7 +77,7 @@ function equipItem(
     }
   }
 
-  if (isArmor(item)) {
+  if (efuns.isArmor(item)) {
     const armor = item as Armor;
 
     // Skip if already worn
@@ -138,11 +124,11 @@ function equipAll(ctx: CommandContext, living: Living): void {
 
   for (const item of items) {
     // Skip items that aren't equippable
-    if (!isWeapon(item) && !isArmor(item)) {
+    if (!efuns.isWeapon(item) && !efuns.isArmor(item)) {
       continue;
     }
 
-    if (isWeapon(item)) {
+    if (efuns.isWeapon(item)) {
       const weapon = item as Weapon;
 
       // Skip if already wielded
@@ -176,7 +162,7 @@ function equipAll(ctx: CommandContext, living: Living): void {
       } else {
         skipped.push(weapon.shortDesc);
       }
-    } else if (isArmor(item)) {
+    } else if (efuns.isArmor(item)) {
       const armor = item as Armor;
 
       // Skip if already worn
@@ -261,7 +247,7 @@ export function execute(ctx: CommandContext): void {
   for (const item of player.inventory) {
     if (item.id(input)) {
       // Prefer equippable items
-      if (isWeapon(item) || isArmor(item)) {
+      if (efuns.isWeapon(item) || efuns.isArmor(item)) {
         targetItem = item;
         break;
       }
@@ -277,7 +263,7 @@ export function execute(ctx: CommandContext): void {
     return;
   }
 
-  if (!isWeapon(targetItem) && !isArmor(targetItem)) {
+  if (!efuns.isWeapon(targetItem) && !efuns.isArmor(targetItem)) {
     ctx.sendLine(`You can't equip ${targetItem.shortDesc}.`);
     return;
   }

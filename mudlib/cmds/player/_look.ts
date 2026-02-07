@@ -9,6 +9,7 @@
 
 import type { MudObject } from '../../lib/std.js';
 import { Container, NPC } from '../../lib/std.js';
+import { findItem } from '../../lib/item-utils.js';
 import { openLookModal } from '../../lib/look-modal.js';
 import { canSeeInRoom, getDarknessMessage } from '../../std/visibility/index.js';
 import type { Living } from '../../std/living.js';
@@ -42,17 +43,6 @@ interface Item extends MudObject {
 export const name = ['look', 'l'];
 export const description = 'Look at your surroundings or examine something';
 export const usage = 'look [target] | look in <container>';
-
-/**
- * Find an item by name in a list of objects.
- */
-function findItem(name: string, items: MudObject[]): MudObject | undefined {
-  const lowerName = name.toLowerCase();
-  return items.find((item) => {
-    const i = item as Item;
-    return i.id && i.id(lowerName);
-  });
-}
 
 /**
  * Get the description of an object, with container state if applicable.

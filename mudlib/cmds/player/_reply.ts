@@ -36,10 +36,6 @@ export const name = ['reply', 'r'];
 export const description = 'Reply to the last tell you received';
 export const usage = 'reply <message>';
 
-function capitalize(str: string): string {
-  return str.charAt(0).toUpperCase() + str.slice(1);
-}
-
 export async function execute(ctx: CommandContext): Promise<void> {
   const message = ctx.args.trim();
 
@@ -79,7 +75,7 @@ export async function execute(ctx: CommandContext): Promise<void> {
 
   // Report offline players
   for (const name of offline) {
-    ctx.sendLine(`{yellow}${capitalize(name)} is no longer online.{/}`);
+    ctx.sendLine(`{yellow}${efuns.capitalize(name)} is no longer online.{/}`);
   }
 
   if (foundTargets.length === 0) {
@@ -89,7 +85,7 @@ export async function execute(ctx: CommandContext): Promise<void> {
     return;
   }
 
-  const senderName = capitalize(ctx.player.name);
+  const senderName = efuns.capitalize(ctx.player.name);
   const isGroup = foundTargets.length > 1;
 
   // Build the list of all participants for reply tracking
@@ -100,7 +96,7 @@ export async function execute(ctx: CommandContext): Promise<void> {
     // Build "others" list for group tells
     const others = foundTargets
       .filter((t) => t !== target)
-      .map((t) => capitalize(t.name));
+      .map((t) => efuns.capitalize(t.name));
 
     // Use recipient's color preference
     const targetColor = getPlayerColor(target, 'tell');
@@ -121,7 +117,7 @@ export async function execute(ctx: CommandContext): Promise<void> {
 
   // Confirm to sender (use sender's color preference)
   const senderColor = getPlayerColor(ctx.player, 'tell');
-  const targetList = foundTargets.map((t) => capitalize(t.name)).join(', ');
+  const targetList = foundTargets.map((t) => efuns.capitalize(t.name)).join(', ');
   ctx.sendLine(`${formatWithColor(senderColor, `You reply to ${targetList}:`)} ${message}`);
 
   // Update sender's reply list (in case someone went offline)

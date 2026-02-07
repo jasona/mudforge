@@ -59,10 +59,6 @@ function getRandomMessage(messages: string[]): string {
   return messages[Math.floor(Math.random() * messages.length)]!;
 }
 
-function capitalize(str: string): string {
-  return str.charAt(0).toUpperCase() + str.slice(1);
-}
-
 export async function execute(ctx: CommandContext): Promise<void> {
   const targetName = ctx.args.trim().toLowerCase();
 
@@ -118,8 +114,8 @@ async function performSummon(
   target: Player,
   summonerRoom: Room
 ): Promise<void> {
-  const targetName = capitalize(target.name);
-  const summonerName = capitalize(ctx.player.name);
+  const targetName = efuns.capitalize(target.name);
+  const summonerName = efuns.capitalize(ctx.player.name);
 
   // Get the target's current room for departure message
   const targetRoom = target.environment as Room | null;

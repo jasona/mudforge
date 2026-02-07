@@ -32,6 +32,7 @@ const SLOT_ARMOR_MULTIPLIER: Record<ArmorSlot, number> = {
 };
 
 export class Armor extends Item {
+  readonly isArmor: boolean = true;
   private _armor: number = 1;
   private _slot: ArmorSlot = 'chest';
   private _wearer: Living | null = null;

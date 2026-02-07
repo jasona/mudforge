@@ -314,6 +314,27 @@ declare global {
     /** Check if current player is a builder */
     isBuilder(): boolean;
 
+    /** Check if an object is a Living */
+    isLiving(obj: MudObject): boolean;
+
+    /** Check if an object is a Weapon */
+    isWeapon(obj: MudObject): boolean;
+
+    /** Check if an object is Armor */
+    isArmor(obj: MudObject): boolean;
+
+    /** Check if an object is a Vehicle */
+    isVehicle(obj: MudObject): boolean;
+
+    /** Check if an object is a Pet */
+    isPet(obj: MudObject): boolean;
+
+    /** Check if an object is a Player */
+    isPlayer(obj: MudObject): boolean;
+
+    /** Check if an object is an NPC */
+    isNPC(obj: MudObject): boolean;
+
     /** Get current player's permission level */
     getPermissionLevel(): number;
 

@@ -5,7 +5,7 @@
  * Items show as icons at their corresponding body positions.
  */
 
-import type { StatsMessage, EquipmentSlotData, EquipmentMessage } from './websocket-client.js';
+import type { StatsUpdate, EquipmentSlotData, EquipmentMessage } from './websocket-client.js';
 
 /**
  * Equipment slot names and display properties.
@@ -481,8 +481,8 @@ export class EquipmentPanel {
   /**
    * Handle incoming stats message (which includes equipment data).
    */
-  handleMessage(message: StatsMessage): void {
-    if (message.type !== 'update' || !message.equipment) return;
+  handleMessage(message: StatsUpdate): void {
+    if (!message.equipment) return;
 
     for (const slot of EQUIPMENT_SLOTS) {
       const equipment = message.equipment[slot] ?? null;

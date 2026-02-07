@@ -32,10 +32,6 @@ export const name = ['force'];
 export const description = 'Force a player to execute a command (builder+)';
 export const usage = 'force <player> <command>';
 
-function capitalize(str: string): string {
-  return str.charAt(0).toUpperCase() + str.slice(1);
-}
-
 export async function execute(ctx: CommandContext): Promise<void> {
   const args = ctx.args.trim();
 
@@ -92,8 +88,8 @@ export async function execute(ctx: CommandContext): Promise<void> {
     return;
   }
 
-  const targetDisplayName = capitalize(target.name);
-  const forcerName = capitalize(ctx.player.name);
+  const targetDisplayName = efuns.capitalize(target.name);
+  const forcerName = efuns.capitalize(ctx.player.name);
 
   // Notify the target that they're being forced
   target.receive(`\n{magenta}${forcerName} forces you to: ${command}{/}\n`);

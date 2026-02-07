@@ -149,6 +149,7 @@ export class SharedWorkerWebSocketClient {
 
   // Worker health check
   private _workerPongReceived: boolean = false;
+  private _verifyTimerId: ReturnType<typeof setTimeout> | null = null;
 
   /**
    * Check if connected.
@@ -276,10 +277,18 @@ export class SharedWorkerWebSocketClient {
    * If no response within 3 seconds, recreate the worker.
    */
   private verifyWorkerAlive(): void {
+    // Cancel any outstanding verification to prevent race conditions
+    // when visibility changes rapidly (visible→hidden→visible in <3s)
+    if (this._verifyTimerId !== null) {
+      clearTimeout(this._verifyTimerId);
+      this._verifyTimerId = null;
+    }
+
     this._workerPongReceived = false;
     this.sendToWorker({ type: 'ping' });
 
-    setTimeout(() => {
+    this._verifyTimerId = setTimeout(() => {
+      this._verifyTimerId = null;
       if (!this._workerPongReceived) {
         console.warn('[SharedWS] Worker not responding, recreating');
         this.setConnectionState('disconnected');

@@ -9,6 +9,7 @@
  */
 
 import type { MudObject } from '../../lib/std.js';
+import { findItem } from '../../lib/item-utils.js';
 
 interface CommandContext {
   player: MudObject;
@@ -26,21 +27,6 @@ interface Living extends MudObject {
 export const name = ['zap'];
 export const description = 'Instantly kill an NPC (builder only)';
 export const usage = 'zap <target>';
-
-/**
- * Find an object by name in a list of objects.
- */
-function findObject(name: string, objects: MudObject[]): MudObject | undefined {
-  const lowerName = name.toLowerCase();
-  return objects.find((obj) => obj.id(lowerName));
-}
-
-/**
- * Check if an object is a Living (has health).
- */
-function isLiving(obj: MudObject): obj is Living {
-  return 'health' in obj && 'maxHealth' in obj && 'alive' in obj;
-}
 
 export async function execute(ctx: CommandContext): Promise<void> {
   const { player, args } = ctx;
@@ -65,7 +51,7 @@ export async function execute(ctx: CommandContext): Promise<void> {
   }
 
   // Search in room for target
-  const target = findObject(targetName, room.inventory);
+  const target = findItem(targetName, room.inventory);
 
   if (!target) {
     ctx.sendLine(`You don't see '${targetName}' here.`);
@@ -79,27 +65,29 @@ export async function execute(ctx: CommandContext): Promise<void> {
   }
 
   // Check if target is a living being
-  if (!isLiving(target)) {
+  if (!efuns.isLiving(target)) {
     ctx.sendLine(`{red}${target.shortDesc} is not a living being.{/}`);
     return;
   }
 
+  const living = target as Living;
+
   // Check if already dead
-  if (!target.alive) {
+  if (!living.alive) {
     ctx.sendLine(`{yellow}${target.shortDesc} is already dead.{/}`);
     return;
   }
 
   // Get info before killing
   const desc = target.shortDesc || targetName;
-  const damage = target.maxHealth + 1;
+  const damage = living.maxHealth + 1;
 
   // ZAP! Deal lethal damage
   ctx.sendLine(`{YELLOW}⚡ ZAP! ⚡{/}`);
   ctx.sendLine(`{yellow}You channel divine power and strike ${desc}!{/}`);
 
   // Set health to 0 (this triggers onDeath via the health setter)
-  target.health = -damage;
+  living.health = -damage;
 
   ctx.sendLine(`{green}${desc} has been slain. (${damage} damage){/}`);
 

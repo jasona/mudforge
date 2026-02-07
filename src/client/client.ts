@@ -369,10 +369,8 @@ class MudClient {
     // Stats events (full snapshots and deltas)
     this.wsClient.on('stats-message', (message: StatsUpdate) => {
       this.statsPanel.handleMessage(message);
-      // Equipment panel only needs full snapshots (it checks for equipment field)
-      if (message.type === 'update') {
-        this.equipmentPanel.handleMessage(message);
-      }
+      // Equipment panel updates from both full snapshots and deltas
+      this.equipmentPanel.handleMessage(message);
       // Track permission level and cwd for tab completion (present in both types)
       if ('permissionLevel' in message && message.permissionLevel !== undefined) {
         this.permissionLevel = message.permissionLevel;

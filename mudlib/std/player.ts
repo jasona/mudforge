@@ -287,6 +287,7 @@ export interface PlayerSaveData {
  * Base class for players.
  */
 export class Player extends Living {
+  readonly isPlayer: boolean = true;
   private _connection: Connection | null = null;
   private _password: string = '';
   private _email: string = '';

@@ -17,14 +17,6 @@ const STARTER_GEAR = [
   '/areas/valdoria/aldric/items/newbie_armor',
 ];
 
-// Type guard for Player
-function isPlayer(obj: unknown): obj is Player {
-  return obj !== null && typeof obj === 'object' && 'permissionLevel' in obj;
-}
-
-// Type alias for player-like objects
-type PlayerLike = Player;
-
 export class NewbieArmourer extends NPC {
   constructor() {
     super();
@@ -79,7 +71,7 @@ A hand-painted sign near him reads: "FREE GEAR FOR NEW ADVENTURERS!"`;
         this.addResponse(
           /hello|hi|greetings|hey/i,
           (speaker) => {
-            if (!isPlayer(speaker)) {
+            if (!efuns.isPlayer(speaker)) {
               return `Ah, greetings there!`;
             }
             if (speaker.level <= MAX_LEVEL_FOR_FREE_GEAR) {
@@ -118,12 +110,12 @@ A hand-painted sign near him reads: "FREE GEAR FOR NEW ADVENTURERS!"`;
       }
 
   private async giveStarterGear(speaker: Living): Promise<void> {
-        if (!isPlayer(speaker)) {
+        if (!efuns.isPlayer(speaker)) {
           this.say("Sorry, I can only help adventurers.");
           return;
         }
     
-        const player = speaker as PlayerLike;
+        const player = speaker as Player;
     
         // Check if already received gear
         if (player.getProperty<boolean>(RECEIVED_GEAR_PROP)) {
@@ -201,9 +193,9 @@ A hand-painted sign near him reads: "FREE GEAR FOR NEW ADVENTURERS!"`;
 
   override async onEnter(who: Living, from?: Room): Promise<void> {
         // Only greet players
-        if (!isPlayer(who)) return;
+        if (!efuns.isPlayer(who)) return;
     
-        const player = who as PlayerLike;
+        const player = who as Player;
     
         // Add a small delay before greeting
         setTimeout(() => {

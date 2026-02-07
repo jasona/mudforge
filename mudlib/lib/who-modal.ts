@@ -174,14 +174,6 @@ function colorTokensToHtml(text: string): string {
 }
 
 /**
- * Capitalize the first letter of a string.
- */
-function capitalizeFirst(str: string): string {
-  if (!str) return str;
-  return str.charAt(0).toUpperCase() + str.slice(1);
-}
-
-/**
  * Get the rank badge for a player based on permission level.
  * Only shows rank badges for staff (Builder+), not player levels.
  */
@@ -253,7 +245,7 @@ function buildPlayerCard(
     displayName = player.getDisplayName?.() ?? player.name;
   } else {
     // No custom display name - capitalize the raw name
-    displayName = capitalizeFirst(player.name);
+    displayName = efuns.capitalize(player.name);
   }
   const displayNameHtml = colorTokensToHtml(displayName);
   const rankBadge = getPlayerRank(player);
@@ -312,7 +304,7 @@ function buildPlayerCard(
   }
 
   // Full player info
-  const race = capitalizeFirst(player.race || 'Human');
+  const race = efuns.capitalize(player.race || 'Human');
   const className = player.guild || 'Adventurer';
   const level = player.level ?? 1;
   const levelColor = getLevelColor(level);

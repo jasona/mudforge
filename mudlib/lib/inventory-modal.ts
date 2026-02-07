@@ -123,14 +123,6 @@ function getFallbackImage(type: ObjectImageType): string {
 }
 
 /**
- * Capitalize the first letter of a string.
- */
-function capitalizeFirst(str: string): string {
-  if (!str) return str;
-  return str.charAt(0).toUpperCase() + str.slice(1);
-}
-
-/**
  * Format weapon handedness for display.
  */
 function formatHandedness(handedness: string): string {
@@ -142,7 +134,7 @@ function formatHandedness(handedness: string): string {
     case 'two_handed':
       return 'Two-handed';
     default:
-      return capitalizeFirst(handedness);
+      return efuns.capitalize(handedness);
   }
 }
 
@@ -203,15 +195,15 @@ function buildWeaponTooltip(item: MudObject): string {
   const qualityBadge = getQualityBadge(item);
 
   const lines: string[] = [
-    `<div style="font-weight:bold;color:${nameColor};font-size:14px;margin-bottom:4px;">${capitalizeFirst(stripColorCodes(item.shortDesc))}</div>`,
+    `<div style="font-weight:bold;color:${nameColor};font-size:14px;margin-bottom:4px;">${efuns.capitalize(stripColorCodes(item.shortDesc))}</div>`,
     qualityBadge,
     `<div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="color:#888;">Damage:</span><span style="color:#f87171;">${weapon.minDamage} - ${weapon.maxDamage}</span></div>`,
-    `<div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="color:#888;">Type:</span><span style="color:#ddd;">${capitalizeFirst(weapon.damageType || 'physical')}</span></div>`,
+    `<div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="color:#888;">Type:</span><span style="color:#ddd;">${efuns.capitalize(weapon.damageType || 'physical')}</span></div>`,
     `<div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="color:#888;">Hands:</span><span style="color:#ddd;">${formatHandedness(weapon.handedness)}</span></div>`,
   ];
 
   if (weapon.skillRequired) {
-    lines.push(`<div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="color:#888;">Skill:</span><span style="color:#ddd;">${capitalizeFirst(weapon.skillRequired)} (${weapon.skillLevel})</span></div>`);
+    lines.push(`<div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="color:#888;">Skill:</span><span style="color:#ddd;">${efuns.capitalize(weapon.skillRequired)} (${weapon.skillLevel})</span></div>`);
   }
 
   if (weapon.value > 0) {
@@ -239,10 +231,10 @@ function buildArmorTooltip(item: MudObject): string {
   const qualityBadge = getQualityBadge(item);
 
   const lines: string[] = [
-    `<div style="font-weight:bold;color:${nameColor};font-size:14px;margin-bottom:4px;">${capitalizeFirst(stripColorCodes(item.shortDesc))}</div>`,
+    `<div style="font-weight:bold;color:${nameColor};font-size:14px;margin-bottom:4px;">${efuns.capitalize(stripColorCodes(item.shortDesc))}</div>`,
     qualityBadge,
     `<div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="color:#888;">Armor:</span><span style="color:#4ade80;">${armor.armor}</span></div>`,
-    `<div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="color:#888;">Slot:</span><span style="color:#ddd;">${capitalizeFirst(armor.slot || 'body')}</span></div>`,
+    `<div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="color:#888;">Slot:</span><span style="color:#ddd;">${efuns.capitalize(armor.slot || 'body')}</span></div>`,
   ];
 
   // Add resistances if any
@@ -253,7 +245,7 @@ function buildArmorTooltip(item: MudObject): string {
       resistances.forEach((value, type) => {
         if (value !== 0) {
           const sign = value > 0 ? '+' : '';
-          resList.push(`${capitalizeFirst(type)} ${sign}${value}`);
+          resList.push(`${efuns.capitalize(type)} ${sign}${value}`);
         }
       });
       if (resList.length > 0) {
@@ -285,7 +277,7 @@ function buildItemTooltip(item: MudObject): string {
   const qualityBadge = getQualityBadge(item);
 
   const lines: string[] = [
-    `<div style="font-weight:bold;color:${nameColor};font-size:14px;margin-bottom:4px;">${capitalizeFirst(stripColorCodes(item.shortDesc))}</div>`,
+    `<div style="font-weight:bold;color:${nameColor};font-size:14px;margin-bottom:4px;">${efuns.capitalize(stripColorCodes(item.shortDesc))}</div>`,
     qualityBadge,
   ];
 
@@ -1044,45 +1036,46 @@ async function buildAndSendModal(player: InventoryPlayer, defaultTab: number = 0
 
   efuns.guiSend(message);
 
-  // Now fetch actual images from cache/AI generation and update the modal
-  const updates: Record<string, Partial<DisplayElement>> = {};
+  // Fetch actual images from cache/AI generation in parallel and update the modal
   const equippedSet = new Set<MudObject>(equipped.values());
 
-  // Generate images for all inventory items
-  for (let i = 0; i < items.length; i++) {
-    const item = items[i];
+  // Fetch all inventory item images in parallel
+  const inventoryImagePromises = items.map(async (item, i) => {
     const type = detectObjectType(item);
     const extraContext = getExtraContext(item, type);
-
     try {
       const actualImage = await portraitDaemon.getObjectImage(item, type, extraContext);
       const fallbackImage = itemImages.get(item);
-
-      // Update item card image if it differs from fallback
-      if (actualImage !== fallbackImage) {
-        if (!equippedSet.has(item)) {
-          updates[`item-img-${i}`] = { src: actualImage };
-        }
+      if (actualImage !== fallbackImage && !equippedSet.has(item)) {
+        return { key: `item-img-${i}`, src: actualImage };
       }
     } catch {
-      // Keep fallback image on error
+      // Keep fallback
     }
-  }
+    return null;
+  });
 
-  // Generate images for equipped items in their slots
-  for (const [slot, item] of equipped) {
+  // Fetch all equipped item images in parallel
+  const equippedImagePromises = [...equipped].map(async ([slot, item]) => {
     const type = detectObjectType(item);
     const extraContext = getExtraContext(item, type);
-
     try {
       const actualImage = await portraitDaemon.getObjectImage(item, type, extraContext);
       const fallbackImage = getFallbackImage(type);
-
       if (actualImage !== fallbackImage) {
-        updates[`slot-img-${slot}`] = { src: actualImage };
+        return { key: `slot-img-${slot}`, src: actualImage };
       }
     } catch {
-      // Keep fallback image on error
+      // Keep fallback
+    }
+    return null;
+  });
+
+  const results = await Promise.allSettled([...inventoryImagePromises, ...equippedImagePromises]);
+  const updates: Record<string, Partial<DisplayElement>> = {};
+  for (const result of results) {
+    if (result.status === 'fulfilled' && result.value) {
+      updates[result.value.key] = { src: result.value.src };
     }
   }
 

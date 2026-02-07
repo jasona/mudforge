@@ -30,18 +30,11 @@ export const description = 'Attack a target to initiate combat';
 export const usage = 'kill <target> [number]';
 
 /**
- * Check if an object is a Living.
- */
-function isLiving(obj: MudObject): obj is Living {
-  return 'health' in obj && 'alive' in obj && 'inCombat' in obj;
-}
-
-/**
  * Find all Living targets matching a name in a list of objects.
  */
 function findAllLivingMatching(name: string, objects: MudObject[]): Living[] {
   const matches = findAllMatching(name, objects);
-  return matches.filter((obj): obj is Living => isLiving(obj));
+  return matches.filter((obj): obj is Living => efuns.isLiving(obj));
 }
 
 /**
@@ -87,7 +80,7 @@ export function execute(ctx: CommandContext): void {
   }
 
   // Check if player is a Living
-  if (!isLiving(player)) {
+  if (!efuns.isLiving(player)) {
     ctx.sendLine("You can't fight!");
     return;
   }

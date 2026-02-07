@@ -232,55 +232,55 @@ async function loadShopImages(
   }
 
   const portraitDaemon = getPortraitDaemon();
-  const updates: Record<string, { src: string }> = {};
+  const fallback = portraitDaemon.getFallbackImage('item');
 
-  // Load images for merchant stock items
-  const stock = merchant.getStock();
-  for (const item of stock) {
-    if (typeof efuns.findObject === 'function') {
-      try {
-        const obj = efuns.findObject(item.itemPath);
-        if (obj) {
-          const image = await portraitDaemon.getObjectImage(obj, detectItemCategory(obj) as 'item');
-          const fallback = portraitDaemon.getFallbackImage('item');
-          if (image !== fallback) {
-            updates[`item-img-${item.itemPath}`] = { src: image };
-          }
-        }
-      } catch {
-        // Object not loaded - keep fallback
-      }
-    }
-  }
-
-  // Load images for sold items
-  const soldItems = merchant.getSoldItems();
-  for (const item of soldItems) {
-    const itemObj = merchant.getSoldItemObject(item.objectId);
-    if (itemObj) {
-      try {
-        const image = await portraitDaemon.getObjectImage(itemObj, detectItemCategory(itemObj) as 'item');
-        const fallback = portraitDaemon.getFallbackImage('item');
-        if (image !== fallback) {
-          updates[`sold-img-${item.objectId}`] = { src: image };
-        }
-      } catch {
-        // Keep fallback
-      }
-    }
-  }
-
-  // Load images for player inventory items
-  const playerItems = player.inventory || [];
-  for (const item of playerItems) {
+  // Fetch all shop images in parallel
+  const stockPromises = merchant.getStock().map(async (item) => {
+    if (typeof efuns.findObject !== 'function') return null;
     try {
-      const image = await portraitDaemon.getObjectImage(item, detectItemCategory(item) as 'item');
-      const fallback = portraitDaemon.getFallbackImage('item');
+      const obj = efuns.findObject(item.itemPath);
+      if (!obj) return null;
+      const image = await portraitDaemon.getObjectImage(obj, detectItemCategory(obj) as 'item');
       if (image !== fallback) {
-        updates[`inv-img-${item.objectId}`] = { src: image };
+        return { key: `item-img-${item.itemPath}`, src: image };
       }
     } catch {
       // Keep fallback
+    }
+    return null;
+  });
+
+  const soldPromises = merchant.getSoldItems().map(async (item) => {
+    const itemObj = merchant.getSoldItemObject(item.objectId);
+    if (!itemObj) return null;
+    try {
+      const image = await portraitDaemon.getObjectImage(itemObj, detectItemCategory(itemObj) as 'item');
+      if (image !== fallback) {
+        return { key: `sold-img-${item.objectId}`, src: image };
+      }
+    } catch {
+      // Keep fallback
+    }
+    return null;
+  });
+
+  const invPromises = (player.inventory || []).map(async (item) => {
+    try {
+      const image = await portraitDaemon.getObjectImage(item, detectItemCategory(item) as 'item');
+      if (image !== fallback) {
+        return { key: `inv-img-${item.objectId}`, src: image };
+      }
+    } catch {
+      // Keep fallback
+    }
+    return null;
+  });
+
+  const results = await Promise.allSettled([...stockPromises, ...soldPromises, ...invPromises]);
+  const updates: Record<string, { src: string }> = {};
+  for (const result of results) {
+    if (result.status === 'fulfilled' && result.value) {
+      updates[result.value.key] = { src: result.value.src };
     }
   }
 
@@ -422,7 +422,7 @@ function buildWaresPanel(
     scrollContent.push({
       type: 'text',
       id: `cat-header-${category}`,
-      content: capitalizeFirst(category),
+      content: efuns.capitalize(category),
       style: {
         color: '#fbbf24',
         fontSize: '12px',
@@ -1352,14 +1352,6 @@ function isItemEquipped(item: Item): boolean {
     return true;
   }
   return false;
-}
-
-/**
- * Capitalize the first letter.
- */
-function capitalizeFirst(str: string): string {
-  if (!str) return str;
-  return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
 /**

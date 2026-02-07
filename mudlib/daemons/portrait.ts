@@ -86,11 +86,36 @@ function getFallbackItemDataUri(): string {
 export class PortraitDaemon extends MudObject {
   private _cache: Map<string, CachedPortrait> = new Map();
   private _pendingGenerations: Map<string, Promise<string>> = new Map();
+  private _generationQueue: Array<() => void> = [];
+  private _activeGenerations = 0;
+  private readonly MAX_CONCURRENT_GENERATIONS = 2;
 
   constructor() {
     super();
     this.shortDesc = 'Portrait Daemon';
     this.longDesc = 'The portrait daemon generates and caches portraits for combat display.';
+  }
+
+  /**
+   * Concurrency-limited wrapper for AI image generation.
+   * Limits the number of simultaneous Gemini API calls to prevent
+   * flooding the API and causing lag (e.g. "equip all" with 8 items).
+   */
+  private async withGenerationLimit<T>(fn: () => Promise<T>): Promise<T> {
+    if (this._activeGenerations >= this.MAX_CONCURRENT_GENERATIONS) {
+      await new Promise<void>(resolve => {
+        this._generationQueue.push(resolve);
+      });
+    }
+
+    this._activeGenerations++;
+    try {
+      return await fn();
+    } finally {
+      this._activeGenerations--;
+      const next = this._generationQueue.shift();
+      if (next) next();
+    }
   }
 
   /**
@@ -246,8 +271,8 @@ Style requirements:
 - The artwork must fill the entire canvas from edge to edge
 - No borders, margins, or empty space around the subject`;
 
-    // Try AI image generation with Gemini (Nano Banana)
-    const imageResult = await this.callAiImageGeneration(prompt);
+    // Try AI image generation with Gemini (Nano Banana) - concurrency limited
+    const imageResult = await this.withGenerationLimit(() => this.callAiImageGeneration(prompt));
     if (imageResult) {
       const portrait: CachedPortrait = {
         image: imageResult.imageBase64,
@@ -460,7 +485,8 @@ Style requirements:
 
     const prompt = this.buildObjectPrompt(description, type, enhancedContext);
 
-    const imageResult = await this.callAiImageGeneration(prompt);
+    // Concurrency-limited to prevent flooding Gemini API
+    const imageResult = await this.withGenerationLimit(() => this.callAiImageGeneration(prompt));
     if (imageResult) {
       const portrait: CachedPortrait = {
         image: imageResult.imageBase64,

@@ -46,6 +46,7 @@ export type WeaponSlot = 'main_hand' | 'off_hand';
  * Base class for weapons.
  */
 export class Weapon extends Item {
+  readonly isWeapon: boolean = true;
   private _minDamage: number = 1;
   private _maxDamage: number = 3;
   private _damageType: DamageType = 'bludgeoning';

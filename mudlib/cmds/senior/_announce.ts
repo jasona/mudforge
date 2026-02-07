@@ -10,6 +10,7 @@
  */
 
 import type { MudObject } from '../../lib/std.js';
+import { parseArgs } from '../../lib/text-utils.js';
 import {
   getAnnouncementDaemon,
   type Announcement,
@@ -34,45 +35,6 @@ interface CommandContext {
 export const name = ['announce'];
 export const description = 'Manage game announcements';
 export const usage = 'announce <list|show|create|edit|delete> [args]';
-
-/**
- * Parse arguments with quoted strings.
- */
-function parseArgs(input: string): string[] {
-  const args: string[] = [];
-  let current = '';
-  let inQuotes = false;
-  let quoteChar = '';
-
-  for (let i = 0; i < input.length; i++) {
-    const char = input[i];
-
-    if ((char === '"' || char === "'") && !inQuotes) {
-      inQuotes = true;
-      quoteChar = char;
-    } else if (char === quoteChar && inQuotes) {
-      inQuotes = false;
-      quoteChar = '';
-      if (current) {
-        args.push(current);
-        current = '';
-      }
-    } else if (char === ' ' && !inQuotes) {
-      if (current) {
-        args.push(current);
-        current = '';
-      }
-    } else {
-      current += char;
-    }
-  }
-
-  if (current) {
-    args.push(current);
-  }
-
-  return args;
-}
 
 /**
  * Format a timestamp for display.

@@ -20,20 +20,6 @@ export const description = 'Remove or unwield equipped items';
 export const usage = 'unequip <item> | unequip all';
 
 /**
- * Check if an item is a weapon (has unwield method).
- */
-function isWeapon(item: MudObject): item is Weapon {
-  return 'unwield' in item && typeof (item as Weapon).unwield === 'function';
-}
-
-/**
- * Check if an item is armor (has remove method).
- */
-function isArmor(item: MudObject): item is Armor {
-  return 'remove' in item && typeof (item as Armor).remove === 'function';
-}
-
-/**
  * Unequip a single item (either remove or unwield it).
  */
 function unequipItem(
@@ -44,7 +30,7 @@ function unequipItem(
 ): boolean {
   const room = living.environment as Room | null;
 
-  if (isWeapon(item)) {
+  if (efuns.isWeapon(item)) {
     const weapon = item as Weapon;
 
     // Skip if not wielded
@@ -73,7 +59,7 @@ function unequipItem(
     }
   }
 
-  if (isArmor(item)) {
+  if (efuns.isArmor(item)) {
     const armor = item as Armor;
 
     // Skip if not worn
@@ -130,7 +116,7 @@ function unequipAll(ctx: CommandContext, living: Living): void {
     }
     processed.add(item);
 
-    if (isWeapon(item)) {
+    if (efuns.isWeapon(item)) {
       const weapon = item as Weapon;
       if (weapon.isWielded) {
         const result = weapon.unwield();
@@ -138,7 +124,7 @@ function unequipAll(ctx: CommandContext, living: Living): void {
           unequipped.push(weapon.shortDesc);
         }
       }
-    } else if (isArmor(item)) {
+    } else if (efuns.isArmor(item)) {
       const armor = item as Armor;
       if (armor.isWorn) {
         const result = armor.remove();
