@@ -120,7 +120,7 @@ const PREFIX_COMMANDS = new Set(["'", '"', ':', ';']);
 export class CommandManager {
   private config: { cmdsPath: string; watchEnabled: boolean };
   private logger: Logger | undefined;
-  private commands: Map<string, LoadedCommand> = new Map();
+  private commands: Map<string, LoadedCommand[]> = new Map();
   private commandsByFile: Map<string, LoadedCommand> = new Map();
   private watchers: FSWatcher[] = [];
   private initialized: boolean = false;
@@ -161,7 +161,8 @@ export class CommandManager {
     }
 
     this.initialized = true;
-    this.logger?.info({ commandCount: this.commands.size }, 'Command manager initialized');
+    const nameCount = this.commands.size;
+    this.logger?.info({ commandCount: nameCount }, 'Command manager initialized');
   }
 
   /**
@@ -181,6 +182,35 @@ export class CommandManager {
       }
     }
     return 'player';
+  }
+
+  /**
+   * Resolve the best command for a player from a list of candidates.
+   * Returns the first command whose directory is in the player's allowed paths.
+   */
+  private resolveCommand(
+    candidates: LoadedCommand[],
+    playerName: string | undefined,
+    playerLevel: PermissionLevel,
+  ): LoadedCommand | undefined {
+    if (playerName) {
+      const permissions = getPermissions();
+      const allowedPaths = permissions.getEffectiveCommandPaths(playerName, playerLevel);
+      for (const candidate of candidates) {
+        const cmdDir = this.getCommandDirectory(candidate.filePath);
+        if (allowedPaths.includes(cmdDir)) {
+          return candidate;
+        }
+      }
+    } else {
+      // Fallback for objects without names (NPCs, etc.)
+      for (const candidate of candidates) {
+        if (playerLevel >= candidate.level) {
+          return candidate;
+        }
+      }
+    }
+    return undefined;
   }
 
   /**
@@ -267,14 +297,25 @@ export class CommandManager {
       const existingByFile = this.commandsByFile.get(absolutePath);
       if (existingByFile) {
         for (const name of existingByFile.names) {
-          this.commands.delete(name.toLowerCase());
+          const list = this.commands.get(name.toLowerCase());
+          if (list) {
+            const idx = list.indexOf(existingByFile);
+            if (idx >= 0) list.splice(idx, 1);
+            if (list.length === 0) this.commands.delete(name.toLowerCase());
+          }
         }
       }
 
       // Register new command
       this.commandsByFile.set(absolutePath, loaded);
       for (const name of names) {
-        this.commands.set(name.toLowerCase(), loaded);
+        const key = name.toLowerCase();
+        const list = this.commands.get(key);
+        if (list) {
+          list.push(loaded);
+        } else {
+          this.commands.set(key, [loaded]);
+        }
       }
 
       this.logger?.debug({ names, level, filePath }, 'Loaded command');
@@ -292,7 +333,12 @@ export class CommandManager {
 
     if (loaded) {
       for (const name of loaded.names) {
-        this.commands.delete(name.toLowerCase());
+        const list = this.commands.get(name.toLowerCase());
+        if (list) {
+          const idx = list.indexOf(loaded);
+          if (idx >= 0) list.splice(idx, 1);
+          if (list.length === 0) this.commands.delete(name.toLowerCase());
+        }
       }
       this.commandsByFile.delete(absolutePath);
       this.logger?.debug({ filePath }, 'Unloaded command');
@@ -420,27 +466,17 @@ export class CommandManager {
       args = trimmed.substring(1).trim();
     }
 
-    // Find the command
-    const loaded = this.commands.get(verb.toLowerCase());
-    if (!loaded) {
+    // Find candidates for this verb
+    const candidates = this.commands.get(verb.toLowerCase());
+    if (!candidates || candidates.length === 0) {
       return false;
     }
 
-    // Check permission using path-based system
+    // Resolve to the best command the player has access to
     const playerWithName = player as MudObject & { name?: string };
-    if (playerWithName.name) {
-      const permissions = getPermissions();
-      const allowedPaths = permissions.getEffectiveCommandPaths(playerWithName.name, playerLevel);
-      const cmdDir = this.getCommandDirectory(loaded.filePath);
-      if (!allowedPaths.includes(cmdDir)) {
-        // Player doesn't have access to this command's directory
-        return false;
-      }
-    } else {
-      // Fallback for objects without names (NPCs, etc.)
-      if (playerLevel < loaded.level) {
-        return false;
-      }
+    const loaded = this.resolveCommand(candidates, playerWithName.name, playerLevel);
+    if (!loaded) {
+      return false;
     }
 
     // Create context
@@ -497,24 +533,26 @@ export class CommandManager {
       allowedPaths = permissions.getEffectiveCommandPaths(playerName, level);
     }
 
-    for (const loaded of this.commands.values()) {
-      if (seen.has(loaded.command)) continue;
+    for (const candidates of this.commands.values()) {
+      for (const loaded of candidates) {
+        if (seen.has(loaded.command)) continue;
 
-      // Check access using path-based system if player name provided
-      if (allowedPaths) {
-        const cmdDir = this.getCommandDirectory(loaded.filePath);
-        if (!allowedPaths.includes(cmdDir)) {
-          continue;
+        // Check access using path-based system if player name provided
+        if (allowedPaths) {
+          const cmdDir = this.getCommandDirectory(loaded.filePath);
+          if (!allowedPaths.includes(cmdDir)) {
+            continue;
+          }
+        } else {
+          // Fallback to level-based check
+          if (loaded.level > level) {
+            continue;
+          }
         }
-      } else {
-        // Fallback to level-based check
-        if (loaded.level > level) {
-          continue;
-        }
+
+        seen.add(loaded.command);
+        result.push(loaded.command);
       }
-
-      seen.add(loaded.command);
-      result.push(loaded.command);
     }
 
     return result.sort((a, b) => {
@@ -528,7 +566,8 @@ export class CommandManager {
    * Check if a command exists.
    */
   hasCommand(verb: string): boolean {
-    return this.commands.has(verb.toLowerCase());
+    const list = this.commands.get(verb.toLowerCase());
+    return list !== undefined && list.length > 0;
   }
 
   /**
@@ -628,7 +667,11 @@ export class CommandManager {
     description: string;
     usage?: string | undefined;
   } | undefined {
-    const loaded = this.commands.get(name.toLowerCase());
+    const candidates = this.commands.get(name.toLowerCase());
+    if (!candidates || candidates.length === 0) return undefined;
+
+    // Return the first candidate (caller can use resolveCommand for path-aware lookup)
+    const loaded = candidates[0];
     if (!loaded) return undefined;
 
     const result: {

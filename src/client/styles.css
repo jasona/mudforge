@@ -3429,6 +3429,135 @@ h6.gui-heading { font-size: 12px; }
 }
 
 /* =============================================================================
+   Sky Panel - Day/Night Cycle Widget in Right Sidebar
+   ============================================================================= */
+
+#sky-container {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-top: 1px solid var(--border-primary);
+}
+
+.sky-panel {
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-secondary);
+}
+
+.sky-panel.collapsed .sky-panel-content,
+.sky-panel.collapsed .sky-panel-info {
+  display: none;
+}
+
+.sky-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background-color: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border-primary);
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.sky-panel-title {
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.sky-btn {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background-color: var(--bg-hover);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--border-radius-sm);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.sky-btn:hover {
+  color: var(--text-primary);
+  background-color: var(--bg-tertiary);
+  border-color: var(--accent);
+}
+
+.sky-panel-content {
+  height: 80px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.sky-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.sky-svg stop {
+  transition: stop-color 1s linear;
+}
+
+.sky-stars {
+  transition: opacity 2s ease;
+}
+
+.sky-sun-group,
+.sky-moon-group {
+  transition: transform 1s linear;
+}
+
+.sky-panel-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px var(--spacing-sm);
+  background-color: var(--bg-tertiary);
+  border-top: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+}
+
+.sky-phase-label {
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.sky-phase-dawn {
+  color: #fbbf24;
+}
+
+.sky-phase-day {
+  color: #fde047;
+}
+
+.sky-phase-dusk {
+  color: #f97316;
+}
+
+.sky-phase-night {
+  color: #60a5fa;
+}
+
+.sky-time-label {
+  font-size: var(--font-size-xs);
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+}
+
+/* =============================================================================
    Sound Panel - Docked in Right Sidebar (Bottom)
    ============================================================================= */
 

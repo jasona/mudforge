@@ -19,6 +19,7 @@ import {
   SoundMessage,
   GiphyMessage,
   TimeMessage,
+  GameTimeMessage,
   ReconnectProgress,
   ConnectionState,
 } from './shared-websocket-client.js';
@@ -34,6 +35,7 @@ import { GiphyPanel } from './giphy-panel.js';
 import { ClockPanel } from './clock-panel.js';
 import { SoundManager } from './sound-manager.js';
 import { SoundPanel } from './sound-panel.js';
+import { SkyPanel } from './sky-panel.js';
 import { GUIModal } from './gui/gui-modal.js';
 import { Launcher } from './launcher.js';
 import { DebugPanel } from './debug-panel.js';
@@ -78,6 +80,7 @@ class MudClient {
   private clockPanel: ClockPanel;
   private soundManager: SoundManager;
   private soundPanel: SoundPanel;
+  private skyPanel: SkyPanel;
   private guiModal: GUIModal;
   private launcher: Launcher;
   private debugPanel: DebugPanel;
@@ -155,6 +158,7 @@ class MudClient {
     this.clockPanel = new ClockPanel('clock-container');
     this.soundManager = new SoundManager();
     this.soundPanel = new SoundPanel('sound-container', this.soundManager);
+    this.skyPanel = new SkyPanel('sky-container');
     this.guiModal = new GUIModal((message: GUIClientMessage) => {
       this.wsClient.sendGUIMessage(message);
     });
@@ -432,6 +436,11 @@ class MudClient {
       if (message.gameVersion) {
         this.checkVersionMismatch(message.gameVersion);
       }
+    });
+
+    // Game time events (day/night cycle)
+    this.wsClient.on('gametime-message', (message: GameTimeMessage) => {
+      this.skyPanel.handleGameTimeMessage(message);
     });
 
     // Completion events

@@ -309,3 +309,17 @@ export interface TimeMessage {
   /** Calculated round-trip latency in milliseconds (added by client) */
   latencyMs?: number;
 }
+
+/**
+ * Game time message for the in-game day/night cycle.
+ */
+export interface GameTimeMessage {
+  /** Game hour (0-23) */
+  hour: number;
+  /** Game minute (0-59) */
+  minute: number;
+  /** Current phase of day */
+  phase: 'dawn' | 'day' | 'dusk' | 'night';
+  /** Full cycle duration in ms (for client-side interpolation) */
+  cycleDurationMs: number;
+}

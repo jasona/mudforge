@@ -1,7 +1,7 @@
 /**
- * ClockPanel - Displays server time in the header with fantasy time periods.
+ * ClockPanel - Displays server time in the header.
  *
- * Time periods match the in-game `time` command:
+ * Server time periods match the in-game `time` command:
  * - midnight (0)
  * - dead of night (1-4)
  * - dawn (5-6)
@@ -78,7 +78,7 @@ export class ClockPanel {
     }
     this.container = container;
 
-    // Create clock elements
+    // Create server clock elements
     this.periodElement = document.createElement('span');
     this.periodElement.className = 'clock-period';
 
@@ -144,7 +144,7 @@ export class ClockPanel {
   }
 
   /**
-   * Update the display with current time.
+   * Update the server time display.
    */
   private updateDisplay(): void {
     const now = this.getCurrentTime();

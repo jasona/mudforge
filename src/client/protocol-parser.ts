@@ -37,6 +37,7 @@ const PROTOCOL_REGISTRY: ReadonlyArray<{ prefix: string; event: string }> = [
   { prefix: '\x00[GIPHY]',     event: 'giphy-message' },
   { prefix: '\x00[SESSION]',   event: 'session-message' },
   { prefix: '\x00[TIME]',      event: 'time-message' },
+  { prefix: '\x00[GAMETIME]',  event: 'gametime-message' },
 ];
 
 /**

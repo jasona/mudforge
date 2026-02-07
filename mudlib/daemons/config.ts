@@ -160,6 +160,18 @@ const DEFAULT_SETTINGS: Record<string, ConfigSetting> = {
     min: 1,
     max: 60,
   },
+  'time.cycleDurationMinutes': {
+    value: 60,
+    description: 'Real minutes per game day (60 = 1 real hour per 24 game hours)',
+    type: 'number',
+    min: 1,
+    max: 1440,
+  },
+  'time.enabled': {
+    value: true,
+    description: 'Enable the day/night cycle (affects outdoor room lighting)',
+    type: 'boolean',
+  },
 };
 
 /**
