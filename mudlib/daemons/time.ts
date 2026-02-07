@@ -48,7 +48,7 @@ const PHASE_LIGHT_MODIFIERS: Record<TimePhase, number> = {
 const PHASE_MESSAGES: Record<TimePhase, string> = {
   dawn: '{yellow}The first light of dawn breaks over the horizon.{/}',
   day: '{bold}{yellow}The sun rises fully, bathing the world in daylight.{/}',
-  dusk: '{#FFA500}The sun sinks low, casting long shadows as dusk settles in.{/}',
+  dusk: '{darkorange}The sun sinks low, casting long shadows as dusk settles in.{/}',
   night: '{blue}Darkness falls as night claims the land. Stars appear overhead.{/}',
 };
 
