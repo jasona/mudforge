@@ -19,6 +19,7 @@ import {
   SoundMessage,
   GiphyMessage,
   TimeMessage,
+  GameTimeMessage,
   ReconnectProgress,
   ConnectionState,
 } from './shared-websocket-client.js';
@@ -432,6 +433,11 @@ class MudClient {
       if (message.gameVersion) {
         this.checkVersionMismatch(message.gameVersion);
       }
+    });
+
+    // Game time events (day/night cycle)
+    this.wsClient.on('gametime-message', (message: GameTimeMessage) => {
+      this.clockPanel.handleGameTimeMessage(message);
     });
 
     // Completion events

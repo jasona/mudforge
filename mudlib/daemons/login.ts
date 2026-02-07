@@ -12,6 +12,7 @@ import { getChannelDaemon } from './channels.js';
 import { getQuestDaemon } from './quest.js';
 import { getRaceDaemon } from './race.js';
 import { getLootDaemon } from './loot.js';
+import { getTimeDaemon } from './time.js';
 import type { RaceId } from '../std/race/types.js';
 import { isValidRaceId } from '../std/race/definitions.js';
 import type { QuestPlayer } from '../std/quest/types.js';
@@ -550,6 +551,16 @@ ${'='.repeat(bannerWidth)}
         // Send quest panel update
         getQuestDaemon().sendQuestPanelUpdate(player as unknown as QuestPlayer);
 
+        // Send game time to client for clock display
+        try {
+          const td = getTimeDaemon();
+          if (efuns.sendGameTime) {
+            efuns.sendGameTime(player, td.getGameTimeData());
+          }
+        } catch {
+          // Time daemon not available
+        }
+
         // Notify party system about reconnect
         import('./party.js')
           .then(({ getPartyDaemon }) => {
@@ -734,6 +745,16 @@ ${'='.repeat(bannerWidth)}
 
     // Send quest panel update
     getQuestDaemon().sendQuestPanelUpdate(player as unknown as QuestPlayer);
+
+    // Send game time to client for clock display
+    try {
+      const td = getTimeDaemon();
+      if (efuns.sendGameTime) {
+        efuns.sendGameTime(player, td.getGameTimeData());
+      }
+    } catch {
+      // Time daemon not available
+    }
 
     // Execute login alias if defined
     await this.executeLoginAlias(player);

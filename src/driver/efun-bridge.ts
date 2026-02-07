@@ -2796,6 +2796,41 @@ export class EfunBridge {
     connection.send(`\x00[SOUND]${jsonStr}\n`);
   }
 
+  // ========== Game Time Efuns ==========
+
+  /**
+   * Send a GAMETIME protocol message to the target player's client.
+   * Used by the time daemon to push game time updates on phase transitions and login.
+   *
+   * @param targetPlayer The player to send game time to
+   * @param gameTimeData The game time data (hour, minute, phase, cycleDurationMs)
+   */
+  sendGameTime(
+    targetPlayer: MudObject,
+    gameTimeData?: { hour: number; minute: number; phase: string; cycleDurationMs: number }
+  ): void {
+    if (!targetPlayer) return;
+
+    const playerWithConnection = targetPlayer as MudObject & {
+      connection?: { sendGameTime?: (msg: unknown) => void; send: (msg: string) => void };
+      _connection?: { sendGameTime?: (msg: unknown) => void; send: (msg: string) => void };
+    };
+
+    const connection = playerWithConnection.connection || playerWithConnection._connection;
+    if (!connection) return;
+
+    // If no data provided, caller expects us to get it (mudlib-side use)
+    // In that case, send nothing - the mudlib time daemon should pass data
+    if (!gameTimeData) return;
+
+    if (connection.sendGameTime) {
+      connection.sendGameTime(gameTimeData);
+    } else if (connection.send) {
+      const json = JSON.stringify(gameTimeData);
+      connection.send(`\x00[GAMETIME]${json}\n`);
+    }
+  }
+
   // ========== Config Efuns ==========
 
   /**
@@ -3928,6 +3963,9 @@ RULES:
       playSound: this.playSound.bind(this),
       loopSound: this.loopSound.bind(this),
       stopSound: this.stopSound.bind(this),
+
+      // Game Time
+      sendGameTime: this.sendGameTime.bind(this),
 
       // Config
       getMudConfig: this.getMudConfig.bind(this),

@@ -260,6 +260,15 @@ body {
   font-weight: 400;
 }
 
+.clock-gametime {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  margin-left: var(--spacing-xs);
+  padding-left: var(--spacing-xs);
+  border-left: 1px solid var(--border-color);
+}
+
 #terminal {
   height: 100%;
   padding: var(--spacing-lg);

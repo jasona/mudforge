@@ -30,6 +30,7 @@ import type {
   SoundMessage,
   SessionTokenMessage,
   SessionResumeMessage,
+  GameTimeMessage,
 } from '../shared/protocol-types.js';
 
 // Re-export all protocol types so existing imports from connection.ts continue to work
@@ -53,6 +54,7 @@ export type {
   SoundCategory,
   SoundMessage,
   SessionTokenMessage,
+  GameTimeMessage,
 };
 
 /** @deprecated Use SessionResumeMessage from shared/protocol-types instead */
@@ -744,6 +746,17 @@ export class Connection extends EventEmitter {
   sendEquipment(message: EquipmentMessage): void {
     const json = JSON.stringify(message);
     this.sendProtocolMessage(`\x00[EQUIPMENT]${json}`);
+  }
+
+  /**
+   * Send a GAMETIME protocol message to the client.
+   * GAMETIME messages are prefixed with \x00[GAMETIME] to distinguish them from regular text.
+   * Used for the in-game day/night cycle clock display.
+   * @param message The game time message to send
+   */
+  sendGameTime(message: GameTimeMessage): void {
+    const json = JSON.stringify(message);
+    this.sendProtocolMessage(`\x00[GAMETIME]${json}`);
   }
 
   /**

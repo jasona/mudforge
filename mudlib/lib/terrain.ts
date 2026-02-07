@@ -79,6 +79,10 @@ export interface TerrainDefinition {
   /** Requires a boat to traverse */
   requiresBoat?: boolean;
 
+  // Environment
+  /** Whether this terrain is outdoors (affected by day/night cycle) */
+  outdoor?: boolean;
+
   // Environmental effects
   /** Periodic damage or other environmental effect */
   environmental?: EnvironmentalEffect;
@@ -101,6 +105,7 @@ export const TERRAINS: Record<TerrainType, TerrainDefinition> = {
     movementCost: 1.0,
     combatModifier: 1.0,
     visibilityRange: 5,
+    outdoor: true,
     ambientMessages: [
       'The bustle of town life surrounds you.',
       'Merchants call out their wares in the distance.',
@@ -132,6 +137,7 @@ export const TERRAINS: Record<TerrainType, TerrainDefinition> = {
     movementCost: 0.8, // Faster travel on roads
     combatModifier: 1.0,
     visibilityRange: 6,
+    outdoor: true,
     ambientMessages: [
       'The packed earth of the road is firm underfoot.',
       'Wagon ruts mark the well-traveled path.',
@@ -147,6 +153,7 @@ export const TERRAINS: Record<TerrainType, TerrainDefinition> = {
     movementCost: 1.0,
     combatModifier: 1.0,
     visibilityRange: 5,
+    outdoor: true,
     ambientMessages: [
       'A gentle breeze rustles the grass.',
       'Insects buzz lazily in the warm air.',
@@ -164,6 +171,7 @@ export const TERRAINS: Record<TerrainType, TerrainDefinition> = {
     movementCost: 1.2,
     combatModifier: 0.9,
     visibilityRange: 2,
+    outdoor: true,
     ambientMessages: [
       'Birds chirp in the canopy above.',
       'Leaves rustle as something moves nearby.',
@@ -181,6 +189,7 @@ export const TERRAINS: Record<TerrainType, TerrainDefinition> = {
     movementCost: 1.5,
     combatModifier: 0.8,
     visibilityRange: 1,
+    outdoor: true,
     ambientMessages: [
       'The undergrowth is thick and tangled.',
       'You can barely see the sky through the canopy.',
@@ -197,6 +206,7 @@ export const TERRAINS: Record<TerrainType, TerrainDefinition> = {
     movementCost: 2.0,
     combatModifier: 0.85,
     visibilityRange: 8, // Good visibility from height
+    outdoor: true,
     requiresClimb: true,
     ambientMessages: [
       'The wind howls around the rocky peaks.',
@@ -214,6 +224,7 @@ export const TERRAINS: Record<TerrainType, TerrainDefinition> = {
     movementCost: 1.3,
     combatModifier: 0.95,
     visibilityRange: 4,
+    outdoor: true,
     ambientMessages: [
       'The rolling hills stretch before you.',
       'A hawk circles lazily overhead.',
@@ -229,6 +240,7 @@ export const TERRAINS: Record<TerrainType, TerrainDefinition> = {
     movementCost: 1.5,
     combatModifier: 0.8,
     visibilityRange: 4,
+    outdoor: true,
     ambientMessages: [
       'Water splashes around your feet.',
       'Small fish dart away from your steps.',
@@ -244,6 +256,7 @@ export const TERRAINS: Record<TerrainType, TerrainDefinition> = {
     movementCost: 3.0,
     combatModifier: 0.5,
     visibilityRange: 3,
+    outdoor: true,
     requiresSwim: true,
     requiresBoat: true,
     environmental: {
@@ -267,6 +280,7 @@ export const TERRAINS: Record<TerrainType, TerrainDefinition> = {
     movementCost: 2.0,
     combatModifier: 0.7,
     visibilityRange: 4,
+    outdoor: true,
     requiresSwim: true,
     ambientMessages: [
       'The current tugs at your legs.',
@@ -283,6 +297,7 @@ export const TERRAINS: Record<TerrainType, TerrainDefinition> = {
     movementCost: 1.8,
     combatModifier: 0.75,
     visibilityRange: 2,
+    outdoor: true,
     environmental: {
       damage: 2,
       damageType: 'poison',
@@ -306,6 +321,7 @@ export const TERRAINS: Record<TerrainType, TerrainDefinition> = {
     movementCost: 1.4,
     combatModifier: 0.9,
     visibilityRange: 7,
+    outdoor: true,
     environmental: {
       damage: 3,
       damageType: 'heat',
@@ -328,6 +344,7 @@ export const TERRAINS: Record<TerrainType, TerrainDefinition> = {
     movementCost: 1.6,
     combatModifier: 0.85,
     visibilityRange: 4,
+    outdoor: true,
     environmental: {
       damage: 2,
       damageType: 'cold',
@@ -350,6 +367,7 @@ export const TERRAINS: Record<TerrainType, TerrainDefinition> = {
     movementCost: 1.3,
     combatModifier: 0.7, // Hard to fight on slippery ice
     visibilityRange: 5,
+    outdoor: true,
     environmental: {
       damage: 3,
       damageType: 'cold',
@@ -440,6 +458,13 @@ export function isValidTerrain(type: string): type is TerrainType {
  */
 export function getAllTerrainTypes(): TerrainType[] {
   return Object.keys(TERRAINS) as TerrainType[];
+}
+
+/**
+ * Check if a terrain type is outdoor (affected by day/night cycle).
+ */
+export function isOutdoorTerrain(type: TerrainType): boolean {
+  return TERRAINS[type]?.outdoor === true;
 }
 
 /**

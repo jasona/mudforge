@@ -41,6 +41,7 @@ export type {
   SoundCategory,
   SoundMessage,
   GiphyMessage,
+  GameTimeMessage,
 } from './websocket-client.js';
 
 import type {
@@ -87,6 +88,7 @@ type WebSocketClientEvent =
   | 'session-token'
   | 'session-resume'
   | 'time-message'
+  | 'gametime-message'
   | 'connection-stale'
   | 'latency-update';
 

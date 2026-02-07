@@ -25,6 +25,8 @@ import type { Room } from '../room.js';
 import type { Item } from '../item.js';
 import type { MudObject } from '../object.js';
 import type { Effect } from '../combat/types.js';
+import { isOutdoorTerrain } from '../../lib/terrain.js';
+import { getTimeDaemon } from '../../daemons/time.js';
 
 /**
  * Interface for entities with race perception abilities.
@@ -124,6 +126,7 @@ export function calculateCarriedLight(living: Living): number {
 /**
  * Calculate the light level of a room.
  * Includes base room light plus light sources on the ground.
+ * Outdoor rooms are affected by the day/night cycle.
  */
 export function calculateRoomLight(room: Room | null): LightLevel {
   if (!room) return DEFAULT_ROOM_LIGHT;
@@ -140,6 +143,20 @@ export function calculateRoomLight(room: Room | null): LightLevel {
       if (item.fuelRemaining === -1 || (item.fuelRemaining ?? 0) > 0) {
         baseLight = Math.min(LightLevel.BLINDING, baseLight + item.lightRadius);
       }
+    }
+  }
+
+  // Apply day/night cycle modifier for outdoor rooms
+  const roomWithTerrain = room as Room & { getTerrain?: () => string };
+  if (roomWithTerrain.getTerrain) {
+    try {
+      const terrainType = roomWithTerrain.getTerrain();
+      if (isOutdoorTerrain(terrainType)) {
+        const modifier = getTimeDaemon().getLightModifier();
+        baseLight = Math.max(LightLevel.PITCH_BLACK, baseLight + modifier) as LightLevel;
+      }
+    } catch {
+      // Time daemon not available (e.g., during startup)
     }
   }
 

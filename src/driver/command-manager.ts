@@ -672,6 +672,7 @@ export class CommandManager {
 
     // Return the first candidate (caller can use resolveCommand for path-aware lookup)
     const loaded = candidates[0];
+    if (!loaded) return undefined;
 
     const result: {
       names: string[];
