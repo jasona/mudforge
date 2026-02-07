@@ -8,6 +8,7 @@
  */
 
 import type { MudObject } from '../../lib/std.js';
+import { findItem } from '../../lib/item-utils.js';
 
 interface CommandContext {
   player: MudObject;
@@ -19,14 +20,6 @@ interface CommandContext {
 export const name = ['dest', 'destruct'];
 export const description = 'Destruct (destroy) an object';
 export const usage = 'dest <target>';
-
-/**
- * Find an object by name in a list of objects.
- */
-function findObject(name: string, objects: MudObject[]): MudObject | undefined {
-  const lowerName = name.toLowerCase();
-  return objects.find((obj) => obj.id(lowerName));
-}
 
 export async function execute(ctx: CommandContext): Promise<void> {
   const { player, args } = ctx;
@@ -52,7 +45,7 @@ export async function execute(ctx: CommandContext): Promise<void> {
   let location = '';
 
   if (room) {
-    target = findObject(targetName, room.inventory);
+    target = findItem(targetName, room.inventory);
     if (target) {
       location = 'in the room';
     }
@@ -60,7 +53,7 @@ export async function execute(ctx: CommandContext): Promise<void> {
 
   // If not found in room, search inventory
   if (!target) {
-    target = findObject(targetName, player.inventory);
+    target = findItem(targetName, player.inventory);
     if (target) {
       location = 'in your inventory';
     }

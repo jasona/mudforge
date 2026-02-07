@@ -36,6 +36,8 @@ export interface PetTemplate {
  * Pet class - extends NPC with pet-specific behavior.
  */
 export class Pet extends NPC {
+  readonly isPet: boolean = true;
+
   // Owner tracking
   private _ownerName: string | null = null;
   private _petName: string | null = null;

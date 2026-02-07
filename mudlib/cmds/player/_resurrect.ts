@@ -21,25 +21,20 @@ export const name = ['resurrect', 'res'];
 export const description = 'Return to life after death';
 export const usage = 'resurrect <corpse|shrine>';
 
-/**
- * Check if object is a Player with ghost mode.
- */
-function isPlayer(obj: MudObject): obj is Player {
-  return 'isGhost' in obj && 'resurrectAtCorpse' in obj;
-}
-
 export async function execute(ctx: CommandContext): Promise<void> {
   const { player, args } = ctx;
   const option = args.trim().toLowerCase();
 
   // Check if player is a Player object
-  if (!isPlayer(player)) {
+  if (!efuns.isPlayer(player)) {
     ctx.sendLine("You can't resurrect!");
     return;
   }
 
+  const p = player as Player;
+
   // Check if player is dead
-  if (!player.isGhost) {
+  if (!p.isGhost) {
     ctx.sendLine("You're not dead!");
     return;
   }
@@ -57,13 +52,13 @@ export async function execute(ctx: CommandContext): Promise<void> {
   switch (option) {
     case 'corpse':
     case 'body':
-      await player.resurrectAtCorpse();
+      await p.resurrectAtCorpse();
       break;
 
     case 'shrine':
     case 'temple':
     case 'town':
-      await player.resurrectAtShrine();
+      await p.resurrectAtShrine();
       break;
 
     default:

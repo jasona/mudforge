@@ -1561,6 +1561,48 @@ export class EfunBridge {
   }
 
   /**
+   * Check if an object is a Weapon.
+   */
+  isWeapon(obj: MudObject): boolean {
+    return obj != null && 'isWeapon' in obj && (obj as Record<string, unknown>).isWeapon === true;
+  }
+
+  /**
+   * Check if an object is Armor.
+   */
+  isArmor(obj: MudObject): boolean {
+    return obj != null && 'isArmor' in obj && (obj as Record<string, unknown>).isArmor === true;
+  }
+
+  /**
+   * Check if an object is a Vehicle.
+   */
+  isVehicle(obj: MudObject): boolean {
+    return obj != null && 'isVehicle' in obj && (obj as Record<string, unknown>).isVehicle === true;
+  }
+
+  /**
+   * Check if an object is a Pet.
+   */
+  isPet(obj: MudObject): boolean {
+    return obj != null && 'isPet' in obj && (obj as Record<string, unknown>).isPet === true;
+  }
+
+  /**
+   * Check if an object is a Player.
+   */
+  isPlayer(obj: MudObject): boolean {
+    return obj != null && 'isPlayer' in obj && (obj as Record<string, unknown>).isPlayer === true;
+  }
+
+  /**
+   * Check if an object is an NPC.
+   */
+  isNPC(obj: MudObject): boolean {
+    return obj != null && 'isNPC' in obj && (obj as Record<string, unknown>).isNPC === true;
+  }
+
+  /**
    * Get the current player's permission level.
    */
   getPermissionLevel(): number {
@@ -3796,6 +3838,12 @@ RULES:
       isAdmin: this.isAdmin.bind(this),
       isBuilder: this.isBuilder.bind(this),
       isLiving: this.isLiving.bind(this),
+      isWeapon: this.isWeapon.bind(this),
+      isArmor: this.isArmor.bind(this),
+      isVehicle: this.isVehicle.bind(this),
+      isPet: this.isPet.bind(this),
+      isPlayer: this.isPlayer.bind(this),
+      isNPC: this.isNPC.bind(this),
       getPermissionLevel: this.getPermissionLevel.bind(this),
       getPlayerPermissionLevel: this.getPlayerPermissionLevel.bind(this),
       getDomains: this.getDomains.bind(this),

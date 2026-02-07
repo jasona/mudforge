@@ -193,14 +193,6 @@ function getHealthColor(percent: number): string {
 }
 
 /**
- * Capitalize the first letter of a string.
- */
-function capitalizeFirst(str: string): string {
-  if (!str) return str;
-  return str.charAt(0).toUpperCase() + str.slice(1);
-}
-
-/**
  * Format a number with commas.
  */
 function formatNumber(num: number): string {
@@ -314,9 +306,9 @@ function buildSectionHeader(title: string, id: string): DisplayElement {
 
 function buildOverviewTab(player: StatTargetPlayer, avatarSrc: string): LayoutContainer {
   const displayName = player.title
-    ? `${capitalizeFirst(player.name)} ${player.title}`
-    : capitalizeFirst(player.name);
-  const raceName = capitalizeFirst(player.race);
+    ? `${efuns.capitalize(player.name)} ${player.title}`
+    : efuns.capitalize(player.name);
+  const raceName = efuns.capitalize(player.race);
   const role = getPermissionLabel(player.permissionLevel);
   const roleColor = getPermissionColor(player.permissionLevel);
 
@@ -813,16 +805,16 @@ function buildItemTooltip(item: MudObject): TooltipConfig {
   const lines: string[] = [];
   const nameColor = getItemTypeColor(item);
 
-  lines.push(`<div style="font-weight:bold;color:${nameColor};font-size:13px;margin-bottom:4px;">${capitalizeFirst(stripColorCodes(item.shortDesc))}</div>`);
+  lines.push(`<div style="font-weight:bold;color:${nameColor};font-size:13px;margin-bottom:4px;">${efuns.capitalize(stripColorCodes(item.shortDesc))}</div>`);
 
   if (type === 'weapon') {
     const weapon = item as MudObject & { minDamage: number; maxDamage: number; damageType: string; handedness: string };
     lines.push(`<div style="display:flex;justify-content:space-between;margin-bottom:2px;"><span style="color:#888;">Damage:</span><span style="color:#f87171;">${weapon.minDamage}-${weapon.maxDamage}</span></div>`);
-    lines.push(`<div style="display:flex;justify-content:space-between;margin-bottom:2px;"><span style="color:#888;">Type:</span><span style="color:#ddd;">${capitalizeFirst(weapon.damageType || 'physical')}</span></div>`);
+    lines.push(`<div style="display:flex;justify-content:space-between;margin-bottom:2px;"><span style="color:#888;">Type:</span><span style="color:#ddd;">${efuns.capitalize(weapon.damageType || 'physical')}</span></div>`);
   } else if (type === 'armor') {
     const armor = item as MudObject & { armor: number; slot: string };
     lines.push(`<div style="display:flex;justify-content:space-between;margin-bottom:2px;"><span style="color:#888;">Armor:</span><span style="color:#4ade80;">${armor.armor}</span></div>`);
-    lines.push(`<div style="display:flex;justify-content:space-between;margin-bottom:2px;"><span style="color:#888;">Slot:</span><span style="color:#ddd;">${capitalizeFirst(armor.slot)}</span></div>`);
+    lines.push(`<div style="display:flex;justify-content:space-between;margin-bottom:2px;"><span style="color:#888;">Slot:</span><span style="color:#ddd;">${efuns.capitalize(armor.slot)}</span></div>`);
   }
 
   return {
@@ -905,7 +897,7 @@ function buildEquipmentTab(
       {
         type: 'text',
         id: 'eq-enc-level',
-        content: `${capitalizeFirst(encLevel)} (${Math.round(encPercent)}%) - ${penaltyText}`,
+        content: `${efuns.capitalize(encLevel)} (${Math.round(encPercent)}%) - ${penaltyText}`,
         style: { color: encColor, fontSize: '11px' },
       } as DisplayElement,
     ],
@@ -1029,7 +1021,7 @@ function buildAccountTab(player: StatTargetPlayer): LayoutContainer {
   const location = player.environment?.objectPath || 'Nowhere';
   const exploredCount = player.getExploredRooms().length;
   const effects = player.getEffects();
-  const posture = capitalizeFirst(player.posture);
+  const posture = efuns.capitalize(player.posture);
 
   const infoRows: LayoutContainer[] = [
     buildInfoRow('Created', formatDate(player.createdAt), 'account-created'),
@@ -1165,7 +1157,7 @@ export async function openStatModal(
     action: 'open',
     modal: {
       id: 'stat-modal',
-      title: `PLAYER STATS: ${capitalizeFirst(target.name)}`,
+      title: `PLAYER STATS: ${efuns.capitalize(target.name)}`,
       size: 'medium',
       closable: true,
       escapable: true,

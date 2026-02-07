@@ -16,18 +16,6 @@ interface CommandContext {
   sendLine(message: string): void;
 }
 
-// Type guard for Vehicle
-function isVehicle(obj: unknown): obj is Vehicle {
-  return (
-    obj !== null &&
-    typeof obj === 'object' &&
-    'vehicleType' in obj &&
-    'isDocked' in obj &&
-    'disembarkPassenger' in obj &&
-    'currentLocation' in obj
-  );
-}
-
 // Type guard for Room with look
 interface LookableRoom extends MudObject {
   look?(viewer: MudObject): void;
@@ -47,12 +35,12 @@ export async function execute(ctx: CommandContext): Promise<boolean> {
   }
 
   // Check if player is on a vehicle
-  if (!isVehicle(environment)) {
+  if (!efuns.isVehicle(environment)) {
     ctx.sendLine("You're not on a vehicle.");
     return false;
   }
 
-  const vehicle = environment;
+  const vehicle = environment as unknown as Vehicle;
 
   // Check if vehicle is docked
   if (!vehicle.isDocked) {

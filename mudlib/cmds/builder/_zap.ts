@@ -9,6 +9,7 @@
  */
 
 import type { MudObject } from '../../lib/std.js';
+import { findItem } from '../../lib/item-utils.js';
 
 interface CommandContext {
   player: MudObject;
@@ -26,14 +27,6 @@ interface Living extends MudObject {
 export const name = ['zap'];
 export const description = 'Instantly kill an NPC (builder only)';
 export const usage = 'zap <target>';
-
-/**
- * Find an object by name in a list of objects.
- */
-function findObject(name: string, objects: MudObject[]): MudObject | undefined {
-  const lowerName = name.toLowerCase();
-  return objects.find((obj) => obj.id(lowerName));
-}
 
 export async function execute(ctx: CommandContext): Promise<void> {
   const { player, args } = ctx;
@@ -58,7 +51,7 @@ export async function execute(ctx: CommandContext): Promise<void> {
   }
 
   // Search in room for target
-  const target = findObject(targetName, room.inventory);
+  const target = findItem(targetName, room.inventory);
 
   if (!target) {
     ctx.sendLine(`You don't see '${targetName}' here.`);

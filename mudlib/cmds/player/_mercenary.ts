@@ -120,7 +120,7 @@ function listMercenaries(
 
     const name = merc.mercName
       ? `{bold}${merc.mercName}{/} (${merc.mercType})`
-      : `{bold}${capitalizeFirst(merc.mercType)}{/}`;
+      : `{bold}${efuns.capitalize(merc.mercType)}{/}`;
 
     ctx.sendLine(`  ${name} - Level ${merc.level}`);
     ctx.sendLine(`    Role: ${roleColor}${behavior?.role || 'generic'}{/}`);
@@ -353,14 +353,6 @@ function makeHealthBar(percent: number): string {
   else if (percent <= 50) color = '{yellow}';
 
   return `${color}${'█'.repeat(filled)}{/}{dim}${'░'.repeat(empty)}{/}`;
-}
-
-/**
- * Capitalize first letter.
- */
-function capitalizeFirst(str: string): string {
-  if (!str) return str;
-  return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
 export default { name, description, usage, execute };

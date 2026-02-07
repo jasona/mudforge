@@ -16,17 +16,6 @@ interface CommandContext {
   sendLine(message: string): void;
 }
 
-// Type guard for Vehicle
-function isVehicle(obj: unknown): obj is Vehicle {
-  return (
-    obj !== null &&
-    typeof obj === 'object' &&
-    'vehicleType' in obj &&
-    'isDocked' in obj &&
-    'boardPassenger' in obj
-  );
-}
-
 // Type guard for Room with broadcast
 interface BroadcastableRoom extends MudObject {
   broadcast(message: string, options?: { exclude?: MudObject[] }): void;
@@ -61,8 +50,8 @@ export async function execute(ctx: CommandContext): Promise<boolean> {
   let vehicle: Vehicle | null = null;
 
   for (const obj of room.inventory) {
-    if (isVehicle(obj) && obj.id(targetName)) {
-      vehicle = obj;
+    if (efuns.isVehicle(obj) && obj.id(targetName)) {
+      vehicle = obj as Vehicle;
       break;
     }
   }

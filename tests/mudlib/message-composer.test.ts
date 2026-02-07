@@ -3,6 +3,15 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
+
+// Mock efuns for testing (message-composer uses efuns.capitalize)
+(globalThis as unknown as { efuns: { capitalize: (str: string) => string } }).efuns = {
+  capitalize: (str: string) => {
+    if (!str) return str;
+    return str.charAt(0).toUpperCase() + str.slice(1);
+  },
+};
+
 import {
   composeMessage,
   composeAllMessages,

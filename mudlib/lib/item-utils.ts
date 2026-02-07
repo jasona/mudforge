@@ -97,3 +97,23 @@ export function isGoldKeyword(name: string): boolean {
   const lower = name.toLowerCase();
   return lower === 'gold' || lower === 'coins' || lower === 'coin';
 }
+
+/**
+ * Unequip an item if it's currently equipped (wielded or worn).
+ */
+export function unequipIfNeeded(item: MudObject): void {
+  // Check if it's a wielded weapon
+  if ('unwield' in item) {
+    const weapon = item as MudObject & { isWielded: boolean; unwield(): void };
+    if (weapon.isWielded) {
+      weapon.unwield();
+    }
+  }
+  // Check if it's worn armor
+  if ('remove' in item && 'isWorn' in item) {
+    const armor = item as MudObject & { isWorn: boolean; remove(): void };
+    if (armor.isWorn) {
+      armor.remove();
+    }
+  }
+}

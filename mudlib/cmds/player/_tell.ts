@@ -35,10 +35,6 @@ export const name = ['tell', 't'];
 export const description = 'Send a private message to one or more players';
 export const usage = 'tell <player>[,player2,...] <message>';
 
-function capitalize(str: string): string {
-  return str.charAt(0).toUpperCase() + str.slice(1);
-}
-
 export async function execute(ctx: CommandContext): Promise<void> {
   const args = ctx.args.trim();
 
@@ -133,10 +129,10 @@ export async function execute(ctx: CommandContext): Promise<void> {
     return;
   }
 
-  const senderName = capitalize(ctx.player.name);
+  const senderName = efuns.capitalize(ctx.player.name);
   const isGroup = foundTargets.length > 1;
   const timestamp = Date.now();
-  const recipientNames = foundTargets.map((t) => capitalize(t.name));
+  const recipientNames = foundTargets.map((t) => efuns.capitalize(t.name));
 
   // Build the list of all participants (sender + all targets) for reply tracking
   const allParticipants = [ctx.player.name.toLowerCase(), ...foundTargets.map((t) => t.name.toLowerCase())];
@@ -147,14 +143,14 @@ export async function execute(ctx: CommandContext): Promise<void> {
     // Check if target is deaf
     const targetLiving = target as Living;
     if (targetLiving.isDeaf && targetLiving.isDeaf()) {
-      deafTargets.push(capitalize(target.name));
+      deafTargets.push(efuns.capitalize(target.name));
       continue;
     }
 
     // Build "others" list for group tells (everyone except sender and this target)
     const others = foundTargets
       .filter((t) => t !== target)
-      .map((t) => capitalize(t.name));
+      .map((t) => efuns.capitalize(t.name));
 
     // Use recipient's color preference
     const targetColor = getPlayerColor(target, 'tell');
@@ -187,7 +183,7 @@ export async function execute(ctx: CommandContext): Promise<void> {
 
   // Confirm to sender (use sender's color preference)
   const senderColor = getPlayerColor(ctx.player, 'tell');
-  const targetList = foundTargets.map((t) => capitalize(t.name)).join(', ');
+  const targetList = foundTargets.map((t) => efuns.capitalize(t.name)).join(', ');
   ctx.sendLine(`${formatWithColor(senderColor, `You tell ${targetList}:`)} ${message}`);
 
   // Send to comm panel for the sender

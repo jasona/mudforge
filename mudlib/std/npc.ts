@@ -72,6 +72,7 @@ export interface ResponseTrigger {
  * Base class for NPCs.
  */
 export class NPC extends Living {
+  readonly isNPC: boolean = true;
   private _chats: ChatMessage[] = [];
   private _chatChance: number = 20; // % chance per heartbeat
   private _responses: ResponseTrigger[] = [];

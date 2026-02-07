@@ -7,6 +7,7 @@
 
 import type { MudObject } from '../../lib/std.js';
 import { Container } from '../../lib/std.js';
+import { findItem } from '../../lib/item-utils.js';
 
 interface CommandContext {
   player: MudObject;
@@ -18,14 +19,6 @@ interface CommandContext {
 export const name = ['open'];
 export const description = 'Open a container or door';
 export const usage = 'open <container>';
-
-/**
- * Find an item by name in a list of objects.
- */
-function findItem(name: string, items: MudObject[]): MudObject | undefined {
-  const lowerName = name.toLowerCase();
-  return items.find((item) => item.id(lowerName));
-}
 
 export function execute(ctx: CommandContext): void {
   const { player, args } = ctx;

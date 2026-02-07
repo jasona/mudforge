@@ -12,7 +12,7 @@
 
 import type { MudObject, Living, Weapon, Armor } from '../../lib/std.js';
 import { Item } from '../../lib/std.js';
-import { parseItemInput, findItem, findAllMatching, countMatching } from '../../lib/item-utils.js';
+import { parseItemInput, findItem, findAllMatching, countMatching, unequipIfNeeded } from '../../lib/item-utils.js';
 
 interface CommandContext {
   player: MudObject;
@@ -46,26 +46,6 @@ function findTarget(name: string, room: MudObject, excludePlayer: MudObject): Li
     }
   }
   return undefined;
-}
-
-/**
- * Unequip an item if it's equipped.
- */
-function unequipIfNeeded(item: MudObject): void {
-  // Check if it's a wielded weapon
-  if ('unwield' in item) {
-    const weapon = item as Weapon;
-    if (weapon.isWielded) {
-      weapon.unwield();
-    }
-  }
-  // Check if it's worn armor
-  if ('remove' in item && 'isWorn' in item) {
-    const armor = item as Armor;
-    if (armor.isWorn) {
-      armor.remove();
-    }
-  }
 }
 
 /**

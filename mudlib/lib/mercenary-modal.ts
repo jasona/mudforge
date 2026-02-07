@@ -257,7 +257,7 @@ function buildTypesPanel(state: MercenarySelectionState): LayoutContainer {
           type: 'button',
           id: `select-${type}`,
           name: `select-${type}`,
-          label: capitalizeFirst(type),
+          label: efuns.capitalize(type),
           action: 'custom' as const,
           customAction: `select-type-${type}`,
           variant: isSelected ? 'primary' : 'secondary',
@@ -348,7 +348,7 @@ function buildDetailsPanel(
 
     const skillNames = template.skills.map(s => {
       const parts = s.split(':');
-      return parts[1] ? capitalizeFirst(parts[1].replace(/_/g, ' ')) : s;
+      return parts[1] ? efuns.capitalize(parts[1].replace(/_/g, ' ')) : s;
     });
 
     children.push({
@@ -544,7 +544,7 @@ async function buildCurrentMercsPanel(player: MercenaryPlayer): Promise<LayoutCo
               {
                 type: 'text',
                 id: `merc-name-${merc.mercId}`,
-                content: merc.mercName || capitalizeFirst(merc.mercType),
+                content: merc.mercName || efuns.capitalize(merc.mercType),
                 style: { color: '#ddd', fontSize: '14px', fontWeight: 'bold' },
               } as DisplayElement,
               {
@@ -558,7 +558,7 @@ async function buildCurrentMercsPanel(player: MercenaryPlayer): Promise<LayoutCo
           {
             type: 'text',
             id: `merc-type-${merc.mercId}`,
-            content: `${capitalizeFirst(merc.mercType)} (${merc.getBehaviorConfig()?.role || 'generic'})`,
+            content: `${efuns.capitalize(merc.mercType)} (${merc.getBehaviorConfig()?.role || 'generic'})`,
             style: { color: '#60a5fa', fontSize: '11px' },
           } as DisplayElement,
           {
@@ -733,7 +733,7 @@ async function handleMercenaryResponse(
 
       if (merc) {
         player.receive(`{green}You hire ${merc.getDisplayName()} for ${cost} gold!{/}\n`);
-        player.receive(`{cyan}${capitalizeFirst(merc.mercType)} ready to fight by your side.{/}\n`);
+        player.receive(`{cyan}${efuns.capitalize(merc.mercType)} ready to fight by your side.{/}\n`);
 
         // Announce to room
         const room = player.environment;
@@ -751,10 +751,3 @@ async function handleMercenaryResponse(
   }
 }
 
-/**
- * Capitalize the first letter.
- */
-function capitalizeFirst(str: string): string {
-  if (!str) return str;
-  return str.charAt(0).toUpperCase() + str.slice(1);
-}

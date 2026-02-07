@@ -89,14 +89,6 @@ function getHealthColor(percent: number): string {
 }
 
 /**
- * Capitalize the first letter of a string.
- */
-function capitalizeFirst(str: string): string {
-  if (!str) return str;
-  return str.charAt(0).toUpperCase() + str.slice(1);
-}
-
-/**
  * Format a number with commas.
  */
 function formatNumber(num: number): string {
@@ -107,8 +99,8 @@ function formatNumber(num: number): string {
  * Build the hero section with avatar and basic info.
  */
 function buildHeroSection(player: ScorePlayer, avatarSrc: string): LayoutContainer {
-  const displayName = player.title ? `${capitalizeFirst(player.name)} ${player.title}` : capitalizeFirst(player.name);
-  const raceName = capitalizeFirst(player.race);
+  const displayName = player.title ? `${efuns.capitalize(player.name)} ${player.title}` : efuns.capitalize(player.name);
+  const raceName = efuns.capitalize(player.race);
   const role = getPermissionLabel(player.permissionLevel);
 
   return {

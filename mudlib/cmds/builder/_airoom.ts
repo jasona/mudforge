@@ -12,6 +12,7 @@
 
 import type { MudObject } from '../../lib/std.js';
 import { getLoreDaemon } from '../../daemons/lore.js';
+import { parseArgs } from '../../lib/text-utils.js';
 
 interface Player extends MudObject {
   cwd: string;
@@ -33,45 +34,6 @@ const TERRAIN_TYPES = [
   'mountain', 'hills', 'water_shallow', 'water_deep', 'river',
   'swamp', 'desert', 'snow', 'ice', 'cave', 'dungeon', 'void'
 ] as const;
-
-/**
- * Parse arguments with quoted strings.
- */
-function parseArgs(input: string): string[] {
-  const args: string[] = [];
-  let current = '';
-  let inQuotes = false;
-  let quoteChar = '';
-
-  for (let i = 0; i < input.length; i++) {
-    const char = input[i];
-
-    if ((char === '"' || char === "'") && !inQuotes) {
-      inQuotes = true;
-      quoteChar = char;
-    } else if (char === quoteChar && inQuotes) {
-      inQuotes = false;
-      quoteChar = '';
-      if (current) {
-        args.push(current);
-        current = '';
-      }
-    } else if (char === ' ' && !inQuotes) {
-      if (current) {
-        args.push(current);
-        current = '';
-      }
-    } else {
-      current += char;
-    }
-  }
-
-  if (current) {
-    args.push(current);
-  }
-
-  return args;
-}
 
 /**
  * Get relevant lore context based on keywords.

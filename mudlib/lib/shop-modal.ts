@@ -422,7 +422,7 @@ function buildWaresPanel(
     scrollContent.push({
       type: 'text',
       id: `cat-header-${category}`,
-      content: capitalizeFirst(category),
+      content: efuns.capitalize(category),
       style: {
         color: '#fbbf24',
         fontSize: '12px',
@@ -1352,14 +1352,6 @@ function isItemEquipped(item: Item): boolean {
     return true;
   }
   return false;
-}
-
-/**
- * Capitalize the first letter.
- */
-function capitalizeFirst(str: string): string {
-  if (!str) return str;
-  return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
 /**

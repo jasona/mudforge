@@ -23,15 +23,6 @@ interface PetLike {
   inventory: MudObject[];
 }
 
-// Helper to check if object is a Pet
-function isPet(obj: unknown): obj is PetLike {
-  return obj !== null &&
-    typeof obj === 'object' &&
-    'canAccessInventory' in obj &&
-    'getDisplayShortDesc' in obj &&
-    'petId' in obj &&
-    'ownerName' in obj;
-}
 import {
   parseItemInput,
   findItem,
@@ -89,15 +80,6 @@ function canTake(item: MudObject, taker: MudObject): { canTake: boolean; reason?
     }
   }
   return { canTake: true };
-}
-
-/**
- * Find a container by name in a list of objects.
- * This is a simple single-match function for containers.
- */
-function findContainer(name: string, items: MudObject[]): MudObject | undefined {
-  const lowerName = name.toLowerCase();
-  return items.find((item) => item.id(lowerName));
 }
 
 /**
@@ -435,7 +417,7 @@ async function getFromContainer(
   const { player } = ctx;
 
   // Find the container - check inventory first (can access in darkness by feel)
-  let container = findContainer(containerName, player.inventory);
+  let container = findItem(containerName, player.inventory);
   let containerInInventory = !!container;
 
   // If not in inventory, check room (requires light)
@@ -444,7 +426,7 @@ async function getFromContainer(
       ctx.sendLine("It's too dark! You can't see any containers here.");
       return;
     }
-    container = findContainer(containerName, room.inventory);
+    container = findItem(containerName, room.inventory);
   }
 
   if (!container) {
@@ -454,7 +436,7 @@ async function getFromContainer(
 
   if (!(container instanceof Container)) {
     // Check if it's a Pet (Pets are not Containers but can hold items)
-    if (isPet(container)) {
+    if (efuns.isPet(container)) {
       if (!container.canAccessInventory(player)) {
         const petDesc = container.getDisplayShortDesc();
         ctx.sendLine(`${petDesc} won't let you take that.`);

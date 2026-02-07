@@ -19,6 +19,8 @@ export type VehicleType = 'boat' | 'ferry' | 'airship' | 'cart' | 'ship' | strin
  * Base class for vehicles.
  */
 export class Vehicle extends Room {
+  readonly isVehicle: boolean = true;
+
   /** The room where this vehicle is currently docked */
   protected _currentLocation: Room | null = null;
 

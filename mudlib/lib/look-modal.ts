@@ -153,14 +153,6 @@ export function detectObjectType(obj: MudObject): ObjectImageType {
 }
 
 /**
- * Capitalize the first letter of a string.
- */
-function capitalizeFirst(str: string): string {
-  if (!str) return str;
-  return str.charAt(0).toUpperCase() + str.slice(1);
-}
-
-/**
  * Strip articles from the beginning of a string.
  * e.g., "a sword" -> "sword", "the dragon" -> "dragon"
  */
@@ -189,10 +181,10 @@ function getDisplayName(obj: MudObject): string {
   // For players without shadows, use name directly
   if ('permissionLevel' in obj && 'name' in obj && !hasShadows(obj)) {
     const name = (obj as MudObject & { name: string }).name;
-    return capitalizeFirst(name);
+    return efuns.capitalize(name);
   }
   // For shadowed players or other objects, use shortDesc
-  return capitalizeFirst(stripArticle(stripColorCodes(obj.shortDesc)));
+  return efuns.capitalize(stripArticle(stripColorCodes(obj.shortDesc)));
 }
 
 /**
@@ -224,7 +216,7 @@ function buildWeaponTooltipHtml(item: MudObject): string {
       </div>
       <div style="display: flex; justify-content: space-between; gap: 16px;">
         <span style="color: #8b8b8e;">Type:</span>
-        <span style="color: #fbbf24;">${capitalizeFirst(damageType)}</span>
+        <span style="color: #fbbf24;">${efuns.capitalize(damageType)}</span>
       </div>
       <div style="display: flex; justify-content: space-between; gap: 16px;">
         <span style="color: #8b8b8e;">Hands:</span>
@@ -284,7 +276,7 @@ function buildArmorTooltipHtml(item: MudObject): string {
       </div>
       <div style="display: flex; justify-content: space-between; gap: 16px;">
         <span style="color: #8b8b8e;">Slot:</span>
-        <span>${capitalizeFirst(armor.slot || 'unknown')}</span>
+        <span>${efuns.capitalize(armor.slot || 'unknown')}</span>
       </div>`;
 
   if (armor.weight !== undefined && armor.weight > 0) {
@@ -517,8 +509,8 @@ function buildPlayerLayout(obj: MudObject): LayoutContainer {
   // For shadowed players, use shortDesc-based name and longDesc directly
   // This allows transformations to fully change appearance
   const name = isShadowed
-    ? capitalizeFirst(stripArticle(stripColorCodes(obj.shortDesc)))
-    : capitalizeFirst(player.name);
+    ? efuns.capitalize(stripArticle(stripColorCodes(obj.shortDesc)))
+    : efuns.capitalize(player.name);
   const level = player.level || 1;
   const title = isShadowed ? '' : (player.title || '');
 
@@ -694,7 +686,7 @@ function buildPetLayout(obj: MudObject): LayoutContainer {
 
   const displayName = pet.petName
     ? `${pet.petName} the ${pet.name}`
-    : capitalizeFirst(pet.name || pet.templateType.replace(/_/g, ' '));
+    : efuns.capitalize(pet.name || pet.templateType.replace(/_/g, ' '));
   const healthPercent = pet.healthPercent ?? 100;
 
   const children: Array<LayoutContainer | DisplayElement> = [];
@@ -812,14 +804,14 @@ function buildWeaponLayout(obj: MudObject): LayoutContainer {
   // Stats grid
   const stats: Array<{ label: string; value: string; color?: string }> = [
     { label: 'Damage', value: `${weapon.minDamage} - ${weapon.maxDamage}`, color: '#f87171' },
-    { label: 'Type', value: capitalizeFirst(weapon.damageType || 'physical') },
+    { label: 'Type', value: efuns.capitalize(weapon.damageType || 'physical') },
     { label: 'Hands', value: formatHandedness(weapon.handedness) },
   ];
 
   if (weapon.skillRequired) {
     stats.push({
       label: 'Skill',
-      value: `${capitalizeFirst(weapon.skillRequired)} (${weapon.skillLevel})`,
+      value: `${efuns.capitalize(weapon.skillRequired)} (${weapon.skillLevel})`,
     });
   }
 
@@ -856,7 +848,7 @@ function formatHandedness(handedness: string): string {
     case 'light':
       return 'Light';
     default:
-      return capitalizeFirst(handedness);
+      return efuns.capitalize(handedness);
   }
 }
 
@@ -907,7 +899,7 @@ function buildArmorLayout(obj: MudObject): LayoutContainer {
   // Stats grid
   const stats: Array<{ label: string; value: string; color?: string }> = [
     { label: 'Armor', value: `${armor.armor}`, color: '#4ade80' },
-    { label: 'Slot', value: capitalizeFirst(armor.slot || 'body') },
+    { label: 'Slot', value: efuns.capitalize(armor.slot || 'body') },
   ];
 
   // Add resistances if any
@@ -918,7 +910,7 @@ function buildArmorLayout(obj: MudObject): LayoutContainer {
       resistances.forEach((value, type) => {
         if (value !== 0) {
           const sign = value > 0 ? '+' : '';
-          resList.push(`${capitalizeFirst(type)} ${sign}${value}`);
+          resList.push(`${efuns.capitalize(type)} ${sign}${value}`);
         }
       });
       if (resList.length > 0) {
@@ -1057,7 +1049,7 @@ function buildCorpseLayout(obj: MudObject): LayoutContainer {
     inventory: MudObject[];
   };
 
-  const ownerName = capitalizeFirst(corpse.ownerName || 'unknown');
+  const ownerName = efuns.capitalize(corpse.ownerName || 'unknown');
   const children: Array<LayoutContainer | DisplayElement> = [];
 
   // Name

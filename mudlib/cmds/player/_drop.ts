@@ -14,7 +14,7 @@
 import type { MudObject, Living, Weapon, Armor } from '../../lib/std.js';
 import { Item, Container } from '../../lib/std.js';
 import { GoldPile } from '../../std/gold-pile.js';
-import { parseItemInput, findItem, findAllMatching, countMatching } from '../../lib/item-utils.js';
+import { parseItemInput, findItem, findAllMatching, countMatching, unequipIfNeeded } from '../../lib/item-utils.js';
 
 // Pet interface for type checking (avoids circular dependency)
 interface PetLike {
@@ -27,16 +27,6 @@ interface PetLike {
   maxItems: number;
   currentWeight: number;
   maxWeight: number;
-}
-
-// Helper to check if object is a Pet
-function isPet(obj: unknown): obj is PetLike {
-  return obj !== null &&
-    typeof obj === 'object' &&
-    'canHold' in obj &&
-    'getDisplayShortDesc' in obj &&
-    'petId' in obj &&
-    'ownerName' in obj;
 }
 
 interface PlayerWithGold extends MudObject {
@@ -69,35 +59,6 @@ function canDrop(item: MudObject, dropper: MudObject): { canDrop: boolean; reaso
     }
   }
   return { canDrop: true };
-}
-
-/**
- * Find a container by name in a list of objects.
- * This is a simple single-match function for containers.
- */
-function findContainer(name: string, items: MudObject[]): MudObject | undefined {
-  const lowerName = name.toLowerCase();
-  return items.find((item) => item.id(lowerName));
-}
-
-/**
- * Unequip an item if it's equipped.
- */
-function unequipIfNeeded(item: MudObject, player: MudObject): void {
-  // Check if it's a wielded weapon
-  if ('unwield' in item) {
-    const weapon = item as Weapon;
-    if (weapon.isWielded) {
-      weapon.unwield();
-    }
-  }
-  // Check if it's worn armor
-  if ('remove' in item && 'isWorn' in item) {
-    const armor = item as Armor;
-    if (armor.isWorn) {
-      armor.remove();
-    }
-  }
 }
 
 export async function execute(ctx: CommandContext): Promise<void> {
@@ -183,7 +144,7 @@ async function dropItem(ctx: CommandContext, room: MudObject, itemName: string):
   }
 
   // Unequip if needed
-  unequipIfNeeded(item, player);
+  unequipIfNeeded(item);
 
   await item.moveTo(room);
   ctx.sendLine(`You drop ${item.shortDesc}.`);
@@ -281,7 +242,7 @@ async function dropAllOfType(ctx: CommandContext, room: MudObject, typeName: str
   const dropped: string[] = [];
   for (const item of droppableItems) {
     // Unequip if needed (should be excluded, but just in case)
-    unequipIfNeeded(item, player);
+    unequipIfNeeded(item);
     await item.moveTo(room);
     dropped.push(item.shortDesc);
   }
@@ -373,9 +334,9 @@ async function putInContainer(
   const { player } = ctx;
 
   // Find the container in room or player's inventory (no indexed selection for containers)
-  let container = findContainer(containerName, room.inventory);
+  let container = findItem(containerName, room.inventory);
   if (!container) {
-    container = findContainer(containerName, player.inventory);
+    container = findItem(containerName, player.inventory);
   }
 
   if (!container) {
@@ -384,7 +345,7 @@ async function putInContainer(
   }
 
   // Check if it's a Pet (Pets can hold items but aren't Containers)
-  if (isPet(container)) {
+  if (efuns.isPet(container)) {
     await putInPet(ctx, container as PetLike, itemName, room);
     return;
   }
@@ -441,7 +402,7 @@ async function putInContainer(
     }
 
     // Unequip if needed
-    unequipIfNeeded(item, player);
+    unequipIfNeeded(item);
 
     await item.moveTo(container);
     await container.onPut(item, player);
@@ -554,7 +515,7 @@ async function putAllOfTypeInContainer(
   for (const item of itemsToPut) {
     if (!container.canHold(item)) break; // Stop if container is full
     // Unequip if needed (should be excluded, but just in case)
-    unequipIfNeeded(item, player);
+    unequipIfNeeded(item);
     await item.moveTo(container);
     await container.onPut(item, player);
     put.push(item.shortDesc);
@@ -664,7 +625,7 @@ async function putInPet(
     const put: string[] = [];
     for (const item of itemsToPut) {
       if (!pet.canHold(item)) break;
-      unequipIfNeeded(item, player);
+      unequipIfNeeded(item);
       await item.moveTo(pet);
       put.push(item.shortDesc);
     }
@@ -715,7 +676,7 @@ async function putInPet(
   }
 
   // Unequip if needed
-  unequipIfNeeded(item, player);
+  unequipIfNeeded(item);
 
   await item.moveTo(pet);
   ctx.sendLine(`You give ${item.shortDesc} to ${petDesc}.`);
