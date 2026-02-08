@@ -850,10 +850,10 @@ export class Player extends Living {
 
   /**
    * Send a complete state refresh to the client.
-   * Called when tab becomes visible after being hidden.
+   * Called on login or when tab becomes visible after being hidden.
    * Sends current STATS, MAP position, COMBAT target, and equipment images.
    */
-  private async sendFullStateRefresh(): Promise<void> {
+  async sendFullStateRefresh(): Promise<void> {
     if (!this._connection) {
       return;
     }
@@ -2918,6 +2918,25 @@ export class Player extends Living {
       // Dynamically import to avoid circular dependencies
       const { openInventoryModal } = await import('../lib/inventory-modal.js');
       await openInventoryModal(this as unknown as Parameters<typeof openInventoryModal>[0]);
+      return;
+    }
+
+    // Handle world map request
+    if (message.action === 'open-world-map') {
+      if (this._connection?.sendMap && this.environment) {
+        try {
+          const { getMapDaemon } = await import('../daemons/map.js');
+          const mapDaemon = getMapDaemon();
+          type MapPlayer = Parameters<typeof mapDaemon.generateWorldMapData>[0];
+          const worldData = mapDaemon.generateWorldMapData(
+            this as unknown as MapPlayer,
+            this.environment,
+          );
+          this._connection.sendMap(worldData);
+        } catch {
+          // Silently fail if map daemon isn't available
+        }
+      }
       return;
     }
 

@@ -17,6 +17,7 @@ export type RoomClickHandler = (roomPath: string) => void;
  */
 export interface MapPanelOptions {
   onRoomClick?: RoomClickHandler;
+  onWorldMapClick?: () => void;
 }
 
 /**
@@ -27,6 +28,7 @@ export class MapPanel {
   private panel: HTMLElement;
   private header: HTMLElement;
   private content: HTMLElement;
+  private legend: HTMLElement;
   private renderer: MapRenderer;
   private isVisible: boolean = true;
   private isCollapsed: boolean = false;
@@ -55,6 +57,7 @@ export class MapPanel {
     this.header.innerHTML = `
       <span class="map-panel-title">Map</span>
       <div class="map-panel-controls">
+        <button class="map-btn map-btn-world" title="World Map">W</button>
         <button class="map-btn map-btn-zoom-out" title="Zoom out">-</button>
         <span class="map-zoom-level">3</span>
         <button class="map-btn map-btn-zoom-in" title="Zoom in">+</button>
@@ -66,20 +69,15 @@ export class MapPanel {
     this.content = document.createElement('div');
     this.content.className = 'map-panel-content';
 
-    // Legend (shown at bottom)
-    const legend = document.createElement('div');
-    legend.className = 'map-panel-legend';
-    legend.innerHTML = `
-      <div class="map-legend-item"><span class="map-legend-marker player">@</span> You</div>
-      <div class="map-legend-item"><span class="map-legend-marker explored">▓</span> Explored</div>
-      <div class="map-legend-item"><span class="map-legend-marker revealed">▓</span> Revealed</div>
-      <div class="map-legend-item"><span class="map-legend-marker hinted">?</span> Unknown</div>
-    `;
+    // Legend (shown at bottom, dynamically updated)
+    this.legend = document.createElement('div');
+    this.legend.className = 'map-panel-legend';
+    this.legend.innerHTML = `<div class="map-legend-item"><span class="map-legend-marker player">@</span> You</div>`;
 
     // Assemble panel
     this.panel.appendChild(this.header);
     this.panel.appendChild(this.content);
-    this.panel.appendChild(legend);
+    this.panel.appendChild(this.legend);
     this.container.appendChild(this.panel);
 
     // Create renderer
@@ -97,6 +95,7 @@ export class MapPanel {
     const zoomIn = this.header.querySelector('.map-btn-zoom-in');
     const zoomOut = this.header.querySelector('.map-btn-zoom-out');
     const toggleBtn = this.header.querySelector('.map-btn-toggle');
+    const worldBtn = this.header.querySelector('.map-btn-world');
 
     zoomIn?.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -109,6 +108,12 @@ export class MapPanel {
     toggleBtn?.addEventListener('click', (e) => {
       e.stopPropagation();
       this.toggle();
+    });
+    worldBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (this.options.onWorldMapClick) {
+        this.options.onWorldMapClick();
+      }
     });
 
     // Room click handler
@@ -150,6 +155,7 @@ export class MapPanel {
         this.renderer.handleReveal(message);
         break;
     }
+    this.updateLegend();
   }
 
   /**
@@ -174,11 +180,24 @@ export class MapPanel {
   }
 
   /**
+   * Update the legend with terrain types visible on the current Z level.
+   */
+  private updateLegend(): void {
+    const terrains = this.renderer.getVisibleTerrains();
+    let html = '<div class="map-legend-item"><span class="map-legend-marker player">@</span> You</div>';
+    for (const entry of terrains) {
+      html += `<div class="map-legend-item"><span class="map-legend-swatch" style="background-color:${entry.color}"></span><span class="map-legend-label">${entry.label}</span></div>`;
+    }
+    this.legend.innerHTML = html;
+  }
+
+  /**
    * Zoom in.
    */
   zoomIn(): void {
     this.renderer.setZoom(this.renderer.getZoom() + 1);
     this.updateZoomDisplay();
+    this.updateLegend();
   }
 
   /**
@@ -187,6 +206,7 @@ export class MapPanel {
   zoomOut(): void {
     this.renderer.setZoom(this.renderer.getZoom() - 1);
     this.updateZoomDisplay();
+    this.updateLegend();
   }
 
   /**

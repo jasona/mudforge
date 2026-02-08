@@ -74,6 +74,8 @@ export interface AreaDefinition {
   };
   /** Default zoom level for this area (1-4) */
   defaultZoom?: number;
+  /** World-level offset for compositing areas on the world map */
+  worldOffset?: { x: number; y: number };
 }
 
 /**
@@ -145,13 +147,29 @@ export interface MapRevealMessage {
 }
 
 /**
+ * MAP protocol message - world map data (all explored areas composited).
+ */
+export interface MapWorldDataMessage {
+  type: 'world_data';
+  areas: Array<{
+    id: string;
+    name: string;
+    worldX: number;
+    worldY: number;
+  }>;
+  rooms: ClientRoomData[];
+  currentRoom: string;
+}
+
+/**
  * Union of all MAP protocol messages.
  */
 export type MapMessage =
   | MapAreaChangeMessage
   | MapMoveMessage
   | MapZoomMessage
-  | MapRevealMessage;
+  | MapRevealMessage
+  | MapWorldDataMessage;
 
 /**
  * Player's exploration data (persisted).

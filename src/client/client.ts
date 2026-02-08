@@ -37,6 +37,7 @@ import { SoundManager } from './sound-manager.js';
 import { SoundPanel } from './sound-panel.js';
 import { SkyPanel } from './sky-panel.js';
 import { GUIModal } from './gui/gui-modal.js';
+import { WorldMapModal } from './world-map-modal.js';
 import { Launcher } from './launcher.js';
 import { DebugPanel } from './debug-panel.js';
 import { logger } from './logger.js';
@@ -82,6 +83,7 @@ class MudClient {
   private soundPanel: SoundPanel;
   private skyPanel: SkyPanel;
   private guiModal: GUIModal;
+  private worldMapModal: WorldMapModal;
   private launcher: Launcher;
   private debugPanel: DebugPanel;
   private statusElement: HTMLElement;
@@ -114,10 +116,14 @@ class MudClient {
     this.inputHandler = new InputHandler(inputEl, sendBtn);
     this.wsClient = new WebSocketClient();
     this.ideEditor = new IdeEditorLoader();
+    this.worldMapModal = new WorldMapModal();
     this.mapPanel = new MapPanel('map-container', {
       onRoomClick: (roomPath) => {
         // Could implement auto-walk in the future
         console.log('Room clicked:', roomPath);
+      },
+      onWorldMapClick: () => {
+        this.wsClient.sendGUIMessage({ action: 'open-world-map' });
       },
     });
     this.statsPanel = new StatsPanel('stats-container', {
@@ -367,7 +373,11 @@ class MudClient {
 
     // Map events
     this.wsClient.on('map-message', (message: MapMessage) => {
-      this.mapPanel.handleMessage(message);
+      if (message.type === 'world_data') {
+        this.worldMapModal.open(message);
+      } else {
+        this.mapPanel.handleMessage(message);
+      }
     });
 
     // Stats events (full snapshots and deltas)

@@ -756,6 +756,11 @@ ${'='.repeat(bannerWidth)}
       // Time daemon not available
     }
 
+    // Send initial map, stats, and equipment to the client immediately
+    if (typeof player.sendFullStateRefresh === 'function') {
+      await player.sendFullStateRefresh();
+    }
+
     // Execute login alias if defined
     await this.executeLoginAlias(player);
 

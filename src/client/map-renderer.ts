@@ -90,47 +90,125 @@ export interface MapRevealMessage {
 }
 
 /**
+ * World map data message from server.
+ */
+export interface MapWorldDataMessage {
+  type: 'world_data';
+  areas: Array<{
+    id: string;
+    name: string;
+    worldX: number;
+    worldY: number;
+  }>;
+  rooms: ClientRoomData[];
+  currentRoom: string;
+}
+
+/**
  * Union of all MAP messages.
  */
 export type MapMessage =
   | MapAreaChangeMessage
   | MapMoveMessage
   | MapZoomMessage
-  | MapRevealMessage;
+  | MapRevealMessage
+  | MapWorldDataMessage;
 
 /**
- * Terrain visual definitions (colors and characters).
+ * Terrain visual definition.
  */
-const TERRAIN_VISUALS: Record<TerrainType, { color: string; colorDim: string; block: string }> = {
-  town: { color: '#a0a0a0', colorDim: '#505050', block: '▒' },
-  indoor: { color: '#c4a882', colorDim: '#625441', block: '░' },
-  road: { color: '#8b7355', colorDim: '#453a2b', block: '═' },
-  grassland: { color: '#4a7c23', colorDim: '#2d4d16', block: '░' },
-  forest: { color: '#228b22', colorDim: '#145214', block: '▓' },
-  dense_forest: { color: '#006400', colorDim: '#003200', block: '█' },
-  mountain: { color: '#696969', colorDim: '#353535', block: '▲' },
-  hills: { color: '#9b8b6e', colorDim: '#4e4637', block: '∩' },
-  water_shallow: { color: '#87ceeb', colorDim: '#446676', block: '≈' },
-  water_deep: { color: '#1e90ff', colorDim: '#0f4880', block: '≈' },
-  river: { color: '#4169e1', colorDim: '#213471', block: '~' },
-  swamp: { color: '#556b2f', colorDim: '#2b3618', block: '~' },
-  desert: { color: '#edc967', colorDim: '#776534', block: '∙' },
-  snow: { color: '#fffafa', colorDim: '#808080', block: '*' },
-  ice: { color: '#b0e0e6', colorDim: '#586f73', block: '#' },
-  cave: { color: '#404040', colorDim: '#202020', block: '█' },
-  dungeon: { color: '#8b0000', colorDim: '#460000', block: '█' },
-  void: { color: '#000000', colorDim: '#000000', block: ' ' },
+interface TerrainVisual {
+  color: string;
+  colorDim: string;
+  block: string;
+  border: string;
+  label: string;
+  glow?: string;
+}
+
+/**
+ * Terrain visual definitions (colors, characters, borders, glow).
+ */
+const TERRAIN_VISUALS: Record<TerrainType, TerrainVisual> = {
+  town:          { color: '#a0a0a0', colorDim: '#505050', block: '▒', border: '#787878', label: 'Town' },
+  indoor:        { color: '#c4a882', colorDim: '#625441', block: '░', border: '#9a8468', label: 'Indoor' },
+  road:          { color: '#8b7355', colorDim: '#453a2b', block: '═', border: '#6b5943', label: 'Road' },
+  grassland:     { color: '#4a7c23', colorDim: '#2d4d16', block: '░', border: '#3a6218', label: 'Grassland' },
+  forest:        { color: '#228b22', colorDim: '#145214', block: '▓', border: '#1a6b1a', label: 'Forest' },
+  dense_forest:  { color: '#006400', colorDim: '#003200', block: '█', border: '#004a00', label: 'Dense Forest' },
+  mountain:      { color: '#696969', colorDim: '#353535', block: '▲', border: '#505050', label: 'Mountain' },
+  hills:         { color: '#9b8b6e', colorDim: '#4e4637', block: '∩', border: '#7a6e57', label: 'Hills' },
+  water_shallow: { color: '#87ceeb', colorDim: '#446676', block: '≈', border: '#6ab0d0', label: 'Shallow Water', glow: '#87ceeb' },
+  water_deep:    { color: '#1e90ff', colorDim: '#0f4880', block: '≈', border: '#1670cc', label: 'Deep Water', glow: '#1e90ff' },
+  river:         { color: '#4169e1', colorDim: '#213471', block: '~', border: '#3355b8', label: 'River', glow: '#4169e1' },
+  swamp:         { color: '#556b2f', colorDim: '#2b3618', block: '~', border: '#435524', label: 'Swamp' },
+  desert:        { color: '#edc967', colorDim: '#776534', block: '∙', border: '#c4a654', label: 'Desert' },
+  snow:          { color: '#fffafa', colorDim: '#808080', block: '*', border: '#d0d0d0', label: 'Snow', glow: '#e8e8ff' },
+  ice:           { color: '#b0e0e6', colorDim: '#586f73', block: '#', border: '#8cc0c8', label: 'Ice', glow: '#b0e0e6' },
+  cave:          { color: '#404040', colorDim: '#202020', block: '█', border: '#303030', label: 'Cave' },
+  dungeon:       { color: '#8b0000', colorDim: '#460000', block: '█', border: '#6b0000', label: 'Dungeon', glow: '#8b0000' },
+  void:          { color: '#000000', colorDim: '#000000', block: ' ', border: '#000000', label: 'Void' },
 };
 
 /**
  * Cell size at different zoom levels.
  */
 const CELL_SIZES = {
-  1: 8,   // World view - tiny cells
-  2: 12,  // Region view - small cells
-  3: 20,  // Local view (default) - medium cells
-  4: 32,  // Detail view - large cells with labels
+  1: 11,  // World view - tiny cells
+  2: 17,  // Region view - small cells
+  3: 28,  // Local view (default) - medium cells
+  4: 45,  // Detail view - large cells with labels
 };
+
+/**
+ * Human-readable terrain label info for the legend.
+ */
+export interface TerrainLegendEntry {
+  terrain: TerrainType;
+  color: string;
+  block: string;
+  label: string;
+}
+
+/**
+ * Get the reverse direction for one-way exit detection.
+ */
+function getReverseDirection(dir: string): string | null {
+  const d = dir.toLowerCase();
+  switch (d) {
+    case 'north': case 'n': return 'south';
+    case 'south': case 's': return 'north';
+    case 'east': case 'e': return 'west';
+    case 'west': case 'w': return 'east';
+    case 'northeast': case 'ne': return 'southwest';
+    case 'northwest': case 'nw': return 'southeast';
+    case 'southeast': case 'se': return 'northwest';
+    case 'southwest': case 'sw': return 'northeast';
+    case 'up': case 'u': return 'down';
+    case 'down': case 'd': return 'up';
+    default: return null;
+  }
+}
+
+/**
+ * Normalize direction to canonical long form for comparison.
+ */
+function normalizeDirection(dir: string): string {
+  const d = dir.toLowerCase();
+  switch (d) {
+    case 'n': return 'north';
+    case 's': return 'south';
+    case 'e': return 'east';
+    case 'w': return 'west';
+    case 'ne': return 'northeast';
+    case 'nw': return 'northwest';
+    case 'se': return 'southeast';
+    case 'sw': return 'southwest';
+    case 'u': return 'up';
+    case 'd': return 'down';
+    default: return d;
+  }
+}
 
 /**
  * MapRenderer class for rendering the map as SVG.
@@ -140,6 +218,7 @@ export class MapRenderer {
   private roomsGroup: SVGGElement;
   private connectionsGroup: SVGGElement;
   private markersGroup: SVGGElement;
+  private labelsGroup: SVGGElement;
   private rooms: Map<string, ClientRoomData> = new Map();
   // Spatial index for O(1) coordinate lookup: "x,y,z" -> roomPath
   private coordIndex: Map<string, string> = new Map();
@@ -155,6 +234,46 @@ export class MapRenderer {
     this.svg.setAttribute('class', 'map-svg');
     this.svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
 
+    // Add SVG defs for glow filter
+    const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+    const filter = document.createElementNS('http://www.w3.org/2000/svg', 'filter');
+    filter.setAttribute('id', 'terrain-glow');
+    filter.setAttribute('x', '-30%');
+    filter.setAttribute('y', '-30%');
+    filter.setAttribute('width', '160%');
+    filter.setAttribute('height', '160%');
+    const feGaussianBlur = document.createElementNS('http://www.w3.org/2000/svg', 'feGaussianBlur');
+    feGaussianBlur.setAttribute('in', 'SourceGraphic');
+    feGaussianBlur.setAttribute('stdDeviation', '1.5');
+    feGaussianBlur.setAttribute('result', 'blur');
+    const feMerge = document.createElementNS('http://www.w3.org/2000/svg', 'feMerge');
+    const feMergeNode1 = document.createElementNS('http://www.w3.org/2000/svg', 'feMergeNode');
+    feMergeNode1.setAttribute('in', 'blur');
+    const feMergeNode2 = document.createElementNS('http://www.w3.org/2000/svg', 'feMergeNode');
+    feMergeNode2.setAttribute('in', 'SourceGraphic');
+    feMerge.appendChild(feMergeNode1);
+    feMerge.appendChild(feMergeNode2);
+    filter.appendChild(feGaussianBlur);
+    filter.appendChild(feMerge);
+    defs.appendChild(filter);
+
+    // Arrowhead marker for one-way exits
+    const arrowMarker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+    arrowMarker.setAttribute('id', 'oneway-arrow');
+    arrowMarker.setAttribute('viewBox', '0 0 6 6');
+    arrowMarker.setAttribute('refX', '3');
+    arrowMarker.setAttribute('refY', '3');
+    arrowMarker.setAttribute('markerWidth', '6');
+    arrowMarker.setAttribute('markerHeight', '6');
+    arrowMarker.setAttribute('orient', 'auto');
+    const arrowPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    arrowPath.setAttribute('d', 'M0,0 L6,3 L0,6 Z');
+    arrowPath.setAttribute('fill', '#cc4444');
+    arrowMarker.appendChild(arrowPath);
+    defs.appendChild(arrowMarker);
+
+    this.svg.appendChild(defs);
+
     // Create groups for layering
     this.connectionsGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     this.connectionsGroup.setAttribute('class', 'map-connections');
@@ -165,9 +284,13 @@ export class MapRenderer {
     this.markersGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     this.markersGroup.setAttribute('class', 'map-markers');
 
+    this.labelsGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    this.labelsGroup.setAttribute('class', 'map-labels');
+
     this.svg.appendChild(this.connectionsGroup);
     this.svg.appendChild(this.roomsGroup);
     this.svg.appendChild(this.markersGroup);
+    this.svg.appendChild(this.labelsGroup);
 
     container.appendChild(this.svg);
 
@@ -313,6 +436,35 @@ export class MapRenderer {
   }
 
   /**
+   * Get visible terrain types on the current Z level for the legend.
+   */
+  getVisibleTerrains(): TerrainLegendEntry[] {
+    const seen = new Set<TerrainType>();
+    const entries: TerrainLegendEntry[] = [];
+
+    for (const room of this.rooms.values()) {
+      if (room.z !== this.currentZ) continue;
+      if (room.state === 'unknown') continue;
+      if (seen.has(room.terrain)) continue;
+      seen.add(room.terrain);
+
+      const visual = TERRAIN_VISUALS[room.terrain];
+      if (visual && room.terrain !== 'void') {
+        entries.push({
+          terrain: room.terrain,
+          color: visual.color,
+          block: visual.block,
+          label: visual.label,
+        });
+      }
+    }
+
+    // Sort alphabetically by label
+    entries.sort((a, b) => a.label.localeCompare(b.label));
+    return entries;
+  }
+
+  /**
    * Update the SVG viewBox based on room positions and container size.
    */
   private updateViewBox(): void {
@@ -341,7 +493,9 @@ export class MapRenderer {
       const pxMinX = minX * cellSize - padding;
       const pxMaxX = (maxX + 1) * cellSize + padding;
       const pxMinY = minY * cellSize - padding;
-      const pxMaxY = (maxY + 1) * cellSize + padding;
+      // Extra bottom padding for room labels at zoom 3+
+      const labelPadding = this.zoomLevel >= 3 ? cellSize * 0.5 : 0;
+      const pxMaxY = (maxY + 1) * cellSize + padding + labelPadding;
 
       this.viewBox = {
         x: pxMinX,
@@ -364,6 +518,7 @@ export class MapRenderer {
     this.roomsGroup.innerHTML = '';
     this.connectionsGroup.innerHTML = '';
     this.markersGroup.innerHTML = '';
+    this.labelsGroup.innerHTML = '';
 
     const cellSize = CELL_SIZES[this.zoomLevel as keyof typeof CELL_SIZES] || CELL_SIZES[3];
 
@@ -388,17 +543,6 @@ export class MapRenderer {
     const y = room.y * cellSize;
     const visual = TERRAIN_VISUALS[room.terrain] || TERRAIN_VISUALS.indoor;
 
-    // Create room rectangle
-    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-    rect.setAttribute('x', String(x));
-    rect.setAttribute('y', String(y));
-    rect.setAttribute('width', String(cellSize));
-    rect.setAttribute('height', String(cellSize));
-    rect.setAttribute('rx', '2');
-    rect.setAttribute('ry', '2');
-    rect.setAttribute('data-path', room.path);
-    rect.setAttribute('data-name', room.name);
-
     // Apply color based on state
     let fillColor: string;
     let opacity = '1';
@@ -419,16 +563,34 @@ export class MapRenderer {
         return; // Don't render unknown rooms
     }
 
+    // Wrap room elements in a group for click detection
+    const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    group.setAttribute('data-path', room.path);
+    group.setAttribute('data-name', room.name);
+
+    // Create room rectangle
+    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    rect.setAttribute('x', String(x));
+    rect.setAttribute('y', String(y));
+    rect.setAttribute('width', String(cellSize));
+    rect.setAttribute('height', String(cellSize));
+    rect.setAttribute('rx', '2');
+    rect.setAttribute('ry', '2');
     rect.setAttribute('fill', fillColor);
     rect.setAttribute('opacity', opacity);
 
-    // Add border for current room
+    // Terrain-specific border (white for current room)
     if (room.current) {
       rect.setAttribute('stroke', '#ffffff');
       rect.setAttribute('stroke-width', '2');
     } else {
-      rect.setAttribute('stroke', 'rgba(0,0,0,0.3)');
+      rect.setAttribute('stroke', visual.border);
       rect.setAttribute('stroke-width', '1');
+    }
+
+    // Apply glow filter for glow terrains at zoom 2+ on explored rooms
+    if (visual.glow && this.zoomLevel >= 2 && room.state === 'explored') {
+      rect.setAttribute('filter', 'url(#terrain-glow)');
     }
 
     // Add tooltip
@@ -436,7 +598,19 @@ export class MapRenderer {
     title.textContent = room.state === 'explored' ? room.name : '???';
     rect.appendChild(title);
 
-    this.roomsGroup.appendChild(rect);
+    group.appendChild(rect);
+
+    // Render terrain block character at zoom 2+ (subtle background glyph)
+    if (this.zoomLevel >= 2 && visual.block.trim()) {
+      this.renderTerrainBlock(group, x, y, cellSize, visual.block, room.state);
+    }
+
+    this.roomsGroup.appendChild(group);
+
+    // Render vertical exit indicators at zoom 2+
+    if (this.zoomLevel >= 2) {
+      this.renderVerticalExitIndicators(room, x, y, cellSize);
+    }
 
     // Render marker or player position
     if (room.current) {
@@ -446,6 +620,107 @@ export class MapRenderer {
     } else if (room.state === 'hinted') {
       this.renderMarker(x, y, cellSize, '?', '#666666', false);
     }
+
+    // Render room label at zoom 3+
+    if (this.zoomLevel >= 3 && room.state === 'explored') {
+      this.renderRoomLabel(room, x, y, cellSize);
+    }
+  }
+
+  /**
+   * Render a terrain block character inside the room cell.
+   */
+  private renderTerrainBlock(
+    group: SVGGElement,
+    x: number,
+    y: number,
+    cellSize: number,
+    block: string,
+    state: RoomState,
+  ): void {
+    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    text.setAttribute('x', String(x + cellSize / 2));
+    text.setAttribute('y', String(y + cellSize / 2));
+    text.setAttribute('text-anchor', 'middle');
+    text.setAttribute('dominant-baseline', 'central');
+    text.setAttribute('fill', state === 'explored' ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.15)');
+    text.setAttribute('font-family', 'monospace');
+    text.setAttribute('font-size', String(cellSize * 0.5));
+    text.setAttribute('pointer-events', 'none');
+    text.textContent = block;
+    group.appendChild(text);
+  }
+
+  /**
+   * Render up/down arrows in the corners of rooms with vertical exits.
+   */
+  private renderVerticalExitIndicators(
+    room: ClientRoomData,
+    x: number,
+    y: number,
+    cellSize: number,
+  ): void {
+    const exits = room.exits.map(normalizeDirection);
+    const hasUp = exits.includes('up');
+    const hasDown = exits.includes('down');
+    if (!hasUp && !hasDown) return;
+
+    const fontSize = Math.max(4, cellSize * 0.3);
+    const pad = cellSize * 0.15;
+
+    if (hasUp) {
+      const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      text.setAttribute('x', String(x + cellSize - pad));
+      text.setAttribute('y', String(y + pad + fontSize * 0.3));
+      text.setAttribute('text-anchor', 'end');
+      text.setAttribute('dominant-baseline', 'central');
+      text.setAttribute('fill', 'rgba(200, 220, 255, 0.8)');
+      text.setAttribute('font-family', 'sans-serif');
+      text.setAttribute('font-size', String(fontSize));
+      text.setAttribute('pointer-events', 'none');
+      text.textContent = '\u2191'; // ↑
+      this.markersGroup.appendChild(text);
+    }
+
+    if (hasDown) {
+      const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      text.setAttribute('x', String(x + cellSize - pad));
+      text.setAttribute('y', String(y + cellSize - pad));
+      text.setAttribute('text-anchor', 'end');
+      text.setAttribute('dominant-baseline', 'central');
+      text.setAttribute('fill', 'rgba(255, 200, 200, 0.8)');
+      text.setAttribute('font-family', 'sans-serif');
+      text.setAttribute('font-size', String(fontSize));
+      text.setAttribute('pointer-events', 'none');
+      text.textContent = '\u2193'; // ↓
+      this.markersGroup.appendChild(text);
+    }
+  }
+
+  /**
+   * Render a room name label below the room cell.
+   */
+  private renderRoomLabel(room: ClientRoomData, x: number, y: number, cellSize: number): void {
+    const maxChars = this.zoomLevel >= 4 ? 18 : 10;
+    const fontSize = this.zoomLevel >= 4 ? 7 : 5;
+
+    let label = room.name;
+    if (label.length > maxChars) {
+      label = label.substring(0, maxChars - 1) + '\u2026'; // ellipsis
+    }
+
+    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    text.setAttribute('x', String(x + cellSize / 2));
+    text.setAttribute('y', String(y + cellSize + fontSize + 1));
+    text.setAttribute('text-anchor', 'middle');
+    text.setAttribute('dominant-baseline', 'hanging');
+    text.setAttribute('fill', 'rgba(180, 180, 180, 0.7)');
+    text.setAttribute('font-family', 'sans-serif');
+    text.setAttribute('font-size', String(fontSize));
+    text.setAttribute('pointer-events', 'none');
+    text.textContent = label;
+
+    this.labelsGroup.appendChild(text);
   }
 
   /**
@@ -482,7 +757,9 @@ export class MapRenderer {
    */
   private renderConnections(cellSize: number): void {
     const halfCell = cellSize / 2;
-    const drawnConnections = new Set<string>();
+    // Track drawn connections: "path1::path2" for bidirectional, "path1->path2" for one-way
+    const drawnBidirectional = new Set<string>();
+    const drawnOneway = new Set<string>();
 
     for (const room of this.rooms.values()) {
       if (room.z !== this.currentZ) continue;
@@ -495,32 +772,71 @@ export class MapRenderer {
         const delta = this.getDirectionDelta(exit);
         if (!delta) continue;
 
+        // Only draw same-Z connections as lines
+        if (delta[2] !== 0) continue;
+
         const toPath = this.findRoomAt(room.x + delta[0], room.y + delta[1], room.z + delta[2]);
         if (!toPath) continue;
 
         const destRoom = this.rooms.get(toPath);
         if (!destRoom || destRoom.state === 'unknown') continue;
 
-        // Create unique key to avoid drawing same connection twice
-        const connKey = [room.path, toPath].sort().join('::');
-        if (drawnConnections.has(connKey)) continue;
-        drawnConnections.add(connKey);
+        // Check if destination has a reverse exit back
+        const reverseDir = getReverseDirection(exit);
+        const isBidirectional = reverseDir !== null &&
+          destRoom.exits.some(e => normalizeDirection(e) === normalizeDirection(reverseDir));
 
-        // Only draw if destination is at same Z level
-        if (delta[2] !== 0) continue;
+        if (isBidirectional) {
+          // Avoid drawing bidirectional connection twice
+          const connKey = [room.path, toPath].sort().join('::');
+          if (drawnBidirectional.has(connKey)) continue;
+          drawnBidirectional.add(connKey);
 
-        const toX = destRoom.x * cellSize + halfCell;
-        const toY = destRoom.y * cellSize + halfCell;
+          const toX = destRoom.x * cellSize + halfCell;
+          const toY = destRoom.y * cellSize + halfCell;
 
-        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-        line.setAttribute('x1', String(fromX));
-        line.setAttribute('y1', String(fromY));
-        line.setAttribute('x2', String(toX));
-        line.setAttribute('y2', String(toY));
-        line.setAttribute('stroke', 'rgba(100, 100, 100, 0.4)');
-        line.setAttribute('stroke-width', '2');
+          const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+          line.setAttribute('x1', String(fromX));
+          line.setAttribute('y1', String(fromY));
+          line.setAttribute('x2', String(toX));
+          line.setAttribute('y2', String(toY));
+          line.setAttribute('stroke', 'rgba(120, 120, 120, 0.5)');
+          line.setAttribute('stroke-width', '2');
+          this.connectionsGroup.appendChild(line);
+        } else {
+          // One-way exit: dashed line with arrowhead
+          const onewayKey = `${room.path}->${toPath}`;
+          if (drawnOneway.has(onewayKey)) continue;
+          drawnOneway.add(onewayKey);
 
-        this.connectionsGroup.appendChild(line);
+          const toX = destRoom.x * cellSize + halfCell;
+          const toY = destRoom.y * cellSize + halfCell;
+
+          const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+          line.setAttribute('x1', String(fromX));
+          line.setAttribute('y1', String(fromY));
+          // Place arrowhead at 70% of the way
+          const arrowX = fromX + (toX - fromX) * 0.7;
+          const arrowY = fromY + (toY - fromY) * 0.7;
+          line.setAttribute('x2', String(arrowX));
+          line.setAttribute('y2', String(arrowY));
+          line.setAttribute('stroke', 'rgba(200, 80, 80, 0.6)');
+          line.setAttribute('stroke-width', '2');
+          line.setAttribute('stroke-dasharray', '4 2');
+          line.setAttribute('marker-end', 'url(#oneway-arrow)');
+          this.connectionsGroup.appendChild(line);
+
+          // Draw remaining line segment (arrow to destination) without arrowhead
+          const line2 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+          line2.setAttribute('x1', String(arrowX));
+          line2.setAttribute('y1', String(arrowY));
+          line2.setAttribute('x2', String(toX));
+          line2.setAttribute('y2', String(toY));
+          line2.setAttribute('stroke', 'rgba(200, 80, 80, 0.6)');
+          line2.setAttribute('stroke-width', '2');
+          line2.setAttribute('stroke-dasharray', '4 2');
+          this.connectionsGroup.appendChild(line2);
+        }
       }
     }
   }
@@ -555,14 +871,16 @@ export class MapRenderer {
 
   /**
    * Get room at position from click event.
+   * Walks up the DOM (max 3 levels) to find nearest element with data-path.
    */
   getRoomAtPosition(event: MouseEvent): ClientRoomData | null {
-    const target = event.target as SVGElement;
-    if (target.tagName === 'rect') {
-      const path = target.getAttribute('data-path');
+    let target = event.target as SVGElement | null;
+    for (let i = 0; i < 4 && target; i++) {
+      const path = target.getAttribute?.('data-path');
       if (path) {
         return this.rooms.get(path) || null;
       }
+      target = target.parentElement as SVGElement | null;
     }
     return null;
   }
