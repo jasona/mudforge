@@ -19,6 +19,7 @@ import type {
   RoomState,
   MapAreaChangeMessage,
   MapMoveMessage,
+  MapWorldDataMessage,
 } from '../lib/map-types.js';
 import { normalizeCoordinates } from '../lib/map-types.js';
 
@@ -107,6 +108,7 @@ export class MapDaemon extends MudObject {
       name: 'Town of Aldric',
       defaultZ: 0,
       defaultZoom: 3,
+      worldOffset: { x: 0, y: 0 },
     });
 
     this.registerArea({
@@ -120,13 +122,27 @@ export class MapDaemon extends MudObject {
       name: 'Castle Dungeons',
       defaultZ: -1,
       defaultZoom: 3,
+      worldOffset: { x: 2, y: 12 },
     });
 
+    // Forest road_fork (2,0) must be 1 south of Aldric gates (2,4)
+    // → road_fork world = (2,5), offset = (0,5)
     this.registerArea({
       id: '/areas/valdoria/forest',
       name: 'Eastern Forest',
       defaultZ: 0,
       defaultZoom: 3,
+      worldOffset: { x: 0, y: 5 },
+    });
+
+    // West Road room_19_3_0 (19,3) must be 1 west of Aldric room_3_4_0 (0,2)
+    // → room_19_3_0 world = (-1,2), offset = (-20,-1)
+    this.registerArea({
+      id: '/areas/valdoria/west_road',
+      name: 'West Road',
+      defaultZ: 0,
+      defaultZoom: 3,
+      worldOffset: { x: -20, y: -1 },
     });
   }
 
@@ -440,6 +456,76 @@ export class MapDaemon extends MudObject {
     }
 
     return message;
+  }
+
+  // ========== World Map ==========
+
+  /**
+   * Generate world map data compositing all explored areas.
+   * @param player The player viewing the world map
+   * @param currentRoom The player's current room
+   */
+  generateWorldMapData(player: MapPlayer, currentRoom: MudObject): MapWorldDataMessage {
+    const allRooms: ClientRoomData[] = [];
+    const areaCentroids: Map<string, { sumX: number; sumY: number; count: number; name: string }> = new Map();
+    const currentRoomPath = currentRoom.objectPath;
+
+    // Collect all explored rooms across all areas with world offsets
+    for (const roomPath of player.getExploredRooms()) {
+      if (typeof efuns === 'undefined') continue;
+
+      const room = efuns.findObject(roomPath) as MapRoom | undefined;
+      if (!room) continue;
+
+      const coords = this.getRoomCoordinates(room);
+      const area = this.getArea(coords.area);
+      if (!area?.worldOffset) continue;
+
+      const mapData = room.getMapData();
+      const worldX = coords.x + area.worldOffset.x;
+      const worldY = coords.y + area.worldOffset.y;
+
+      allRooms.push({
+        path: room.objectPath,
+        name: room.shortDesc,
+        x: worldX,
+        y: worldY,
+        z: 0,
+        terrain: room.getTerrain(),
+        state: 'explored',
+        current: room.objectPath === currentRoomPath,
+        exits: room.getExitDirections(),
+        icon: mapData.icon,
+      });
+
+      // Accumulate centroid data
+      const centroid = areaCentroids.get(area.id);
+      if (centroid) {
+        centroid.sumX += worldX;
+        centroid.sumY += worldY;
+        centroid.count++;
+      } else {
+        areaCentroids.set(area.id, { sumX: worldX, sumY: worldY, count: 1, name: area.name });
+      }
+    }
+
+    // Build area label data from centroids
+    const areas: MapWorldDataMessage['areas'] = [];
+    for (const [id, data] of areaCentroids) {
+      areas.push({
+        id,
+        name: data.name,
+        worldX: Math.round(data.sumX / data.count),
+        worldY: Math.round(data.sumY / data.count),
+      });
+    }
+
+    return {
+      type: 'world_data',
+      areas,
+      rooms: allRooms,
+      currentRoom: currentRoomPath,
+    };
   }
 
   // ========== Euclidean Validation ==========

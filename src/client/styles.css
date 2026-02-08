@@ -1461,6 +1461,7 @@ body {
 .map-panel.collapsed .map-zoom-level,
 .map-panel.collapsed .map-btn-zoom-in,
 .map-panel.collapsed .map-btn-zoom-out,
+.map-panel.collapsed .map-btn-world,
 .map-panel.collapsed .map-resize-handle {
   display: none;
 }
@@ -1540,12 +1541,15 @@ body {
   background-color: var(--bg-terminal);
 }
 
-.map-svg rect {
+.map-svg .map-rooms g {
   cursor: pointer;
+}
+
+.map-svg rect {
   transition: opacity 0.15s ease;
 }
 
-.map-svg rect:hover {
+.map-svg .map-rooms g:hover rect {
   opacity: 0.8 !important;
 }
 
@@ -1567,6 +1571,8 @@ body {
   border-top: 1px solid var(--border-primary);
   border-radius: 0 0 var(--border-radius) var(--border-radius);
   flex-shrink: 0;
+  max-height: 48px;
+  overflow-y: auto;
 }
 
 .map-legend-item {
@@ -1587,17 +1593,33 @@ body {
   font-weight: bold;
 }
 
-.map-legend-marker.explored {
-  color: #4a7c23;
+.map-legend-swatch {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 1px;
+  flex-shrink: 0;
 }
 
-.map-legend-marker.revealed {
-  color: #2d4d16;
-  opacity: 0.7;
+.map-legend-label {
+  font-size: 9px;
+  color: var(--text-secondary);
+  white-space: nowrap;
 }
 
-.map-legend-marker.hinted {
-  color: #666666;
+/* World Map Modal */
+.world-map-modal .gui-modal-body {
+  padding: 0;
+  overflow: hidden;
+}
+
+.world-map-area-label {
+  fill: rgba(255, 255, 255, 0.6);
+  font-family: var(--font-family);
+  font-size: 10px;
+  font-weight: 600;
+  text-anchor: middle;
+  pointer-events: none;
 }
 
 /* =============================================================================

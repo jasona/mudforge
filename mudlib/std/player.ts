@@ -2921,6 +2921,25 @@ export class Player extends Living {
       return;
     }
 
+    // Handle world map request
+    if (message.action === 'open-world-map') {
+      if (this._connection?.sendMap && this.environment) {
+        try {
+          const { getMapDaemon } = await import('../daemons/map.js');
+          const mapDaemon = getMapDaemon();
+          type MapPlayer = Parameters<typeof mapDaemon.generateWorldMapData>[0];
+          const worldData = mapDaemon.generateWorldMapData(
+            this as unknown as MapPlayer,
+            this.environment,
+          );
+          this._connection.sendMap(worldData);
+        } catch {
+          // Silently fail if map daemon isn't available
+        }
+      }
+      return;
+    }
+
     // No default handling for other actions
   }
 
