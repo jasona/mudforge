@@ -51,6 +51,29 @@ const HIDDEN_SYSTEM_FILES = [
   'node_modules',
 ];
 
+/**
+ * Convert a glob pattern to a RegExp.
+ * Supports * (any chars) and ? (single char).
+ */
+function globToRegex(pattern: string): RegExp {
+  let regex = '^';
+  for (const ch of pattern) {
+    if (ch === '*') regex += '.*';
+    else if (ch === '?') regex += '.';
+    else if ('.+^${}()|[]\\'.includes(ch)) regex += '\\' + ch;
+    else regex += ch;
+  }
+  regex += '$';
+  return new RegExp(regex, 'i');
+}
+
+/**
+ * Check if a string contains glob wildcard characters.
+ */
+function hasGlob(str: string): boolean {
+  return str.includes('*') || str.includes('?');
+}
+
 export async function execute(ctx: CommandContext): Promise<void> {
   const player = ctx.player as PlayerWithCwd;
   const currentCwd = player.cwd || '/';
@@ -70,16 +93,84 @@ export async function execute(ctx: CommandContext): Promise<void> {
     args = args.slice(flagMatch[0].length);
   }
 
-  // Resolve target path
-  const targetPath = args ? resolvePath(currentCwd, args, homeDir) : currentCwd;
-
-  // Check read permission
-  if (!efuns.checkReadPermission(targetPath)) {
-    ctx.sendLine(`{red}Permission denied: ${targetPath}{/}`);
-    return;
-  }
-
   try {
+    // Check for glob patterns in the argument
+    if (args && hasGlob(args)) {
+      // Split into directory and pattern parts
+      const lastSlash = args.lastIndexOf('/');
+      let dirArg: string;
+      let pattern: string;
+      if (lastSlash >= 0) {
+        dirArg = args.substring(0, lastSlash) || '/';
+        pattern = args.substring(lastSlash + 1);
+      } else {
+        dirArg = '';
+        pattern = args;
+      }
+
+      const dirPath = dirArg ? resolvePath(currentCwd, dirArg, homeDir) : currentCwd;
+
+      if (!efuns.checkReadPermission(dirPath)) {
+        ctx.sendLine(`{red}Permission denied: ${dirPath}{/}`);
+        return;
+      }
+
+      const dirExists = await efuns.fileExists(dirPath);
+      if (!dirExists) {
+        ctx.sendLine(`{red}No such directory: ${dirPath}{/}`);
+        return;
+      }
+
+      let entries = await efuns.readDir(dirPath);
+      const re = globToRegex(pattern);
+      entries = entries.filter((e) => re.test(e));
+
+      if (!showHidden) {
+        entries = entries.filter((e) => !e.startsWith('.'));
+      }
+
+      if (entries.length === 0) {
+        ctx.sendLine(`{red}No matches: ${args}{/}`);
+        return;
+      }
+
+      const entryStats: EntryStat[] = [];
+      for (const entry of entries) {
+        try {
+          const entryPath = joinPath(dirPath, entry);
+          const entryStat = await efuns.fileStat(entryPath);
+          entryStats.push({ name: entry, stat: entryStat });
+        } catch {
+          entryStats.push({
+            name: entry,
+            stat: { isFile: true, isDirectory: false, size: 0, mtime: new Date() },
+          });
+        }
+      }
+
+      entryStats.sort((a, b) => {
+        if (a.stat.isDirectory && !b.stat.isDirectory) return -1;
+        if (!a.stat.isDirectory && b.stat.isDirectory) return 1;
+        return a.name.localeCompare(b.name);
+      });
+
+      if (longFormat) {
+        displayLongFormat(ctx, entryStats);
+      } else {
+        displayColumnFormat(ctx, entryStats);
+      }
+      return;
+    }
+
+    // No glob - resolve target path normally
+    const targetPath = args ? resolvePath(currentCwd, args, homeDir) : currentCwd;
+
+    // Check read permission
+    if (!efuns.checkReadPermission(targetPath)) {
+      ctx.sendLine(`{red}Permission denied: ${targetPath}{/}`);
+      return;
+    }
+
     // Check if path exists
     const exists = await efuns.fileExists(targetPath);
     if (!exists) {
