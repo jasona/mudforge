@@ -824,12 +824,12 @@ body {
 
 /* Quest Panel - In Right Sidebar */
 #quest-container {
-  flex-shrink: 0;
+  flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   border-top: 1px solid var(--border-primary);
-  max-height: 200px;
 }
 
 .quest-panel {
