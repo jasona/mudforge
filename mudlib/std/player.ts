@@ -850,10 +850,10 @@ export class Player extends Living {
 
   /**
    * Send a complete state refresh to the client.
-   * Called when tab becomes visible after being hidden.
+   * Called on login or when tab becomes visible after being hidden.
    * Sends current STATS, MAP position, COMBAT target, and equipment images.
    */
-  private async sendFullStateRefresh(): Promise<void> {
+  async sendFullStateRefresh(): Promise<void> {
     if (!this._connection) {
       return;
     }
