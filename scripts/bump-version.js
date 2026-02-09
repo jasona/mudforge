@@ -42,10 +42,27 @@ function bumpVersion(version, type) {
 // Parse arguments
 const [, , target, type = 'patch'] = process.argv;
 
-if (!target || !['driver', 'game'].includes(target)) {
+if (!target) {
+  try {
+    const pkgPath = resolve(__dirname, '../package.json');
+    const configPath = resolve(__dirname, '../mudlib/config/game.json');
+    const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'));
+    const config = JSON.parse(readFileSync(configPath, 'utf-8'));
+    console.log('Current versions:');
+    console.log(`  driver: ${pkg.version}`);
+    console.log(`  game:   ${config.version}`);
+    process.exit(0);
+  } catch (error) {
+    console.error(`Error reading current versions: ${error.message}`);
+    process.exit(1);
+  }
+}
+
+if (!['driver', 'game'].includes(target)) {
   console.log('Usage: bump-version.js [driver|game] [major|minor|patch]');
   console.log('');
   console.log('Examples:');
+  console.log('  node scripts/bump-version.js                # Show current versions');
   console.log('  node scripts/bump-version.js game           # Bump game patch version');
   console.log('  node scripts/bump-version.js game minor     # Bump game minor version');
   console.log('  node scripts/bump-version.js driver major   # Bump driver major version');
