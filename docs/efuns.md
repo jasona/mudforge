@@ -524,6 +524,33 @@ const domains = efuns.getDomains();
 // Returns: string[] (e.g., ['/areas/castle/', '/areas/forest/'])
 ```
 
+### hashPassword(password)
+
+Hash a password using the driver crypto (scrypt). Returns `salt:hash` (hex encoded).
+
+```typescript
+const hash = await efuns.hashPassword(password);
+// Returns: string (salt:hash)
+```
+
+### verifyPassword(password, storedHash)
+
+Verify a password against a stored hash.
+
+```typescript
+const ok = await efuns.verifyPassword(password, storedHash);
+// Returns: boolean
+```
+
+### reverseDns(ip)
+
+Reverse DNS lookup for an IP address. Returns `null` if resolution fails.
+
+```typescript
+const hostname = await efuns.reverseDns(ip);
+// Returns: string | null
+```
+
 ## AI Integration
 
 These efuns provide access to the Claude AI API for content generation and NPC dialogue. They require `CLAUDE_API_KEY` to be configured in the `.env` file.

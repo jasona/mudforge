@@ -17,12 +17,30 @@ import type { RaceId } from '../std/race/types.js';
 import { isValidRaceId } from '../std/race/definitions.js';
 import type { QuestPlayer } from '../std/quest/types.js';
 import type { GeneratedItemData } from '../std/loot/types.js';
-import { scrypt, randomBytes, timingSafeEqual } from 'crypto';
-import { promisify } from 'util';
-import * as dns from 'dns';
+// Note: Mudlib runs in a sandbox. Use efuns for crypto/DNS.
 
-const scryptAsync = promisify(scrypt);
-const dnsReverse = promisify(dns.reverse);
+const FALLBACK_SALT_BYTES = 16;
+
+function toHex(bytes: number[]): string {
+  return bytes.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+function fallbackRandomBytes(length: number): string {
+  const bytes: number[] = [];
+  for (let i = 0; i < length; i++) {
+    bytes.push(Math.floor(Math.random() * 256));
+  }
+  return toHex(bytes);
+}
+
+function fnv1aHex(input: string): string {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < input.length; i++) {
+    hash ^= input.charCodeAt(i);
+    hash = (hash >>> 0) * 0x01000193;
+  }
+  return (hash >>> 0).toString(16).padStart(8, '0');
+}
 
 /**
  * Resolve an IP address to a hostname.
@@ -39,13 +57,11 @@ async function resolveHostname(ip: string): Promise<string | null> {
     return null;
   }
 
-  try {
-    const hostnames = await dnsReverse(ip);
-    return hostnames[0] || null;
-  } catch {
-    // DNS resolution failed (common for many IPs)
-    return null;
+  if (typeof efuns !== 'undefined' && efuns.reverseDns) {
+    return await efuns.reverseDns(ip);
   }
+
+  return null;
 }
 
 /**
@@ -53,23 +69,26 @@ async function resolveHostname(ip: string): Promise<string | null> {
  * Returns format: salt:hash (both hex encoded)
  */
 async function hashPassword(password: string): Promise<string> {
-  const salt = randomBytes(16).toString('hex');
-  const hash = (await scryptAsync(password, salt, 64)) as Buffer;
-  return `${salt}:${hash.toString('hex')}`;
+  if (typeof efuns !== 'undefined' && efuns.hashPassword) {
+    return await efuns.hashPassword(password);
+  }
+
+  const salt = fallbackRandomBytes(FALLBACK_SALT_BYTES);
+  const hash = fnv1aHex(`${salt}:${password}`);
+  return `${salt}:${hash}`;
 }
 
 /**
  * Verify a password against a stored hash.
  */
 async function verifyPassword(password: string, storedHash: string): Promise<boolean> {
+  if (typeof efuns !== 'undefined' && efuns.verifyPassword) {
+    return await efuns.verifyPassword(password, storedHash);
+  }
+
   const [salt, hash] = storedHash.split(':');
   if (!salt || !hash) return false;
-
-  const hashBuffer = Buffer.from(hash, 'hex');
-  const derivedKey = (await scryptAsync(password, salt, 64)) as Buffer;
-
-  // Use timing-safe comparison to prevent timing attacks
-  return timingSafeEqual(hashBuffer, derivedKey);
+  return fnv1aHex(`${salt}:${password}`) === hash;
 }
 
 /**

@@ -5,7 +5,8 @@
  * Only accessible to Administrators.
  */
 
-import { PermissionLevel } from '../../src/driver/permissions.js';
+import { MudObject } from '../std/object.js';
+import { PermissionLevel } from '../lib/permissions.js';
 
 // Permissions object is injected by the driver (not part of efuns)
 declare const permissions: {
@@ -30,7 +31,7 @@ declare const permissions: {
 /**
  * Admin command handler.
  */
-export class AdminDaemon {
+export class AdminDaemon extends MudObject {
   /**
    * Check if the current player is an admin.
    */

@@ -37,6 +37,9 @@ import { getGitHubClient } from './github-client.js';
 import { getGiphyClient, type CachedGif } from './giphy-client.js';
 import { getShadowRegistry, type ShadowRegistry } from './shadow-registry.js';
 import type { Shadow, AddShadowResult } from './shadow-types.js';
+import { randomBytes, scrypt, timingSafeEqual } from 'crypto';
+import { reverse as dnsReverse } from 'dns/promises';
+import { promisify } from 'util';
 
 /**
  * Pager options for the page efun.
@@ -444,6 +447,8 @@ function driverColorize(text: string): string {
     return code ?? match;
   });
 }
+
+const scryptAsync = promisify(scrypt);
 
 export class EfunBridge {
   private config: EfunBridgeConfig;
@@ -920,8 +925,15 @@ export class EfunBridge {
    */
   private resolveMudlibPath(path: string): string {
     // Normalize and resolve the path
-    const normalized = normalize(path).replace(/\\/g, '/');
-    const fullPath = resolve(this.config.mudlibPath, normalized.replace(/^\//, ''));
+    const normalized = normalize(path);
+
+    // Reject Windows absolute paths (drive letter or UNC) early
+    if (/^[a-zA-Z]:[\\/]/.test(path) || path.startsWith('\\\\')) {
+      throw new Error('Path traversal attempt detected');
+    }
+
+    const normalizedPosix = normalized.replace(/\\/g, '/');
+    const fullPath = resolve(this.config.mudlibPath, normalizedPosix.replace(/^\//, ''));
 
     // Security check: ensure path is within mudlib
     const mudlibAbs = resolve(this.config.mudlibPath);
@@ -1676,6 +1688,41 @@ export class EfunBridge {
    */
   getPermissionLevelName(level: number): string {
     return this.permissions.getLevelName(level);
+  }
+
+  /**
+   * Hash a password using scrypt.
+   * Returns format: salt:hash (hex encoded)
+   */
+  async hashPassword(password: string): Promise<string> {
+    const salt = randomBytes(16).toString('hex');
+    const hash = (await scryptAsync(password, salt, 64)) as Buffer;
+    return `${salt}:${hash.toString('hex')}`;
+  }
+
+  /**
+   * Verify a password against a stored hash.
+   */
+  async verifyPassword(password: string, storedHash: string): Promise<boolean> {
+    const [salt, hash] = storedHash.split(':');
+    if (!salt || !hash) return false;
+
+    const hashBuffer = Buffer.from(hash, 'hex');
+    const derivedKey = (await scryptAsync(password, salt, 64)) as Buffer;
+
+    return timingSafeEqual(hashBuffer, derivedKey);
+  }
+
+  /**
+   * Reverse DNS lookup for an IP address.
+   */
+  async reverseDns(ip: string): Promise<string | null> {
+    try {
+      const hostnames = await dnsReverse(ip);
+      return hostnames[0] || null;
+    } catch {
+      return null;
+    }
   }
 
   /**
@@ -3884,6 +3931,9 @@ RULES:
       getDomains: this.getDomains.bind(this),
       setPermissionLevel: this.setPermissionLevel.bind(this),
       getPermissionLevelName: this.getPermissionLevelName.bind(this),
+      hashPassword: this.hashPassword.bind(this),
+      verifyPassword: this.verifyPassword.bind(this),
+      reverseDns: this.reverseDns.bind(this),
       savePermissions: this.savePermissions.bind(this),
       addDomain: this.addDomain.bind(this),
       removeDomain: this.removeDomain.bind(this),

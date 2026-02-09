@@ -17,7 +17,22 @@
 import { MudObject } from '../std/object.js';
 import type { Living } from '../std/living.js';
 import type { GeneratedItemData } from '../std/loot/types.js';
-import { createHash } from 'crypto';
+// Sandbox-safe hash for cache keys (not cryptographic).
+
+function fnv1aHex(input: string): string {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < input.length; i++) {
+    hash ^= input.charCodeAt(i);
+    hash = (hash >>> 0) * 0x01000193;
+  }
+  return (hash >>> 0).toString(16).padStart(8, '0');
+}
+
+function cacheKeyHash16(input: string): string {
+  const h1 = fnv1aHex(input);
+  const h2 = fnv1aHex(`${input}#`);
+  return (h1 + h2).slice(0, 16);
+}
 
 /**
  * Interface for objects with generated item data.
@@ -199,7 +214,7 @@ export class PortraitDaemon extends MudObject {
    */
   private getCacheKey(npcPath: string): string {
     // Create a hash of the path for safe filenames
-    const hash = createHash('md5').update(npcPath).digest('hex').slice(0, 16);
+    const hash = cacheKeyHash16(npcPath);
     return hash;
   }
 
@@ -403,7 +418,7 @@ Style requirements:
    * Generate a cache key for an object.
    */
   private getObjectCacheKey(objPath: string, type: ObjectImageType): string {
-    const hash = createHash('md5').update(objPath).digest('hex').slice(0, 16);
+    const hash = cacheKeyHash16(objPath);
     return `${type}_${hash}`;
   }
 
