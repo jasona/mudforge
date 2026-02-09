@@ -375,6 +375,19 @@ export class Player extends Living {
     this.longDesc = 'You see a player.';
   }
 
+  /**
+   * Ensure UI panels get a prompt refresh after equipment changes.
+   */
+  protected override onEquipmentChanged(): void {
+    // Force stats to send on next heartbeat and reset delta baseline.
+    this._statsHeartbeatCount = 0;
+    this._statsSendCount = 0;
+    this._lastSentStats = {};
+
+    // Ensure equipment images are resent if available.
+    this._lastSentEquipmentImages.clear();
+  }
+
   // ========== Connection ==========
 
   /**
