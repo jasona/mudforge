@@ -127,6 +127,8 @@ export interface I2ClientEvents {
   mudlistUpdate: (muds: I2MudInfo[]) => void;
 }
 
+type EventArgs<T, K extends keyof T> = T[K] extends (...args: infer A) => void ? A : never;
+
 /**
  * I2 UDP Client for Intermud 2 protocol.
  */
@@ -139,6 +141,21 @@ export class I2Client extends EventEmitter {
   private _isReady = false;
   private mudList: Map<string, I2MudInfo> = new Map();
   private refreshTimer: ReturnType<typeof setInterval> | null = null;
+
+  onEvent<K extends keyof I2ClientEvents>(
+    event: K,
+    listener: (...args: EventArgs<I2ClientEvents, K>) => void
+  ): this {
+    this.on(event as string, listener as (...args: unknown[]) => void);
+    return this;
+  }
+
+  emitEvent<K extends keyof I2ClientEvents>(
+    event: K,
+    ...args: EventArgs<I2ClientEvents, K>
+  ): boolean {
+    return this.emit(event as string, ...args);
+  }
 
   constructor(config: I2ClientConfig) {
     super();
@@ -214,7 +231,7 @@ export class I2Client extends EventEmitter {
 
     if (added > 0) {
       this.log('info', `Seeded ${added} MUDs into I2 mudlist`);
-      this.emit('mudlistUpdate', this.getMudList());
+      this.emitEvent('mudlistUpdate', this.getMudList());
     }
 
     return added;
@@ -233,7 +250,7 @@ export class I2Client extends EventEmitter {
 
       this.socket.on('error', (err) => {
         this.log('error', `UDP socket error: ${err.message}`);
-        this.emit('error', err);
+        this.emitEvent('error', err);
         if (!this._isReady) {
           reject(err);
         }
@@ -260,7 +277,7 @@ export class I2Client extends EventEmitter {
         // Start periodic mudlist refresh
         this.startRefreshTimer();
 
-        this.emit('ready');
+        this.emitEvent('ready');
         resolve();
       });
 
@@ -404,7 +421,7 @@ export class I2Client extends EventEmitter {
       this.updateMudFromMessage(message, rinfo);
 
       // Emit the message for the daemon to handle
-      this.emit('message', message, rinfo);
+      this.emitEvent('message', message, rinfo);
     } catch (error) {
       this.log('error', `Failed to decode message: ${error}`);
     }
@@ -441,7 +458,7 @@ export class I2Client extends EventEmitter {
 
     // Emit mudlist update if this is a new MUD
     if (!existing) {
-      this.emit('mudlistUpdate', this.getMudList());
+      this.emitEvent('mudlistUpdate', this.getMudList());
     }
   }
 

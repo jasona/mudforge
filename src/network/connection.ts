@@ -72,6 +72,17 @@ export interface ConnectionEvents {
   message: (data: string) => void;
   close: (code: number, reason: string) => void;
   error: (error: Error) => void;
+  backpressure: (bufferedAmount: number) => void;
+}
+
+type EventArgs<T, K extends keyof T> = T[K] extends (...args: infer A) => void ? A : never;
+
+/**
+ * Minimal player shape required by Connection logging/binding.
+ */
+export interface ConnectionPlayer {
+  name?: string;
+  objectId?: string;
 }
 
 /** Backpressure threshold in bytes (64KB) - start warning and slow down */
@@ -108,7 +119,7 @@ export class Connection extends EventEmitter {
   private _state: ConnectionState = 'connecting';
   private _remoteAddress: string;
   private _connectedAt: Date;
-  private _player: unknown = null;
+  private _player: ConnectionPlayer | null = null;
   private _inputBuffer: string = '';
   private _missedPongs: number = 0;
   private _lastActivityTime: number = Date.now();
@@ -122,6 +133,27 @@ export class Connection extends EventEmitter {
 
   // Message buffer for session resume replay
   private _messageBuffer: string[] = [];
+
+  /**
+   * Typed event subscription helper.
+   */
+  onEvent<K extends keyof ConnectionEvents>(
+    event: K,
+    listener: (...args: EventArgs<ConnectionEvents, K>) => void
+  ): this {
+    this.on(event as string, listener as (...args: unknown[]) => void);
+    return this;
+  }
+
+  /**
+   * Typed event emit helper.
+   */
+  emitEvent<K extends keyof ConnectionEvents>(
+    event: K,
+    ...args: EventArgs<ConnectionEvents, K>
+  ): boolean {
+    return this.emit(event as string, ...args);
+  }
 
   constructor(socket: WebSocket, id: string, remoteAddress: string = 'unknown') {
     super();
@@ -146,8 +178,11 @@ export class Connection extends EventEmitter {
   private enableTcpKeepalive(): void {
     try {
       // Access the underlying net.Socket from the ws WebSocket
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const rawSocket = (this.socket as any)._socket;
+      type RawSocketLike = {
+        setKeepAlive?: (enabled: boolean, initialDelay?: number) => void;
+        on: (event: string, listener: (...args: unknown[]) => void) => void;
+      };
+      const rawSocket = (this.socket as WebSocket & { _socket?: RawSocketLike })._socket;
       if (rawSocket && typeof rawSocket.setKeepAlive === 'function') {
         // Enable keepalive with 30 second initial delay
         rawSocket.setKeepAlive(true, 30000);
@@ -162,8 +197,9 @@ export class Connection extends EventEmitter {
           console.log(`[CONN-TCP] ${this._id} TCP socket received FIN (remote end closed)`);
         });
 
-        rawSocket.on('error', (err: Error) => {
-          console.error(`[CONN-TCP] ${this._id} TCP socket error: ${err.message}`);
+        rawSocket.on('error', (err: unknown) => {
+          const message = err instanceof Error ? err.message : String(err);
+          console.error(`[CONN-TCP] ${this._id} TCP socket error: ${message}`);
         });
 
         // Log when data stops flowing (could indicate network issues)
@@ -204,28 +240,28 @@ export class Connection extends EventEmitter {
 
     this.socket.on('close', (code: number, reason: Buffer) => {
       const reasonStr = reason.toString();
-      const playerName = this._player ? (this._player as { name?: string }).name || 'unknown' : 'no-player';
+      const playerName = this.getPlayerName('no-player');
       console.log(`[CONN-SOCKET-CLOSE] ${this._id} (${playerName}) socket closed: code=${code}, reason="${reasonStr}"`);
       console.log(`[CONN-SOCKET-CLOSE] Close code meanings: 1000=normal, 1001=going-away, 1005=no-status, 1006=abnormal, 1011=server-error`);
       console.log(`[CONN-SOCKET-CLOSE] Connection was open for ${Date.now() - this._connectedAt.getTime()}ms, missed pongs: ${this._missedPongs}`);
       // Capture stack trace to see what triggered the close
       console.log(`[CONN-SOCKET-CLOSE] Stack trace:`, new Error('Close event trace').stack);
       this.setState('closed');
-      this.emit('close', code, reason.toString());
+      this.emitEvent('close', code, reason.toString());
     });
 
     this.socket.on('error', (error: Error) => {
-      const playerName = this._player ? (this._player as { name?: string }).name || 'unknown' : 'no-player';
+      const playerName = this.getPlayerName('no-player');
       console.error(`[CONN-ERROR] ${this._id} (${playerName}) socket error:`, error.message);
       console.error(`[CONN-ERROR] Stack:`, error.stack);
-      this.emit('error', error);
+      this.emitEvent('error', error);
     });
 
     // Handle pong responses for keepalive
     this.socket.on('pong', () => {
       // Only log pong if we had actual missed pongs (missedPongs > 1 means previous ping had no response)
       if (this._missedPongs > 1) {
-        const playerName = this._player ? (this._player as { name?: string }).name || 'unknown' : 'no-player';
+        const playerName = this.getPlayerName('no-player');
         console.log(`[CONN-PONG] ${this._id} (${playerName}) received pong, resetting missedPongs from ${this._missedPongs} to 0`);
       }
       this._missedPongs = 0;
@@ -260,7 +296,7 @@ export class Connection extends EventEmitter {
 
     for (const line of lines) {
       if (line.length > 0) {
-        this.emit('message', line);
+        this.emitEvent('message', line);
       }
     }
   }
@@ -303,15 +339,15 @@ export class Connection extends EventEmitter {
   /**
    * Get the bound player object.
    */
-  get player(): unknown {
+  get player(): ConnectionPlayer | null {
     return this._player;
   }
 
   /**
    * Bind a player object to this connection.
    */
-  bindPlayer(player: unknown): void {
-    const playerName = (player as { name?: string })?.name || 'unknown';
+  bindPlayer(player: ConnectionPlayer): void {
+    const playerName = player.name || 'unknown';
     console.log(`[WS-BIND] Player "${playerName}" bound to connection ${this._id}`);
     this._player = player;
   }
@@ -320,9 +356,16 @@ export class Connection extends EventEmitter {
    * Unbind the player object.
    */
   unbindPlayer(): void {
-    const playerName = this._player ? (this._player as { name?: string }).name || 'unknown' : 'none';
+    const playerName = this.getPlayerName('none');
     console.log(`[WS-UNBIND] Player "${playerName}" unbound from connection ${this._id}`);
     this._player = null;
+  }
+
+  /**
+   * Get the bound player name with fallback.
+   */
+  private getPlayerName(fallback: string = 'unknown'): string {
+    return this._player?.name || fallback;
   }
 
   /**
@@ -360,9 +403,7 @@ export class Connection extends EventEmitter {
     // Track max buffer and log at every 100KB threshold crossed
     const threshold100KB = Math.floor(bufferedAmount / (100 * 1024)) * 100 * 1024;
     if (bufferedAmount > this._maxBufferSeen && threshold100KB > this._maxBufferSeen) {
-      const playerName = this._player
-        ? ((this._player as { name?: string }).name || 'unknown')
-        : 'no-player';
+      const playerName = this.getPlayerName('no-player');
       console.warn(
         `[CONN-BUFFER-GROWTH] ${this._id} (${playerName}) NEW MAX buffer=${(bufferedAmount / 1024).toFixed(0)}KB msgSize=${messageSize}B`
       );
@@ -371,9 +412,7 @@ export class Connection extends EventEmitter {
 
     // DIAGNOSTIC: Log whenever buffer exceeds 1MB to catch the growth pattern
     if (bufferedAmount > 1024 * 1024) {
-      const playerName = this._player
-        ? ((this._player as { name?: string }).name || 'unknown')
-        : 'no-player';
+      const playerName = this.getPlayerName('no-player');
       console.error(
         `[CONN-BUFFER-ALERT] ${this._id} (${playerName}) buffer=${(bufferedAmount / 1024).toFixed(0)}KB (OVER 1MB!) msgSize=${messageSize}B`
       );
@@ -382,7 +421,7 @@ export class Connection extends EventEmitter {
     // HARD STOP: If buffer is very large, queue instead of sending
     // This prevents runaway buffer growth between heartbeat checks
     if (bufferedAmount > HARD_STOP_BUFFER_SIZE) {
-      const playerName = this._player ? (this._player as { name?: string }).name || 'unknown' : 'no-player';
+      const playerName = this.getPlayerName('no-player');
       // Only log once per second to avoid log spam
       const now = Date.now();
       if (!this._lastHardStopLog || now - this._lastHardStopLog > 1000) {
@@ -400,7 +439,7 @@ export class Connection extends EventEmitter {
 
     // Log when buffer is getting full (approaching threshold)
     if (bufferedAmount > BACKPRESSURE_THRESHOLD / 2) {
-      const playerName = this._player ? (this._player as { name?: string }).name || 'unknown' : 'no-player';
+      const playerName = this.getPlayerName('no-player');
       console.log(`[CONN-BUFFER] ${this._id} (${playerName}) bufferedAmount=${bufferedAmount} (threshold: ${BACKPRESSURE_THRESHOLD})`);
     }
 
@@ -409,9 +448,9 @@ export class Connection extends EventEmitter {
       // Warn once per backpressure episode
       if (!this._backpressureWarned) {
         this._backpressureWarned = true;
-        const playerName = this._player ? (this._player as { name?: string }).name || 'unknown' : 'no-player';
+        const playerName = this.getPlayerName('no-player');
         console.warn(`[CONN-BACKPRESSURE] ${this._id} (${playerName}) hit backpressure threshold, queueing messages`);
-        this.emit('backpressure', bufferedAmount);
+        this.emitEvent('backpressure', bufferedAmount);
       }
 
       // If buffer is critically full, queue the message
@@ -437,7 +476,7 @@ export class Connection extends EventEmitter {
         this.bufferMessage(message);
       }
     } catch (error) {
-      this.emit('error', error as Error);
+      this.emitEvent('error', error as Error);
     }
   }
 
@@ -514,7 +553,7 @@ export class Connection extends EventEmitter {
       try {
         this.socket.send(message);
       } catch (error) {
-        this.emit('error', error as Error);
+        this.emitEvent('error', error as Error);
         break;
       }
     }
@@ -578,9 +617,7 @@ export class Connection extends EventEmitter {
 
     // DIAGNOSTIC: Log whenever buffer exceeds 1MB
     if (bufferedAmount > 1024 * 1024) {
-      const playerName = this._player
-        ? ((this._player as { name?: string }).name || 'unknown')
-        : 'no-player';
+      const playerName = this.getPlayerName('no-player');
       const messageSize = Buffer.byteLength(message, 'utf8');
       console.error(
         `[CONN-PROTO-BUFFER-ALERT] ${this._id} (${playerName}) buffer=${(bufferedAmount / 1024).toFixed(0)}KB (OVER 1MB!) msgSize=${messageSize}B`
@@ -596,13 +633,11 @@ export class Connection extends EventEmitter {
     // Log when buffer is high (but not on every message)
     if (bufferedAmount > BACKPRESSURE_THRESHOLD && !this._backpressureWarned) {
       this._backpressureWarned = true;
-      const playerName = this._player
-        ? ((this._player as { name?: string }).name || 'unknown')
-        : 'no-player';
+      const playerName = this.getPlayerName('no-player');
       console.warn(
         `[CONN-BACKPRESSURE] ${this._id} (${playerName}) buffer=${bufferedAmount} exceeds threshold`
       );
-      this.emit('backpressure', bufferedAmount);
+      this.emitEvent('backpressure', bufferedAmount);
     } else if (bufferedAmount <= BACKPRESSURE_THRESHOLD) {
       this._backpressureWarned = false;
     }
@@ -611,7 +646,7 @@ export class Connection extends EventEmitter {
       this.socket.send(message);
       return true;
     } catch (error) {
-      this.emit('error', error as Error);
+      this.emitEvent('error', error as Error);
       return false;
     }
   }
@@ -781,9 +816,7 @@ export class Connection extends EventEmitter {
   setTabVisible(visible: boolean): void {
     const wasHidden = !this._tabVisible;
     this._tabVisible = visible;
-    const playerName = this._player
-      ? ((this._player as { name?: string }).name || 'unknown')
-      : 'no-player';
+    const playerName = this.getPlayerName('no-player');
     console.log(
       `[CONN-VISIBILITY] ${this._id} (${playerName}) tab ${visible ? 'visible' : 'hidden'}`
     );
@@ -824,7 +857,7 @@ export class Connection extends EventEmitter {
   incrementMissedPongs(): number {
     const previousCount = this._missedPongs;
     const newCount = ++this._missedPongs;
-    const playerName = this._player ? (this._player as { name?: string }).name || 'unknown' : 'no-player';
+    const playerName = this.getPlayerName('no-player');
 
     // Only log when we're actually missing pongs (previous ping had no response)
     // 0→1 is normal (pre-ping increment), 1→2 means first actual missed pong
@@ -880,14 +913,14 @@ export class Connection extends EventEmitter {
 
     // Only log pings when there are already missed pongs (potential issue)
     if (this._missedPongs > 1) {
-      const playerName = this._player ? (this._player as { name?: string }).name || 'unknown' : 'no-player';
+      const playerName = this.getPlayerName('no-player');
       console.log(`[CONN-PING] ${this._id} (${playerName}) sending ping (missedPongs: ${this._missedPongs})`);
     }
 
     try {
       this.socket.ping();
     } catch (error) {
-      this.emit('error', error as Error);
+      this.emitEvent('error', error as Error);
     }
   }
 
@@ -943,7 +976,7 @@ export class Connection extends EventEmitter {
       return;
     }
 
-    const playerName = this._player ? (this._player as { name?: string }).name || 'unknown' : 'no-player';
+    const playerName = this.getPlayerName('no-player');
     const closeCode = code || 1000;
     const closeReason = reason || 'Connection closed';
     console.log(`[CONN-CLOSE] ${this._id} (${playerName}) closing with code=${closeCode}, reason="${closeReason}"`);
@@ -957,7 +990,7 @@ export class Connection extends EventEmitter {
     try {
       this.socket.close(closeCode, closeReason);
     } catch (error) {
-      this.emit('error', error as Error);
+      this.emitEvent('error', error as Error);
     }
   }
 
@@ -985,7 +1018,7 @@ export class Connection extends EventEmitter {
    * Forcefully terminate the connection.
    */
   terminate(): void {
-    const playerName = this._player ? (this._player as { name?: string }).name || 'unknown' : 'no-player';
+    const playerName = this.getPlayerName('no-player');
     console.log(`[CONN-TERMINATE] ${this._id} (${playerName}) terminated forcefully, missedPongs=${this._missedPongs}`);
     console.log(`[CONN-TERMINATE] Called from:`, new Error('terminate() call trace').stack);
 

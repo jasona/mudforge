@@ -63,6 +63,16 @@ export interface GrapevineEvent {
   payload?: Record<string, unknown>;
 }
 
+export interface GrapevineClientEvents {
+  authenticated: () => void;
+  disconnect: (reason: string) => void;
+  error: (error: Error) => void;
+  message: (event: GrapevineEvent) => void;
+  stateChange: (state: GrapevineConnectionState) => void;
+}
+
+type EventArgs<T, K extends keyof T> = T[K] extends (...args: infer A) => void ? A : never;
+
 /**
  * Channel broadcast payload.
  */
@@ -97,6 +107,21 @@ export class GrapevineClient extends EventEmitter {
   private connectionTimer: ReturnType<typeof setTimeout> | null = null;
   private shouldReconnect = false;
   private pendingRequests: Map<string, PendingRequest> = new Map();
+
+  onEvent<K extends keyof GrapevineClientEvents>(
+    event: K,
+    listener: (...args: EventArgs<GrapevineClientEvents, K>) => void
+  ): this {
+    this.on(event as string, listener as (...args: unknown[]) => void);
+    return this;
+  }
+
+  emitEvent<K extends keyof GrapevineClientEvents>(
+    event: K,
+    ...args: EventArgs<GrapevineClientEvents, K>
+  ): boolean {
+    return this.emit(event as string, ...args);
+  }
 
   private static readonly GRAPEVINE_URL = 'wss://grapevine.haus/socket';
   private static readonly REQUEST_TIMEOUT = 10000;
@@ -158,7 +183,7 @@ export class GrapevineClient extends EventEmitter {
     }
 
     this.setState('disconnected');
-    this.emit('disconnect', 'Manual disconnect');
+    this.emitEvent('disconnect', 'Manual disconnect');
   }
 
   /**
@@ -281,7 +306,7 @@ export class GrapevineClient extends EventEmitter {
 
       this.ws.on('error', (error: Error) => {
         this.log('error', `WebSocket error: ${error.message}`);
-        this.emit('error', error);
+        this.emitEvent('error', error);
         if (this._state === 'connecting') {
           this.handleConnectionFailure();
           resolve();
@@ -325,12 +350,12 @@ export class GrapevineClient extends EventEmitter {
           this.setState('connected');
           this.reconnectAttempts = 0;
           this.log('info', 'Authenticated with Grapevine');
-          this.emit('authenticated');
+          this.emitEvent('authenticated');
           // Also emit as message so daemon can handle channel registration
-          this.emit('message', message);
+          this.emitEvent('message', message);
         } else {
           this.log('error', `Authentication failed: ${message.error || message.status || 'unknown error'}`);
-          this.emit('error', new Error(`Authentication failed: ${message.error || message.status}`));
+          this.emitEvent('error', new Error(`Authentication failed: ${message.error || message.status}`));
           this.shouldReconnect = false;
           this.ws?.close();
         }
@@ -353,7 +378,7 @@ export class GrapevineClient extends EventEmitter {
       }
 
       // Emit for daemon to handle
-      this.emit('message', message);
+      this.emitEvent('message', message);
     } catch (error) {
       this.log('error', `Failed to parse message: ${error}`);
     }
@@ -433,7 +458,7 @@ export class GrapevineClient extends EventEmitter {
     ) {
       this.log('error', 'Max reconnect attempts reached');
       this.setState('disconnected');
-      this.emit('disconnect', 'Max reconnect attempts reached');
+      this.emitEvent('disconnect', 'Max reconnect attempts reached');
       return;
     }
 
@@ -463,7 +488,7 @@ export class GrapevineClient extends EventEmitter {
   private setState(state: GrapevineConnectionState): void {
     if (this._state !== state) {
       this._state = state;
-      this.emit('stateChange', state);
+      this.emitEvent('stateChange', state);
     }
   }
 

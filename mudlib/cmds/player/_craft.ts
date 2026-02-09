@@ -17,7 +17,7 @@ import { getProfessionDaemon } from '../../daemons/profession.js';
 import { PROFESSION_DEFINITIONS } from '../../std/profession/definitions.js';
 import { getMaterial } from '../../std/profession/materials.js';
 import { RECIPE_DEFINITIONS, getRecipesByProfession } from '../../std/profession/recipes.js';
-import type { RecipeDefinition, MaterialQuality } from '../../std/profession/types.js';
+import type { RecipeDefinition, MaterialQuality, ProfessionId } from '../../std/profession/types.js';
 import { QUALITY_NAMES, QUALITY_COLORS } from '../../std/profession/types.js';
 
 interface CommandContext {
@@ -527,12 +527,19 @@ function showAllRecipes(ctx: CommandContext): void {
   ctx.sendLine('{dim}Use "recipes" command for detailed profession recipe lists.{/}');
   ctx.sendLine('');
 
-  const craftingProfessions = ['alchemy', 'blacksmithing', 'woodworking', 'leatherworking', 'cooking', 'jeweling'];
+  const craftingProfessions: ProfessionId[] = [
+    'alchemy',
+    'blacksmithing',
+    'woodworking',
+    'leatherworking',
+    'cooking',
+    'jeweling',
+  ];
   for (const profId of craftingProfessions) {
-    const profession = PROFESSION_DEFINITIONS[profId as keyof typeof PROFESSION_DEFINITIONS];
+    const profession = PROFESSION_DEFINITIONS[profId];
     if (profession) {
       const recipes = getRecipesByProfession(profId);
-      const skill = daemon.getPlayerSkill(player, profId as any);
+      const skill = daemon.getPlayerSkill(player, profId);
       const available = recipes.filter((r) => r.levelRequired <= skill.level).length;
       ctx.sendLine(`  ${profession.name}: {yellow}${available}{/}/${recipes.length} recipes (skill ${skill.level})`);
     }

@@ -41,12 +41,19 @@ async function getGuildDaemonLazy() {
   return _guildDaemon;
 }
 
+type QuestCustomPrereqResult = {
+  met: boolean;
+  reason?: string;
+};
+
+type QuestCustomHandler = (player: QuestPlayer, quest: QuestDefinition) => QuestCustomPrereqResult | void;
+
 /**
  * Quest Daemon class.
  */
 export class QuestDaemon extends MudObject {
   private _quests: Map<QuestId, QuestDefinition> = new Map();
-  private _customHandlers: Map<string, Function> = new Map();
+  private _customHandlers: Map<string, QuestCustomHandler> = new Map();
   private _loaded: boolean = false;
 
   constructor() {
@@ -133,14 +140,14 @@ export class QuestDaemon extends MudObject {
   /**
    * Register a custom handler for custom objectives/rewards/prerequisites.
    */
-  registerCustomHandler(name: string, handler: Function): void {
+  registerCustomHandler(name: string, handler: QuestCustomHandler): void {
     this._customHandlers.set(name, handler);
   }
 
   /**
    * Get a registered custom handler.
    */
-  getCustomHandler(name: string): Function | undefined {
+  getCustomHandler(name: string): QuestCustomHandler | undefined {
     return this._customHandlers.get(name);
   }
 

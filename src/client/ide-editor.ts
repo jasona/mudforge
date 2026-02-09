@@ -528,11 +528,12 @@ export class IdeEditor {
    */
   private updateLinter(errors: CompileError[]): void {
     if (!this.editorView) return;
+    const editorView = this.editorView;
 
     const diagnostics: Diagnostic[] = errors.map((error) => {
       const line = Math.max(1, error.line);
-      const lineInfo = this.editorView!.state.doc.line(
-        Math.min(line, this.editorView!.state.doc.lines)
+      const lineInfo = editorView.state.doc.line(
+        Math.min(line, editorView.state.doc.lines)
       );
       const col = Math.max(0, (error.column || 1) - 1);
       const from = lineInfo.from + Math.min(col, lineInfo.length);

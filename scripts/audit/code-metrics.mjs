@@ -38,6 +38,8 @@ export async function analyzeCodeMetrics(repoRoot = process.cwd()) {
   }
 
   let anyCount = 0;
+  let asAnyCount = 0;
+  let functionTypeCount = 0;
   let asCount = 0;
   let nonNullCount = 0;
   const fileLineCounts = [];
@@ -49,6 +51,8 @@ export async function analyzeCodeMetrics(repoRoot = process.cwd()) {
 
     fileLineCounts.push({ file: rel, lines: lineCount });
     anyCount += countMatches(content, /\bany\b/g);
+    asAnyCount += countMatches(content, /\sas\s+any\b/g);
+    functionTypeCount += countMatches(content, /\bFunction\b/g);
     asCount += countMatches(content, /\sas\s/g);
     nonNullCount += countMatches(content, /\w+!\./g);
     nonNullCount += countMatches(content, /\w+!\[/g);
@@ -63,6 +67,8 @@ export async function analyzeCodeMetrics(repoRoot = process.cwd()) {
     generatedAt: new Date().toISOString(),
     fileCount: files.length,
     anyCount,
+    asAnyCount,
+    functionTypeCount,
     asCount,
     nonNullCount,
     largestFiles: fileLineCounts.slice(0, 25),

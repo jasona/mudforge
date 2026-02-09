@@ -48,6 +48,8 @@ export interface ServerEvents {
   error: (error: Error) => void;
 }
 
+type EventArgs<T, K extends keyof T> = T[K] extends (...args: infer A) => void ? A : never;
+
 /** Default heartbeat interval in milliseconds (10 seconds).
  * Reduced from 45s to catch buffer buildup and stuck connections faster.
  */
@@ -70,6 +72,21 @@ export class Server extends EventEmitter {
   private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
   private heartbeatIntervalMs: number;
   private maxMissedPongs: number;
+
+  onEvent<K extends keyof ServerEvents>(
+    event: K,
+    listener: (...args: EventArgs<ServerEvents, K>) => void
+  ): this {
+    this.on(event as string, listener as (...args: unknown[]) => void);
+    return this;
+  }
+
+  emitEvent<K extends keyof ServerEvents>(
+    event: K,
+    ...args: EventArgs<ServerEvents, K>
+  ): boolean {
+    return this.emit(event as string, ...args);
+  }
 
   constructor(config: Partial<ServerConfig> = {}) {
     super();
@@ -211,32 +228,32 @@ export class Server extends EventEmitter {
     this.connectionManager.add(connection);
 
     // Forward events with error boundaries to prevent exceptions from affecting other connections
-    connection.on('message', (message: string) => {
+    connection.onEvent('message', (message: string) => {
       try {
-        this.emit('message', connection, message);
+        this.emitEvent('message', connection, message);
       } catch (error) {
         this.config.logger?.error({ connectionId: connection.id, error }, 'Error in message handler');
       }
     });
 
-    connection.on('close', (code: number, reason: string) => {
+    connection.onEvent('close', (code: number, reason: string) => {
       try {
-        this.emit('disconnect', connection, code, reason);
+        this.emitEvent('disconnect', connection, code, reason);
       } catch (error) {
         this.config.logger?.error({ connectionId: connection.id, error }, 'Error in disconnect handler');
       }
     });
 
-    connection.on('error', (error: Error) => {
+    connection.onEvent('error', (error: Error) => {
       try {
-        this.emit('error', error);
+        this.emitEvent('error', error);
       } catch (emitError) {
         this.config.logger?.error({ connectionId: connection.id, error, emitError }, 'Error in error handler');
       }
     });
 
     // Emit connection event
-    this.emit('connection', connection);
+    this.emitEvent('connection', connection);
   }
 
   /**
@@ -259,7 +276,7 @@ export class Server extends EventEmitter {
       console.log(`Server listening on ${this.config.host}:${this.config.port}`);
       console.log(`[WS-CONFIG] heartbeatIntervalMs=${this.heartbeatIntervalMs}, maxMissedPongs=${this.maxMissedPongs}`);
     } catch (error) {
-      this.emit('error', error as Error);
+      this.emitEvent('error', error as Error);
       throw error;
     }
   }
@@ -291,7 +308,7 @@ export class Server extends EventEmitter {
 
       for (const connection of connections) {
         try {
-          const playerName = connection.player ? (connection.player as { name?: string }).name || 'unknown' : 'no-player';
+          const playerName = connection.player?.name || 'no-player';
 
           // Skip connections that are already closed or closing
           // This prevents repeatedly processing terminated connections
@@ -299,7 +316,7 @@ export class Server extends EventEmitter {
             console.log(`[HEARTBEAT] ${connection.id} (${playerName}): SKIPPING - state=${connection.state}, removing from manager`);
             // Clean up: remove from connection manager and emit disconnect
             this.connectionManager.remove(connection.id);
-            this.emit('disconnect', connection, 1006, 'Connection already closed');
+            this.emitEvent('disconnect', connection, 1006, 'Connection already closed');
             continue;
           }
 
@@ -320,7 +337,7 @@ export class Server extends EventEmitter {
             console.error(`[HEARTBEAT] ${connection.id} (${playerName}): TERMINATING - critical buffer backlog ${(bufferedAmount / (1024 * 1024)).toFixed(2)}MB (client cannot receive data, allowing reconnect)`);
             connection.terminate();
             this.connectionManager.remove(connection.id);
-            this.emit('disconnect', connection, 1006, 'Buffer backlog exceeded');
+            this.emitEvent('disconnect', connection, 1006, 'Buffer backlog exceeded');
             continue;
           }
 
@@ -363,7 +380,7 @@ export class Server extends EventEmitter {
             // 1. Remove from connection manager
             this.connectionManager.remove(connection.id);
             // 2. Emit disconnect event so driver can clean up connectionHandlers
-            this.emit('disconnect', connection, 1006, 'Heartbeat timeout');
+            this.emitEvent('disconnect', connection, 1006, 'Heartbeat timeout');
             continue;
           }
 

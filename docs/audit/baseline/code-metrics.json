@@ -1,9 +1,11 @@
 {
-  "generatedAt": "2026-02-09T17:10:09.491Z",
+  "generatedAt": "2026-02-09T17:34:19.152Z",
   "fileCount": 603,
-  "anyCount": 224,
-  "asCount": 2734,
-  "nonNullCount": 30,
+  "anyCount": 212,
+  "asAnyCount": 0,
+  "functionTypeCount": 17,
+  "asCount": 2730,
+  "nonNullCount": 21,
   "largestFiles": [
     {
       "file": "mudlib/lib/area-builder-gui.ts",
@@ -58,12 +60,12 @@
       "lines": 1337
     },
     {
-      "file": "mudlib/daemons/help.ts",
-      "lines": 1306
+      "file": "mudlib/daemons/quest.ts",
+      "lines": 1309
     },
     {
-      "file": "mudlib/daemons/quest.ts",
-      "lines": 1302
+      "file": "mudlib/daemons/help.ts",
+      "lines": 1306
     },
     {
       "file": "mudlib/daemons/party.ts",
@@ -90,11 +92,11 @@
       "lines": 1123
     },
     {
-      "file": "mudlib/std/room.ts",
-      "lines": 1010
+      "file": "src/network/connection.ts",
+      "lines": 1039
     },
     {
-      "file": "src/network/connection.ts",
+      "file": "mudlib/std/room.ts",
       "lines": 1007
     },
     {

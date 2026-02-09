@@ -56,6 +56,24 @@ async function main() {
     );
   }
 
+  if (
+    typeof metricsBaseline.asAnyCount === 'number' &&
+    metrics.asAnyCount > metricsBaseline.asAnyCount
+  ) {
+    failures.push(
+      `as any count increased: baseline=${metricsBaseline.asAnyCount}, current=${metrics.asAnyCount}`
+    );
+  }
+
+  if (
+    typeof metricsBaseline.functionTypeCount === 'number' &&
+    metrics.functionTypeCount > metricsBaseline.functionTypeCount
+  ) {
+    failures.push(
+      `Function type count increased: baseline=${metricsBaseline.functionTypeCount}, current=${metrics.functionTypeCount}`
+    );
+  }
+
   if (metrics.asCount > metricsBaseline.asCount) {
     failures.push(`as count increased: baseline=${metricsBaseline.asCount}, current=${metrics.asCount}`);
   }
