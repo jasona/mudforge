@@ -1,0 +1,109 @@
+{
+  "generatedAt": "2026-02-09T17:10:09.491Z",
+  "fileCount": 603,
+  "anyCount": 224,
+  "asCount": 2734,
+  "nonNullCount": 30,
+  "largestFiles": [
+    {
+      "file": "mudlib/lib/area-builder-gui.ts",
+      "lines": 6291
+    },
+    {
+      "file": "src/driver/efun-bridge.ts",
+      "lines": 4785
+    },
+    {
+      "file": "mudlib/std/player.ts",
+      "lines": 2975
+    },
+    {
+      "file": "mudlib/lib/area-importer.ts",
+      "lines": 2327
+    },
+    {
+      "file": "src/driver/driver.ts",
+      "lines": 2008
+    },
+    {
+      "file": "mudlib/std/npc.ts",
+      "lines": 1946
+    },
+    {
+      "file": "mudlib/std/living.ts",
+      "lines": 1904
+    },
+    {
+      "file": "mudlib/daemons/combat.ts",
+      "lines": 1794
+    },
+    {
+      "file": "mudlib/daemons/area.ts",
+      "lines": 1731
+    },
+    {
+      "file": "mudlib/daemons/channels.ts",
+      "lines": 1561
+    },
+    {
+      "file": "mudlib/lib/look-modal.ts",
+      "lines": 1523
+    },
+    {
+      "file": "mudlib/lib/shop-modal.ts",
+      "lines": 1364
+    },
+    {
+      "file": "mudlib/daemons/guild.ts",
+      "lines": 1337
+    },
+    {
+      "file": "mudlib/daemons/help.ts",
+      "lines": 1306
+    },
+    {
+      "file": "mudlib/daemons/quest.ts",
+      "lines": 1302
+    },
+    {
+      "file": "mudlib/daemons/party.ts",
+      "lines": 1248
+    },
+    {
+      "file": "mudlib/lib/stat-modal.ts",
+      "lines": 1220
+    },
+    {
+      "file": "mudlib/efuns.d.ts",
+      "lines": 1159
+    },
+    {
+      "file": "mudlib/daemons/login.ts",
+      "lines": 1150
+    },
+    {
+      "file": "mudlib/daemons/intermud.ts",
+      "lines": 1142
+    },
+    {
+      "file": "mudlib/lib/inventory-modal.ts",
+      "lines": 1123
+    },
+    {
+      "file": "mudlib/std/room.ts",
+      "lines": 1010
+    },
+    {
+      "file": "src/network/connection.ts",
+      "lines": 1007
+    },
+    {
+      "file": "mudlib/std/guild/definitions.ts",
+      "lines": 998
+    },
+    {
+      "file": "src/client/launcher.ts",
+      "lines": 980
+    }
+  ]
+}

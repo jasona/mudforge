@@ -25,6 +25,7 @@ import {
   createPartyStats,
   createPlayerPartyData,
 } from '../std/party/types.js';
+import { onLeaderCombatInitiated } from '../lib/combat-events.js';
 
 /**
  * Player interface for party operations.
@@ -52,6 +53,7 @@ interface PartyRoom extends MudObject {
 export class PartyDaemon extends MudObject {
   private _parties: Map<string, PartyData> = new Map();
   private _inviteCleanupInterval: ReturnType<typeof setInterval> | null = null;
+  private _combatEventUnsubscribe: (() => void) | null = null;
   private _loaded: boolean = false;
 
   constructor() {
@@ -61,6 +63,9 @@ export class PartyDaemon extends MudObject {
 
     // Start invite cleanup timer
     this.startInviteCleanup();
+    this._combatEventUnsubscribe = onLeaderCombatInitiated((attacker, defender) => {
+      this.handleLeaderCombat(attacker as PartyPlayer, defender);
+    });
     this._loaded = true;
   }
 
@@ -827,20 +832,22 @@ export class PartyDaemon extends MudObject {
       // Check if member is alive
       if (!memberPlayer.alive) continue;
 
-      // Initiate combat for this member via the combat daemon
-      import('./combat.js')
-        .then(({ getCombatDaemon }) => {
-          const combatDaemon = getCombatDaemon();
-          const initiated = combatDaemon.initiateCombat(memberPlayer, defender);
-          if (initiated) {
-            memberPlayer.receive(
-              `{cyan}[Auto-assist] You join ${attacker.name} in attacking ${defender.name}!{/}\n`
-            );
-          }
-        })
-        .catch(() => {
-          // Combat daemon not available
-        });
+      // Initiate combat for this member via already-loaded combat daemon.
+      const combatDaemon = (typeof efuns !== 'undefined' && efuns.findObject)
+        ? (efuns.findObject('/daemons/combat') as
+          | (MudObject & { initiateCombat: (a: Living, d: Living) => boolean })
+          | undefined)
+        : undefined;
+      if (!combatDaemon || typeof combatDaemon.initiateCombat !== 'function') {
+        continue;
+      }
+
+      const initiated = combatDaemon.initiateCombat(memberPlayer, defender);
+      if (initiated) {
+        memberPlayer.receive(
+          `{cyan}[Auto-assist] You join ${attacker.name} in attacking ${defender.name}!{/}\n`
+        );
+      }
     }
   }
 
@@ -1201,6 +1208,10 @@ export class PartyDaemon extends MudObject {
     if (this._inviteCleanupInterval) {
       clearInterval(this._inviteCleanupInterval);
       this._inviteCleanupInterval = null;
+    }
+    if (this._combatEventUnsubscribe) {
+      this._combatEventUnsubscribe();
+      this._combatEventUnsubscribe = null;
     }
     await super.onDestroy();
   }

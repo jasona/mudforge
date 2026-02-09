@@ -18,7 +18,7 @@ import {
   getVisibilityLevelName,
   type VisibilityCheckResult,
 } from './visibility/index.js';
-import { getPortraitDaemon } from '../daemons/portrait.js';
+import { cacheItemImageBestEffort } from '../lib/portrait-service.js';
 
 /**
  * Encumbrance level names.
@@ -982,10 +982,7 @@ export class Living extends MudObject {
     }
 
     // Fire-and-forget: cache item image for sidebar display
-    const portraitDaemon = getPortraitDaemon();
-    portraitDaemon.cacheItemImage(item).catch(() => {
-      // Ignore errors - image caching is best-effort
-    });
+    void cacheItemImageBestEffort(item);
 
     this.onEquipmentChanged();
   }

@@ -223,7 +223,9 @@ export class Driver {
 
     this.mudlibLoader = getMudlibLoader({
       mudlibPath: this.config.mudlibPath,
+      efunsProvider: () => this.efunBridge.getEfuns(),
     });
+    this.efunBridge.setObjectLoader(this.mudlibLoader);
     this.commandManager = getCommandManager({
       cmdsPath: join(this.config.mudlibPath, 'cmds'),
       logger: this.logger,

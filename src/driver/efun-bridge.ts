@@ -11,12 +11,12 @@ import { getScheduler, type Scheduler } from './scheduler.js';
 import { getMetrics } from './metrics.js';
 import { getPermissions, resetPermissions, type Permissions } from './permissions.js';
 import { getFileStore } from './persistence/file-store.js';
-import { getMudlibLoader } from './mudlib-loader.js';
 import { getCommandManager } from './command-manager.js';
 import { getClaudeClient, type ClaudeMessage } from './claude-client.js';
 import { getGeminiClient } from './gemini-client.js';
 import type { PlayerSaveData } from './persistence/serializer.js';
 import type { MudObject } from './types.js';
+import type { ObjectLoaderFacade } from './interfaces/object-loader.js';
 import { readFile, writeFile, access, readdir, stat, mkdir, rm, rename, copyFile } from 'fs/promises';
 import { dirname, normalize, resolve } from 'path';
 import { constants } from 'fs';
@@ -468,6 +468,7 @@ export class EfunBridge {
   private i2MessageCallback: I2MessageCallback | null = null;
   private grapevineMessageCallback: GrapevineMessageCallback | null = null;
   private discordMessageCallback: DiscordMessageCallback | null = null;
+  private objectLoader: ObjectLoaderFacade | null = null;
 
   /** Snoop sessions: snooperId -> session data */
   private snoopSessions: Map<string, SnoopSession> = new Map();
@@ -570,6 +571,24 @@ export class EfunBridge {
   }
 
   /**
+   * Set the object loader used by bridge efuns.
+   * Called by Driver after loader initialization.
+   */
+  setObjectLoader(loader: ObjectLoaderFacade): void {
+    this.objectLoader = loader;
+  }
+
+  /**
+   * Get configured object loader or throw a clear runtime error.
+   */
+  private requireObjectLoader(): ObjectLoaderFacade {
+    if (!this.objectLoader) {
+      throw new Error('Object loader not configured');
+    }
+    return this.objectLoader;
+  }
+
+  /**
    * Set the current execution context.
    */
   setContext(context: Partial<EfunContext>): void {
@@ -603,7 +622,7 @@ export class EfunBridge {
    * @param path The blueprint path
    */
   async cloneObject(path: string): Promise<MudObject | undefined> {
-    const loader = getMudlibLoader({ mudlibPath: this.config.mudlibPath });
+    const loader = this.requireObjectLoader();
     const clone = await loader.cloneObject(path);
     return this.wrapObject(clone);
   }
@@ -646,7 +665,7 @@ export class EfunBridge {
     }
 
     // Load from disk
-    const loader = getMudlibLoader({ mudlibPath: this.config.mudlibPath });
+    const loader = this.requireObjectLoader();
     const obj = await loader.loadObject(path);
     return this.wrapObject(obj);
   }
@@ -2963,7 +2982,7 @@ export class EfunBridge {
       };
     }
 
-    const loader = getMudlibLoader({ mudlibPath: this.config.mudlibPath });
+    const loader = this.requireObjectLoader();
     return loader.reloadObject(objectPath);
   }
 
@@ -3495,7 +3514,7 @@ Respond in this exact JSON format:
     let worldLoreContext = '';
     if (npcContext.knowledgeScope?.worldLore?.length) {
       try {
-        const loader = getMudlibLoader();
+        const loader = this.requireObjectLoader();
         const loreModule = await loader.loadModule('/daemons/lore');
         const getLoreDaemon = loreModule.getLoreDaemon as () => {
           buildContext(ids: string[], maxLength?: number): string;

@@ -9,10 +9,10 @@ import { resolve } from 'path';
 import { pathToFileURL } from 'url';
 import type { MudObject, MudObjectConstructor } from './types.js';
 import { getRegistry, type ObjectRegistry } from './object-registry.js';
-import { getEfunBridge, type EfunBridge } from './efun-bridge.js';
 
 export interface MudlibLoaderConfig {
   mudlibPath: string;
+  efunsProvider?: () => Record<string, unknown>;
 }
 
 /**
@@ -21,15 +21,16 @@ export interface MudlibLoaderConfig {
 export class MudlibLoader {
   private config: MudlibLoaderConfig;
   private registry: ObjectRegistry;
-  private efunBridge: EfunBridge;
+  private efunsProvider: (() => Record<string, unknown>) | null;
   private loadedModules: Map<string, unknown> = new Map();
 
   constructor(config: Partial<MudlibLoaderConfig> = {}) {
     this.config = {
       mudlibPath: config.mudlibPath ?? './mudlib',
+      ...(config.efunsProvider ? { efunsProvider: config.efunsProvider } : {}),
     };
     this.registry = getRegistry();
-    this.efunBridge = getEfunBridge({ mudlibPath: this.config.mudlibPath });
+    this.efunsProvider = this.config.efunsProvider ?? null;
 
     // Set up global efuns for mudlib code
     this.setupGlobalEfuns();
@@ -39,8 +40,16 @@ export class MudlibLoader {
    * Set up the global efuns object that mudlib code expects.
    */
   private setupGlobalEfuns(): void {
-    const efuns = this.efunBridge.getEfuns();
-    (globalThis as Record<string, unknown>)['efuns'] = efuns;
+    if (!this.efunsProvider) return;
+    (globalThis as Record<string, unknown>)['efuns'] = this.efunsProvider();
+  }
+
+  /**
+   * Set or update the efuns provider and refresh global efuns binding.
+   */
+  setEfunsProvider(provider: () => Record<string, unknown>): void {
+    this.efunsProvider = provider;
+    this.setupGlobalEfuns();
   }
 
   /**
@@ -266,12 +275,6 @@ export class MudlibLoader {
     }
   }
 
-  /**
-   * Get the efun bridge.
-   */
-  getEfunBridge(): EfunBridge {
-    return this.efunBridge;
-  }
 }
 
 // Singleton instance
@@ -283,6 +286,8 @@ let loaderInstance: MudlibLoader | null = null;
 export function getMudlibLoader(config?: Partial<MudlibLoaderConfig>): MudlibLoader {
   if (!loaderInstance) {
     loaderInstance = new MudlibLoader(config);
+  } else if (config?.efunsProvider) {
+    loaderInstance.setEfunsProvider(config.efunsProvider);
   }
   return loaderInstance;
 }

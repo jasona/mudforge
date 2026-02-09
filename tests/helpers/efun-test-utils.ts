@@ -3,6 +3,7 @@
  */
 
 import { EfunBridge, resetEfunBridge } from '../../src/driver/efun-bridge.js';
+import { getMudlibLoader, resetMudlibLoader } from '../../src/driver/mudlib-loader.js';
 import { resetRegistry } from '../../src/driver/object-registry.js';
 import { resetScheduler } from '../../src/driver/scheduler.js';
 import { resetPermissions } from '../../src/driver/permissions.js';
@@ -22,6 +23,7 @@ export async function createTestEnvironment(): Promise<{
   resetRegistry();
   resetScheduler();
   resetEfunBridge();
+  resetMudlibLoader();
   resetPermissions();
 
   const testMudlibPath = join(process.cwd(), `test-mudlib-${randomUUID()}`);
@@ -29,9 +31,15 @@ export async function createTestEnvironment(): Promise<{
   await mkdir(join(testMudlibPath, 'data'), { recursive: true });
 
   const efunBridge = new EfunBridge({ mudlibPath: testMudlibPath });
+  const mudlibLoader = getMudlibLoader({
+    mudlibPath: testMudlibPath,
+    efunsProvider: () => efunBridge.getEfuns(),
+  });
+  efunBridge.setObjectLoader(mudlibLoader);
 
   const cleanup = async () => {
     resetEfunBridge();
+    resetMudlibLoader();
     resetScheduler();
     resetRegistry();
     resetPermissions();
