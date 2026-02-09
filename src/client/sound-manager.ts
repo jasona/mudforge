@@ -137,6 +137,7 @@ export class SoundManager {
   private audioUnlocked: boolean = false;
   private pendingSounds: Array<{ category: SoundCategory; sound: string; volume?: number }> = [];
   private pendingLoops: Array<{ category: SoundCategory; sound: string; id: string; volume?: number }> = [];
+  private isPageVisible: boolean = !document.hidden;
 
   // Audio unlock tracking
   private audioUnlockAttempts: number = 0;
@@ -145,6 +146,7 @@ export class SoundManager {
   constructor() {
     this.settings = this.loadSettings();
     this.setupAudioUnlock();
+    this.setupVisibilityHandling();
   }
 
   /**
@@ -214,6 +216,24 @@ export class SoundManager {
       this.loop(pending.category, pending.sound, pending.id, pending.volume);
     }
     this.pendingLoops = [];
+  }
+
+  /**
+   * Pause/skip sounds when the page is hidden to avoid backlog on return.
+   */
+  private setupVisibilityHandling(): void {
+    document.addEventListener('visibilitychange', () => {
+      this.isPageVisible = !document.hidden;
+      if (!this.isPageVisible) {
+        // Stop active loops but keep metadata for resume.
+        this.stopAll(false);
+        // Drop any queued one-shot sounds to avoid a burst on return.
+        this.pendingSounds = [];
+      } else if (this.settings.enabled) {
+        // Resume loops when visible again.
+        this.resumeLoops();
+      }
+    });
   }
 
   /**
@@ -335,6 +355,10 @@ export class SoundManager {
       return;
     }
 
+    if (!this.isPageVisible) {
+      return;
+    }
+
     // Queue sound if audio isn't unlocked yet (macOS Chrome/Safari autoplay policy)
     if (!this.audioUnlocked) {
       this.pendingSounds.push({ category, sound, volume });
@@ -374,6 +398,10 @@ export class SoundManager {
     this.loopMetadata.set(id, { category, sound, volume });
 
     if (!this.shouldPlay(category)) {
+      return;
+    }
+
+    if (!this.isPageVisible) {
       return;
     }
 

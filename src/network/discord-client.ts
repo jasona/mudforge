@@ -54,6 +54,16 @@ export interface DiscordMessageEvent {
   messageId: string;
 }
 
+export interface DiscordClientEvents {
+  connect: () => void;
+  disconnect: (reason: string) => void;
+  error: (error: Error) => void;
+  message: (event: DiscordMessageEvent) => void;
+  stateChange: (state: DiscordConnectionState) => void;
+}
+
+type EventArgs<T, K extends keyof T> = T[K] extends (...args: infer A) => void ? A : never;
+
 /**
  * Discord WebSocket Client for channel bridging.
  */
@@ -64,6 +74,21 @@ export class DiscordClient extends EventEmitter {
   private _state: DiscordConnectionState = 'disconnected';
   private messageHandler: ((author: string, content: string) => void) | null = null;
   private logger: Logger | undefined;
+
+  onEvent<K extends keyof DiscordClientEvents>(
+    event: K,
+    listener: (...args: EventArgs<DiscordClientEvents, K>) => void
+  ): this {
+    this.on(event as string, listener as (...args: unknown[]) => void);
+    return this;
+  }
+
+  emitEvent<K extends keyof DiscordClientEvents>(
+    event: K,
+    ...args: EventArgs<DiscordClientEvents, K>
+  ): boolean {
+    return this.emit(event as string, ...args);
+  }
 
   constructor() {
     super();
@@ -144,14 +169,14 @@ export class DiscordClient extends EventEmitter {
       this.channel = channel as TextChannel;
       this.setState('connected');
       this.log('info', `Connected to Discord channel: #${this.channel.name}`);
-      this.emit('connect');
+      this.emitEvent('connect');
 
       return true;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       this.log('error', `Failed to connect to Discord: ${message}`);
       this.setState('disconnected');
-      this.emit('error', error);
+      this.emitEvent('error', error instanceof Error ? error : new Error(String(error)));
       await this.cleanup();
       return false;
     }
@@ -168,7 +193,7 @@ export class DiscordClient extends EventEmitter {
     this.log('info', 'Disconnecting from Discord...');
     await this.cleanup();
     this.setState('disconnected');
-    this.emit('disconnect', 'Manual disconnect');
+    this.emitEvent('disconnect', 'Manual disconnect');
   }
 
   /**
@@ -217,20 +242,20 @@ export class DiscordClient extends EventEmitter {
     this.client.on(Events.ShardDisconnect, () => {
       this.log('warn', 'Discord connection lost');
       this.setState('reconnecting');
-      this.emit('disconnect', 'Connection lost');
+      this.emitEvent('disconnect', 'Connection lost');
     });
 
     // Handle reconnection
     this.client.on(Events.ShardResume, () => {
       this.log('info', 'Discord connection resumed');
       this.setState('connected');
-      this.emit('connect');
+      this.emitEvent('connect');
     });
 
     // Handle errors
     this.client.on(Events.Error, (error) => {
       this.log('error', `Discord client error: ${error.message}`);
-      this.emit('error', error);
+      this.emitEvent('error', error);
     });
   }
 
@@ -260,7 +285,7 @@ export class DiscordClient extends EventEmitter {
     this.log('debug', `Received message from Discord: ${author}: ${content}`);
 
     // Emit message event
-    this.emit('message', {
+    this.emitEvent('message', {
       author,
       content,
       authorId: message.author.id,
@@ -319,7 +344,7 @@ export class DiscordClient extends EventEmitter {
   private setState(state: DiscordConnectionState): void {
     if (this._state !== state) {
       this._state = state;
-      this.emit('stateChange', state);
+      this.emitEvent('stateChange', state);
     }
   }
 

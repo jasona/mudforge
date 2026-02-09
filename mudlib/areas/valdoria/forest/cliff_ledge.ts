@@ -6,6 +6,8 @@
  */
 
 import { Room } from '../../../lib/std.js';
+import type { MudObject } from '../../../std/object.js';
+import type { ProfessionPlayer } from '../../../daemons/profession.js';
 import { ResourceNode } from '../../../std/profession/resource-node.js';
 
 export class CliffLedge extends Room {
@@ -53,7 +55,7 @@ You can carefully descend {green}down{/} to the cliff base.`;
       try {
         const { getProfessionDaemon } = await import('../../../daemons/profession.js');
         const daemon = getProfessionDaemon();
-        daemon.awardXP(obj as any, 'climbing', 10);
+        daemon.awardXP(obj as ProfessionPlayer, 'climbing', 10);
       } catch {
         // Profession daemon not available
       }

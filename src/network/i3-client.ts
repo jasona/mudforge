@@ -56,6 +56,8 @@ export interface I3ClientEvents {
   stateChange: (state: I3ConnectionState) => void;
 }
 
+type EventArgs<T, K extends keyof T> = T[K] extends (...args: infer A) => void ? A : never;
+
 /**
  * I3 TCP Client for Intermud 3 protocol.
  */
@@ -69,6 +71,21 @@ export class I3Client extends EventEmitter {
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private connectionTimer: ReturnType<typeof setTimeout> | null = null;
   private shouldReconnect = false;
+
+  onEvent<K extends keyof I3ClientEvents>(
+    event: K,
+    listener: (...args: EventArgs<I3ClientEvents, K>) => void
+  ): this {
+    this.on(event as string, listener as (...args: unknown[]) => void);
+    return this;
+  }
+
+  emitEvent<K extends keyof I3ClientEvents>(
+    event: K,
+    ...args: EventArgs<I3ClientEvents, K>
+  ): boolean {
+    return this.emit(event as string, ...args);
+  }
 
   constructor(config: I3ClientConfig) {
     super();
@@ -129,7 +146,7 @@ export class I3Client extends EventEmitter {
     }
 
     this.setState('disconnected');
-    this.emit('disconnect', 'Manual disconnect');
+    this.emitEvent('disconnect', 'Manual disconnect');
   }
 
   /**
@@ -223,7 +240,7 @@ export class I3Client extends EventEmitter {
     const router = this.config.routers[this.currentRouterIndex];
     if (!router) {
       this.log('error', 'No routers configured');
-      this.emit('error', new Error('No routers configured'));
+      this.emitEvent('error', new Error('No routers configured'));
       return;
     }
 
@@ -248,7 +265,7 @@ export class I3Client extends EventEmitter {
         this.reconnectAttempts = 0;
         this.reader.reset();
         this.log('info', `Connected to ${router.name}`);
-        this.emit('connect');
+        this.emitEvent('connect');
         resolve();
       });
 
@@ -265,7 +282,7 @@ export class I3Client extends EventEmitter {
 
       this.socket.on('error', (error: Error) => {
         this.log('error', `Socket error: ${error.message}`);
-        this.emit('error', error);
+        this.emitEvent('error', error);
         if (this._state === 'connecting') {
           this.handleConnectionFailure();
           resolve();
@@ -290,7 +307,7 @@ export class I3Client extends EventEmitter {
           if (packet[0] !== 'mudlist') {
             this.log('debug', `Received packet: ${packet[0]}`);
           }
-          this.emit('packet', packet);
+          this.emitEvent('packet', packet);
         }
       } catch (error) {
         this.log('error', `Failed to decode packet: ${error}`);
@@ -321,7 +338,7 @@ export class I3Client extends EventEmitter {
     ) {
       this.log('error', 'Max reconnect attempts reached');
       this.setState('disconnected');
-      this.emit('disconnect', 'Max reconnect attempts reached');
+      this.emitEvent('disconnect', 'Max reconnect attempts reached');
       return;
     }
 
@@ -351,7 +368,7 @@ export class I3Client extends EventEmitter {
   private setState(state: I3ConnectionState): void {
     if (this._state !== state) {
       this._state = state;
-      this.emit('stateChange', state);
+      this.emitEvent('stateChange', state);
     }
   }
 

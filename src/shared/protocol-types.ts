@@ -119,6 +119,14 @@ export interface EquipmentMessage {
   };
   /** Optional profile portrait update (only included when portrait changes) */
   profilePortrait?: string;
+  /** Optional chunked image payload for large equipment icons */
+  imageChunk?: {
+    slot: string;
+    name: string;
+    index: number;
+    total: number;
+    data: string;
+  };
 }
 
 /**

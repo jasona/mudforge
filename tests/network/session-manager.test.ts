@@ -255,7 +255,13 @@ describe('SessionManager', () => {
 
       // Try many similar signatures - all should be rejected
       for (let i = 0; i < 10; i++) {
-        const wrongSig = parts[1].substring(0, parts[1].length - 1) + String.fromCharCode(97 + i);
+        const originalSig = parts[1];
+        const lastChar = originalSig[originalSig.length - 1] ?? 'a';
+        let newChar = String.fromCharCode(97 + i);
+        if (newChar === lastChar) {
+          newChar = newChar === 'a' ? 'b' : 'a';
+        }
+        const wrongSig = originalSig.substring(0, originalSig.length - 1) + newChar;
         const tamperedToken = `${parts[0]}.${wrongSig}`;
         const result = manager.validateToken(tamperedToken);
         expect(result.valid).toBe(false);

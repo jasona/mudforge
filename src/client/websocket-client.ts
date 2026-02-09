@@ -234,6 +234,16 @@ export class WebSocketClient {
   }
 
   /**
+   * Return an active WebSocket or throw for connection races.
+   */
+  private requireSocket(): WebSocket {
+    if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
+      throw new Error('Socket not connected');
+    }
+    return this.socket;
+  }
+
+  /**
    * Set up visibility change handler.
    * - Notifies server when tab is hidden/visible so it can pause/resume updates
    * - Speeds up reconnection when tab becomes visible if already disconnected
@@ -547,7 +557,8 @@ export class WebSocketClient {
     }
 
     try {
-      this.socket!.send(message + '\n');
+      const socket = this.requireSocket();
+      socket.send(message + '\n');
       return true;
     } catch (error) {
       this.emit('error', `Failed to send: ${error}`);
@@ -586,7 +597,8 @@ export class WebSocketClient {
     while (this.messageQueue.length > 0) {
       const message = this.messageQueue.shift()!;
       try {
-        this.socket!.send(message + '\n');
+        const socket = this.requireSocket();
+        socket.send(message + '\n');
       } catch (error) {
         console.error('Failed to send queued message:', error);
         // Put it back if send failed
@@ -609,7 +621,8 @@ export class WebSocketClient {
 
     try {
       const jsonStr = JSON.stringify(message);
-      this.socket!.send(`\x00[IDE]${jsonStr}\n`);
+      const socket = this.requireSocket();
+      socket.send(`\x00[IDE]${jsonStr}\n`);
     } catch (error) {
       this.emit('error', `Failed to send IDE message: ${error}`);
     }
@@ -626,7 +639,8 @@ export class WebSocketClient {
 
     try {
       const jsonStr = JSON.stringify(message);
-      this.socket!.send(`\x00[GUI]${jsonStr}\n`);
+      const socket = this.requireSocket();
+      socket.send(`\x00[GUI]${jsonStr}\n`);
     } catch (error) {
       this.emit('error', `Failed to send GUI message: ${error}`);
     }
@@ -643,7 +657,8 @@ export class WebSocketClient {
     try {
       const message = { prefix };
       const jsonStr = JSON.stringify(message);
-      this.socket!.send(`\x00[COMPLETE]${jsonStr}\n`);
+      const socket = this.requireSocket();
+      socket.send(`\x00[COMPLETE]${jsonStr}\n`);
     } catch (error) {
       console.error('Failed to send completion request:', error);
     }
@@ -660,7 +675,8 @@ export class WebSocketClient {
 
     try {
       const jsonStr = JSON.stringify(request);
-      this.socket!.send(`\x00[AUTH_REQ]${jsonStr}\n`);
+      const socket = this.requireSocket();
+      socket.send(`\x00[AUTH_REQ]${jsonStr}\n`);
     } catch (error) {
       this.emit('error', `Failed to send auth request: ${error}`);
     }
@@ -771,7 +787,8 @@ export class WebSocketClient {
         type: 'session_resume',
         token: this.sessionToken,
       });
-      this.socket!.send(`\x00[SESSION]${message}\n`);
+      const socket = this.requireSocket();
+      socket.send(`\x00[SESSION]${message}\n`);
     } catch (error) {
       console.error('Failed to send session resume:', error);
     }

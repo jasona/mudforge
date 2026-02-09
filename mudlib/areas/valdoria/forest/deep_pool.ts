@@ -6,6 +6,8 @@
  */
 
 import { Room } from '../../../lib/std.js';
+import type { MudObject } from '../../../std/object.js';
+import type { ProfessionPlayer } from '../../../daemons/profession.js';
 import { ResourceNode } from '../../../std/profession/resource-node.js';
 
 export class DeepPool extends Room {
@@ -53,7 +55,7 @@ You can swim {green}south{/} back to shallower water.`;
       try {
         const { getProfessionDaemon } = await import('../../../daemons/profession.js');
         const daemon = getProfessionDaemon();
-        daemon.awardXP(obj as any, 'swimming', 5);
+        daemon.awardXP(obj as ProfessionPlayer, 'swimming', 5);
       } catch {
         // Profession daemon not available
       }

@@ -12,6 +12,7 @@ import type { ConfigDaemon } from './config.js';
 import { getQuestDaemon } from './quest.js';
 import { getAggroDaemon } from './aggro.js';
 import { capitalizeName } from '../lib/text-utils.js';
+import { emitLeaderCombatInitiated } from '../lib/combat-events.js';
 
 // Pet type check helper (avoids circular dependency with pet.ts)
 function isPet(obj: unknown): obj is { canBeAttacked: (attacker: MudObject) => { canAttack: boolean; reason: string } } {
@@ -276,15 +277,8 @@ export class CombatDaemon extends MudObject {
     this.startCombatMusic(attacker);
     this.startCombatMusic(defender);
 
-    // Party auto-assist: trigger party members to attack the same target
-    import('./party.js')
-      .then(({ getPartyDaemon }) => {
-        const partyDaemon = getPartyDaemon();
-        partyDaemon.handleLeaderCombat(attacker as Parameters<typeof partyDaemon.handleLeaderCombat>[0], defender);
-      })
-      .catch((error) => {
-        console.error('[CombatDaemon] Error loading party daemon:', error);
-      });
+    // Party auto-assist and other listeners subscribe via combat events.
+    emitLeaderCombatInitiated(attacker, defender);
 
     return true;
   }

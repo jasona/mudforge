@@ -8,8 +8,10 @@
 import type { CommandContext } from '../../std/command-context.js';
 import { getGatheringDaemon } from '../../daemons/gathering.js';
 import { getProfessionDaemon } from '../../daemons/profession.js';
+import type { ProfessionPlayer } from '../../daemons/profession.js';
 import { ResourceNode } from '../../std/profession/resource-node.js';
 import { PROFESSION_DEFINITIONS } from '../../std/profession/definitions.js';
+import type { ProfessionId } from '../../std/profession/types.js';
 
 export const name = ['gather', 'mine', 'harvest', 'fish', 'chop', 'skin'];
 export const description = 'Gather resources from nodes in the current room';
@@ -95,7 +97,7 @@ export async function execute(ctx: CommandContext): Promise<void> {
   let targetNode: ResourceNode | null = null;
 
   // Map verbs to professions
-  const verbProfessionMap: Record<string, string> = {
+  const verbProfessionMap: Record<string, ProfessionId> = {
     mine: 'mining',
     harvest: 'herbalism',
     fish: 'fishing',
@@ -128,7 +130,7 @@ export async function execute(ctx: CommandContext): Promise<void> {
     }
 
     if (!targetNode) {
-      const professionName = PROFESSION_DEFINITIONS[professionId as keyof typeof PROFESSION_DEFINITIONS]?.name || professionId;
+      const professionName = PROFESSION_DEFINITIONS[professionId]?.name || professionId;
       sendLine(`There is nothing here to ${verb} for ${professionName}.`);
       return;
     }
@@ -197,8 +199,8 @@ export async function execute(ctx: CommandContext): Promise<void> {
 /**
  * Get the verb to use for a gathering profession.
  */
-function getGatheringVerb(professionId: string): string {
-  const verbs: Record<string, string> = {
+function getGatheringVerb(professionId: ProfessionId): string {
+  const verbs: Partial<Record<ProfessionId, string>> = {
     mining: 'mining',
     herbalism: 'harvesting',
     fishing: 'fishing',
@@ -211,7 +213,10 @@ function getGatheringVerb(professionId: string): string {
 /**
  * Get the highest gathering skill among hidden nodes.
  */
-function getHighestGatheringSkill(player: { getStat: (stat: string) => number }, hiddenNodes: ResourceNode[]): string | null {
+function getHighestGatheringSkill(
+  player: { getStat: (stat: string) => number } & ProfessionPlayer,
+  hiddenNodes: ResourceNode[]
+): string | null {
   // Import here to avoid circular dependency issues
   const professionDaemon = getProfessionDaemon();
 
@@ -222,7 +227,7 @@ function getHighestGatheringSkill(player: { getStat: (stat: string) => number },
     const nodeDef = node.definition;
     if (!nodeDef) continue;
 
-    const skill = professionDaemon.getPlayerSkill(player as any, nodeDef.gatherProfession);
+    const skill = professionDaemon.getPlayerSkill(player, nodeDef.gatherProfession);
     const discoverLevel = nodeDef.discoverLevel || nodeDef.levelRequired;
 
     // Check if player is close to discovering

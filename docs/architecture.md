@@ -26,6 +26,7 @@ The mudlib is the game content written in TypeScript:
 - **Daemons** (`/daemons/`) - Background services (login, channels, help, admin). See [Daemons](daemons.md) for details.
 - **Commands** (`/cmds/`) - Player, builder, and admin commands. See [Commands](commands.md) for details.
 - **Areas** (`/areas/`) - Game world content
+- **Sandboxed Runtime** - Mudlib code cannot import Node.js modules; use efuns for crypto, DNS, file I/O, and other system APIs.
 
 ## Object Model
 

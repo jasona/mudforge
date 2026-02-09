@@ -15,12 +15,29 @@ export interface ConnectionManagerEvents {
   disconnect: (connection: Connection, code: number, reason: string) => void;
 }
 
+type EventArgs<T, K extends keyof T> = T[K] extends (...args: infer A) => void ? A : never;
+
 /**
  * Manages all active connections.
  */
 export class ConnectionManager extends EventEmitter {
   private connections: Map<string, Connection> = new Map();
   private nextId: number = 1;
+
+  onEvent<K extends keyof ConnectionManagerEvents>(
+    event: K,
+    listener: (...args: EventArgs<ConnectionManagerEvents, K>) => void
+  ): this {
+    this.on(event as string, listener as (...args: unknown[]) => void);
+    return this;
+  }
+
+  emitEvent<K extends keyof ConnectionManagerEvents>(
+    event: K,
+    ...args: EventArgs<ConnectionManagerEvents, K>
+  ): boolean {
+    return this.emit(event as string, ...args);
+  }
 
   /**
    * Add a connection to the manager.
@@ -30,12 +47,12 @@ export class ConnectionManager extends EventEmitter {
     this.connections.set(connection.id, connection);
 
     // Set up disconnect handler
-    connection.on('close', (code: number, reason: string) => {
+    connection.onEvent('close', (code: number, reason: string) => {
       this.connections.delete(connection.id);
-      this.emit('disconnect', connection, code, reason);
+      this.emitEvent('disconnect', connection, code, reason);
     });
 
-    this.emit('connect', connection);
+    this.emitEvent('connect', connection);
   }
 
   /**

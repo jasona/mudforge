@@ -22,6 +22,8 @@ import {
 import type { RoomMapData, MapCoordinates, POIMarker } from '../lib/map-types.js';
 import { LightLevel, DEFAULT_ROOM_LIGHT } from './visibility/types.js';
 import { canSee, formatVisibleName, canSeeInRoom, getDarknessMessage } from './visibility/index.js';
+import type { ProfessionId, SkillGatedExit } from './profession/types.js';
+import type { ProfessionPlayer } from '../daemons/profession.js';
 
 /**
  * Filter function that excludes sleeping players from receiving room messages.
@@ -331,22 +333,17 @@ export class Room extends MudObject {
   addSkillGatedExit(
     direction: string,
     destination: string | MudObject,
-    options: {
-      profession: string;
-      level: number;
-      failMessage: string;
-      cost?: number;
-      failDamage?: number;
-      description?: string;
-    }
+    options: SkillGatedExit & { description?: string }
   ): void {
     const canPass = async (who: MudObject): Promise<boolean> => {
       try {
         const { getProfessionDaemon } = await import('../daemons/profession.js');
         const daemon = getProfessionDaemon();
+        const professionId = options.profession as ProfessionId;
+        const professionPlayer = who as ProfessionPlayer;
 
         // Check skill level
-        const skill = daemon.getPlayerSkill(who as any, options.profession as any);
+        const skill = daemon.getPlayerSkill(professionPlayer, professionId);
         if (skill.level < options.level) {
           const receiver = who as MudObject & { receive?: (msg: string) => void };
           if (typeof receiver.receive === 'function') {
@@ -389,9 +386,9 @@ export class Room extends MudObject {
 
         // Award XP for successful use
         const { PROFESSION_DEFINITIONS } = await import('./profession/definitions.js');
-        const profession = PROFESSION_DEFINITIONS[options.profession as keyof typeof PROFESSION_DEFINITIONS];
+        const profession = PROFESSION_DEFINITIONS[professionId];
         if (profession) {
-          daemon.awardXP(who as any, options.profession as any, profession.baseXPPerUse);
+          daemon.awardXP(professionPlayer, professionId, profession.baseXPPerUse);
         }
 
         return true;

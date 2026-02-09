@@ -362,6 +362,22 @@ declare global {
     getPermissionLevelName(level: number): string;
 
     /**
+     * Hash a password using the driver crypto.
+     * Returns format: salt:hash (hex encoded)
+     */
+    hashPassword(password: string): Promise<string>;
+
+    /**
+     * Verify a password against a stored hash.
+     */
+    verifyPassword(password: string, storedHash: string): Promise<boolean>;
+
+    /**
+     * Reverse DNS lookup for an IP address.
+     */
+    reverseDns(ip: string): Promise<string | null>;
+
+    /**
      * Save permissions to disk.
      * Requires admin permission.
      */

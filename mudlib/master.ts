@@ -6,6 +6,7 @@
  */
 
 import { MudObject } from './std/object.js';
+import { PermissionLevel } from './lib/permissions.js';
 
 /**
  * Connection interface (implemented by driver).
@@ -17,17 +18,8 @@ export interface Connection {
   getRemoteAddress(): string;
 }
 
-/**
- * Permission levels.
- */
-export const PermissionLevel = {
-  Player: 0,
-  Builder: 1,
-  SeniorBuilder: 2,
-  Administrator: 3,
-} as const;
-
-export type PermissionLevel = (typeof PermissionLevel)[keyof typeof PermissionLevel];
+export { PermissionLevel };
+export type { PermissionLevel };
 
 /**
  * Master object implementation.

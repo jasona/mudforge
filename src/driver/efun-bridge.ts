@@ -11,12 +11,12 @@ import { getScheduler, type Scheduler } from './scheduler.js';
 import { getMetrics } from './metrics.js';
 import { getPermissions, resetPermissions, type Permissions } from './permissions.js';
 import { getFileStore } from './persistence/file-store.js';
-import { getMudlibLoader } from './mudlib-loader.js';
 import { getCommandManager } from './command-manager.js';
 import { getClaudeClient, type ClaudeMessage } from './claude-client.js';
 import { getGeminiClient } from './gemini-client.js';
 import type { PlayerSaveData } from './persistence/serializer.js';
 import type { MudObject } from './types.js';
+import type { ObjectLoaderFacade } from './interfaces/object-loader.js';
 import { readFile, writeFile, access, readdir, stat, mkdir, rm, rename, copyFile } from 'fs/promises';
 import { dirname, normalize, resolve } from 'path';
 import { constants } from 'fs';
@@ -37,6 +37,9 @@ import { getGitHubClient } from './github-client.js';
 import { getGiphyClient, type CachedGif } from './giphy-client.js';
 import { getShadowRegistry, type ShadowRegistry } from './shadow-registry.js';
 import type { Shadow, AddShadowResult } from './shadow-types.js';
+import { randomBytes, scrypt, timingSafeEqual } from 'crypto';
+import { reverse as dnsReverse } from 'dns/promises';
+import { promisify } from 'util';
 
 /**
  * Pager options for the page efun.
@@ -445,6 +448,8 @@ function driverColorize(text: string): string {
   });
 }
 
+const scryptAsync = promisify(scrypt);
+
 export class EfunBridge {
   private config: EfunBridgeConfig;
   private registry: ObjectRegistry;
@@ -463,6 +468,7 @@ export class EfunBridge {
   private i2MessageCallback: I2MessageCallback | null = null;
   private grapevineMessageCallback: GrapevineMessageCallback | null = null;
   private discordMessageCallback: DiscordMessageCallback | null = null;
+  private objectLoader: ObjectLoaderFacade | null = null;
 
   /** Snoop sessions: snooperId -> session data */
   private snoopSessions: Map<string, SnoopSession> = new Map();
@@ -565,6 +571,24 @@ export class EfunBridge {
   }
 
   /**
+   * Set the object loader used by bridge efuns.
+   * Called by Driver after loader initialization.
+   */
+  setObjectLoader(loader: ObjectLoaderFacade): void {
+    this.objectLoader = loader;
+  }
+
+  /**
+   * Get configured object loader or throw a clear runtime error.
+   */
+  private requireObjectLoader(): ObjectLoaderFacade {
+    if (!this.objectLoader) {
+      throw new Error('Object loader not configured');
+    }
+    return this.objectLoader;
+  }
+
+  /**
    * Set the current execution context.
    */
   setContext(context: Partial<EfunContext>): void {
@@ -598,7 +622,7 @@ export class EfunBridge {
    * @param path The blueprint path
    */
   async cloneObject(path: string): Promise<MudObject | undefined> {
-    const loader = getMudlibLoader({ mudlibPath: this.config.mudlibPath });
+    const loader = this.requireObjectLoader();
     const clone = await loader.cloneObject(path);
     return this.wrapObject(clone);
   }
@@ -641,7 +665,7 @@ export class EfunBridge {
     }
 
     // Load from disk
-    const loader = getMudlibLoader({ mudlibPath: this.config.mudlibPath });
+    const loader = this.requireObjectLoader();
     const obj = await loader.loadObject(path);
     return this.wrapObject(obj);
   }
@@ -920,8 +944,15 @@ export class EfunBridge {
    */
   private resolveMudlibPath(path: string): string {
     // Normalize and resolve the path
-    const normalized = normalize(path).replace(/\\/g, '/');
-    const fullPath = resolve(this.config.mudlibPath, normalized.replace(/^\//, ''));
+    const normalized = normalize(path);
+
+    // Reject Windows absolute paths (drive letter or UNC) early
+    if (/^[a-zA-Z]:[\\/]/.test(path) || path.startsWith('\\\\')) {
+      throw new Error('Path traversal attempt detected');
+    }
+
+    const normalizedPosix = normalized.replace(/\\/g, '/');
+    const fullPath = resolve(this.config.mudlibPath, normalizedPosix.replace(/^\//, ''));
 
     // Security check: ensure path is within mudlib
     const mudlibAbs = resolve(this.config.mudlibPath);
@@ -1676,6 +1707,41 @@ export class EfunBridge {
    */
   getPermissionLevelName(level: number): string {
     return this.permissions.getLevelName(level);
+  }
+
+  /**
+   * Hash a password using scrypt.
+   * Returns format: salt:hash (hex encoded)
+   */
+  async hashPassword(password: string): Promise<string> {
+    const salt = randomBytes(16).toString('hex');
+    const hash = (await scryptAsync(password, salt, 64)) as Buffer;
+    return `${salt}:${hash.toString('hex')}`;
+  }
+
+  /**
+   * Verify a password against a stored hash.
+   */
+  async verifyPassword(password: string, storedHash: string): Promise<boolean> {
+    const [salt, hash] = storedHash.split(':');
+    if (!salt || !hash) return false;
+
+    const hashBuffer = Buffer.from(hash, 'hex');
+    const derivedKey = (await scryptAsync(password, salt, 64)) as Buffer;
+
+    return timingSafeEqual(hashBuffer, derivedKey);
+  }
+
+  /**
+   * Reverse DNS lookup for an IP address.
+   */
+  async reverseDns(ip: string): Promise<string | null> {
+    try {
+      const hostnames = await dnsReverse(ip);
+      return hostnames[0] || null;
+    } catch {
+      return null;
+    }
   }
 
   /**
@@ -2916,7 +2982,7 @@ export class EfunBridge {
       };
     }
 
-    const loader = getMudlibLoader({ mudlibPath: this.config.mudlibPath });
+    const loader = this.requireObjectLoader();
     return loader.reloadObject(objectPath);
   }
 
@@ -3448,7 +3514,7 @@ Respond in this exact JSON format:
     let worldLoreContext = '';
     if (npcContext.knowledgeScope?.worldLore?.length) {
       try {
-        const loader = getMudlibLoader();
+        const loader = this.requireObjectLoader();
         const loreModule = await loader.loadModule('/daemons/lore');
         const getLoreDaemon = loreModule.getLoreDaemon as () => {
           buildContext(ids: string[], maxLength?: number): string;
@@ -3884,6 +3950,9 @@ RULES:
       getDomains: this.getDomains.bind(this),
       setPermissionLevel: this.setPermissionLevel.bind(this),
       getPermissionLevelName: this.getPermissionLevelName.bind(this),
+      hashPassword: this.hashPassword.bind(this),
+      verifyPassword: this.verifyPassword.bind(this),
+      reverseDns: this.reverseDns.bind(this),
       savePermissions: this.savePermissions.bind(this),
       addDomain: this.addDomain.bind(this),
       removeDomain: this.removeDomain.bind(this),

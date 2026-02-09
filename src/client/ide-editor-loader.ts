@@ -6,6 +6,7 @@
  */
 
 import type { IdeMessage } from './websocket-client.js';
+import type { IdeEditor } from './ide-editor.js';
 
 interface IdeCallbacks {
   onSave: (path: string, content: string) => void;
@@ -13,8 +14,8 @@ interface IdeCallbacks {
 }
 
 export class IdeEditorLoader {
-  private editorInstance: any = null;
-  private loadPromise: Promise<any> | null = null;
+  private editorInstance: IdeEditor | null = null;
+  private loadPromise: Promise<new () => IdeEditor> | null = null;
   private loadingIndicator: HTMLElement | null = null;
 
   private async loadEditor() {
