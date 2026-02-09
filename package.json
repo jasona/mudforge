@@ -1,6 +1,6 @@
 {
   "name": "mudforge-driver",
-  "version": "1.2.0",
+  "version": "1.5.0",
   "description": "A modern MUD (Multi-User Dungeon) driver inspired by LDMud, built with Node.js and TypeScript. Features sandboxed script execution, hot-reload, and WebSocket-based web client.",
   "type": "module",
   "main": "dist/driver/index.js",
