@@ -105,6 +105,59 @@ export class PortraitDaemon extends MudObject {
   private _activeGenerations = 0;
   private readonly MAX_CONCURRENT_GENERATIONS = 2;
 
+  private stripPngAncillaryChunks(base64: string): string {
+    try {
+      const input = Buffer.from(base64, 'base64');
+      if (input.length < 8) {
+        return base64;
+      }
+      const pngSig = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+      if (!input.subarray(0, 8).equals(pngSig)) {
+        return base64;
+      }
+
+      const chunks: Buffer[] = [pngSig];
+      let offset = 8;
+      while (offset + 8 <= input.length) {
+        const length = input.readUInt32BE(offset);
+        const chunkTotal = 12 + length;
+        if (offset + chunkTotal > input.length) {
+          return base64;
+        }
+
+        const type = input.subarray(offset + 4, offset + 8);
+        const firstTypeByte = type[0] ?? 0;
+        const isAncillary = (firstTypeByte & 0x20) !== 0;
+
+        if (!isAncillary) {
+          chunks.push(input.subarray(offset, offset + chunkTotal));
+        }
+
+        offset += chunkTotal;
+
+        if (type[0] === 0x49 && type[1] === 0x45 && type[2] === 0x4e && type[3] === 0x44) {
+          break;
+        }
+      }
+
+      if (chunks.length <= 1) {
+        return base64;
+      }
+
+      const stripped = Buffer.concat(chunks).toString('base64');
+      return stripped.length < base64.length ? stripped : base64;
+    } catch {
+      return base64;
+    }
+  }
+
+  private normalizeEncodedImage(imageBase64: string, mimeType: string): string {
+    if (mimeType === 'image/png') {
+      return this.stripPngAncillaryChunks(imageBase64);
+    }
+    return imageBase64;
+  }
+
   constructor() {
     super();
     this.shortDesc = 'Portrait Daemon';
@@ -235,6 +288,7 @@ export class PortraitDaemon extends MudObject {
 
       const content = await efuns.readFile(filePath);
       const data = JSON.parse(content) as CachedPortrait;
+      data.image = this.normalizeEncodedImage(data.image, data.mimeType);
       return data;
     } catch {
       return null;
@@ -290,7 +344,7 @@ Style requirements:
     const imageResult = await this.withGenerationLimit(() => this.callAiImageGeneration(prompt));
     if (imageResult) {
       const portrait: CachedPortrait = {
-        image: imageResult.imageBase64,
+        image: this.normalizeEncodedImage(imageResult.imageBase64, imageResult.mimeType),
         mimeType: imageResult.mimeType,
         generatedAt: Date.now(),
       };
@@ -439,6 +493,7 @@ Style requirements:
 
       const content = await efuns.readFile(filePath);
       const data = JSON.parse(content) as CachedPortrait;
+      data.image = this.normalizeEncodedImage(data.image, data.mimeType);
       return data;
     } catch {
       return null;
@@ -504,7 +559,7 @@ Style requirements:
     const imageResult = await this.withGenerationLimit(() => this.callAiImageGeneration(prompt));
     if (imageResult) {
       const portrait: CachedPortrait = {
-        image: imageResult.imageBase64,
+        image: this.normalizeEncodedImage(imageResult.imageBase64, imageResult.mimeType),
         mimeType: imageResult.mimeType,
         generatedAt: Date.now(),
       };
@@ -719,18 +774,26 @@ Fill entire canvas edge to edge, no borders or margins`;
    */
   async cacheItemImage(item: MudObject, type: ObjectImageType = 'item'): Promise<void> {
     try {
-      // Skip if already cached
-      const existing = item.getProperty('cachedImage');
-      if (existing && typeof existing === 'string') {
-        return;
-      }
-
       // Determine correct type
       let itemType = type;
       if ('minDamage' in item && 'maxDamage' in item) {
         itemType = 'weapon';
       } else if ('armor' in item && 'slot' in item) {
         itemType = 'armor';
+      }
+
+      // Skip if already cached with a non-fallback image.
+      const existing = item.getProperty('cachedImage');
+      const fallback = this.getFallbackImage(itemType);
+      if (typeof existing === 'string' && existing.length > 0 && existing !== fallback) {
+        if (existing.startsWith('data:image/png;base64,')) {
+          const prefix = 'data:image/png;base64,';
+          const normalized = this.stripPngAncillaryChunks(existing.slice(prefix.length));
+          if (normalized !== existing.slice(prefix.length)) {
+            item.setProperty('cachedImage', `${prefix}${normalized}`);
+          }
+        }
+        return;
       }
 
       // Get extra context for image generation
@@ -746,7 +809,12 @@ Fill entire canvas edge to edge, no borders or margins`;
       // Fetch the image
       const image = await this.getObjectImage(item, itemType, extraContext);
 
-      // Cache on the item
+      // Don't pin fallback forever; allow retry on next refresh/equip cycle.
+      if (image === fallback) {
+        return;
+      }
+
+      // Cache on the item.
       item.setProperty('cachedImage', image);
     } catch {
       // Silently fail - image caching is best-effort

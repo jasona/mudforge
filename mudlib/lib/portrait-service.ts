@@ -20,6 +20,13 @@ export async function cacheItemImageBestEffort(item: MudObject): Promise<void> {
 
   try {
     await daemon.cacheItemImage(item);
+
+    // Push an immediate equipment update if this item is currently worn/wielded by a player.
+    const maybeHolder = (item as MudObject & { environment?: MudObject | null }).environment;
+    const holderWithNotify = maybeHolder as MudObject & { notifyEquipmentImageReady?: (updated: MudObject) => void };
+    if (holderWithNotify && typeof holderWithNotify.notifyEquipmentImageReady === 'function') {
+      holderWithNotify.notifyEquipmentImageReady(item);
+    }
   } catch {
     // Image caching is optional; ignore runtime failures.
   }

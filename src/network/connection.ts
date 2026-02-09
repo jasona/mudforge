@@ -778,9 +778,13 @@ export class Connection extends EventEmitter {
    * Used for equipment image updates (sent only when equipment changes, not every heartbeat).
    * @param message The equipment message to send
    */
-  sendEquipment(message: EquipmentMessage): void {
+  sendEquipment(message: EquipmentMessage): boolean {
+    if (this._state !== 'open' || !this._tabVisible) {
+      return false;
+    }
     const json = JSON.stringify(message);
-    this.sendProtocolMessage(`\x00[EQUIPMENT]${json}`);
+    this.send(`\x00[EQUIPMENT]${json}`);
+    return true;
   }
 
   /**

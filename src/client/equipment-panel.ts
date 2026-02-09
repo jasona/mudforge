@@ -23,19 +23,9 @@ const EQUIPMENT_SLOTS = [
 
 type EquipmentSlotName = (typeof EQUIPMENT_SLOTS)[number];
 
-/**
- * Fallback icons for empty slots.
- */
-const SLOT_ICONS: Record<EquipmentSlotName, string> = {
-  head: '🎩',
-  chest: '👕',
-  hands: '🧤',
-  legs: '👖',
-  feet: '👢',
-  cloak: '🧥',
-  main_hand: '⚔️',
-  off_hand: '🛡️',
-};
+// Default image shown for equipped slots while real art is loading.
+const DEFAULT_EQUIPPED_ITEM_IMAGE =
+  'data:image/svg+xml;base64,PHN2ZyB2aWV3Qm94PSIwIDAgNjQgNjQiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgPHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiBmaWxsPSIjMWExYTJlIi8+CiAgPHJlY3QgeD0iMTIiIHk9IjI0IiB3aWR0aD0iNDAiIGhlaWdodD0iMjgiIHJ4PSI0IiBmaWxsPSIjM2QyZDFkIi8+CiAgPHJlY3QgeD0iMTIiIHk9IjIwIiB3aWR0aD0iNDAiIGhlaWdodD0iOCIgcng9IjIiIGZpbGw9IiM0ZDNkMmQiLz4KICA8cmVjdCB4PSIyOCIgeT0iMzIiIHdpZHRoPSI4IiBoZWlnaHQ9IjEwIiByeD0iMiIgZmlsbD0iIzZhNWE0YSIvPgogIDxjaXJjbGUgY3g9IjMyIiBjeT0iMzYiIHI9IjIiIGZpbGw9IiM4YTdhNmEiLz4KPC9zdmc+';
 
 /**
  * Slot labels for tooltips.
@@ -282,6 +272,10 @@ export class EquipmentPanel {
   // Cached equipment images (received via EQUIPMENT protocol, separate from STATS)
   // This allows displaying images even when STATS doesn't include them
   private cachedImages: Map<EquipmentSlotName, string | null> = new Map();
+  private pendingImageChunks: Map<
+    EquipmentSlotName,
+    { name: string; total: number; parts: string[] }
+  > = new Map();
 
   // Equipment body container for delegated events
   private equipmentBody: HTMLElement | null = null;
@@ -511,12 +505,13 @@ export class EquipmentPanel {
         // Show item image
         slotEl.innerHTML = `<img src="${image}" alt="${escapeHtml(equipment.name)}" class="equipment-slot-icon" />`;
       } else {
-        // Show fallback icon
-        slotEl.innerHTML = `<span class="equipment-slot-fallback">${SLOT_ICONS[slot]}</span>`;
+        // Show default image while async generation/caching runs.
+        slotEl.innerHTML = `<img src="${DEFAULT_EQUIPPED_ITEM_IMAGE}" alt="${escapeHtml(equipment.name)}" class="equipment-slot-icon" />`;
       }
     } else {
       // Slot is empty - clear cached image
       this.cachedImages.delete(slot);
+      this.pendingImageChunks.delete(slot);
       slotEl.classList.remove('equipped');
       slotEl.innerHTML = `<span class="equipment-slot-empty">+</span>`;
     }
@@ -529,6 +524,37 @@ export class EquipmentPanel {
   handleEquipmentUpdate(message: EquipmentMessage): void {
     if (message.type !== 'equipment_update') return;
 
+    if (message.imageChunk) {
+      const { slot, name, index, total, data } = message.imageChunk;
+      const slotName = slot as EquipmentSlotName;
+      const isValidSlot = EQUIPMENT_SLOTS.includes(slotName as (typeof EQUIPMENT_SLOTS)[number]);
+      const isValidChunk = total > 0 && index >= 0 && index < total;
+
+      if (isValidSlot && isValidChunk) {
+        const existing = this.pendingImageChunks.get(slotName);
+        const shouldReset =
+          !existing || index === 0 || existing.total !== total || existing.name !== name;
+
+        const chunkState = shouldReset
+          ? { name, total, parts: new Array<string>(total).fill('') }
+          : existing;
+
+        chunkState.parts[index] = data;
+        this.pendingImageChunks.set(slotName, chunkState);
+
+        const complete = chunkState.parts.every((part) => part.length > 0);
+        if (complete) {
+          const fullImage = chunkState.parts.join('');
+          this.pendingImageChunks.delete(slotName);
+          this.cachedImages.set(slotName, fullImage);
+          const equipment = this.currentEquipment.get(slotName);
+          if (equipment) {
+            this.updateSlot(slotName, equipment);
+          }
+        }
+      }
+    }
+
     // Update cached images for changed slots
     for (const [slot, data] of Object.entries(message.slots)) {
       const slotName = slot as EquipmentSlotName;
@@ -537,9 +563,13 @@ export class EquipmentPanel {
       if (data === null) {
         // Slot is now empty
         this.cachedImages.delete(slotName);
+        this.pendingImageChunks.delete(slotName);
       } else {
         // Update cached image
         this.cachedImages.set(slotName, data.image);
+        if (data.image) {
+          this.pendingImageChunks.delete(slotName);
+        }
       }
 
       // Re-render the slot with new image

@@ -20,6 +20,8 @@ export const MAX_PLAYER_LEVEL = 50;
 export const BASE_HP_REGEN_RATE = 0.5;  // HP per heartbeat (2 sec)
 export const BASE_MP_REGEN_RATE = 0.3;  // MP per heartbeat
 export const REGEN_SCALE_BASE_STAT = 10; // Base stat for scaling
+const EQUIPMENT_UPDATE_SLOTS = ['head', 'chest', 'hands', 'legs', 'feet', 'cloak', 'main_hand', 'off_hand'] as const;
+const EQUIPMENT_IMAGE_CHUNK_CHARS = 60_000;
 import { MudObject } from './object.js';
 import { Item } from './item.js';
 import { colorize, stripColors, wordWrap } from '../lib/colors.js';
@@ -40,6 +42,7 @@ import type { PlayerGuildData } from './guild/types.js';
 import type { QuestPlayer } from './quest/types.js';
 import type { RaceId } from './race/types.js';
 import type { GeneratedItemData } from './loot/types.js';
+import { cacheItemImageBestEffort } from '../lib/portrait-service.js';
 
 // Pet save data type (defined here to avoid circular dependency with pet.ts)
 export interface PetSaveData {
@@ -190,6 +193,14 @@ export interface EquipmentMessage {
   };
   /** Optional profile portrait update (only included when portrait changes) */
   profilePortrait?: string;
+  /** Optional chunked image payload for large equipment icons */
+  imageChunk?: {
+    slot: string;
+    name: string;
+    index: number;
+    total: number;
+    data: string;
+  };
 }
 
 /**
@@ -202,7 +213,7 @@ export interface Connection {
   sendGUI?(message: GUIMessage): void;
   sendCompletion?(message: CompletionMessage): void;
   sendCombat?(message: CombatMessage): void;
-  sendEquipment?(message: EquipmentMessage): void;
+  sendEquipment?(message: EquipmentMessage): boolean | void;
   close(): void;
   isConnected(): boolean;
   // Connection health metrics (already exist on driver's Connection class)
@@ -386,6 +397,34 @@ export class Player extends Living {
 
     // Ensure equipment images are resent if available.
     this._lastSentEquipmentImages.clear();
+  }
+
+  notifyEquipmentImageReady(item: MudObject): void {
+    if (!this._connection?.sendEquipment) {
+      return;
+    }
+
+    const equipped = this.getAllEquipped();
+    const changedSlots: Record<string, { image: string | null; name: string } | null> = {};
+    let hasChange = false;
+
+    for (const slot of EQUIPMENT_UPDATE_SLOTS) {
+      if (equipped.get(slot) !== item) {
+        continue;
+      }
+
+      const image = this.normalizeEquipmentImage(item.getProperty('cachedImage'));
+      const hash = image ? image.substring(0, 50) : 'empty';
+      this._lastSentEquipmentImages.set(slot, hash);
+      changedSlots[slot] = image ? { image, name: item.shortDesc } : null;
+      hasChange = true;
+    }
+
+    if (!hasChange) {
+      return;
+    }
+
+    this.sendEquipmentBatched(changedSlots);
   }
 
   // ========== Connection ==========
@@ -883,6 +922,9 @@ export class Player extends Living {
     // This ensures the client gets fresh image data after being hidden
     this._lastSentEquipmentImages.clear();
     this._lastSentPortraitHash = '';
+
+    // Send stats/equipment immediately instead of waiting for the next heartbeat.
+    this.sendStatsUpdate(true);
 
     // Send current map position (player may have moved while tab was hidden)
     await this.sendMapUpdate();
@@ -1397,6 +1439,259 @@ export class Player extends Living {
     }
   }
 
+  private normalizeEquipmentImage(image: unknown): string | null {
+    if (typeof image !== 'string' || !image.startsWith('data:')) {
+      return null;
+    }
+    return image;
+  }
+
+  private normalizeProfilePortrait(portrait: unknown): string | undefined {
+    if (typeof portrait !== 'string' || !portrait.startsWith('data:')) {
+      return undefined;
+    }
+    return portrait;
+  }
+
+  private sendEquipmentBatched(
+    changedSlots: Record<string, { image: string | null; name: string } | null>,
+    profilePortrait?: string
+  ): { sentSlots: Set<string>; portraitSent: boolean } {
+    const result = { sentSlots: new Set<string>(), portraitSent: false };
+    if (!this._connection?.sendEquipment) {
+      return result;
+    }
+
+    // Send portrait separately to avoid one massive mixed payload.
+    if (profilePortrait) {
+      result.portraitSent = this._connection.sendEquipment({
+        type: 'equipment_update',
+        slots: {},
+        profilePortrait,
+      }) !== false;
+    }
+
+    // Send each changed slot in its own message to reduce login burst size.
+    for (const [slot, data] of Object.entries(changedSlots)) {
+      if (data?.image && data.image.length > EQUIPMENT_IMAGE_CHUNK_CHARS) {
+        if (this.sendEquipmentImageChunks(slot, data.name, data.image)) {
+          result.sentSlots.add(slot);
+        }
+        continue;
+      }
+      const sent = this._connection.sendEquipment({
+        type: 'equipment_update',
+        slots: {
+          [slot]: data,
+        },
+      }) !== false;
+      if (sent) {
+        result.sentSlots.add(slot);
+      }
+    }
+    return result;
+  }
+
+  private sendEquipmentImageChunks(slot: string, name: string, image: string): boolean {
+    if (!this._connection?.sendEquipment) {
+      return false;
+    }
+    const total = Math.ceil(image.length / EQUIPMENT_IMAGE_CHUNK_CHARS);
+    for (let index = 0; index < total; index++) {
+      const start = index * EQUIPMENT_IMAGE_CHUNK_CHARS;
+      const end = start + EQUIPMENT_IMAGE_CHUNK_CHARS;
+      const sent = this._connection.sendEquipment({
+        type: 'equipment_update',
+        slots: {},
+        imageChunk: {
+          slot,
+          name,
+          index,
+          total,
+          data: image.slice(start, end),
+        },
+      }) !== false;
+      if (!sent) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  private sendStatsUpdate(force: boolean): void {
+    if (!this._connection?.sendStats) {
+      return;
+    }
+    if (this._connection.hasCriticalBackpressure) {
+      return;
+    }
+    if (!force && !this.shouldSendStats()) {
+      return;
+    }
+
+    // Build equipment data from getAllEquipped()
+    // NOTE: Images are NOT included here - they're sent separately via EQUIPMENT message
+    const equipmentData: Record<string, EquipmentSlotData | null> = {};
+    const equipped = this.getAllEquipped();
+
+    // Track current equipment images for change detection
+    const currentEquipmentImages: Map<string, { hash: string; image: string | null; name: string }> = new Map();
+
+    for (const slot of EQUIPMENT_UPDATE_SLOTS) {
+      const item = equipped.get(slot);
+      if (item) {
+        const isWeapon = 'wield' in item;
+        const itemType = isWeapon ? 'weapon' : 'armor';
+        let imageStr = this.normalizeEquipmentImage(item.getProperty('cachedImage'));
+        if (imageStr && imageStr.startsWith('data:image/svg+xml;base64,')) {
+          // Equipment slots should keep UI fallback icons while real item art loads.
+          // Treat SVG fallback as "not ready" and retry caching asynchronously.
+          imageStr = null;
+        }
+        if (!imageStr) {
+          void cacheItemImageBestEffort(item);
+        }
+
+        // Track image for change detection (use first 50 chars as simple hash)
+        const imageHash = imageStr ? imageStr.substring(0, 50) : 'empty';
+        currentEquipmentImages.set(slot, { hash: imageHash, image: imageStr, name: item.shortDesc });
+
+        // Build slot data WITHOUT image (image sent separately via EQUIPMENT)
+        const slotData: EquipmentSlotData = {
+          name: item.shortDesc,
+          // NOTE: image omitted here - sent via EQUIPMENT protocol instead
+          itemType: itemType as 'weapon' | 'armor',
+          description: item.longDesc,
+          weight: 'weight' in item ? (item as unknown as { weight: number }).weight : undefined,
+          value: 'value' in item ? (item as unknown as { value: number }).value : undefined,
+        };
+
+        // Add weapon-specific data
+        if (isWeapon) {
+          const weapon = item as unknown as {
+            minDamage: number;
+            maxDamage: number;
+            damageType: string;
+            handedness: string;
+          };
+          slotData.minDamage = weapon.minDamage;
+          slotData.maxDamage = weapon.maxDamage;
+          slotData.damageType = weapon.damageType;
+          slotData.handedness = weapon.handedness;
+        } else {
+          // Armor-specific data
+          const armor = item as unknown as {
+            armor: number;
+            slot: string;
+          };
+          slotData.armor = armor.armor;
+          slotData.slot = armor.slot;
+        }
+
+        equipmentData[slot] = slotData;
+      } else {
+        equipmentData[slot] = null;
+        currentEquipmentImages.set(slot, { hash: 'empty', image: null, name: '' });
+      }
+    }
+
+    // Check for portrait changes
+    const profilePortrait = this.normalizeProfilePortrait(this.getProperty('profilePortrait'));
+    const currentPortraitHash = profilePortrait ? profilePortrait.substring(0, 50) : 'empty';
+    const portraitChanged = currentPortraitHash !== this._lastSentPortraitHash;
+
+    // Check for equipment image changes
+    const changedSlots: Record<string, { image: string | null; name: string } | null> = {};
+    let hasEquipmentChanges = false;
+
+    for (const slot of EQUIPMENT_UPDATE_SLOTS) {
+      const current = currentEquipmentImages.get(slot);
+      const lastHash = this._lastSentEquipmentImages.get(slot) || 'unset';
+
+      if (current && current.hash !== lastHash) {
+        hasEquipmentChanges = true;
+        changedSlots[slot] = current.image ? { image: current.image, name: current.name } : null;
+      }
+    }
+
+    // Build full stats object
+    const fullStats: StatsMessage = {
+      type: 'update',
+      hp: this.health,
+      maxHp: this.maxHealth,
+      mp: this.mana,
+      maxMp: this.maxMana,
+      level: this.level,
+      xp: this._experience,
+      xpToLevel: this.xpForNextLevel,
+      gold: this._gold,
+      bankedGold: this._bankedGold,
+      permissionLevel: this._permissionLevel,
+      cwd: this._cwd,
+      avatar: this._avatar,
+      // NOTE: profilePortrait and equipment images sent via EQUIPMENT protocol
+      carriedWeight: this.getCarriedWeight(),
+      maxCarryWeight: this.getMaxCarryWeight(),
+      encumbrancePercent: this.getEncumbrancePercent(),
+      encumbranceLevel: this.getEncumbranceLevel(),
+      equipment: equipmentData,
+    };
+
+    // Delta compression: send full snapshot every 10th send, otherwise only changed fields
+    this._statsSendCount++;
+    if (force || this._statsSendCount % 10 === 1 || Object.keys(this._lastSentStats).length === 0) {
+      // Full snapshot
+      this._connection.sendStats(fullStats);
+      this._lastSentStats = { ...fullStats };
+      delete this._lastSentStats.type;
+    } else {
+      // Compute delta against last sent stats
+      const delta: Record<string, unknown> = { type: 'delta' };
+      let hasChanges = false;
+      for (const [key, value] of Object.entries(fullStats)) {
+        if (key === 'type') continue;
+        if (key === 'equipment') {
+          if (JSON.stringify(value) !== JSON.stringify(this._lastSentStats[key])) {
+            delta[key] = value;
+            hasChanges = true;
+          }
+        } else if (value !== this._lastSentStats[key]) {
+          delta[key] = value;
+          hasChanges = true;
+        }
+      }
+      if (hasChanges) {
+        this._connection.sendStats(delta as StatsDeltaMessage);
+        // Update cache with changed values
+        for (const [key, value] of Object.entries(delta)) {
+          if (key !== 'type') {
+            this._lastSentStats[key] = value;
+          }
+        }
+      }
+      // If no changes, skip sending entirely (100% savings for idle)
+    }
+
+    // Send EQUIPMENT changes after STATS so the client can render fallback avatars/icons immediately.
+    if (hasEquipmentChanges || portraitChanged) {
+      const portraitToSend = portraitChanged ? profilePortrait : undefined;
+      const sendResult = this.sendEquipmentBatched(changedSlots, portraitToSend);
+
+      for (const slot of sendResult.sentSlots) {
+        const current = currentEquipmentImages.get(slot);
+        if (current) {
+          this._lastSentEquipmentImages.set(slot, current.hash);
+        }
+      }
+
+      if (portraitChanged && sendResult.portraitSent) {
+        this._lastSentPortraitHash = currentPortraitHash;
+      } else if (portraitChanged && !portraitToSend) {
+        this._lastSentPortraitHash = 'empty';
+      }
+    }
+  }
+
   /**
    * Called each heartbeat. Sends stats to client and shows vitals monitor if enabled.
    */
@@ -1418,162 +1713,8 @@ export class Player extends Living {
     // Process regeneration (ALWAYS - this is game logic, not display)
     this.processRegeneration();
 
-    // Send stats update to client only if appropriate
-    if (this.shouldSendStats()) {
-      // Build equipment data from getAllEquipped()
-      // NOTE: Images are NOT included here - they're sent separately via EQUIPMENT message
-      const equipmentData: Record<string, EquipmentSlotData | null> = {};
-      const equipped = this.getAllEquipped();
-      const slots = ['head', 'chest', 'hands', 'legs', 'feet', 'cloak', 'main_hand', 'off_hand'];
-
-      // Track current equipment images for change detection
-      const currentEquipmentImages: Map<string, { hash: string; image: string | null; name: string }> = new Map();
-
-      for (const slot of slots) {
-        const item = equipped.get(slot as 'head' | 'chest' | 'hands' | 'legs' | 'feet' | 'cloak' | 'main_hand' | 'off_hand');
-        if (item) {
-          const isWeapon = 'wield' in item;
-          const itemType = isWeapon ? 'weapon' : 'armor';
-          const cachedImage = item.getProperty('cachedImage');
-          const imageStr = typeof cachedImage === 'string' ? cachedImage : null;
-
-          // Track image for change detection (use first 50 chars as simple hash)
-          const imageHash = imageStr ? imageStr.substring(0, 50) : 'empty';
-          currentEquipmentImages.set(slot, { hash: imageHash, image: imageStr, name: item.shortDesc });
-
-          // Build slot data WITHOUT image (image sent separately via EQUIPMENT)
-          const slotData: EquipmentSlotData = {
-            name: item.shortDesc,
-            // NOTE: image omitted here - sent via EQUIPMENT protocol instead
-            itemType: itemType as 'weapon' | 'armor',
-            description: item.longDesc,
-            weight: 'weight' in item ? (item as unknown as { weight: number }).weight : undefined,
-            value: 'value' in item ? (item as unknown as { value: number }).value : undefined,
-          };
-
-          // Add weapon-specific data
-          if (isWeapon) {
-            const weapon = item as unknown as {
-              minDamage: number;
-              maxDamage: number;
-              damageType: string;
-              handedness: string;
-            };
-            slotData.minDamage = weapon.minDamage;
-            slotData.maxDamage = weapon.maxDamage;
-            slotData.damageType = weapon.damageType;
-            slotData.handedness = weapon.handedness;
-          } else {
-            // Armor-specific data
-            const armor = item as unknown as {
-              armor: number;
-              slot: string;
-            };
-            slotData.armor = armor.armor;
-            slotData.slot = armor.slot;
-          }
-
-          equipmentData[slot] = slotData;
-        } else {
-          equipmentData[slot] = null;
-          currentEquipmentImages.set(slot, { hash: 'empty', image: null, name: '' });
-        }
-      }
-
-      // Check for portrait changes
-      const profilePortrait = this.getProperty('profilePortrait');
-      const currentPortraitHash = typeof profilePortrait === 'string' ? profilePortrait.substring(0, 50) : 'empty';
-      const portraitChanged = currentPortraitHash !== this._lastSentPortraitHash;
-
-      // Check for equipment image changes
-      const changedSlots: Record<string, { image: string | null; name: string } | null> = {};
-      let hasEquipmentChanges = false;
-
-      for (const slot of slots) {
-        const current = currentEquipmentImages.get(slot);
-        const lastHash = this._lastSentEquipmentImages.get(slot) || 'unset';
-
-        if (current && current.hash !== lastHash) {
-          hasEquipmentChanges = true;
-          changedSlots[slot] = current.image ? { image: current.image, name: current.name } : null;
-          this._lastSentEquipmentImages.set(slot, current.hash);
-        }
-      }
-
-      // Send EQUIPMENT message only if images changed (or portrait changed)
-      if ((hasEquipmentChanges || portraitChanged) && this._connection.sendEquipment) {
-        const equipmentMsg: EquipmentMessage = {
-          type: 'equipment_update',
-          slots: changedSlots,
-        };
-
-        // Include portrait only if it changed
-        if (portraitChanged && typeof profilePortrait === 'string') {
-          equipmentMsg.profilePortrait = profilePortrait;
-          this._lastSentPortraitHash = currentPortraitHash;
-        }
-
-        this._connection.sendEquipment(equipmentMsg);
-      }
-
-      // Build full stats object
-      const fullStats: StatsMessage = {
-        type: 'update',
-        hp: this.health,
-        maxHp: this.maxHealth,
-        mp: this.mana,
-        maxMp: this.maxMana,
-        level: this.level,
-        xp: this._experience,
-        xpToLevel: this.xpForNextLevel,
-        gold: this._gold,
-        bankedGold: this._bankedGold,
-        permissionLevel: this._permissionLevel,
-        cwd: this._cwd,
-        avatar: this._avatar,
-        // NOTE: profilePortrait and equipment images sent via EQUIPMENT protocol
-        carriedWeight: this.getCarriedWeight(),
-        maxCarryWeight: this.getMaxCarryWeight(),
-        encumbrancePercent: this.getEncumbrancePercent(),
-        encumbranceLevel: this.getEncumbranceLevel(),
-        equipment: equipmentData,
-      };
-
-      // Delta compression: send full snapshot every 10th send, otherwise only changed fields
-      this._statsSendCount++;
-      if (this._statsSendCount % 10 === 1 || Object.keys(this._lastSentStats).length === 0) {
-        // Full snapshot
-        this._connection.sendStats(fullStats);
-        this._lastSentStats = { ...fullStats };
-        delete this._lastSentStats.type;
-      } else {
-        // Compute delta against last sent stats
-        const delta: Record<string, unknown> = { type: 'delta' };
-        let hasChanges = false;
-        for (const [key, value] of Object.entries(fullStats)) {
-          if (key === 'type') continue;
-          if (key === 'equipment') {
-            if (JSON.stringify(value) !== JSON.stringify(this._lastSentStats[key])) {
-              delta[key] = value;
-              hasChanges = true;
-            }
-          } else if (value !== this._lastSentStats[key]) {
-            delta[key] = value;
-            hasChanges = true;
-          }
-        }
-        if (hasChanges) {
-          this._connection.sendStats(delta as StatsDeltaMessage);
-          // Update cache with changed values
-          for (const [key, value] of Object.entries(delta)) {
-            if (key !== 'type') {
-              this._lastSentStats[key] = value;
-            }
-          }
-        }
-        // If no changes, skip sending entirely (100% savings for idle)
-      }
-    }
+    // Send stats/equipment updates.
+    this.sendStatsUpdate(false);
 
     // Show text-based vitals monitor if enabled
     if (!this._monitorEnabled || !this._connection) return;
