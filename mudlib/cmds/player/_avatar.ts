@@ -35,7 +35,7 @@ const VALID_AVATARS: Record<string, string> = {
   avatar_a2: 'Androgynous - Dark',
 };
 
-export const name = ['avatar', 'portrait'];
+export const name = ['avatar'];
 export const description = 'View or change your avatar portrait';
 export const usage = 'avatar [list | set <id>]';
 

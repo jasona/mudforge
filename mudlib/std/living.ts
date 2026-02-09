@@ -986,6 +986,8 @@ export class Living extends MudObject {
     portraitDaemon.cacheItemImage(item).catch(() => {
       // Ignore errors - image caching is best-effort
     });
+
+    this.onEquipmentChanged();
   }
 
   /**
@@ -1005,7 +1007,16 @@ export class Living extends MudObject {
       this._equipment.delete(slot);
     }
 
+    this.onEquipmentChanged();
     return item;
+  }
+
+  /**
+   * Hook for equipment state changes.
+   * Players override this to push UI updates.
+   */
+  protected onEquipmentChanged(): void {
+    // Default: no-op
   }
 
   /**
