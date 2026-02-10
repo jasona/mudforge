@@ -406,6 +406,7 @@ export class Player extends Living {
 
     const equipped = this.getAllEquipped();
     const changedSlots: Record<string, { image: string | null; name: string } | null> = {};
+    const slotHashes = new Map<string, string>();
     let hasChange = false;
 
     for (const slot of EQUIPMENT_UPDATE_SLOTS) {
@@ -415,7 +416,7 @@ export class Player extends Living {
 
       const image = this.normalizeEquipmentImage(item.getProperty('cachedImage'));
       const hash = image ? image.substring(0, 50) : 'empty';
-      this._lastSentEquipmentImages.set(slot, hash);
+      slotHashes.set(slot, hash);
       changedSlots[slot] = image ? { image, name: item.shortDesc } : null;
       hasChange = true;
     }
@@ -424,7 +425,14 @@ export class Player extends Living {
       return;
     }
 
-    this.sendEquipmentBatched(changedSlots);
+    const sendResult = this.sendEquipmentBatched(changedSlots);
+    // Only update hashes for slots that were actually sent
+    for (const slot of sendResult.sentSlots) {
+      const hash = slotHashes.get(slot);
+      if (hash) {
+        this._lastSentEquipmentImages.set(slot, hash);
+      }
+    }
   }
 
   // ========== Connection ==========
