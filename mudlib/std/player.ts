@@ -373,6 +373,9 @@ export class Player extends Living {
   // Maps slot name to simple hash of image data (or 'empty' if no image)
   private _lastSentEquipmentImages: Map<string, string> = new Map();
 
+  // Queue for equipment images to send one-by-one (slot → {name, image, hash})
+  private _pendingEquipmentImages: Map<string, { name: string; image: string; hash: string }> = new Map();
+
   // Profile portrait tracking - only send when it changes
   private _lastSentPortraitHash: string = '';
 
@@ -397,6 +400,7 @@ export class Player extends Living {
 
     // Ensure equipment images are resent if available.
     this._lastSentEquipmentImages.clear();
+    this._pendingEquipmentImages.clear();
   }
 
   notifyEquipmentImageReady(item: MudObject): void {
@@ -425,7 +429,7 @@ export class Player extends Living {
       return;
     }
 
-    const sendResult = this.sendEquipmentBatched(changedSlots);
+    const sendResult = this.sendEquipmentBatched(changedSlots, slotHashes);
     // Only update hashes for slots that were actually sent
     for (const slot of sendResult.sentSlots) {
       const hash = slotHashes.get(slot);
@@ -1463,6 +1467,7 @@ export class Player extends Living {
 
   private sendEquipmentBatched(
     changedSlots: Record<string, { image: string | null; name: string } | null>,
+    slotHashes: Map<string, string>,
     profilePortrait?: string
   ): { sentSlots: Set<string>; portraitSent: boolean } {
     const result = { sentSlots: new Set<string>(), portraitSent: false };
@@ -1470,7 +1475,7 @@ export class Player extends Living {
       return result;
     }
 
-    // Send portrait separately to avoid one massive mixed payload.
+    // Send portrait separately — always immediate.
     if (profilePortrait) {
       result.portraitSent = this._connection.sendEquipment({
         type: 'equipment_update',
@@ -1479,25 +1484,57 @@ export class Player extends Living {
       }) !== false;
     }
 
-    // Send each changed slot in its own message to reduce login burst size.
     for (const [slot, data] of Object.entries(changedSlots)) {
-      if (data?.image && data.image.length > EQUIPMENT_IMAGE_CHUNK_CHARS) {
-        if (this.sendEquipmentImageChunks(slot, data.name, data.image)) {
-          result.sentSlots.add(slot);
-        }
+      if (data?.image) {
+        // Queue image for one-by-one sending via drainEquipmentImageQueue()
+        const hash = slotHashes.get(slot) || data.image.substring(0, 50);
+        this._pendingEquipmentImages.set(slot, { name: data.name, image: data.image, hash });
+        // Mark as "sent" so caller updates its hash tracking — the queue will actually send it
+        result.sentSlots.add(slot);
         continue;
       }
+      // Non-image updates (unequip/empty slots) always send immediately
       const sent = this._connection.sendEquipment({
         type: 'equipment_update',
-        slots: {
-          [slot]: data,
-        },
+        slots: { [slot]: data },
       }) !== false;
       if (sent) {
         result.sentSlots.add(slot);
       }
     }
     return result;
+  }
+
+  /**
+   * Send the next queued equipment image. Called once per heartbeat
+   * so images visibly load one-by-one in the client's equipment panel.
+   */
+  private drainEquipmentImageQueue(): void {
+    if (this._pendingEquipmentImages.size === 0) return;
+    if (!this._connection?.sendEquipment) return;
+    if (this._connection.hasCriticalBackpressure) return;
+
+    // Take the first queued item
+    const [slot, entry] = this._pendingEquipmentImages.entries().next().value as [string, { name: string; image: string; hash: string }];
+    this._pendingEquipmentImages.delete(slot);
+
+    // Validate: is the item still equipped with this image?
+    const equipped = this.getAllEquipped();
+    const item = equipped.get(slot);
+    if (!item) return; // unequipped while queued — skip
+
+    const currentImage = this.normalizeEquipmentImage(item.getProperty('cachedImage'));
+    if (!currentImage || currentImage.substring(0, 50) !== entry.hash) return; // image changed — skip stale entry
+
+    // Send the image (chunked if needed)
+    if (entry.image.length > EQUIPMENT_IMAGE_CHUNK_CHARS) {
+      this.sendEquipmentImageChunks(slot, entry.name, entry.image);
+    } else {
+      this._connection.sendEquipment({
+        type: 'equipment_update',
+        slots: { [slot]: { image: entry.image, name: entry.name } },
+      });
+    }
   }
 
   private sendEquipmentImageChunks(slot: string, name: string, image: string): boolean {
@@ -1683,7 +1720,12 @@ export class Player extends Living {
     // Send EQUIPMENT changes after STATS so the client can render fallback avatars/icons immediately.
     if (hasEquipmentChanges || portraitChanged) {
       const portraitToSend = portraitChanged ? profilePortrait : undefined;
-      const sendResult = this.sendEquipmentBatched(changedSlots, portraitToSend);
+      // Build slotHashes from currentEquipmentImages for the queue
+      const slotHashes = new Map<string, string>();
+      for (const [slot, data] of currentEquipmentImages) {
+        slotHashes.set(slot, data.hash);
+      }
+      const sendResult = this.sendEquipmentBatched(changedSlots, slotHashes, portraitToSend);
 
       for (const slot of sendResult.sentSlots) {
         const current = currentEquipmentImages.get(slot);
@@ -1723,6 +1765,9 @@ export class Player extends Living {
 
     // Send stats/equipment updates.
     this.sendStatsUpdate(false);
+
+    // Drain one queued equipment image per heartbeat (one-by-one loading)
+    this.drainEquipmentImageQueue();
 
     // Show text-based vitals monitor if enabled
     if (!this._monitorEnabled || !this._connection) return;
