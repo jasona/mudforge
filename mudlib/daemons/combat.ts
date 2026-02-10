@@ -1610,14 +1610,14 @@ export class CombatDaemon extends MudObject {
       return false;
     }
 
-    const exits = (room as MudObject & { getExits: () => Map<string, unknown> }).getExits();
-    if (exits.size === 0) {
+    const exits = (room as MudObject & { getExits: () => { direction: string }[] }).getExits();
+    if (exits.length === 0) {
       living.receive('{red}[Wimpy] Panic! You desperately search for an escape but find no exits!{/}\n');
       return false;
     }
 
     // Pick a random direction
-    const exitNames = Array.from(exits.keys());
+    const exitNames = exits.map(e => e.direction);
     const fleeDirection = exitNames[Math.floor(Math.random() * exitNames.length)];
 
     living.receive(`{yellow}[Wimpy] Your health is critical! You flee ${fleeDirection}!{/}\n`);
@@ -1671,8 +1671,8 @@ export class CombatDaemon extends MudObject {
       return false;
     }
 
-    const exits = (room as MudObject & { getExits: () => Map<string, unknown> }).getExits();
-    if (exits.size === 0) {
+    const exits = (room as MudObject & { getExits: () => { direction: string }[] }).getExits();
+    if (exits.length === 0) {
       attacker.receive("There's nowhere to flee to!\n");
       return false;
     }
@@ -1680,9 +1680,9 @@ export class CombatDaemon extends MudObject {
     // Pick a direction
     let fleeDirection = direction;
     if (!fleeDirection) {
-      const exitNames = Array.from(exits.keys());
+      const exitNames = exits.map(e => e.direction);
       fleeDirection = exitNames[Math.floor(Math.random() * exitNames.length)];
-    } else if (!exits.has(fleeDirection)) {
+    } else if (!exits.some(e => e.direction === fleeDirection)) {
       attacker.receive(`You can't flee ${fleeDirection}!\n`);
       return false;
     }
