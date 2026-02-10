@@ -1476,6 +1476,13 @@ export class NPC extends Living {
       return;
     }
 
+    // Remove dead NPC from room immediately - the corpse will be the visible
+    // representation. This must happen before async operations (loot generation,
+    // item transfer) to prevent "kill deer" from matching the dead NPC when
+    // a live one is present. The NPC object stays alive in memory for the
+    // rest of onDeath (XP, loot, respawn scheduling).
+    this.moveTo(null);
+
     // Create corpse and handle loot
     let corpse: Corpse;
     let goldAmount = 0;
@@ -1504,12 +1511,6 @@ export class NPC extends Living {
       if (deathRoom) {
         await corpse.moveTo(deathRoom);
       }
-
-      // Remove dead NPC from room immediately - the corpse is the visible
-      // representation now. This prevents "kill deer" from matching the dead
-      // NPC when a new live one is present. The NPC object stays alive in
-      // memory for the rest of onDeath (XP, loot, respawn scheduling).
-      this.moveTo(null);
     } catch (error) {
       console.error(`[NPC] Error creating corpse/loot for ${this.name}:`, error);
       return;
