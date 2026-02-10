@@ -8,6 +8,7 @@
  */
 
 import type { MudObject, Weapon, WeaponSlot, Living, Room } from '../../lib/std.js';
+import { parseItemInput, findItem, countMatching } from '../../lib/item-utils.js';
 
 interface CommandContext {
   player: MudObject;
@@ -30,8 +31,8 @@ export function execute(ctx: CommandContext): void {
     return;
   }
 
-  // Parse args for optional hand preference
-  let itemName = args;
+  // Parse args for optional hand preference (strip "in left/right" BEFORE parseItemInput)
+  let itemPortion = args;
   let preferredSlot: WeaponSlot | undefined;
 
   // Check for "in left/off" pattern
@@ -39,12 +40,14 @@ export function execute(ctx: CommandContext): void {
   const rightMatch = args.match(/^(.+?)\s+in\s+(right|main)\s*(?:hand)?$/i);
 
   if (leftMatch) {
-    itemName = leftMatch[1].trim();
+    itemPortion = leftMatch[1].trim();
     preferredSlot = 'off_hand';
   } else if (rightMatch) {
-    itemName = rightMatch[1].trim();
+    itemPortion = rightMatch[1].trim();
     preferredSlot = 'main_hand';
   }
+
+  const parsed = parseItemInput(itemPortion);
 
   // Check if arm is disabled for the target slot
   if (living.hasArmDisabled) {
@@ -65,16 +68,20 @@ export function execute(ctx: CommandContext): void {
   }
 
   // Find weapon in inventory
-  let weapon: Weapon | undefined;
-  for (const item of player.inventory) {
-    if (item.id(itemName) && 'wield' in item) {
-      weapon = item as Weapon;
-      break;
-    }
-  }
+  const weaponItems = player.inventory.filter((item) => 'wield' in item);
+  const weapon = findItem(parsed.name, weaponItems, parsed.index) as Weapon | undefined;
 
   if (!weapon) {
-    ctx.sendLine(`You don't have any "${itemName}" to wield.`);
+    if (parsed.index !== undefined) {
+      const count = countMatching(parsed.name, weaponItems);
+      if (count > 0) {
+        ctx.sendLine(count === 1
+          ? `You only have 1 ${parsed.name} to wield.`
+          : `You only have ${count} ${parsed.name}s to wield.`);
+        return;
+      }
+    }
+    ctx.sendLine(`You don't have any "${itemPortion}" to wield.`);
     return;
   }
 

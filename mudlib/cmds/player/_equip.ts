@@ -8,6 +8,7 @@
 
 import type { MudObject, Living, Room, Weapon, Armor } from '../../lib/std.js';
 import type { EquipmentSlot } from '../../std/equipment.js';
+import { parseItemInput, findItem, countMatching } from '../../lib/item-utils.js';
 
 interface CommandContext {
   player: MudObject;
@@ -234,37 +235,37 @@ export function execute(ctx: CommandContext): void {
     return;
   }
 
-  const input = args.trim().toLowerCase();
+  const parsed = parseItemInput(args.trim());
 
   // Handle "equip all"
-  if (input === 'all') {
+  if (parsed.isAll) {
     equipAll(ctx, living);
     return;
   }
 
-  // Find item in inventory
-  let targetItem: MudObject | undefined;
-  for (const item of player.inventory) {
-    if (item.id(input)) {
-      // Prefer equippable items
-      if (efuns.isWeapon(item) || efuns.isArmor(item)) {
-        targetItem = item;
-        break;
-      }
-      // Keep looking but remember this one
-      if (!targetItem) {
-        targetItem = item;
-      }
-    }
-  }
+  // Find equippable item in inventory (prefer weapons/armor)
+  const equippableItems = player.inventory.filter(
+    (item) => efuns.isWeapon(item) || efuns.isArmor(item)
+  );
+  let targetItem = findItem(parsed.name, equippableItems, parsed.index);
 
   if (!targetItem) {
+    // Check if there's a non-equippable item with that name
+    const anyItem = findItem(parsed.name, player.inventory, parsed.index);
+    if (anyItem) {
+      ctx.sendLine(`You can't equip ${anyItem.shortDesc}.`);
+      return;
+    }
+    if (parsed.index !== undefined) {
+      const count = countMatching(parsed.name, equippableItems);
+      if (count > 0) {
+        ctx.sendLine(count === 1
+          ? `You only have 1 ${parsed.name} to equip.`
+          : `You only have ${count} ${parsed.name}s to equip.`);
+        return;
+      }
+    }
     ctx.sendLine(`You don't have any "${args}" to equip.`);
-    return;
-  }
-
-  if (!efuns.isWeapon(targetItem) && !efuns.isArmor(targetItem)) {
-    ctx.sendLine(`You can't equip ${targetItem.shortDesc}.`);
     return;
   }
 
