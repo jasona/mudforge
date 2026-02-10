@@ -300,11 +300,14 @@ class MudClient {
     this.wsClient.on('connected', () => {
       this.setStatus('connected', 'Connected');
       if (this.isLoggedIn) {
-        // If we have a session, wait for session-resume before hiding
         if (this.wsClient.hasValidSession) {
+          // Wait for session-resume response before hiding overlay
           this.reconnectOverlay.showConnecting();
         } else {
-          this.reconnectOverlay.hide();
+          // No valid session — server is already sending text login flow.
+          // Reload to show the graphical launcher instead.
+          window.location.reload();
+          return;
         }
       }
     });
@@ -317,7 +320,10 @@ class MudClient {
     });
 
     this.wsClient.on('error', (error: string) => {
-      this.terminal.addErrorLine(`Error: ${error}`);
+      // Suppress errors while reconnect overlay is handling the state
+      if (!this.reconnectOverlay.visible) {
+        this.terminal.addErrorLine(`Error: ${error}`);
+      }
     });
 
     // Reconnection progress feedback
@@ -383,12 +389,21 @@ class MudClient {
         }
       } else if (message.type === 'session_invalid') {
         if (this.isLoggedIn) {
-          this.reconnectOverlay.showSessionExpired();
+          // Session rejected — server is already sending text login flow.
+          // Reload to show the graphical launcher instead.
+          window.location.reload();
+          return;
         }
       }
     });
 
     this.wsClient.on('message', (data: string) => {
+      // Suppress text messages while reconnect overlay is visible — the server
+      // sends the text login flow to every new connection, but we'll reload
+      // to show the graphical launcher if the session can't be restored.
+      if (this.reconnectOverlay.visible) {
+        return;
+      }
       this.terminal.addLine(data);
     });
 
