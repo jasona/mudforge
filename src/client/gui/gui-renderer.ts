@@ -207,10 +207,15 @@ export class GUIRenderer {
     }
 
     // Handle progress updates
-    if ('progress' in props) {
+    if ('progress' in props || 'progressColor' in props) {
       const fill = element.querySelector('.gui-progress-fill') as HTMLElement;
       if (fill) {
-        fill.style.width = `${Math.min(Math.max(props.progress ?? 0, 0), 100)}%`;
+        if ('progress' in props) {
+          fill.style.width = `${Math.min(Math.max(props.progress ?? 0, 0), 100)}%`;
+        }
+        if ('progressColor' in props && props.progressColor) {
+          fill.style.backgroundColor = props.progressColor;
+        }
       }
     }
 
@@ -232,9 +237,18 @@ export class GUIRenderer {
 
     // Handle image source updates
     if ('src' in props) {
+      const wrapper = element.closest('.gui-image-wrapper') || element;
       const img = element.querySelector('img') || (element.tagName === 'IMG' ? element : null);
       if (img) {
-        (img as HTMLImageElement).src = props.src ?? '';
+        const spinner = wrapper.querySelector('.gui-image-spinner') as HTMLElement;
+        const newSrc = props.src ?? '';
+        // Re-show spinner for non-data-URI sources
+        if (spinner && !newSrc.startsWith('data:')) {
+          spinner.style.display = '';
+        }
+        (img as HTMLImageElement).onload = () => { if (spinner) spinner.style.display = 'none'; };
+        (img as HTMLImageElement).onerror = () => { if (spinner) spinner.style.display = 'none'; };
+        (img as HTMLImageElement).src = newSrc;
       }
     }
   }

@@ -383,6 +383,9 @@ export class Player extends Living {
   private _lastSentStats: Record<string, unknown> = {};
   private _statsSendCount: number = 0;
 
+  // Track whether score modal is open for live updates
+  private _scoreModalOpen: boolean = false;
+
   constructor() {
     super();
     this.shortDesc = 'a player';
@@ -1769,6 +1772,11 @@ export class Player extends Living {
     // Drain one queued equipment image per heartbeat (one-by-one loading)
     this.drainEquipmentImageQueue();
 
+    // Send live updates to score modal if open
+    if (this._scoreModalOpen && this._connection) {
+      this.sendScoreModalUpdate();
+    }
+
     // Show text-based vitals monitor if enabled
     if (!this._monitorEnabled || !this._connection) return;
 
@@ -3096,6 +3104,25 @@ export class Player extends Living {
     }
   }
 
+  /**
+   * Send live updates to the score modal if it's open.
+   */
+  private async sendScoreModalUpdate(): Promise<void> {
+    try {
+      const { buildScoreModalUpdate } = await import('../lib/score-modal.js');
+      type ScorePlayer = Parameters<typeof buildScoreModalUpdate>[0];
+      const elements = buildScoreModalUpdate(this as unknown as ScorePlayer);
+      efuns.guiSend({
+        action: 'update',
+        modalId: 'score-modal',
+        updates: { elements },
+      } as GUIMessage);
+    } catch {
+      // If modal was closed or import fails, just stop updating
+      this._scoreModalOpen = false;
+    }
+  }
+
   // ========== GUI Response Handler ==========
 
   /**
@@ -3117,6 +3144,13 @@ export class Player extends Living {
       // Dynamically import to avoid circular dependencies
       const { openScoreModal } = await import('../lib/score-modal.js');
       openScoreModal(this as unknown as Parameters<typeof openScoreModal>[0]);
+      this._scoreModalOpen = true;
+      return;
+    }
+
+    // Track score modal close for live update cleanup
+    if (message.action === 'closed' && (message as { modalId?: string }).modalId === 'score-modal') {
+      this._scoreModalOpen = false;
       return;
     }
 
