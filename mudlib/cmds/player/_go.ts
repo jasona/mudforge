@@ -233,6 +233,12 @@ export async function execute(ctx: CommandContext): Promise<boolean> {
     exitRoom.broadcast(exitMsg, { exclude: [player] });
   }
 
+  // Notify current room that player is leaving
+  const roomWithLeave = room as Room & { onLeave?: (obj: MudObject, dest?: MudObject) => void | Promise<void> };
+  if (typeof roomWithLeave.onLeave === 'function') {
+    await roomWithLeave.onLeave(player, destination);
+  }
+
   // Move the player
   const moved = await player.moveTo(destination);
   if (!moved) {
@@ -290,6 +296,12 @@ export async function execute(ctx: CommandContext): Promise<boolean> {
     const oppositeDir = getOppositeDirection(direction);
     const enterMsg = composeMessage(enterTemplate, playerName, oppositeDir);
     enterRoom.broadcast(enterMsg, { exclude: [player] });
+  }
+
+  // Notify new room that player entered
+  const destWithEnter = destination as Room & { onEnter?: (obj: MudObject, from?: MudObject) => void | Promise<void> };
+  if (typeof destWithEnter.onEnter === 'function') {
+    await destWithEnter.onEnter(player, room);
   }
 
   // Look at the new room (brief mode shows glance, normal shows full look)

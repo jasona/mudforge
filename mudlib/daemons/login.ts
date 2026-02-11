@@ -676,10 +676,20 @@ ${'='.repeat(bannerWidth)}
     // Move to starting room (or last location for returning players)
     // NEVER place player in the void - use default location instead
     const DEFAULT_LOCATION = '/areas/valdoria/aldric/center';
+    const TUTORIAL_LOCATION = '/areas/tutorial/war_camp';
     const VOID_PATH = '/areas/void/void';
     let startLocation = DEFAULT_LOCATION;
-    if (session.savedData?.location && session.savedData.location !== VOID_PATH) {
+    if (newPlayer) {
+      startLocation = TUTORIAL_LOCATION;
+    } else if (session.savedData?.location && session.savedData.location !== VOID_PATH) {
       startLocation = session.savedData.location;
+    }
+    // Safety: returning players who completed tutorial but saved in tutorial area go to town
+    if (!newPlayer && startLocation.startsWith('/areas/tutorial/')) {
+      const tutorialComplete = session.savedData?.state?.properties?.tutorial_complete;
+      if (tutorialComplete) {
+        startLocation = DEFAULT_LOCATION;
+      }
     }
     let room = typeof efuns !== 'undefined' ? efuns.findObject(startLocation) : undefined;
     // If the saved room doesn't exist, fall back to default
@@ -753,6 +763,25 @@ ${'='.repeat(bannerWidth)}
           roomWithLook.look(player);
         }
       });
+    }
+
+    // Initialize tutorial for new players, or resume for returning players mid-tutorial
+    if (newPlayer) {
+      import('./tutorial.js')
+        .then(({ getTutorialDaemon }) => {
+          getTutorialDaemon().onPlayerArrivedAtCamp(player);
+        })
+        .catch((e) => {
+          console.error('[TUTORIAL] Failed to initialize tutorial for new player:', e);
+        });
+    } else if (startLocation.startsWith('/areas/tutorial/')) {
+      import('./tutorial.js')
+        .then(({ getTutorialDaemon }) => {
+          getTutorialDaemon().resumeTutorial(player);
+        })
+        .catch((e) => {
+          console.error('[TUTORIAL] Failed to resume tutorial:', e);
+        });
     }
 
     // Save the player (update last login time, etc.)

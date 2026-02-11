@@ -18,12 +18,15 @@ npm run build            # Compile TypeScript and build client
 npm run build:client     # Build client bundle only (esbuild)
 
 # Testing & Quality
-npm test                 # Run tests (vitest)
+npm test                 # Run all tests (vitest)
 npm run test:watch       # Run tests in watch mode
+npx vitest tests/driver/driver.test.ts           # Run a single test file
+npx vitest -t "should initialize"                # Run tests matching pattern
 npm run lint             # ESLint check
 npm run lint:fix         # ESLint auto-fix
 npm run typecheck        # TypeScript type checking only
 npm run format           # Prettier format
+npm run format:check     # Check formatting without modifying
 ```
 
 ## Architecture
