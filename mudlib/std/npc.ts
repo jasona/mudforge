@@ -1511,6 +1511,9 @@ export class NPC extends Living {
       if (deathRoom) {
         await corpse.moveTo(deathRoom);
       }
+
+      // Start decay timer
+      corpse.startDecay();
     } catch (error) {
       console.error(`[NPC] Error creating corpse/loot for ${this.name}:`, error);
       return;

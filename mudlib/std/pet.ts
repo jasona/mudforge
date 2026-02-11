@@ -456,6 +456,9 @@ export class Pet extends NPC {
       await corpse.moveTo(deathRoom);
     }
 
+    // Start decay timer
+    corpse.startDecay();
+
     // Notify room and owner
     if (deathRoom && 'broadcast' in deathRoom) {
       const broadcast = (deathRoom as MudObject & { broadcast: (msg: string) => void }).broadcast.bind(deathRoom);

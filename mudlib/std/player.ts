@@ -2803,6 +2803,9 @@ export class Player extends Living {
       await corpse.moveTo(this._deathLocation);
     }
 
+    // Start decay timer
+    corpse.startDecay();
+
     this._corpse = corpse;
     this._isGhost = true;
 
