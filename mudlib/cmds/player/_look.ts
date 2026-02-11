@@ -9,7 +9,7 @@
 
 import type { MudObject } from '../../lib/std.js';
 import { Container, NPC } from '../../lib/std.js';
-import { findItem } from '../../lib/item-utils.js';
+import { findItem, parseItemInput, countMatching } from '../../lib/item-utils.js';
 import { openLookModal } from '../../lib/look-modal.js';
 import { canSeeInRoom, getDarknessMessage } from '../../std/visibility/index.js';
 import type { Living } from '../../std/living.js';
@@ -109,13 +109,14 @@ export async function execute(ctx: CommandContext): Promise<void> {
   // Check for "look in <container>" syntax - stays text-based
   const inMatch = args.match(/^in\s+(.+)$/i);
   if (inMatch) {
-    const containerName = inMatch[1].trim();
+    const containerInput = inMatch[1].trim();
+    const parsedContainer = parseItemInput(containerInput);
 
     // For looking in containers, check if it's in inventory (always OK) or room (needs light)
-    const invContainer = findItem(containerName, player.inventory);
+    const invContainer = findItem(parsedContainer.name, player.inventory, parsedContainer.index);
     if (invContainer) {
       // Can look in inventory containers even in darkness (by feel)
-      lookInContainer(ctx, room, player, containerName);
+      lookInContainer(ctx, room, player, parsedContainer);
       return;
     }
 
@@ -125,15 +126,15 @@ export async function execute(ctx: CommandContext): Promise<void> {
       return;
     }
 
-    lookInContainer(ctx, room, player, containerName);
+    lookInContainer(ctx, room, player, parsedContainer);
     return;
   }
 
   // Look at something specific - use modal with AI image
-  const target = args.toLowerCase();
+  const parsed = parseItemInput(args);
 
   // Check player's inventory first - can always examine own items (by feel)
-  const invItem = findItem(target, player.inventory);
+  const invItem = findItem(parsed.name, player.inventory, parsed.index);
   if (invItem) {
     // Open the look modal with AI-generated image
     await openLookModal(player, invItem);
@@ -147,11 +148,24 @@ export async function execute(ctx: CommandContext): Promise<void> {
     return;
   }
 
-  const roomItem = findItem(target, room.inventory);
+  const roomItem = findItem(parsed.name, room.inventory, parsed.index);
   if (roomItem) {
     // Open the look modal with AI-generated image
     await openLookModal(player, roomItem);
     return;
+  }
+
+  // Index out-of-range feedback
+  if (parsed.index !== undefined) {
+    const invCount = countMatching(parsed.name, player.inventory);
+    const roomCount = countMatching(parsed.name, room.inventory);
+    const total = invCount + roomCount;
+    if (total > 0) {
+      ctx.sendLine(total === 1
+        ? `You only see 1 "${parsed.name}" here.`
+        : `You only see ${total} "${parsed.name}" here.`);
+      return;
+    }
   }
 
   ctx.sendLine(`You don't see any "${args}" here.`);
@@ -225,15 +239,27 @@ function lookInContainer(
   ctx: CommandContext,
   room: Room,
   player: MudObject,
-  containerName: string
+  parsed: { name: string; index?: number }
 ): void {
   // Find container in room or player's inventory
-  let container = findItem(containerName, room.inventory);
+  let container = findItem(parsed.name, room.inventory, parsed.index);
   if (!container) {
-    container = findItem(containerName, player.inventory);
+    container = findItem(parsed.name, player.inventory, parsed.index);
   }
 
   if (!container) {
+    // Index out-of-range feedback
+    if (parsed.index !== undefined) {
+      const roomCount = countMatching(parsed.name, room.inventory);
+      const invCount = countMatching(parsed.name, player.inventory);
+      const total = roomCount + invCount;
+      if (total > 0) {
+        ctx.sendLine(total === 1
+          ? `You only see 1 "${parsed.name}" here.`
+          : `You only see ${total} "${parsed.name}" here.`);
+        return;
+      }
+    }
     ctx.sendLine("You don't see that here.");
     return;
   }

@@ -39,6 +39,7 @@ import { SkyPanel } from './sky-panel.js';
 import { GUIModal } from './gui/gui-modal.js';
 import { WorldMapModal } from './world-map-modal.js';
 import { Launcher } from './launcher.js';
+import { ReconnectOverlay } from './reconnect-overlay.js';
 import { DebugPanel } from './debug-panel.js';
 import { logger } from './logger.js';
 import type { MapMessage } from './map-renderer.js';
@@ -85,6 +86,7 @@ class MudClient {
   private guiModal: GUIModal;
   private worldMapModal: WorldMapModal;
   private launcher: Launcher;
+  private reconnectOverlay: ReconnectOverlay;
   private debugPanel: DebugPanel;
   private statusElement: HTMLElement;
   private updateBanner: HTMLElement;
@@ -173,6 +175,9 @@ class MudClient {
     this.launcher = new Launcher(this.wsClient, () => {
       this.onLoginSuccess();
     });
+
+    // Initialize reconnect overlay (only shown after login)
+    this.reconnectOverlay = new ReconnectOverlay(() => this.wsClient.reconnect());
 
     // Initialize debug panel
     this.debugPanel = new DebugPanel('debug-container', {
@@ -287,33 +292,55 @@ class MudClient {
     // WebSocket events
     this.wsClient.on('connecting', () => {
       this.setStatus('connecting', 'Connecting...');
-      this.terminal.addSystemLine('Connecting to server...');
+      if (this.isLoggedIn) {
+        this.reconnectOverlay.showConnecting();
+      }
     });
 
     this.wsClient.on('connected', () => {
       this.setStatus('connected', 'Connected');
-      this.terminal.addSystemLine('Connected!');
+      if (this.isLoggedIn) {
+        if (this.wsClient.hasValidSession) {
+          // Wait for session-resume response before hiding overlay
+          this.reconnectOverlay.showConnecting();
+        } else {
+          // No valid session — server is already sending text login flow.
+          // Reload to show the graphical launcher instead.
+          window.location.reload();
+          return;
+        }
+      }
     });
 
     this.wsClient.on('disconnected', (reason: string) => {
       this.setStatus('disconnected', 'Disconnected');
-      this.terminal.addSystemLine(`Disconnected: ${reason}`);
+      if (this.isLoggedIn) {
+        this.reconnectOverlay.showDisconnected(reason);
+      }
     });
 
     this.wsClient.on('error', (error: string) => {
-      this.terminal.addErrorLine(`Error: ${error}`);
+      // Suppress errors while reconnect overlay is handling the state
+      if (!this.reconnectOverlay.visible) {
+        this.terminal.addErrorLine(`Error: ${error}`);
+      }
     });
 
     // Reconnection progress feedback
     this.wsClient.on('reconnect-progress', (p: ReconnectProgress) => {
-      const statusText = `Reconnecting (${p.attempt}/${p.maxAttempts})...`;
+      const maxLabel = p.maxAttempts === Infinity ? '∞' : String(p.maxAttempts);
+      const statusText = `Reconnecting (${p.attempt}/${maxLabel})...`;
       this.setStatus('reconnecting', statusText);
-      this.terminal.addSystemLine(`Reconnecting in ${Math.round(p.delayMs / 1000)}s (attempt ${p.attempt}/${p.maxAttempts})...`);
+      if (this.isLoggedIn) {
+        this.reconnectOverlay.showReconnecting(p.attempt, maxLabel, p.delayMs);
+      }
     });
 
     // Connection stale detection feedback
     this.wsClient.on('connection-stale', () => {
-      this.terminal.addSystemLine('{yellow}Connection appears stale, reconnecting...{/}');
+      if (this.isLoggedIn) {
+        this.reconnectOverlay.showDisconnected('Connection stale');
+      }
     });
 
     // Latency updates for connection quality indicator
@@ -323,8 +350,9 @@ class MudClient {
 
     this.wsClient.on('reconnect-failed', (_progress: ReconnectProgress) => {
       this.setStatus('disconnected', 'Connection Failed');
-      this.terminal.addErrorLine('Connection failed after maximum retry attempts.');
-      this.terminal.addSystemLine('Click the status indicator or type /reconnect to try again.');
+      if (this.isLoggedIn) {
+        this.reconnectOverlay.showDisconnected('Connection failed');
+      }
     });
 
     // Connection state changes
@@ -356,13 +384,26 @@ class MudClient {
     // Session events
     this.wsClient.on('session-resume', (message: { type: string; success?: boolean; error?: string }) => {
       if (message.type === 'session_resume' && message.success) {
-        this.terminal.addSystemLine('{green}Session restored successfully.{/}');
+        if (this.isLoggedIn) {
+          this.reconnectOverlay.hide();
+        }
       } else if (message.type === 'session_invalid') {
-        this.terminal.addSystemLine('{yellow}Session expired. Please log in again.{/}');
+        if (this.isLoggedIn) {
+          // Session rejected — server is already sending text login flow.
+          // Reload to show the graphical launcher instead.
+          window.location.reload();
+          return;
+        }
       }
     });
 
     this.wsClient.on('message', (data: string) => {
+      // Suppress text messages while reconnect overlay is visible — the server
+      // sends the text login flow to every new connection, but we'll reload
+      // to show the graphical launcher if the session can't be restored.
+      if (this.reconnectOverlay.visible) {
+        return;
+      }
       this.terminal.addLine(data);
     });
 
@@ -499,7 +540,10 @@ class MudClient {
    */
   private sendCommand(command: string): void {
     if (!this.wsClient.isConnected) {
-      this.terminal.addErrorLine('Not connected to server');
+      // Suppress redundant error when overlay already shows disconnected state
+      if (!this.reconnectOverlay.visible) {
+        this.terminal.addErrorLine('Not connected to server');
+      }
       return;
     }
 

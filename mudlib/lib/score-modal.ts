@@ -667,4 +667,26 @@ export function openScoreModal(player: ScorePlayer): void {
   efuns.guiSend(message);
 }
 
-export default { openScoreModal };
+/**
+ * Build a GUIUpdateMessage with current vitals for an open score modal.
+ * Returns null if nothing meaningful changed (caller should skip sending).
+ */
+export function buildScoreModalUpdate(player: ScorePlayer): Record<string, Partial<DisplayElement>> {
+  const hpPercent = Math.round((player.health / player.maxHealth) * 100);
+  const mpPercent = Math.round((player.mana / player.maxMana) * 100);
+  const xpPercent = Math.round((player.experience / player.xpForNextLevel) * 100);
+
+  return {
+    'score-hp-bar': { progress: hpPercent, progressColor: getHealthColor(hpPercent) },
+    'score-hp-text': { content: `${player.health}/${player.maxHealth}` },
+    'score-mp-bar': { progress: mpPercent },
+    'score-mp-text': { content: `${player.mana}/${player.maxMana}` },
+    'score-xp-bar': { progress: xpPercent },
+    'score-xp-text': { content: `${formatNumber(player.experience)} / ${formatNumber(player.xpForNextLevel)} XP` },
+    'score-xp-remaining': { content: `${formatNumber(player.xpToNextLevel)} XP to next level` },
+    'score-gold-value': { content: formatNumber(player.gold) },
+    'score-playtime-value': { content: formatPlayTime(player.playTime) },
+  };
+}
+
+export default { openScoreModal, buildScoreModalUpdate };

@@ -29,6 +29,7 @@ import type { I2Message } from '../network/i2-codec.js';
 import {
   getDriverVersion,
   getGameConfig,
+  loadGameConfig,
   getVersionString,
   type DriverVersion,
   type GameConfig,
@@ -4100,6 +4101,7 @@ RULES:
       // Version
       driverVersion: this.driverVersion.bind(this),
       gameConfig: this.gameConfig.bind(this),
+      reloadGameConfig: this.reloadGameConfig.bind(this),
       versionString: this.versionString.bind(this),
 
       // GitHub
@@ -4748,6 +4750,14 @@ RULES:
         website: 'https://www.mudforge.org',
       }
     );
+  }
+
+  /**
+   * Reload game configuration from disk, refreshing the cached config.
+   * @returns The newly loaded GameConfig
+   */
+  reloadGameConfig(): GameConfig {
+    return loadGameConfig(this.config.mudlibPath);
   }
 
   /**

@@ -1218,7 +1218,8 @@ ${setBehaviorSection}${subclassSpecificCode}${constructorTailSection}`;
     } else {
       // Generate individual property assignments
       constructorBody = `
-${subclass === 'npc' ? `    this.name = '${this.escapeString(npc.name)}';\n` : ''}    this.shortDesc = '${this.escapeString(npc.shortDesc)}';
+    this.name = '${this.escapeString(npc.name)}';
+    this.shortDesc = '${this.escapeString(npc.shortDesc)}';
     this.longDesc = \`${npc.longDesc.replace(/`/g, '\\`')}\`;
     this.setLevel(${npc.level}, '${npcType}');
 ${healthOverridden ? `    // Override auto-calculated health\n    this.maxHealth = ${npc.maxHealth};\n    this.health = ${npc.health ?? npc.maxHealth};\n` : ''}${npc.gender ? `    this.gender = '${npc.gender}';\n` : ''}${npc.keywords && npc.keywords.length > 0 ? npc.keywords.map(k => `    this.addId('${this.escapeString(k)}');`).join('\n') + '\n' : ''}${npc.chatChance !== undefined ? `    this.chatChance = ${npc.chatChance};\n` : ''}${chatLines.length > 0 ? `    this.chats = [\n${chatLines.join('\n')}\n    ];\n` : ''}${responseLines.length > 0 ? `    this.responses = [\n${responseLines.join('\n')}\n    ];\n` : ''}${combatConfigStr ? `${combatConfigStr}\n` : ''}${npc.wandering !== undefined ? `    this.wandering = ${npc.wandering};\n` : ''}${npc.respawnTime !== undefined ? `    this.respawnTime = ${npc.respawnTime};\n` : ''}${npc.questsOffered && npc.questsOffered.length > 0 ? `    this.setQuestsOffered([${npc.questsOffered.map(q => `'${q}'`).join(', ')}]);\n` : ''}${npc.questsTurnedIn && npc.questsTurnedIn.length > 0 ? `    this.setQuestsTurnedIn([${npc.questsTurnedIn.map(q => `'${q}'`).join(', ')}]);\n` : ''}${npc.items && npc.items.length > 0 ? `    this.setSpawnItems([${npc.items.map(i => i.startsWith('/') ? `'${i}'` : `'${areaPath}/${i}'`).join(', ')}]);\n` : ''}${subclassSpecificCode}${setBehaviorSection}${constructorTailSection}`;

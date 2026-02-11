@@ -373,12 +373,18 @@ export class Player extends Living {
   // Maps slot name to simple hash of image data (or 'empty' if no image)
   private _lastSentEquipmentImages: Map<string, string> = new Map();
 
+  // Queue for equipment images to send one-by-one (slot → {name, image, hash})
+  private _pendingEquipmentImages: Map<string, { name: string; image: string; hash: string }> = new Map();
+
   // Profile portrait tracking - only send when it changes
   private _lastSentPortraitHash: string = '';
 
   // Delta compression for STATS: cached last-sent values and send counter
   private _lastSentStats: Record<string, unknown> = {};
   private _statsSendCount: number = 0;
+
+  // Track whether score modal is open for live updates
+  private _scoreModalOpen: boolean = false;
 
   constructor() {
     super();
@@ -397,6 +403,7 @@ export class Player extends Living {
 
     // Ensure equipment images are resent if available.
     this._lastSentEquipmentImages.clear();
+    this._pendingEquipmentImages.clear();
   }
 
   notifyEquipmentImageReady(item: MudObject): void {
@@ -406,6 +413,7 @@ export class Player extends Living {
 
     const equipped = this.getAllEquipped();
     const changedSlots: Record<string, { image: string | null; name: string } | null> = {};
+    const slotHashes = new Map<string, string>();
     let hasChange = false;
 
     for (const slot of EQUIPMENT_UPDATE_SLOTS) {
@@ -415,7 +423,7 @@ export class Player extends Living {
 
       const image = this.normalizeEquipmentImage(item.getProperty('cachedImage'));
       const hash = image ? image.substring(0, 50) : 'empty';
-      this._lastSentEquipmentImages.set(slot, hash);
+      slotHashes.set(slot, hash);
       changedSlots[slot] = image ? { image, name: item.shortDesc } : null;
       hasChange = true;
     }
@@ -424,7 +432,14 @@ export class Player extends Living {
       return;
     }
 
-    this.sendEquipmentBatched(changedSlots);
+    const sendResult = this.sendEquipmentBatched(changedSlots, slotHashes);
+    // Only update hashes for slots that were actually sent
+    for (const slot of sendResult.sentSlots) {
+      const hash = slotHashes.get(slot);
+      if (hash) {
+        this._lastSentEquipmentImages.set(slot, hash);
+      }
+    }
   }
 
   // ========== Connection ==========
@@ -1455,6 +1470,7 @@ export class Player extends Living {
 
   private sendEquipmentBatched(
     changedSlots: Record<string, { image: string | null; name: string } | null>,
+    slotHashes: Map<string, string>,
     profilePortrait?: string
   ): { sentSlots: Set<string>; portraitSent: boolean } {
     const result = { sentSlots: new Set<string>(), portraitSent: false };
@@ -1462,7 +1478,7 @@ export class Player extends Living {
       return result;
     }
 
-    // Send portrait separately to avoid one massive mixed payload.
+    // Send portrait separately — always immediate.
     if (profilePortrait) {
       result.portraitSent = this._connection.sendEquipment({
         type: 'equipment_update',
@@ -1471,25 +1487,57 @@ export class Player extends Living {
       }) !== false;
     }
 
-    // Send each changed slot in its own message to reduce login burst size.
     for (const [slot, data] of Object.entries(changedSlots)) {
-      if (data?.image && data.image.length > EQUIPMENT_IMAGE_CHUNK_CHARS) {
-        if (this.sendEquipmentImageChunks(slot, data.name, data.image)) {
-          result.sentSlots.add(slot);
-        }
+      if (data?.image) {
+        // Queue image for one-by-one sending via drainEquipmentImageQueue()
+        const hash = slotHashes.get(slot) || data.image.substring(0, 50);
+        this._pendingEquipmentImages.set(slot, { name: data.name, image: data.image, hash });
+        // Mark as "sent" so caller updates its hash tracking — the queue will actually send it
+        result.sentSlots.add(slot);
         continue;
       }
+      // Non-image updates (unequip/empty slots) always send immediately
       const sent = this._connection.sendEquipment({
         type: 'equipment_update',
-        slots: {
-          [slot]: data,
-        },
+        slots: { [slot]: data },
       }) !== false;
       if (sent) {
         result.sentSlots.add(slot);
       }
     }
     return result;
+  }
+
+  /**
+   * Send the next queued equipment image. Called once per heartbeat
+   * so images visibly load one-by-one in the client's equipment panel.
+   */
+  private drainEquipmentImageQueue(): void {
+    if (this._pendingEquipmentImages.size === 0) return;
+    if (!this._connection?.sendEquipment) return;
+    if (this._connection.hasCriticalBackpressure) return;
+
+    // Take the first queued item
+    const [slot, entry] = this._pendingEquipmentImages.entries().next().value as [string, { name: string; image: string; hash: string }];
+    this._pendingEquipmentImages.delete(slot);
+
+    // Validate: is the item still equipped with this image?
+    const equipped = this.getAllEquipped();
+    const item = equipped.get(slot);
+    if (!item) return; // unequipped while queued — skip
+
+    const currentImage = this.normalizeEquipmentImage(item.getProperty('cachedImage'));
+    if (!currentImage || currentImage.substring(0, 50) !== entry.hash) return; // image changed — skip stale entry
+
+    // Send the image (chunked if needed)
+    if (entry.image.length > EQUIPMENT_IMAGE_CHUNK_CHARS) {
+      this.sendEquipmentImageChunks(slot, entry.name, entry.image);
+    } else {
+      this._connection.sendEquipment({
+        type: 'equipment_update',
+        slots: { [slot]: { image: entry.image, name: entry.name } },
+      });
+    }
   }
 
   private sendEquipmentImageChunks(slot: string, name: string, image: string): boolean {
@@ -1675,7 +1723,12 @@ export class Player extends Living {
     // Send EQUIPMENT changes after STATS so the client can render fallback avatars/icons immediately.
     if (hasEquipmentChanges || portraitChanged) {
       const portraitToSend = portraitChanged ? profilePortrait : undefined;
-      const sendResult = this.sendEquipmentBatched(changedSlots, portraitToSend);
+      // Build slotHashes from currentEquipmentImages for the queue
+      const slotHashes = new Map<string, string>();
+      for (const [slot, data] of currentEquipmentImages) {
+        slotHashes.set(slot, data.hash);
+      }
+      const sendResult = this.sendEquipmentBatched(changedSlots, slotHashes, portraitToSend);
 
       for (const slot of sendResult.sentSlots) {
         const current = currentEquipmentImages.get(slot);
@@ -1715,6 +1768,14 @@ export class Player extends Living {
 
     // Send stats/equipment updates.
     this.sendStatsUpdate(false);
+
+    // Drain one queued equipment image per heartbeat (one-by-one loading)
+    this.drainEquipmentImageQueue();
+
+    // Send live updates to score modal if open
+    if (this._scoreModalOpen && this._connection) {
+      this.sendScoreModalUpdate();
+    }
 
     // Show text-based vitals monitor if enabled
     if (!this._monitorEnabled || !this._connection) return;
@@ -2742,6 +2803,9 @@ export class Player extends Living {
       await corpse.moveTo(this._deathLocation);
     }
 
+    // Start decay timer
+    corpse.startDecay();
+
     this._corpse = corpse;
     this._isGhost = true;
 
@@ -3043,6 +3107,25 @@ export class Player extends Living {
     }
   }
 
+  /**
+   * Send live updates to the score modal if it's open.
+   */
+  private async sendScoreModalUpdate(): Promise<void> {
+    try {
+      const { buildScoreModalUpdate } = await import('../lib/score-modal.js');
+      type ScorePlayer = Parameters<typeof buildScoreModalUpdate>[0];
+      const elements = buildScoreModalUpdate(this as unknown as ScorePlayer);
+      efuns.guiSend({
+        action: 'update',
+        modalId: 'score-modal',
+        updates: { elements },
+      } as GUIMessage);
+    } catch {
+      // If modal was closed or import fails, just stop updating
+      this._scoreModalOpen = false;
+    }
+  }
+
   // ========== GUI Response Handler ==========
 
   /**
@@ -3064,6 +3147,13 @@ export class Player extends Living {
       // Dynamically import to avoid circular dependencies
       const { openScoreModal } = await import('../lib/score-modal.js');
       openScoreModal(this as unknown as Parameters<typeof openScoreModal>[0]);
+      this._scoreModalOpen = true;
+      return;
+    }
+
+    // Track score modal close for live update cleanup
+    if (message.action === 'closed' && (message as { modalId?: string }).modalId === 'score-modal') {
+      this._scoreModalOpen = false;
       return;
     }
 

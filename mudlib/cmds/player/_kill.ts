@@ -34,7 +34,7 @@ export const usage = 'kill <target> [number]';
  */
 function findAllLivingMatching(name: string, objects: MudObject[]): Living[] {
   const matches = findAllMatching(name, objects);
-  return matches.filter((obj): obj is Living => efuns.isLiving(obj));
+  return matches.filter((obj): obj is Living => efuns.isLiving(obj) && (obj as Living).alive);
 }
 
 /**

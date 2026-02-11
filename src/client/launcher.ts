@@ -7,6 +7,7 @@
 
 import type { WebSocketClient, AuthResponseMessage, SessionResumeMessage } from './shared-websocket-client.js';
 import { getAvatarSvg, getAvatarList } from './avatars.js';
+import { SetupWizard } from './setup-wizard.js';
 
 /**
  * Announcement data from the API.
@@ -81,6 +82,9 @@ export class Launcher {
     all: AnnouncementData[];
   } = { latest: null, all: [] };
 
+  // Setup wizard instance
+  private setupWizard: SetupWizard | null = null;
+
   // WebSocket event listeners (stored for cleanup on transition)
   private wsListeners: Array<{ event: string; handler: (...args: unknown[]) => void }> = [];
 
@@ -108,6 +112,12 @@ export class Launcher {
       }
 
       const config = await response.json();
+
+      // Check if setup is needed (first-run wizard)
+      if (!config.game?.setupComplete) {
+        this.showSetupWizard();
+        return;
+      }
 
       // Update launcher title
       const titleEl = document.querySelector('.launcher-title');
@@ -137,9 +147,85 @@ export class Launcher {
       if (metaDesc && config.game?.name && config.game?.description) {
         metaDesc.setAttribute('content', `${config.game.name} - ${config.game.description}`);
       }
+
+      // Show logo if available
+      if (config.logo) {
+        this.showLogo();
+        this.setFavicon();
+        this.showHeaderLogo();
+      }
     } catch (error) {
       console.warn('Failed to fetch game config:', error);
     }
+  }
+
+  /**
+   * Show the first-run setup wizard.
+   */
+  private showSetupWizard(): void {
+    const wizardContainer = document.getElementById('setup-wizard');
+    if (!wizardContainer) return;
+
+    // Hide launcher while wizard is showing
+    this.launcher?.classList.add('hidden');
+
+    this.setupWizard = new SetupWizard(wizardContainer, () => {
+      // On wizard completion, re-fetch config and show launcher
+      this.setupWizard = null;
+      this.launcher?.classList.remove('hidden');
+      this.fetchGameConfig();
+      this.usernameInput?.focus();
+    });
+
+    this.setupWizard.show();
+  }
+
+  /**
+   * Show the game logo in the launcher hero section.
+   */
+  private showLogo(): void {
+    const hero = document.querySelector('.launcher-hero');
+    if (!hero) return;
+
+    // Don't add duplicate logo
+    if (hero.querySelector('.launcher-logo')) return;
+
+    const img = document.createElement('img');
+    img.src = '/api/logo';
+    img.alt = 'Game logo';
+    img.className = 'launcher-logo';
+    hero.insertBefore(img, hero.firstChild);
+  }
+
+  /**
+   * Set the browser favicon to the game logo.
+   */
+  private setFavicon(): void {
+    // Remove any existing favicon
+    const existing = document.querySelector('link[rel="icon"]');
+    if (existing) existing.remove();
+
+    const link = document.createElement('link');
+    link.rel = 'icon';
+    link.href = '/api/logo';
+    document.head.appendChild(link);
+  }
+
+  /**
+   * Show a small logo in the in-game header next to the game name.
+   */
+  private showHeaderLogo(): void {
+    const headerH1 = document.querySelector('#header h1');
+    if (!headerH1) return;
+
+    // Don't add duplicate
+    if (headerH1.querySelector('.header-logo')) return;
+
+    const img = document.createElement('img');
+    img.src = '/api/logo';
+    img.alt = 'Game logo';
+    img.className = 'header-logo';
+    headerH1.insertBefore(img, headerH1.firstChild);
   }
 
   /**

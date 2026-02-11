@@ -502,17 +502,20 @@ export class EquipmentPanel {
       const image = equipment.image || this.cachedImages.get(slot);
 
       if (image) {
-        // Show item image
+        // Real image available — show it, clear spinner
+        slotEl.classList.remove('loading');
         slotEl.innerHTML = `<img src="${image}" alt="${escapeHtml(equipment.name)}" class="equipment-slot-icon" />`;
       } else {
-        // Show default image while async generation/caching runs.
+        // No image yet — show default with spinner while server sends the real one
+        slotEl.classList.add('loading');
         slotEl.innerHTML = `<img src="${DEFAULT_EQUIPPED_ITEM_IMAGE}" alt="${escapeHtml(equipment.name)}" class="equipment-slot-icon" />`;
       }
     } else {
-      // Slot is empty - clear cached image
+      // Slot is empty
       this.cachedImages.delete(slot);
       this.pendingImageChunks.delete(slot);
       slotEl.classList.remove('equipped');
+      slotEl.classList.remove('loading');
       slotEl.innerHTML = `<span class="equipment-slot-empty">+</span>`;
     }
   }
@@ -564,13 +567,13 @@ export class EquipmentPanel {
         // Slot is now empty
         this.cachedImages.delete(slotName);
         this.pendingImageChunks.delete(slotName);
-      } else {
-        // Update cached image
+      } else if (data.image) {
+        // Real image arrived directly
         this.cachedImages.set(slotName, data.image);
-        if (data.image) {
-          this.pendingImageChunks.delete(slotName);
-        }
+        this.pendingImageChunks.delete(slotName);
       }
+      // If data.image is empty, don't overwrite cachedImages — chunks may have
+      // already assembled the real image or be in progress
 
       // Re-render the slot with new image
       const equipment = this.currentEquipment.get(slotName);

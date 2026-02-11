@@ -193,6 +193,17 @@ export class Corpse extends Container {
   }
 
   /**
+   * Start the decay timer using config-based duration.
+   * Call this after the corpse is fully configured (ownerName, isPlayerCorpse set).
+   */
+  startDecay(): void {
+    const decayTime = getDecayTimeMs(this._isPlayerCorpse);
+    if (decayTime > 0) {
+      this.setDecayTime(decayTime);
+    }
+  }
+
+  /**
    * Cancel the decay timer.
    */
   cancelDecay(): void {

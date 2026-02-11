@@ -6,6 +6,7 @@
  */
 
 import type { MudObject, Armor, Living, Room } from '../../lib/std.js';
+import { parseItemInput, findItem, countMatching } from '../../lib/item-utils.js';
 
 interface CommandContext {
   player: MudObject;
@@ -29,23 +30,31 @@ export function execute(ctx: CommandContext): void {
   }
 
   // Find worn armor by name
-  let armor: Armor | undefined;
+  const parsed = parseItemInput(args);
   const equipped = living.getAllEquipped();
 
-  for (const [slot, item] of equipped) {
-    // Skip weapon slots (use unwield for those)
-    if (slot === 'main_hand' || slot === 'off_hand') {
-      // But allow removing shields from off_hand
-      if (!('wear' in item)) continue;
-    }
+  // Build array of removable equipped items (skip weapon slots unless shield)
+  const removableItems = equipped
+    .filter(([slot, item]) => {
+      if (slot === 'main_hand' || slot === 'off_hand') {
+        return 'wear' in item; // Allow shields
+      }
+      return 'remove' in item;
+    })
+    .map(([, item]) => item);
 
-    if (item.id(args) && 'remove' in item) {
-      armor = item as Armor;
-      break;
-    }
-  }
+  const armor = findItem(parsed.name, removableItems, parsed.index) as Armor | undefined;
 
   if (!armor) {
+    if (parsed.index !== undefined) {
+      const count = countMatching(parsed.name, removableItems);
+      if (count > 0) {
+        ctx.sendLine(count === 1
+          ? `You are only wearing 1 ${parsed.name}.`
+          : `You are only wearing ${count} ${parsed.name}s.`);
+        return;
+      }
+    }
     ctx.sendLine(`You aren't wearing any "${args}".`);
     return;
   }

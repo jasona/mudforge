@@ -6,6 +6,7 @@
  */
 
 import type { MudObject, Armor, Living, Room } from '../../lib/std.js';
+import { parseItemInput, findItem, countMatching } from '../../lib/item-utils.js';
 
 interface CommandContext {
   player: MudObject;
@@ -29,15 +30,20 @@ export function execute(ctx: CommandContext): void {
   }
 
   // Find armor in inventory
-  let armor: Armor | undefined;
-  for (const item of player.inventory) {
-    if (item.id(args) && 'wear' in item) {
-      armor = item as Armor;
-      break;
-    }
-  }
+  const parsed = parseItemInput(args);
+  const armorItems = player.inventory.filter((item) => 'wear' in item);
+  const armor = findItem(parsed.name, armorItems, parsed.index) as Armor | undefined;
 
   if (!armor) {
+    if (parsed.index !== undefined) {
+      const count = countMatching(parsed.name, armorItems);
+      if (count > 0) {
+        ctx.sendLine(count === 1
+          ? `You only have 1 ${parsed.name} to wear.`
+          : `You only have ${count} ${parsed.name}s to wear.`);
+        return;
+      }
+    }
     ctx.sendLine(`You don't have any "${args}" to wear.`);
     return;
   }

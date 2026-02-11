@@ -11,6 +11,7 @@ import { Merchant } from '../../../std/merchant.js';
 export class Alchemist extends Merchant {
   constructor() {
     super();
+    this.name = 'Thaddeus';
     this.shortDesc = 'Thaddeus the Alchemist';
     this.longDesc = `Thaddeus is a thin, elderly man with wild gray hair that seems to have
 a life of its own. His spectacles perch precariously on a hawkish nose,

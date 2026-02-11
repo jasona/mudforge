@@ -785,7 +785,7 @@ Fill entire canvas edge to edge, no borders or margins`;
       // Skip if already cached with a non-fallback image.
       const existing = item.getProperty('cachedImage');
       const fallback = this.getFallbackImage(itemType);
-      if (typeof existing === 'string' && existing.length > 0 && existing !== fallback) {
+      if (typeof existing === 'string' && existing.startsWith('data:') && existing !== fallback) {
         if (existing.startsWith('data:image/png;base64,')) {
           const prefix = 'data:image/png;base64,';
           const normalized = this.stripPngAncillaryChunks(existing.slice(prefix.length));

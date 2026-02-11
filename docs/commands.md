@@ -459,11 +459,22 @@ prompt [$hp/$maxhp] >    # Set prompt with variables
 ```
 
 #### train
-Spend experience points to improve stats.
+Train with a trainer NPC to level up or improve stats. You must be in the same room as a trainer (e.g., Master Vorn in the Training Hall).
 
 ```
-train                    # Show trainable stats and costs
-train strength           # Increase strength
+train                    # Show training options and costs
+train level              # Level up (costs XP)
+train strength           # Increase strength by 1
+train str                # Same (short form: str, int, wis, cha, dex, con, luk)
+```
+
+#### advance
+Advance guild level or skill level using guild XP or player XP.
+
+```
+advance                  # Show advancement options
+advance fighter          # Advance guild level
+advance slash            # Advance a skill level
 ```
 
 #### displayname (dname)

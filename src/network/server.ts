@@ -9,12 +9,12 @@ import fastifyStatic from '@fastify/static';
 import fastifyWebsocket from '@fastify/websocket';
 import { WebSocket } from 'ws';
 import { join, resolve } from 'path';
-import { readFile } from 'fs/promises';
+import { readFile, writeFile, mkdir } from 'fs/promises';
 import { Connection } from './connection.js';
 import { ConnectionManager, getConnectionManager } from './connection-manager.js';
 import { EventEmitter } from 'events';
 import type { Logger } from 'pino';
-import { getDriverVersion, getGameConfig } from '../driver/version.js';
+import { getDriverVersion, getGameConfig, loadGameConfig } from '../driver/version.js';
 
 /**
  * Server configuration.
@@ -155,6 +155,14 @@ export class Server extends EventEmitter {
     this.fastify.get('/api/config', async () => {
       const game = getGameConfig();
       const driver = getDriverVersion();
+      const logoPath = resolve(this.config.mudlibPath, 'config', 'logo.png');
+      let hasLogo = false;
+      try {
+        await readFile(logoPath);
+        hasLogo = true;
+      } catch {
+        // no logo file
+      }
       return {
         game: {
           name: game?.name ?? 'MudForge',
@@ -163,11 +171,13 @@ export class Server extends EventEmitter {
           description: game?.description ?? 'A Modern MUD Experience',
           establishedYear: game?.establishedYear ?? 2026,
           website: game?.website ?? 'https://www.mudforge.org',
+          setupComplete: game?.setupComplete ?? false,
         },
         driver: {
           name: driver.name,
           version: driver.version,
         },
+        logo: hasLogo,
         // Indicate if GitHub bug reports are configured
         hasBugReports: !!(process.env.GITHUB_TOKEN && process.env.GITHUB_OWNER && process.env.GITHUB_REPO),
       };
@@ -208,6 +218,155 @@ export class Server extends EventEmitter {
           latest: null,
           all: [],
         };
+      }
+    });
+
+    // Logo endpoint - serves the game logo if it exists
+    this.fastify.get('/api/logo', async (request, reply) => {
+      const logoPath = resolve(this.config.mudlibPath, 'config', 'logo.png');
+      try {
+        const data = await readFile(logoPath);
+        reply.type('image/png').send(data);
+      } catch {
+        reply.code(404).send({ error: 'No logo configured' });
+      }
+    });
+
+    // Setup defaults endpoint - returns ConfigDaemon setting metadata
+    this.fastify.get('/api/setup/defaults', async () => {
+      try {
+        const settingsPath = resolve(this.config.mudlibPath, 'data', 'config', 'settings.json');
+        let savedValues: Record<string, unknown> = {};
+        try {
+          const content = await readFile(settingsPath, 'utf-8');
+          savedValues = JSON.parse(content);
+        } catch {
+          // No saved settings, use defaults
+        }
+
+        // Return the default settings with metadata
+        // These mirror the ConfigDaemon DEFAULT_SETTINGS
+        const defaults: Record<string, { value: unknown; description: string; type: string; min?: number; max?: number; category: string }> = {
+          'disconnect.timeoutMinutes': { value: 15, description: 'Minutes before a disconnected player is automatically saved and quit', type: 'number', min: 1, max: 60, category: 'Disconnect' },
+          'combat.playerKilling': { value: false, description: 'Allow players to attack and kill other players (PK/PvP)', type: 'boolean', category: 'Combat' },
+          'corpse.playerDecayMinutes': { value: 60, description: 'Minutes before player corpses decay (0 = never)', type: 'number', min: 0, max: 480, category: 'Corpses' },
+          'corpse.npcDecayMinutes': { value: 5, description: 'Minutes before NPC corpses decay', type: 'number', min: 1, max: 60, category: 'Corpses' },
+          'reset.intervalMinutes': { value: 15, description: 'Minutes between room resets', type: 'number', min: 5, max: 120, category: 'Room Resets' },
+          'reset.cleanupDroppedItems': { value: true, description: 'Clean up non-player-owned items during room reset', type: 'boolean', category: 'Room Resets' },
+          'time.enabled': { value: true, description: 'Enable the day/night cycle (affects outdoor room lighting)', type: 'boolean', category: 'Day/Night Cycle' },
+          'time.cycleDurationMinutes': { value: 60, description: 'Real minutes per game day (60 = 1 real hour per 24 game hours)', type: 'number', min: 1, max: 1440, category: 'Day/Night Cycle' },
+          'giphy.enabled': { value: true, description: 'Enable Giphy GIF sharing on channels', type: 'boolean', category: 'Giphy' },
+          'giphy.autoCloseSeconds': { value: 5, description: 'Seconds before GIF panel auto-closes (0 to disable, max 300 = 5 min)', type: 'number', min: 0, max: 300, category: 'Giphy' },
+          'giphy.rating': { value: 'pg', description: 'Content rating filter (g, pg, pg-13, r)', type: 'string', category: 'Giphy' },
+          'giphy.playerRateLimitPerMinute': { value: 3, description: 'Max GIF shares per player per minute', type: 'number', min: 1, max: 20, category: 'Giphy' },
+          'discord.enabled': { value: false, description: 'Enable Discord channel bridge', type: 'boolean', category: 'Discord' },
+          'discord.guildId': { value: '', description: 'Discord server (guild) ID', type: 'string', category: 'Discord' },
+          'discord.channelId': { value: '', description: 'Discord channel ID to bridge', type: 'string', category: 'Discord' },
+          'bots.enabled': { value: false, description: 'Enable the bot system (simulated players)', type: 'boolean', category: 'Bots' },
+          'bots.maxBots': { value: 5, description: 'Maximum number of bots that can be online at once', type: 'number', min: 1, max: 50, category: 'Bots' },
+          'bots.minOnlineMinutes': { value: 15, description: 'Minimum minutes a bot stays online per session', type: 'number', min: 5, max: 240, category: 'Bots' },
+          'bots.maxOnlineMinutes': { value: 120, description: 'Maximum minutes a bot stays online per session', type: 'number', min: 15, max: 480, category: 'Bots' },
+          'bots.minOfflineMinutes': { value: 30, description: 'Minimum minutes a bot stays offline between sessions', type: 'number', min: 5, max: 480, category: 'Bots' },
+          'bots.maxOfflineMinutes': { value: 240, description: 'Maximum minutes a bot stays offline between sessions', type: 'number', min: 30, max: 1440, category: 'Bots' },
+          'bots.chatFrequencyMinutes': { value: 10, description: 'Average minutes between bot channel messages', type: 'number', min: 1, max: 60, category: 'Bots' },
+        };
+
+        // Merge saved values over defaults
+        for (const [key, setting] of Object.entries(defaults)) {
+          if (key in savedValues) {
+            setting.value = savedValues[key];
+          }
+        }
+
+        return { settings: defaults };
+      } catch {
+        return { settings: {} };
+      }
+    });
+
+    // Setup endpoint - first-run configuration wizard
+    this.fastify.post('/api/setup', async (request, reply) => {
+      const game = getGameConfig();
+      if (game?.setupComplete) {
+        reply.code(403).send({ error: 'Setup already completed' });
+        return;
+      }
+
+      const body = request.body as {
+        game?: { name?: string; tagline?: string; description?: string; website?: string; establishedYear?: number };
+        logo?: string;
+        config?: Record<string, unknown>;
+      };
+
+      if (!body?.game?.name?.trim()) {
+        reply.code(400).send({ error: 'Game name is required' });
+        return;
+      }
+
+      try {
+        // 1. Write game.json
+        const configDir = resolve(this.config.mudlibPath, 'config');
+        await mkdir(configDir, { recursive: true });
+
+        const gameConfigPath = resolve(configDir, 'game.json');
+        let existingGameConfig: Record<string, unknown> = {};
+        try {
+          const content = await readFile(gameConfigPath, 'utf-8');
+          existingGameConfig = JSON.parse(content);
+        } catch {
+          // No existing config
+        }
+
+        const newGameConfig = {
+          ...existingGameConfig,
+          name: body.game.name.trim(),
+          tagline: body.game.tagline?.trim() || 'Your Adventure Awaits',
+          description: body.game.description?.trim() || 'A Modern MUD Experience',
+          website: body.game.website?.trim() || '',
+          establishedYear: body.game.establishedYear || new Date().getFullYear(),
+          setupComplete: true,
+        };
+
+        await writeFile(gameConfigPath, JSON.stringify(newGameConfig, null, 2));
+
+        // 2. Write logo if provided
+        if (body.logo) {
+          const match = body.logo.match(/^data:image\/[^;]+;base64,(.+)$/);
+          if (match?.[1]) {
+            const buffer = Buffer.from(match[1], 'base64');
+            if (buffer.length <= 256 * 1024) {
+              const logoPath = resolve(configDir, 'logo.png');
+              await writeFile(logoPath, buffer);
+            }
+          }
+        }
+
+        // 3. Write config settings
+        if (body.config && typeof body.config === 'object') {
+          const settingsDir = resolve(this.config.mudlibPath, 'data', 'config');
+          await mkdir(settingsDir, { recursive: true });
+
+          const settingsPath = resolve(settingsDir, 'settings.json');
+          let existingSettings: Record<string, unknown> = {};
+          try {
+            const content = await readFile(settingsPath, 'utf-8');
+            existingSettings = JSON.parse(content);
+          } catch {
+            // No existing settings
+          }
+
+          const newSettings = { ...existingSettings, ...body.config };
+          await writeFile(settingsPath, JSON.stringify(newSettings, null, 2));
+        }
+
+        // 4. Reload cached game config
+        loadGameConfig(this.config.mudlibPath);
+
+        return { success: true };
+      } catch (error) {
+        this.config.logger?.error({ error }, 'Failed to save setup');
+        reply.code(500).send({ error: 'Failed to save configuration' });
+        return;
       }
     });
 

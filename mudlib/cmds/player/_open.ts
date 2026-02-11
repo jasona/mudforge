@@ -7,7 +7,7 @@
 
 import type { MudObject } from '../../lib/std.js';
 import { Container } from '../../lib/std.js';
-import { findItem } from '../../lib/item-utils.js';
+import { findItem, parseItemInput, countMatching } from '../../lib/item-utils.js';
 
 interface CommandContext {
   player: MudObject;
@@ -34,15 +34,26 @@ export function execute(ctx: CommandContext): void {
     return;
   }
 
-  const targetName = args.trim();
+  const parsed = parseItemInput(args.trim());
 
   // Find the target in room or player's inventory
-  let target = findItem(targetName, room.inventory);
+  let target = findItem(parsed.name, room.inventory, parsed.index);
   if (!target) {
-    target = findItem(targetName, player.inventory);
+    target = findItem(parsed.name, player.inventory, parsed.index);
   }
 
   if (!target) {
+    if (parsed.index !== undefined) {
+      const roomCount = countMatching(parsed.name, room.inventory);
+      const invCount = countMatching(parsed.name, player.inventory);
+      const total = roomCount + invCount;
+      if (total > 0) {
+        ctx.sendLine(total === 1
+          ? `You only see 1 "${parsed.name}" here.`
+          : `You only see ${total} "${parsed.name}" here.`);
+        return;
+      }
+    }
     ctx.sendLine("You don't see that here.");
     return;
   }

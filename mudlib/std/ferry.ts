@@ -94,6 +94,12 @@ export class Ferry extends Vehicle {
   /** Ambient message timer */
   protected _ambientTimerId: number | null = null;
 
+  /** Watchdog timer to detect and recover from stalled schedules */
+  protected _watchdogTimerId: number | null = null;
+
+  /** Timestamp of last state change (for watchdog) */
+  protected _lastStateChangeTime: number = 0;
+
   constructor() {
     super();
     this._vehicleType = 'ferry';
@@ -206,7 +212,11 @@ export class Ferry extends Vehicle {
     }
 
     this._state = 'docked';
+    this._lastStateChangeTime = Date.now();
     this.scheduleNext();
+
+    // Start watchdog to detect and recover from stalled schedules
+    this.startWatchdog();
   }
 
   /**
@@ -221,6 +231,10 @@ export class Ferry extends Vehicle {
       efuns.removeCallOut(this._ambientTimerId);
       this._ambientTimerId = null;
     }
+    if (this._watchdogTimerId !== null && typeof efuns !== 'undefined') {
+      efuns.removeCallOut(this._watchdogTimerId);
+      this._watchdogTimerId = null;
+    }
   }
 
   /**
@@ -228,6 +242,9 @@ export class Ferry extends Vehicle {
    */
   private scheduleNext(): void {
     if (typeof efuns === 'undefined' || !efuns.callOut) return;
+
+    // Track state changes for watchdog
+    this._lastStateChangeTime = Date.now();
 
     switch (this._state) {
       case 'docked':
@@ -240,7 +257,9 @@ export class Ferry extends Vehicle {
         this.scheduleArrival();
         break;
       case 'arriving':
-        this.handleArriving();
+        this.handleArriving().catch((error) => {
+          console.error('[Ferry] Unhandled error in handleArriving:', error);
+        });
         break;
     }
   }
@@ -348,9 +367,13 @@ export class Ferry extends Vehicle {
     if (typeof efuns === 'undefined' || !efuns.callOut) return;
 
     // Send departure message
-    const departMsg =
-      DEFAULT_MESSAGES.departing[Math.floor(Math.random() * DEFAULT_MESSAGES.departing.length)];
-    this.broadcast(`${departMsg}\n`);
+    try {
+      const departMsg =
+        DEFAULT_MESSAGES.departing[Math.floor(Math.random() * DEFAULT_MESSAGES.departing.length)];
+      this.broadcast(`${departMsg}\n`);
+    } catch (error) {
+      console.error('[Ferry] Error broadcasting departure message:', error);
+    }
 
     // Undock
     this.undock().then(() => {
@@ -360,6 +383,11 @@ export class Ferry extends Vehicle {
       this.scheduleAmbientMessage();
 
       // Schedule arrival
+      this.scheduleNext();
+    }).catch((error) => {
+      console.error('[Ferry] Error during undock, forcing travel state:', error);
+      this._state = 'traveling';
+      this.scheduleAmbientMessage();
       this.scheduleNext();
     });
   }
@@ -404,37 +432,56 @@ export class Ferry extends Vehicle {
    * Handle arriving at the next stop.
    */
   private async handleArriving(): Promise<void> {
-    // Stop ambient messages
-    if (this._ambientTimerId !== null && typeof efuns !== 'undefined') {
-      efuns.removeCallOut(this._ambientTimerId);
-      this._ambientTimerId = null;
+    try {
+      // Stop ambient messages
+      if (this._ambientTimerId !== null && typeof efuns !== 'undefined') {
+        efuns.removeCallOut(this._ambientTimerId);
+        this._ambientTimerId = null;
+      }
+
+      // Advance to next stop
+      this.advanceToNextStop();
+
+      const currentStop = this.getCurrentStop();
+      if (!currentStop) {
+        console.error('[Ferry] No current stop after advancing - restarting schedule');
+        this._currentStopIndex = 0;
+        this._direction = 'forward';
+      }
+
+      if (currentStop) {
+        // Send arriving message
+        try {
+          const arriveMsg =
+            DEFAULT_MESSAGES.arriving[Math.floor(Math.random() * DEFAULT_MESSAGES.arriving.length)];
+          this.broadcast(`${arriveMsg}\n`);
+        } catch (error) {
+          console.error('[Ferry] Error broadcasting arrival message:', error);
+        }
+
+        // Load and dock at new location
+        const room = await this.loadRoom(currentStop.roomPath);
+        if (room) {
+          await this.dock(room);
+
+          // Send arrived message
+          try {
+            const arrivedMsg = DEFAULT_MESSAGES.arrived.replace('{stopName}', currentStop.name);
+            this.broadcast(`{green}${arrivedMsg}{/}\n`);
+          } catch (error) {
+            console.error('[Ferry] Error broadcasting arrived message:', error);
+          }
+        } else {
+          console.error(`[Ferry] Failed to load room ${currentStop.roomPath} - continuing schedule`);
+        }
+      }
+    } catch (error) {
+      console.error('[Ferry] Error in handleArriving:', error);
     }
 
-    // Advance to next stop
-    this.advanceToNextStop();
-
-    const currentStop = this.getCurrentStop();
-    if (!currentStop) return;
-
-    // Send arriving message
-    const arriveMsg =
-      DEFAULT_MESSAGES.arriving[Math.floor(Math.random() * DEFAULT_MESSAGES.arriving.length)];
-    this.broadcast(`${arriveMsg}\n`);
-
-    // Load and dock at new location
-    const room = await this.loadRoom(currentStop.roomPath);
-    if (room) {
-      await this.dock(room);
-
-      // Send arrived message
-      const arrivedMsg = DEFAULT_MESSAGES.arrived.replace('{stopName}', currentStop.name);
-      this.broadcast(`{green}${arrivedMsg}{/}\n`);
-    }
-
-    // Transition to docked state
+    // ALWAYS transition to docked state and continue schedule
     this._state = 'docked';
 
-    // Continue schedule
     if (typeof efuns !== 'undefined' && efuns.callOut) {
       this._timerId = efuns.callOut(() => {
         this.scheduleNext();
@@ -486,6 +533,64 @@ export class Ferry extends Vehicle {
     }
 
     return null;
+  }
+
+  // ========== Watchdog ==========
+
+  /**
+   * Start the watchdog timer that detects stalled schedules.
+   * Checks every 60 seconds. If no state change has occurred in longer than
+   * a full cycle (dockTime + travelTime + buffer), restart the schedule.
+   */
+  private startWatchdog(): void {
+    if (typeof efuns === 'undefined' || !efuns.callOut) return;
+
+    const checkInterval = 60000; // Check every 60 seconds
+
+    this._watchdogTimerId = efuns.callOut(() => {
+      this.watchdogCheck();
+    }, checkInterval);
+  }
+
+  /**
+   * Watchdog check - restart schedule if stalled.
+   */
+  private watchdogCheck(): void {
+    if (typeof efuns === 'undefined' || !efuns.callOut) return;
+
+    const now = Date.now();
+    // Max expected time for any single state: dockTime + generous buffer
+    const maxStateTime = this._dockTime + this._travelTime + 60000;
+    const elapsed = now - this._lastStateChangeTime;
+
+    if (this._lastStateChangeTime > 0 && elapsed > maxStateTime) {
+      console.error(
+        `[Ferry] Watchdog: Schedule appears stalled (state=${this._state}, ` +
+        `elapsed=${Math.round(elapsed / 1000)}s). Restarting schedule.`
+      );
+
+      // Cancel any pending timers
+      if (this._timerId !== null) {
+        efuns.removeCallOut(this._timerId);
+        this._timerId = null;
+      }
+      if (this._ambientTimerId !== null) {
+        efuns.removeCallOut(this._ambientTimerId);
+        this._ambientTimerId = null;
+      }
+
+      // Restart schedule
+      this._state = 'docked';
+      this._lastStateChangeTime = now;
+      this.startSchedule().catch((error) => {
+        console.error('[Ferry] Watchdog: Failed to restart schedule:', error);
+      });
+    }
+
+    // Reschedule watchdog
+    this._watchdogTimerId = efuns.callOut(() => {
+      this.watchdogCheck();
+    }, 60000);
   }
 
   // ========== Lifecycle ==========

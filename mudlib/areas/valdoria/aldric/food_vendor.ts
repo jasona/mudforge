@@ -11,6 +11,7 @@ import { Merchant } from '../../../std/merchant.js';
 export class FoodVendor extends Merchant {
   constructor() {
     super();
+    this.name = 'Marta';
     this.shortDesc = 'Marta the Food Vendor';
     this.longDesc = `Marta is a cheerful, round-faced woman with rosy cheeks and flour-dusted
 hands. She wears a practical apron over a simple brown dress, and her

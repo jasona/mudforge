@@ -26,6 +26,7 @@ export interface GameConfig {
   description: string;
   establishedYear: number;
   website: string;
+  setupComplete?: boolean;
 }
 
 // Cached values
@@ -84,6 +85,7 @@ export function loadGameConfig(mudlibPath: string): GameConfig {
         description: raw.description || DEFAULT_GAME_CONFIG.description,
         establishedYear: raw.establishedYear || DEFAULT_GAME_CONFIG.establishedYear,
         website: raw.website || DEFAULT_GAME_CONFIG.website,
+        setupComplete: raw.setupComplete === true,
       };
     } catch {
       gameConfig = { ...DEFAULT_GAME_CONFIG };
