@@ -390,9 +390,15 @@ export class Trainer extends NPC {
 
 /**
  * Helper function to check if an object is a Trainer.
+ * Uses duck-typing since instanceof can fail across module boundaries.
  */
 export function isTrainer(obj: MudObject): obj is Trainer {
-  return obj instanceof Trainer;
+  return (
+    obj instanceof Trainer ||
+    (typeof (obj as Trainer).trainLevel === 'function' &&
+      typeof (obj as Trainer).trainStat === 'function' &&
+      typeof (obj as Trainer).showTrainingOptions === 'function')
+  );
 }
 
 export default Trainer;

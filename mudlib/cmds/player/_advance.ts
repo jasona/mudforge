@@ -25,7 +25,7 @@ interface GuildPlayer extends MudObject {
   setProperty(key: string, value: unknown): void;
 }
 
-export const name = ['advance', 'train'];
+export const name = 'advance';
 export const description = 'Advance guild level or skill level';
 export const usage = 'advance [<guild name>|<skill name>]';
 

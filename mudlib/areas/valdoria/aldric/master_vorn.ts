@@ -5,12 +5,12 @@
  * Area: Town of Aldric (valdoria:aldric)
  */
 
-import { Trainer } from '../../../lib/std.js';
 import { Trainer } from '../../../std/trainer.js';
 
 export class MasterVorn extends Trainer {
   constructor() {
     super();
+    this.name = 'Master Vorn';
     this.shortDesc = 'Master Vorn, the combat trainer';
     this.longDesc = `Master Vorn is a grizzled veteran with more scars than hair remaining
 on his weathered head. His arms are thick with muscle despite his age,
