@@ -231,7 +231,7 @@ export class SetupWizard {
 
   private buildWelcomeStep(el: HTMLElement): void {
     el.innerHTML = `
-      <h2>Welcome to MudForge</h2>
+      <h2>Set Up Your Game</h2>
       <p class="setup-subtitle">
         Let's set up your game. This wizard will walk you through configuring
         your game's identity, logo, and gameplay settings. You can change any

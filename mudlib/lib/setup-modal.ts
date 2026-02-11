@@ -247,6 +247,7 @@ export async function openSetupModal(
             }
             const merged = { ...existing, ...updatedConfig };
             await efuns.writeFile(configPath, JSON.stringify(merged, null, 2));
+            efuns.reloadGameConfig();
           } catch (err) {
             sendLine(`{red}Failed to save game config: ${err}{/}`);
           }

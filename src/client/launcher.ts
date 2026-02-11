@@ -151,6 +151,8 @@ export class Launcher {
       // Show logo if available
       if (config.logo) {
         this.showLogo();
+        this.setFavicon();
+        this.showHeaderLogo();
       }
     } catch (error) {
       console.warn('Failed to fetch game config:', error);
@@ -193,6 +195,37 @@ export class Launcher {
     img.alt = 'Game logo';
     img.className = 'launcher-logo';
     hero.insertBefore(img, hero.firstChild);
+  }
+
+  /**
+   * Set the browser favicon to the game logo.
+   */
+  private setFavicon(): void {
+    // Remove any existing favicon
+    const existing = document.querySelector('link[rel="icon"]');
+    if (existing) existing.remove();
+
+    const link = document.createElement('link');
+    link.rel = 'icon';
+    link.href = '/api/logo';
+    document.head.appendChild(link);
+  }
+
+  /**
+   * Show a small logo in the in-game header next to the game name.
+   */
+  private showHeaderLogo(): void {
+    const headerH1 = document.querySelector('#header h1');
+    if (!headerH1) return;
+
+    // Don't add duplicate
+    if (headerH1.querySelector('.header-logo')) return;
+
+    const img = document.createElement('img');
+    img.src = '/api/logo';
+    img.alt = 'Game logo';
+    img.className = 'header-logo';
+    headerH1.insertBefore(img, headerH1.firstChild);
   }
 
   /**

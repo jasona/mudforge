@@ -139,6 +139,18 @@ body {
   border-radius: 2px;
 }
 
+/* When a header logo is present, hide the default accent dot */
+#header h1:has(.header-logo)::before {
+  display: none;
+}
+
+.header-logo {
+  height: 24px;
+  margin-right: 8px;
+  vertical-align: middle;
+  border-radius: 4px;
+}
+
 #status {
   font-size: var(--font-size-xs);
   font-weight: 500;

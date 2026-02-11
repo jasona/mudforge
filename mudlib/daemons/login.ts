@@ -474,7 +474,8 @@ ${'='.repeat(bannerWidth)}
     player.setProperty('email', session.email);
     player.setProperty('permissionLevel', player.permissionLevel);
 
-    session.connection.send(`\nWelcome to the game, ${session.name}!\n\n`);
+    const game = typeof efuns !== 'undefined' ? efuns.gameConfig() : { name: 'the game' };
+    session.connection.send(`\nWelcome to ${game.name}, ${session.name}!\n\n`);
 
     // Complete login (this will also save the player)
     await this.completeLogin(session, player);
