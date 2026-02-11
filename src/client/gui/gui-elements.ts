@@ -611,6 +611,17 @@ function createImage(element: DisplayElement): HTMLElement {
   img.src = src;
   img.alt = element.alt ?? '';
 
+  // Add loading spinner (skip for data URIs which load instantly)
+  const spinner = document.createElement('div');
+  spinner.className = 'gui-image-spinner';
+  if (src.startsWith('data:')) {
+    spinner.style.display = 'none';
+  }
+
+  img.onload = () => { spinner.style.display = 'none'; };
+  img.onerror = () => { spinner.style.display = 'none'; };
+
+  wrapper.appendChild(spinner);
   wrapper.appendChild(img);
   return wrapper;
 }

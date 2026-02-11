@@ -77,6 +77,7 @@ export class GiphyPanel {
       <button class="giphy-close" data-close aria-label="Close">&times;</button>
       <div class="giphy-header" data-header>Someone shares:</div>
       <div class="giphy-image-container">
+        <div class="giphy-spinner"></div>
         <img class="giphy-image" data-gif alt="Shared GIF">
       </div>
       <div class="giphy-query" data-query>"search query"</div>
@@ -208,7 +209,11 @@ export class GiphyPanel {
     }
 
     // Update GIF image
+    const spinner = this.panel.querySelector('.giphy-spinner') as HTMLElement;
     if (this.gifImage && gifUrl) {
+      if (spinner) spinner.style.display = '';
+      this.gifImage.onload = () => { if (spinner) spinner.style.display = 'none'; };
+      this.gifImage.onerror = () => { if (spinner) spinner.style.display = 'none'; };
       this.gifImage.src = gifUrl;
       this.gifImage.alt = searchQuery || 'Shared GIF';
     }
