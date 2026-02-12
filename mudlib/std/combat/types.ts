@@ -120,10 +120,16 @@ export interface AttackResult {
 
   /** Message shown to the attacker */
   attackerMessage: string;
+  /** Concise factual message shown to the attacker */
+  attackerMessageBrief: string;
   /** Message shown to the defender */
   defenderMessage: string;
+  /** Concise factual message shown to the defender */
+  defenderMessageBrief: string;
   /** Message shown to others in the room */
   roomMessage: string;
+  /** Concise factual message shown to others in the room */
+  roomMessageBrief: string;
 }
 
 /**

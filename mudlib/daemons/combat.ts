@@ -638,8 +638,11 @@ export class CombatDaemon extends MudObject {
       finalDamage: 0,
       damageType,
       attackerMessage: '',
+      attackerMessageBrief: '',
       defenderMessage: '',
+      defenderMessageBrief: '',
       roomMessage: '',
+      roomMessageBrief: '',
     };
 
     // Check for circling (no attack this round)
@@ -1023,19 +1026,20 @@ export class CombatDaemon extends MudObject {
       originalAttacker.damage(finalDamage);
     }
 
-    // Send messages
-    const weaponName = weapon.shortDesc || 'weapon';
-    defender.receive(`{cyan}You riposte, striking ${capitalizeName(originalAttacker.name)} for ${finalDamage} damage!{/}\n`);
-    originalAttacker.receive(`{red}${capitalizeName(defender.name)} ripostes, hitting you for ${finalDamage} damage!{/}\n`);
+    // Send messages (verbose + concise factual variants)
+    const attackerName = capitalizeName(defender.name);
+    const defenderName = capitalizeName(originalAttacker.name);
+    const defenderVerbose = `{cyan}You riposte, striking ${defenderName} for ${finalDamage} damage!{/}\n`;
+    const attackerVerbose = `{red}${attackerName} ripostes, hitting you for ${finalDamage} damage!{/}\n`;
+    const roomVerbose = `{cyan}${attackerName} ripostes against ${defenderName}!{/}\n`;
 
-    // Room message
-    const room = defender.environment;
-    if (room && 'broadcast' in room) {
-      (room as MudObject & { broadcast: (msg: string, opts?: { exclude?: MudObject[] }) => void }).broadcast(
-        `{cyan}${capitalizeName(defender.name)} ripostes against ${capitalizeName(originalAttacker.name)}!{/}\n`,
-        { exclude: [defender, originalAttacker] }
-      );
-    }
+    const defenderBrief = `{blue}You riposte ${defenderName} for ${finalDamage} damage.{/}\n`;
+    const attackerBrief = `{blue}${attackerName} ripostes you for ${finalDamage} damage.{/}\n`;
+    const roomBrief = `{blue}${attackerName} ripostes ${defenderName} for ${finalDamage} damage.{/}\n`;
+
+    this.sendCombatMessage(defender as unknown as MudObject, defenderVerbose, defenderBrief);
+    this.sendCombatMessage(originalAttacker as unknown as MudObject, attackerVerbose, attackerBrief);
+    this.sendCombatRoomObservers(defender, originalAttacker, roomVerbose, roomBrief);
   }
 
   /**
@@ -1252,16 +1256,34 @@ export class CombatDaemon extends MudObject {
     }
 
     let blockNote = '';
+    let attackerBlockSentence = '';
+    let defenderBlockSentence = '';
+    let roomBlockSentence = '';
     if (result.blocked) {
       blockNote = ' {blue}(partially blocked){/}';
+      attackerBlockSentence = ' {blue}They partially block the hit.{/}';
+      defenderBlockSentence = ' {blue}You partially block the hit.{/}';
+      roomBlockSentence = ` {blue}${defenderName} partially blocks the hit.{/}`;
     }
 
     // Color based on outcome: critical = magenta, blocked = red with blue note, normal = red
     const color = result.critical ? 'magenta' : 'red';
 
-    result.attackerMessage = `{${color}}You ${hitVerb} ${defenderName} with your ${weaponName}, ${damageDesc} them for {bold}${result.finalDamage}{/}{${color}} damage${blockNote}!{/}\n`;
-    result.defenderMessage = `{${color}}${attackerName} ${hitVerb} you with their ${weaponName}, ${damageDesc} you for {bold}${result.finalDamage}{/}{${color}} damage${blockNote}!{/}\n`;
-    result.roomMessage = `{${color}}${attackerName} ${hitVerb} ${defenderName} with their ${weaponName}${blockNote}!{/}\n`;
+    result.attackerMessage = `{${color}}You ${hitVerb} ${defenderName} with your ${weaponName}, ${damageDesc} them for {bold}${result.finalDamage}{/}{${color}} damage${blockNote}!{/}${attackerBlockSentence}\n`;
+    result.defenderMessage = `{${color}}${attackerName} ${hitVerb} you with their ${weaponName}, ${damageDesc} you for {bold}${result.finalDamage}{/}{${color}} damage${blockNote}!{/}${defenderBlockSentence}\n`;
+    result.roomMessage = `{${color}}${attackerName} ${hitVerb} ${defenderName} with their ${weaponName}${blockNote}!{/}${roomBlockSentence}\n`;
+
+    const briefColor = result.critical ? 'magenta' : 'red';
+    const critTag = result.critical ? '[CRIT] ' : '';
+    if (result.blocked) {
+      result.attackerMessageBrief = `{${briefColor}}${critTag}You hit ${defenderName} for ${result.finalDamage} damage. ${defenderName} partially blocks the hit.{/}\n`;
+      result.defenderMessageBrief = `{${briefColor}}${critTag}${attackerName} hits you for ${result.finalDamage} damage. You partially block the hit.{/}\n`;
+      result.roomMessageBrief = `{${briefColor}}${critTag}${attackerName} hits ${defenderName} for ${result.finalDamage} damage. ${defenderName} partially blocks the hit.{/}\n`;
+    } else {
+      result.attackerMessageBrief = `{${briefColor}}${critTag}You hit ${defenderName} for ${result.finalDamage} damage.{/}\n`;
+      result.defenderMessageBrief = `{${briefColor}}${critTag}${attackerName} hits you for ${result.finalDamage} damage.{/}\n`;
+      result.roomMessageBrief = `{${briefColor}}${critTag}${attackerName} hits ${defenderName} for ${result.finalDamage} damage.{/}\n`;
+    }
   }
 
   /**
@@ -1297,22 +1319,34 @@ export class CombatDaemon extends MudObject {
         result.attackerMessage = `{yellow}You ${missVerb} ${defenderName} with your ${weaponName}, but they parry and {bold}{cyan}counter-attack{/}{yellow}!{/}\n`;
         result.defenderMessage = `{bold}{cyan}You parry ${attackerName}'s attack with your ${defWeaponName} and riposte!{/}\n`;
         result.roomMessage = `{bold}{cyan}${defenderName} parries ${attackerName}'s attack and ripostes!{/}\n`;
+        result.attackerMessageBrief = `{blue}You miss ${defenderName}; they parry and riposte.{/}\n`;
+        result.defenderMessageBrief = `{blue}You parry ${attackerName}'s attack and riposte.{/}\n`;
+        result.roomMessageBrief = `{blue}${defenderName} parries ${attackerName}'s attack and ripostes.{/}\n`;
       } else {
         // Parry: cyan
         result.attackerMessage = `{yellow}You ${missVerb} ${defenderName} with your ${weaponName}, but they {cyan}parry{/}{yellow} with their ${defWeaponName}!{/}\n`;
         result.defenderMessage = `{cyan}You parry ${attackerName}'s attack with your ${defWeaponName}!{/}\n`;
         result.roomMessage = `{cyan}${defenderName} parries ${attackerName}'s attack!{/}\n`;
+        result.attackerMessageBrief = `{cyan}You miss ${defenderName}; they parry.{/}\n`;
+        result.defenderMessageBrief = `{cyan}You parry ${attackerName}'s attack.{/}\n`;
+        result.roomMessageBrief = `{cyan}${defenderName} parries ${attackerName}'s attack.{/}\n`;
       }
     } else if (result.dodged) {
       // Dodge: green for successful evasion
       result.attackerMessage = `{yellow}You ${missVerb} ${defenderName} with your ${weaponName}, but they {green}dodge{/}{yellow} out of the way!{/}\n`;
       result.defenderMessage = `{green}You dodge ${attackerName}'s attack!{/}\n`;
       result.roomMessage = `{green}${defenderName} dodges ${attackerName}'s attack!{/}\n`;
+      result.attackerMessageBrief = `{green}You miss ${defenderName}; they dodge.{/}\n`;
+      result.defenderMessageBrief = `{green}You dodge ${attackerName}'s attack.{/}\n`;
+      result.roomMessageBrief = `{green}${defenderName} dodges ${attackerName}'s attack.{/}\n`;
     } else {
       // Clean miss: yellow
       result.attackerMessage = `{yellow}You ${missVerb} ${defenderName} with your ${weaponName}, but miss!{/}\n`;
       result.defenderMessage = `{yellow}${attackerName} ${missVerb} you with their ${weaponName}, but misses!{/}\n`;
       result.roomMessage = `{yellow}${attackerName} ${missVerb} ${defenderName} but misses!{/}\n`;
+      result.attackerMessageBrief = `{yellow}You miss ${defenderName}.{/}\n`;
+      result.defenderMessageBrief = `{yellow}${attackerName} misses you.{/}\n`;
+      result.roomMessageBrief = `{yellow}${attackerName} misses ${defenderName}.{/}\n`;
     }
   }
 
@@ -1338,6 +1372,9 @@ export class CombatDaemon extends MudObject {
     result.attackerMessage = `{white}Your attack grazes ${defenderName} with your ${weaponName}, dealing {bold}${damage}{/}{white} damage!{/}\n`;
     result.defenderMessage = `{white}${attackerName}'s attack grazes you for {bold}${damage}{/}{white} damage!{/}\n`;
     result.roomMessage = `{white}${attackerName}'s attack grazes ${defenderName}!{/}\n`;
+    result.attackerMessageBrief = `{white}You graze ${defenderName} for ${damage} damage.{/}\n`;
+    result.defenderMessageBrief = `{white}${attackerName} grazes you for ${damage} damage.{/}\n`;
+    result.roomMessageBrief = `{white}${attackerName} grazes ${defenderName} for ${damage} damage.{/}\n`;
   }
 
   /**
@@ -1382,24 +1419,85 @@ export class CombatDaemon extends MudObject {
     result.attackerMessage = `{dim}${msg.atk}{/}\n`;
     result.defenderMessage = `{dim}${msg.def}{/}\n`;
     result.roomMessage = `{dim}${msg.room}{/}\n`;
+    result.attackerMessageBrief = `{dim}You and ${defenderName} circle warily.{/}\n`;
+    result.defenderMessageBrief = `{dim}You and ${attackerName} circle warily.{/}\n`;
+    result.roomMessageBrief = `{dim}${attackerName} and ${defenderName} circle warily.{/}\n`;
   }
 
   /**
    * Send round result messages.
    */
-  sendRoundMessages(result: RoundResult): void {
-    const room = result.attacker.environment;
+  private getCombatBriefEnabled(viewer: MudObject): boolean {
+    const viewerWithConfig = viewer as MudObject & { getConfig?: <T>(key: string) => T };
+    if (typeof viewerWithConfig.getConfig !== 'function') {
+      return false;
+    }
 
-    for (const attack of result.attacks) {
-      result.attacker.receive(attack.attackerMessage);
-      result.defender.receive(attack.defenderMessage);
+    try {
+      return Boolean(viewerWithConfig.getConfig<boolean>('combatBrief'));
+    } catch {
+      return false;
+    }
+  }
 
-      if (room && 'broadcast' in room) {
-        (room as MudObject & { broadcast: (msg: string, opts?: { exclude?: MudObject[] }) => void })
-          .broadcast(attack.roomMessage, {
-            exclude: [result.attacker, result.defender],
-          });
+  private sendCombatMessage(viewer: MudObject, verboseMessage: string, briefMessage: string): void {
+    const message = this.getCombatBriefEnabled(viewer) ? briefMessage : verboseMessage;
+    const receiver = viewer as MudObject & { receive?: (msg: string) => void };
+    if (typeof receiver.receive === 'function') {
+      receiver.receive(message);
+    } else if (typeof efuns !== 'undefined') {
+      efuns.send(viewer, message);
+    }
+  }
+
+  private sendCombatRoomObservers(
+    attacker: Living,
+    defender: Living,
+    verboseMessage: string,
+    briefMessage: string
+  ): void {
+    const room = attacker.environment as (MudObject & { inventory?: MudObject[] }) | null;
+    if (!room?.inventory) {
+      return;
+    }
+
+    const excludeSet = new Set<MudObject>([
+      attacker as unknown as MudObject,
+      defender as unknown as MudObject,
+    ]);
+
+    for (const obj of room.inventory) {
+      if (excludeSet.has(obj)) {
+        continue;
       }
+
+      const living = obj as MudObject & { isSleeping?: () => boolean };
+      if (living.isSleeping?.()) {
+        continue;
+      }
+
+      this.sendCombatMessage(obj, verboseMessage, briefMessage);
+    }
+  }
+
+  sendRoundMessages(result: RoundResult): void {
+    for (const attack of result.attacks) {
+      this.sendCombatMessage(
+        result.attacker as unknown as MudObject,
+        attack.attackerMessage,
+        attack.attackerMessageBrief
+      );
+      this.sendCombatMessage(
+        result.defender as unknown as MudObject,
+        attack.defenderMessage,
+        attack.defenderMessageBrief
+      );
+      this.sendCombatRoomObservers(
+        result.attacker,
+        result.defender,
+        attack.roomMessage,
+        attack.roomMessageBrief
+      );
     }
   }
 
