@@ -543,6 +543,23 @@ declare global {
     /** List all saved player names */
     listPlayers(): Promise<string[]>;
 
+    /**
+     * Purge a player's persisted records (save file, permissions, workspace, sessions).
+     * Requires senior builder permission (level 2) or higher.
+     */
+    purgePlayerData(playerName: string): Promise<{
+      success: boolean;
+      error?: string;
+      details?: {
+        playerSaveDeleted: boolean;
+        workspaceDeleted: boolean;
+        permissionsReset: boolean;
+        sessionsInvalidated: boolean;
+        activePlayerCleared: boolean;
+      };
+      warnings?: string[];
+    }>;
+
     // ========== Hot Reload Efuns ==========
 
     /** Reload an object from disk (for class-based objects) */

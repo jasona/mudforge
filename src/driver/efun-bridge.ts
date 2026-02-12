@@ -9,7 +9,7 @@
 import { getRegistry, type ObjectRegistry } from './object-registry.js';
 import { getScheduler, type Scheduler } from './scheduler.js';
 import { getMetrics } from './metrics.js';
-import { getPermissions, resetPermissions, type Permissions } from './permissions.js';
+import { getPermissions, resetPermissions, type Permissions, PermissionLevel } from './permissions.js';
 import { getFileStore } from './persistence/file-store.js';
 import { getCommandManager } from './command-manager.js';
 import { getClaudeClient, type ClaudeMessage } from './claude-client.js';
@@ -24,6 +24,7 @@ import { getI3Client } from '../network/i3-client.js';
 import { getI2Client } from '../network/i2-client.js';
 import { getGrapevineClient, type GrapevineEvent } from '../network/grapevine-client.js';
 import { getDiscordClient } from '../network/discord-client.js';
+import { getSessionManager } from '../network/session-manager.js';
 import type { LPCValue } from '../network/lpc-codec.js';
 import type { I2Message } from '../network/i2-codec.js';
 import {
@@ -2239,6 +2240,125 @@ export class EfunBridge {
     return fileStore.listPlayers();
   }
 
+  /**
+   * Purge all persisted records for a player.
+   * Requires senior builder permission (level 2) or higher.
+   * @param playerName The player name to purge
+   */
+  async purgePlayerData(playerName: string): Promise<{
+    success: boolean;
+    error?: string;
+    details?: {
+      playerSaveDeleted: boolean;
+      workspaceDeleted: boolean;
+      permissionsReset: boolean;
+      sessionsInvalidated: boolean;
+      activePlayerCleared: boolean;
+    };
+    warnings?: string[];
+  }> {
+    const requesterLevel = this.getPermissionLevel();
+    if (requesterLevel < PermissionLevel.SeniorBuilder) {
+      return {
+        success: false,
+        error: 'Permission denied: senior builder required',
+      };
+    }
+
+    const normalizedName = playerName.trim().toLowerCase();
+    if (!normalizedName) {
+      return {
+        success: false,
+        error: 'Player name is required',
+      };
+    }
+
+    const details = {
+      playerSaveDeleted: false,
+      workspaceDeleted: false,
+      permissionsReset: false,
+      sessionsInvalidated: false,
+      activePlayerCleared: false,
+    };
+    const warnings: string[] = [];
+    const fileStore = getFileStore({ dataPath: this.config.mudlibPath + '/data' });
+
+    try {
+      const activePlayer = this.findActivePlayer(normalizedName) as (MudObject & {
+        quit?: () => Promise<void> | void;
+        clearDisconnectTimer?: () => void;
+        moveTo?: (destination: MudObject | null) => Promise<boolean>;
+      }) | undefined;
+
+      if (activePlayer) {
+        try {
+          if (typeof activePlayer.clearDisconnectTimer === 'function') {
+            activePlayer.clearDisconnectTimer();
+          }
+
+          if (typeof activePlayer.quit === 'function') {
+            await activePlayer.quit();
+          } else {
+            if (typeof activePlayer.moveTo === 'function') {
+              await activePlayer.moveTo(null);
+            }
+            this.unregisterActivePlayer(activePlayer);
+          }
+
+          details.activePlayerCleared = true;
+        } catch (error) {
+          warnings.push(
+            `Failed to clear active player: ${error instanceof Error ? error.message : String(error)}`
+          );
+        }
+      }
+
+      details.playerSaveDeleted = await fileStore.deletePlayer(normalizedName);
+
+      const userDirPath = `/users/${normalizedName}`;
+      try {
+        const fullUserDirPath = this.resolveMudlibPath(userDirPath);
+        const userDirStat = await stat(fullUserDirPath);
+        if (userDirStat.isDirectory()) {
+          await rm(fullUserDirPath, { recursive: true, force: true });
+          details.workspaceDeleted = true;
+        }
+      } catch {
+        // No workspace directory, nothing to delete.
+      }
+
+      this.permissions.setLevel(normalizedName, PermissionLevel.Player);
+      this.permissions.setDomains(normalizedName, []);
+      this.permissions.clearCommandPaths(normalizedName);
+
+      await fileStore.savePermissions(this.permissions.export());
+      details.permissionsReset = true;
+
+      try {
+        const sessionManager = getSessionManager();
+        sessionManager.invalidatePlayerSessions(normalizedName);
+        details.sessionsInvalidated = true;
+      } catch (error) {
+        warnings.push(
+          `Failed to invalidate reconnect sessions: ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
+
+      return {
+        success: true,
+        details,
+        warnings,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+        details,
+        warnings,
+      };
+    }
+  }
+
   // ========== Paging Efuns ==========
 
   /**
@@ -4002,6 +4122,7 @@ RULES:
       loadPlayerData: this.loadPlayerData.bind(this),
       playerExists: this.playerExists.bind(this),
       listPlayers: this.listPlayers.bind(this),
+      purgePlayerData: this.purgePlayerData.bind(this),
 
       // Hot Reload
       reloadObject: this.reloadObject.bind(this),
