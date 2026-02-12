@@ -20,8 +20,13 @@ import type {
   MapAreaChangeMessage,
   MapMoveMessage,
   MapWorldDataMessage,
+  BiomeAreaDataMessage,
+  BiomeWorldDataMessage,
+  BiomeTileId,
+  POIMarker,
 } from '../lib/map-types.js';
 import { normalizeCoordinates } from '../lib/map-types.js';
+import { generateBiomeTiles } from '../lib/biome-map.js';
 
 /**
  * Room interface for map operations.
@@ -47,6 +52,13 @@ interface MapPlayer extends MudObject {
   getExploredRooms(): string[];
   getRevealedRooms(): string[];
   receive(message: string): void;
+}
+
+interface BiomeAnchor {
+  x: number;
+  y: number;
+  terrain: TerrainType;
+  icon?: POIMarker;
 }
 
 /**
@@ -76,6 +88,7 @@ export interface ValidationWarning {
 export class MapDaemon extends MudObject {
   private _areas: Map<string, AreaDefinition> = new Map();
   private _coordinateCache: Map<string, MapCoordinates> = new Map();
+  private _biomeCache: Map<string, { width: number; height: number; tiles: BiomeTileId[] }> = new Map();
 
   constructor() {
     super();
@@ -109,6 +122,8 @@ export class MapDaemon extends MudObject {
       defaultZ: 0,
       defaultZoom: 3,
       worldOffset: { x: 0, y: 0 },
+      biomeSeed: 311,
+      biomeStyle: 'classic-df',
     });
 
     this.registerArea({
@@ -123,6 +138,8 @@ export class MapDaemon extends MudObject {
       defaultZ: -1,
       defaultZoom: 3,
       worldOffset: { x: 2, y: 12 },
+      biomeSeed: 761,
+      biomeStyle: 'classic-df',
     });
 
     // Forest road_fork (2,0) must be 1 south of Aldric gates (2,4)
@@ -133,6 +150,8 @@ export class MapDaemon extends MudObject {
       defaultZ: 0,
       defaultZoom: 3,
       worldOffset: { x: 0, y: 5 },
+      biomeSeed: 557,
+      biomeStyle: 'classic-df',
     });
 
     // West Road room_19_3_0 (19,3) must be 1 west of Aldric room_3_4_0 (0,2)
@@ -143,6 +162,8 @@ export class MapDaemon extends MudObject {
       defaultZ: 0,
       defaultZoom: 3,
       worldOffset: { x: -20, y: -1 },
+      biomeSeed: 907,
+      biomeStyle: 'classic-df',
     });
   }
 
@@ -205,7 +226,122 @@ export class MapDaemon extends MudObject {
       this._coordinateCache.delete(roomPath);
     } else {
       this._coordinateCache.clear();
+      this._biomeCache.clear();
     }
+  }
+
+  /**
+   * Get deterministic per-area seed for biome generation.
+   */
+  private getAreaSeed(area: AreaDefinition): number {
+    if (typeof area.biomeSeed === 'number') {
+      return area.biomeSeed;
+    }
+    let hash = 2166136261;
+    for (let i = 0; i < area.id.length; i++) {
+      hash ^= area.id.charCodeAt(i);
+      hash = Math.imul(hash, 16777619);
+    }
+    return (hash >>> 0) % 100000;
+  }
+
+  /**
+   * Collect rooms reachable from the start room in the same area.
+   */
+  private collectAreaRooms(startRoom: MapRoom, areaId: string, maxRooms: number = 1200): MapRoom[] {
+    const out: MapRoom[] = [];
+    const queue: string[] = [startRoom.objectPath];
+    const visited = new Set<string>();
+
+    while (queue.length > 0 && out.length < maxRooms) {
+      const path = queue.shift()!;
+      if (visited.has(path)) continue;
+      visited.add(path);
+
+      if (typeof efuns === 'undefined') continue;
+      const room = (efuns.findObject(path) || efuns.loadObject?.(path)) as MapRoom | undefined;
+      if (!room) continue;
+
+      const coords = this.getRoomCoordinates(room);
+      if (coords.area !== areaId) continue;
+
+      out.push(room);
+
+      for (const dir of room.getExitDirections()) {
+        const exit = room.getExit(dir);
+        if (!exit) continue;
+        const destPath = typeof exit.destination === 'string'
+          ? exit.destination
+          : exit.destination.objectPath;
+        if (!visited.has(destPath)) {
+          queue.push(destPath);
+        }
+      }
+    }
+
+    return out;
+  }
+
+  /**
+   * Build biome anchor points from area rooms.
+   */
+  private buildBiomeAnchors(rooms: MapRoom[]): BiomeAnchor[] {
+    const anchors: BiomeAnchor[] = [];
+    for (const room of rooms) {
+      const coords = this.getRoomCoordinates(room);
+      const mapData = room.getMapData();
+      anchors.push({
+        x: coords.x,
+        y: coords.y,
+        terrain: room.getTerrain(),
+        icon: mapData.icon,
+      });
+    }
+    return anchors;
+  }
+
+  /**
+   * Resolve local bounds from room coordinates with padding.
+   */
+  private getLocalBounds(rooms: MapRoom[], explicit?: AreaDefinition['biomeBounds']): {
+    minX: number;
+    maxX: number;
+    minY: number;
+    maxY: number;
+  } {
+    if (explicit) {
+      return {
+        minX: explicit.minX,
+        maxX: explicit.maxX,
+        minY: explicit.minY,
+        maxY: explicit.maxY,
+      };
+    }
+
+    let minX = Number.POSITIVE_INFINITY;
+    let minY = Number.POSITIVE_INFINITY;
+    let maxX = Number.NEGATIVE_INFINITY;
+    let maxY = Number.NEGATIVE_INFINITY;
+
+    for (const room of rooms) {
+      const c = this.getRoomCoordinates(room);
+      minX = Math.min(minX, c.x);
+      maxX = Math.max(maxX, c.x);
+      minY = Math.min(minY, c.y);
+      maxY = Math.max(maxY, c.y);
+    }
+
+    if (!Number.isFinite(minX) || !Number.isFinite(minY) || !Number.isFinite(maxX) || !Number.isFinite(maxY)) {
+      return { minX: -10, maxX: 10, minY: -10, maxY: 10 };
+    }
+
+    const pad = 8;
+    return {
+      minX: minX - pad,
+      maxX: maxX + pad,
+      minY: minY - pad,
+      maxY: maxY + pad,
+    };
   }
 
   /**
@@ -525,6 +661,170 @@ export class MapDaemon extends MudObject {
       areas,
       rooms: allRooms,
       currentRoom: currentRoomPath,
+    };
+  }
+
+  /**
+   * Generate dense biome map payload for the current area.
+   */
+  generateBiomeAreaData(player: MapPlayer, currentRoom: MapRoom): BiomeAreaDataMessage {
+    const currentCoords = this.getRoomCoordinates(currentRoom);
+    const areaId = currentCoords.area;
+    const area = this.getArea(areaId) || { id: areaId, name: 'Unknown Region', defaultZ: 0 };
+    const areaRooms = this.collectAreaRooms(currentRoom, areaId);
+    const bounds = this.getLocalBounds(areaRooms, area.biomeBounds);
+    const seed = this.getAreaSeed(area);
+    const cacheKey = `${area.id}:${seed}:${bounds.minX},${bounds.minY},${bounds.maxX},${bounds.maxY}`;
+
+    let cached = this._biomeCache.get(cacheKey);
+    if (!cached) {
+      cached = generateBiomeTiles(bounds, seed, this.buildBiomeAnchors(areaRooms));
+      this._biomeCache.set(cacheKey, cached);
+    }
+
+    const poi = this.buildBiomeAnchors(areaRooms)
+      .filter((a) => !!a.icon)
+      .map((a) => ({
+        x: a.x - bounds.minX,
+        y: a.y - bounds.minY,
+        icon: a.icon!,
+      }));
+
+    return {
+      type: 'biome_area',
+      area: { id: area.id, name: area.name },
+      width: cached.width,
+      height: cached.height,
+      tileSize: 8,
+      seed,
+      origin: { minX: bounds.minX, minY: bounds.minY },
+      tiles: cached.tiles,
+      player: {
+        x: currentCoords.x - bounds.minX,
+        y: currentCoords.y - bounds.minY,
+      },
+      poi,
+    };
+  }
+
+  /**
+   * Generate dense biome world map payload from known world offsets and explored rooms.
+   */
+  generateBiomeWorldData(player: MapPlayer, currentRoom: MapRoom): BiomeWorldDataMessage {
+    const anchors: BiomeAnchor[] = [];
+    const areaCentroids: Map<string, { sumX: number; sumY: number; count: number; name: string }> = new Map();
+    const knownRooms = new Set<string>([
+      ...player.getExploredRooms(),
+      ...player.getRevealedRooms(),
+    ]);
+
+    for (const roomPath of knownRooms) {
+      if (typeof efuns === 'undefined') continue;
+
+      let room: MapRoom | undefined;
+      try {
+        room = (efuns.findObject(roomPath) || efuns.loadObject?.(roomPath)) as MapRoom | undefined;
+      } catch {
+        room = undefined;
+      }
+      if (!room) continue;
+
+      const coords = this.getRoomCoordinates(room);
+      const area = this.getArea(coords.area);
+      if (!area?.worldOffset) continue;
+
+      const worldX = coords.x + area.worldOffset.x;
+      const worldY = coords.y + area.worldOffset.y;
+
+      anchors.push({
+        x: worldX,
+        y: worldY,
+        terrain: room.getTerrain(),
+        icon: room.getMapData().icon,
+      });
+
+      const centroid = areaCentroids.get(area.id);
+      if (centroid) {
+        centroid.sumX += worldX;
+        centroid.sumY += worldY;
+        centroid.count++;
+      } else {
+        areaCentroids.set(area.id, { sumX: worldX, sumY: worldY, count: 1, name: area.name });
+      }
+    }
+
+    if (anchors.length === 0) {
+      const c = this.getRoomCoordinates(currentRoom);
+      anchors.push({ x: c.x, y: c.y, terrain: currentRoom.getTerrain(), icon: currentRoom.getMapData().icon });
+    }
+
+    // World footprint should include all known/registered world areas, not only current anchor clusters.
+    const worldAreas = this.getAllAreas().filter((a) => !!a.worldOffset);
+    const defaultHalfSpan = 24;
+
+    let minX = Number.POSITIVE_INFINITY;
+    let maxX = Number.NEGATIVE_INFINITY;
+    let minY = Number.POSITIVE_INFINITY;
+    let maxY = Number.NEGATIVE_INFINITY;
+
+    for (const area of worldAreas) {
+      const offset = area.worldOffset!;
+      if (area.biomeBounds) {
+        minX = Math.min(minX, area.biomeBounds.minX + offset.x);
+        maxX = Math.max(maxX, area.biomeBounds.maxX + offset.x);
+        minY = Math.min(minY, area.biomeBounds.minY + offset.y);
+        maxY = Math.max(maxY, area.biomeBounds.maxY + offset.y);
+      } else {
+        minX = Math.min(minX, offset.x - defaultHalfSpan);
+        maxX = Math.max(maxX, offset.x + defaultHalfSpan);
+        minY = Math.min(minY, offset.y - defaultHalfSpan);
+        maxY = Math.max(maxY, offset.y + defaultHalfSpan);
+      }
+    }
+
+    // Fallback when no world areas are registered.
+    if (!Number.isFinite(minX) || !Number.isFinite(maxX) || !Number.isFinite(minY) || !Number.isFinite(maxY)) {
+      minX = Math.min(...anchors.map((a) => a.x));
+      maxX = Math.max(...anchors.map((a) => a.x));
+      minY = Math.min(...anchors.map((a) => a.y));
+      maxY = Math.max(...anchors.map((a) => a.y));
+      const pad = 8;
+      minX -= pad;
+      minY -= pad;
+      maxX += pad;
+      maxY += pad;
+    }
+
+    const worldSeed = 91337;
+    const data = generateBiomeTiles({ minX, maxX, minY, maxY }, worldSeed, anchors);
+    const currentCoords = this.getRoomCoordinates(currentRoom);
+    const currentArea = this.getArea(currentCoords.area);
+    const currentWorldX = currentCoords.x + (currentArea?.worldOffset?.x ?? 0);
+    const currentWorldY = currentCoords.y + (currentArea?.worldOffset?.y ?? 0);
+
+    const areas: BiomeWorldDataMessage['areas'] = [];
+    for (const [id, c] of areaCentroids.entries()) {
+      areas.push({
+        id,
+        name: c.name,
+        worldX: Math.round(c.sumX / c.count) - minX,
+        worldY: Math.round(c.sumY / c.count) - minY,
+      });
+    }
+
+    return {
+      type: 'biome_world',
+      width: data.width,
+      height: data.height,
+      tileSize: 6,
+      seed: worldSeed,
+      origin: { minX, minY },
+      tiles: data.tiles,
+      areas,
+      player: {
+        x: currentWorldX - minX,
+        y: currentWorldY - minY,
+      },
     };
   }
 

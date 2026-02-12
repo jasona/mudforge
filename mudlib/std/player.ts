@@ -815,24 +815,31 @@ export class Player extends Living {
         const toCoords = mapDaemon.getRoomCoordinates(currentRoom as unknown as MapRoom);
 
         if (fromCoords.area !== toCoords.area) {
-          // Area changed - send full area data for new area
-          const message = mapDaemon.generateAreaMapData(
+          // Area changed - send full biome area payload.
+          const message = mapDaemon.generateBiomeAreaData(
             this as unknown as MapPlayer,
             currentRoom as unknown as MapRoom
           );
           this._connection.sendMap(message);
         } else {
-          // Same area - send move message
-          const message = mapDaemon.generateMoveMessage(
+          // Same area - refresh biome area payload for deterministic viewport updates.
+          const message = mapDaemon.generateBiomeAreaData(
             this as unknown as MapPlayer,
-            fromRoom as unknown as MapRoom,
             currentRoom as unknown as MapRoom
           );
           this._connection.sendMap(message);
+
+          // Also emit lightweight move for legacy clients.
+          const legacyMove = mapDaemon.generateMoveMessage(
+            this as unknown as MapPlayer,
+            fromRoom as MapRoom,
+            currentRoom as unknown as MapRoom
+          );
+          this._connection.sendMap(legacyMove);
         }
       } else {
-        // Player teleported or just logged in - send full area data
-        const message = mapDaemon.generateAreaMapData(
+        // Player teleported or just logged in - send full biome area data
+        const message = mapDaemon.generateBiomeAreaData(
           this as unknown as MapPlayer,
           currentRoom as unknown as MapRoom
         );
@@ -3171,10 +3178,11 @@ export class Player extends Living {
         try {
           const { getMapDaemon } = await import('../daemons/map.js');
           const mapDaemon = getMapDaemon();
-          type MapPlayer = Parameters<typeof mapDaemon.generateWorldMapData>[0];
-          const worldData = mapDaemon.generateWorldMapData(
+          type MapPlayer = Parameters<typeof mapDaemon.generateBiomeWorldData>[0];
+          type MapRoom = Parameters<typeof mapDaemon.generateBiomeWorldData>[1];
+          const worldData = mapDaemon.generateBiomeWorldData(
             this as unknown as MapPlayer,
-            this.environment,
+            this.environment as unknown as MapRoom,
           );
           this._connection.sendMap(worldData);
         } catch {

@@ -76,6 +76,17 @@ export interface AreaDefinition {
   defaultZoom?: number;
   /** World-level offset for compositing areas on the world map */
   worldOffset?: { x: number; y: number };
+  /** Seed used by deterministic biome generation */
+  biomeSeed?: number;
+  /** Optional explicit biome bounds in local area coordinates */
+  biomeBounds?: {
+    minX: number;
+    maxX: number;
+    minY: number;
+    maxY: number;
+  };
+  /** Style key for biome renderer calibration */
+  biomeStyle?: 'classic-df';
 }
 
 /**
@@ -162,6 +173,91 @@ export interface MapWorldDataMessage {
 }
 
 /**
+ * Biome tile identifier for dense world/area rendering.
+ */
+export type BiomeTileId =
+  | 'void'
+  | 'water_deep'
+  | 'water_shallow'
+  | 'coast'
+  | 'sand'
+  | 'grassland'
+  | 'forest'
+  | 'dense_forest'
+  | 'hills'
+  | 'mountain'
+  | 'snow'
+  | 'road'
+  | 'town'
+  | 'dungeon';
+
+/**
+ * Dense biome tile map payload for an area view.
+ */
+export interface BiomeAreaDataMessage {
+  type: 'biome_area';
+  area: {
+    id: string;
+    name: string;
+  };
+  width: number;
+  height: number;
+  tileSize?: number;
+  seed: number;
+  origin: {
+    minX: number;
+    minY: number;
+  };
+  tiles: BiomeTileId[];
+  player: {
+    x: number;
+    y: number;
+  };
+  poi: Array<{
+    x: number;
+    y: number;
+    icon: POIMarker;
+    label?: string;
+  }>;
+}
+
+/**
+ * Dense biome payload compositing multiple areas in world space.
+ */
+export interface BiomeWorldDataMessage {
+  type: 'biome_world';
+  width: number;
+  height: number;
+  tileSize?: number;
+  seed: number;
+  origin: {
+    minX: number;
+    minY: number;
+  };
+  tiles: BiomeTileId[];
+  areas: Array<{
+    id: string;
+    name: string;
+    worldX: number;
+    worldY: number;
+  }>;
+  player: {
+    x: number;
+    y: number;
+  };
+}
+
+/**
+ * View state update for biome map rendering.
+ */
+export interface BiomeViewMessage {
+  type: 'biome_view';
+  zoom: number;
+  viewX?: number;
+  viewY?: number;
+}
+
+/**
  * Union of all MAP protocol messages.
  */
 export type MapMessage =
@@ -169,7 +265,10 @@ export type MapMessage =
   | MapMoveMessage
   | MapZoomMessage
   | MapRevealMessage
-  | MapWorldDataMessage;
+  | MapWorldDataMessage
+  | BiomeAreaDataMessage
+  | BiomeWorldDataMessage
+  | BiomeViewMessage;
 
 /**
  * Player's exploration data (persisted).

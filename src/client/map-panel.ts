@@ -6,6 +6,7 @@
  */
 
 import { MapRenderer, MapMessage, MapAreaChangeMessage, MapMoveMessage } from './map-renderer.js';
+import { BiomeCanvasRenderer } from './biome-canvas-renderer.js';
 
 /**
  * Event handler for room click.
@@ -29,7 +30,7 @@ export class MapPanel {
   private header: HTMLElement;
   private content: HTMLElement;
   private legend: HTMLElement;
-  private renderer: MapRenderer;
+  private renderer: MapRenderer | BiomeCanvasRenderer;
   private isVisible: boolean = true;
   private isCollapsed: boolean = false;
   private options: MapPanelOptions;
@@ -81,7 +82,7 @@ export class MapPanel {
     this.container.appendChild(this.panel);
 
     // Create renderer
-    this.renderer = new MapRenderer(this.content);
+    this.renderer = new BiomeCanvasRenderer(this.content);
 
     // Set up event handlers
     this.setupEventHandlers();
@@ -119,7 +120,7 @@ export class MapPanel {
     // Room click handler
     this.content.addEventListener('click', (event) => {
       const room = this.renderer.getRoomAtPosition(event as MouseEvent);
-      if (room && this.options.onRoomClick) {
+      if (room && this.options.onRoomClick && 'path' in room) {
         this.options.onRoomClick(room.path);
       }
     });
@@ -140,19 +141,48 @@ export class MapPanel {
    */
   handleMessage(message: MapMessage): void {
     switch (message.type) {
+      case 'biome_area':
+        if (this.renderer instanceof BiomeCanvasRenderer) {
+          this.renderer.handleBiomeArea(message);
+          this.updateTitle();
+        }
+        break;
+      case 'biome_world':
+        // World biome data is rendered in the modal.
+        break;
+      case 'biome_view':
+        if (this.renderer instanceof BiomeCanvasRenderer) {
+          this.renderer.handleBiomeView(message);
+          this.updateZoomDisplay();
+        }
+        break;
       case 'area_change':
-        this.renderer.handleAreaChange(message as MapAreaChangeMessage);
-        this.updateTitle();
+        if (this.renderer instanceof MapRenderer) {
+          this.renderer.handleAreaChange(message as MapAreaChangeMessage);
+          this.updateTitle();
+        } else {
+          // Lazy fallback to legacy renderer when server sends legacy payload.
+          this.content.innerHTML = '';
+          this.renderer = new MapRenderer(this.content);
+          this.renderer.handleAreaChange(message as MapAreaChangeMessage);
+          this.updateTitle();
+        }
         break;
       case 'move':
-        this.renderer.handleMove(message as MapMoveMessage);
+        if (this.renderer instanceof MapRenderer) {
+          this.renderer.handleMove(message as MapMoveMessage);
+        }
         break;
       case 'zoom':
-        this.renderer.handleZoom(message);
-        this.updateZoomDisplay();
+        if (this.renderer instanceof MapRenderer) {
+          this.renderer.handleZoom(message);
+          this.updateZoomDisplay();
+        }
         break;
       case 'reveal':
-        this.renderer.handleReveal(message);
+        if (this.renderer instanceof MapRenderer) {
+          this.renderer.handleReveal(message);
+        }
         break;
     }
     this.updateLegend();
@@ -184,9 +214,15 @@ export class MapPanel {
    */
   private updateLegend(): void {
     const terrains = this.renderer.getVisibleTerrains();
+    const maxItems = 8;
+    const visible = terrains.slice(0, maxItems);
+    const hiddenCount = Math.max(0, terrains.length - visible.length);
     let html = '<div class="map-legend-item"><span class="map-legend-marker player">@</span> You</div>';
-    for (const entry of terrains) {
+    for (const entry of visible) {
       html += `<div class="map-legend-item"><span class="map-legend-swatch" style="background-color:${entry.color}"></span><span class="map-legend-label">${entry.label}</span></div>`;
+    }
+    if (hiddenCount > 0) {
+      html += `<div class="map-legend-item map-legend-more">+${hiddenCount} more</div>`;
     }
     this.legend.innerHTML = html;
   }

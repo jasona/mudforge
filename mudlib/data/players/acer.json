@@ -6,6 +6,7 @@
     "isClone": false,
     "properties": {
       "isLiving": true,
+      "isPlayer": true,
       "passwordHash": "5dfa90f841f718728db86752c242f22d:d987d272998c8c2740537ec6a91296a2c44023214f918cf391ef99ee0a9eb74e8e7f69ee28ab6b8ecaa85eb9d84f2898b502679db6463aff19e21633850bd5fa",
       "email": "jason.alexander@gmail.com",
       "permissionLevel": 3,
@@ -15,14 +16,14 @@
         "questPoints": 0
       }
     },
-    "timestamp": 1769001478089,
+    "timestamp": 1770910618188,
     "environment": {
       "__type": "object_ref",
       "path": "/areas/valdoria/aldric/center",
       "isClone": false
     }
   },
-  "savedAt": 1769001478089,
+  "savedAt": 1770910618188,
   "title": "",
   "gender": "male",
   "level": 1,
@@ -52,10 +53,11 @@
       "completed": {},
       "questPoints": 0
     },
-    "isLiving": true
+    "isLiving": true,
+    "isPlayer": true
   },
   "createdAt": 1768881905,
-  "lastLogin": 1769001478,
+  "lastLogin": 1770910618,
   "playTime": 223,
   "monitorEnabled": false,
   "displayName": null,
@@ -72,5 +74,7 @@
   },
   "gold": 100,
   "bankedGold": 0,
-  "avatar": "avatar_m1"
+  "avatar": "avatar_m1",
+  "staffVanished": false,
+  "race": "human"
 }
