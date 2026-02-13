@@ -73,6 +73,7 @@ export interface ResponseTrigger {
  */
 export class NPC extends Living {
   readonly isNPC: boolean = true;
+  private _autoNameIds: Set<string> = new Set();
   private _chats: ChatMessage[] = [];
   private _chatChance: number = 20; // % chance per heartbeat
   private _responses: ResponseTrigger[] = [];
@@ -126,6 +127,36 @@ export class NPC extends Living {
     super();
     this.shortDesc = 'an NPC';
     this.longDesc = 'You see a non-player character.';
+  }
+
+  /**
+   * Set NPC name and keep object IDs in sync with the current name.
+   * This lets commands like "look vorn" match NPCs named "Master Vorn".
+   */
+  override get name(): string {
+    return super.name;
+  }
+
+  override set name(value: string) {
+    // Remove previously auto-generated name IDs before adding new ones.
+    for (const id of this._autoNameIds) {
+      this.removeId(id);
+    }
+    this._autoNameIds.clear();
+
+    super.name = value;
+
+    const cleaned = value.trim().toLowerCase();
+    if (!cleaned) {
+      return;
+    }
+
+    const tokens = cleaned.split(/[^a-z0-9']+/).filter(Boolean);
+    const ids = new Set<string>([cleaned, ...tokens]);
+    for (const id of ids) {
+      this.addId(id);
+      this._autoNameIds.add(id);
+    }
   }
 
   // ========== Lifecycle ==========
