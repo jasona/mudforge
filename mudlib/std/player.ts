@@ -22,6 +22,7 @@ export const BASE_MP_REGEN_RATE = 0.3;  // MP per heartbeat
 export const REGEN_SCALE_BASE_STAT = 10; // Base stat for scaling
 const EQUIPMENT_UPDATE_SLOTS = ['head', 'chest', 'hands', 'legs', 'feet', 'cloak', 'main_hand', 'off_hand'] as const;
 const EQUIPMENT_IMAGE_CHUNK_CHARS = 60_000;
+const MAX_COMBAT_PORTRAIT_CHARS = 300_000;
 import { MudObject } from './object.js';
 import { Item } from './item.js';
 import { colorize, stripColors, wordWrap } from '../lib/colors.js';
@@ -901,8 +902,14 @@ export class Player extends Living {
       const { getPortraitDaemon } = await import('../daemons/portrait.js');
       const portraitDaemon = getPortraitDaemon();
 
-      // Get portrait for the target
+      // Get portrait for the target and cap payload size for combat updates.
       const portrait = await portraitDaemon.getPortrait(target);
+      const safePortrait = this.sanitizeCombatPortrait(target, portrait, () => portraitDaemon.getFallbackPortrait());
+      if (safePortrait !== portrait) {
+        console.warn(
+          `[Player] Oversized combat portrait for ${target.name} (${portrait.length} chars) - using fallback`
+        );
+      }
 
       // Determine if target is a player
       const isPlayer = 'permissionLevel' in target && typeof (target as unknown as { permissionLevel: number }).permissionLevel === 'number';
@@ -916,7 +923,7 @@ export class Player extends Living {
         target: {
           name: target.name,
           level: target.level,
-          portrait,
+          portrait: safePortrait,
           health: target.health,
           maxHealth: target.maxHealth,
           healthPercent: target.healthPercent,
@@ -1482,6 +1489,20 @@ export class Player extends Living {
       return undefined;
     }
     return portrait;
+  }
+
+  private sanitizeCombatPortrait(target: Living, portrait: string, getFallbackPortrait: () => string): string {
+    if (portrait.length <= MAX_COMBAT_PORTRAIT_CHARS) {
+      return portrait;
+    }
+
+    // Player targets can fall back to avatar IDs, which are tiny payloads.
+    const avatar = (target as Living & { avatar?: unknown }).avatar;
+    if (typeof avatar === 'string' && avatar.startsWith('avatar_')) {
+      return avatar;
+    }
+
+    return getFallbackPortrait();
   }
 
   private sendEquipmentBatched(

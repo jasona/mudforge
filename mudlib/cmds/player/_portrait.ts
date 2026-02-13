@@ -10,6 +10,7 @@
 import type { MudObject } from '../../lib/std.js';
 import { getLoreDaemon } from '../../daemons/lore.js';
 import { getRaceDaemon } from '../../daemons/race.js';
+import { getPortraitDaemon } from '../../daemons/portrait.js';
 import type { RaceId } from '../../std/race/types.js';
 
 interface PlayerWithProperties extends MudObject {
@@ -169,7 +170,8 @@ Style requirements:
     if (result && result.success && result.imageBase64 && result.mimeType) {
       // Store as data URI
       const dataUri = `data:${result.mimeType};base64,${result.imageBase64}`;
-      player.setProperty('profilePortrait', dataUri);
+      const normalizedDataUri = getPortraitDaemon().normalizeDataUri(dataUri);
+      player.setProperty('profilePortrait', normalizedDataUri);
       player.setProperty('profilePortraitGeneratedAt', Date.now());
 
       ctx.sendLine('');

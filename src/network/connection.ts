@@ -107,6 +107,9 @@ const HARD_STOP_BUFFER_SIZE = 512 * 1024;
  */
 const CRITICAL_BUFFER_SIZE = 1 * 1024 * 1024;
 
+/** Hard cap for a single protocol frame (512KB) to prevent runaway socket buffers. */
+const MAX_PROTOCOL_MESSAGE_SIZE = 512 * 1024;
+
 /** Maximum number of messages to buffer for session resume replay */
 const MAX_MESSAGE_BUFFER_SIZE = 50;
 const BUFFER_LOG_INTERVAL_MS = 1000;
@@ -629,6 +632,7 @@ export class Connection extends EventEmitter {
     // Extract protocol type from message (e.g., "\x00[STATS]..." -> "STATS")
     const typeMatch = message.match(/^\x00\[([A-Z_]+)\]/);
     const protoType = typeMatch?.[1] ?? 'UNKNOWN';
+    const messageSize = Buffer.byteLength(message, 'utf8');
 
     // When tab is hidden, only send COMM (chat) and TIME messages
     // COMM: chat events need history preservation
@@ -641,12 +645,20 @@ export class Connection extends EventEmitter {
 
     const bufferedAmount = this.socket.bufferedAmount || 0;
 
+    // Guardrail: never send oversized protocol frames.
+    if (messageSize > MAX_PROTOCOL_MESSAGE_SIZE) {
+      const playerName = this.getPlayerName('no-player');
+      console.error(
+        `[CONN-PROTO-DROP] ${this._id} (${playerName}) proto=${protoType} msgSize=${messageSize}B exceeds max=${MAX_PROTOCOL_MESSAGE_SIZE}B`
+      );
+      return false;
+    }
+
     // DIAGNOSTIC: Log whenever buffer exceeds 1MB
     if (bufferedAmount > 1024 * 1024) {
       const playerName = this.getPlayerName('no-player');
-      const messageSize = Buffer.byteLength(message, 'utf8');
       console.error(
-        `[CONN-PROTO-BUFFER-ALERT] ${this._id} (${playerName}) buffer=${(bufferedAmount / 1024).toFixed(0)}KB (OVER 1MB!) msgSize=${messageSize}B`
+        `[CONN-PROTO-BUFFER-ALERT] ${this._id} (${playerName}) proto=${protoType} buffer=${(bufferedAmount / 1024).toFixed(0)}KB (OVER 1MB!) msgSize=${messageSize}B`
       );
     }
 

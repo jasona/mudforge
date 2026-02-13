@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { Player } from '../../mudlib/std/player.js';
+import { Living } from '../../mudlib/std/living.js';
 
 describe('player refresh and equipment sync behavior', () => {
   it('resets image dedupe state when binding a new connection', () => {
@@ -91,5 +92,43 @@ describe('player refresh and equipment sync behavior', () => {
     expect(p._lastSentStats).toEqual({});
     expect(p._lastSentEquipmentImages.size).toBe(0);
     expect(p._pendingEquipmentImages.size).toBe(0);
+  });
+
+  it('uses target avatar when combat portrait payload is too large', () => {
+    const viewer = new Player();
+    const target = new Player();
+    target.avatar = 'avatar_f2';
+
+    const oversizedPortrait = `data:image/png;base64,${'A'.repeat(400000)}`;
+    const sanitized = (
+      viewer as unknown as {
+        sanitizeCombatPortrait: (
+          target: import('../../mudlib/std/living.js').Living,
+          portrait: string,
+          getFallbackPortrait: () => string
+        ) => string;
+      }
+    ).sanitizeCombatPortrait(target, oversizedPortrait, () => 'fallback-portrait');
+
+    expect(sanitized).toBe('avatar_f2');
+  });
+
+  it('uses fallback when oversized combat portrait target has no avatar', () => {
+    const viewer = new Player();
+    const target = new Living();
+    target.name = 'dummy';
+
+    const oversizedPortrait = `data:image/png;base64,${'B'.repeat(400000)}`;
+    const sanitized = (
+      viewer as unknown as {
+        sanitizeCombatPortrait: (
+          target: import('../../mudlib/std/living.js').Living,
+          portrait: string,
+          getFallbackPortrait: () => string
+        ) => string;
+      }
+    ).sanitizeCombatPortrait(target, oversizedPortrait, () => 'fallback-portrait');
+
+    expect(sanitized).toBe('fallback-portrait');
   });
 });
