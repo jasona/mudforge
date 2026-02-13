@@ -22,7 +22,7 @@ from the faithful.
 The guild's symbol, a radiant sun with healing hands reaching down,
 is inlaid in the marble floor before the altar.`;
 
-    this.addExit('out', '/areas/valdoria/aldric/center');
+    this.addExit('west', '/areas/valdoria/aldric/room_5_5_0');
     this.addId('cleric guild');
     this.addId('temple');
 
