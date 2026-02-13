@@ -119,21 +119,21 @@ export async function execute(ctx: CommandContext): Promise<boolean> {
 
   if (!room) {
     ctx.sendLine("You can't go anywhere from here.");
-    return false;
+    return true;
   }
 
   // Check if player is sitting - must stand first
   const living = player as Living;
   if (living.posture === 'sitting') {
     ctx.sendLine("You need to stand up first.");
-    return false;
+    return true;
   }
 
   // Check if legs are disabled
   const livingWithLegs = living as Living & { hasLegsDisabled?: () => boolean };
   if (livingWithLegs.hasLegsDisabled && livingWithLegs.hasLegsDisabled()) {
     ctx.sendLine("{red}Your legs are disabled - you cannot move!{/}");
-    return false;
+    return true;
   }
 
   // Determine direction
@@ -141,7 +141,7 @@ export async function execute(ctx: CommandContext): Promise<boolean> {
   if (verb === 'go') {
     if (!args) {
       ctx.sendLine('Go where?');
-      return false;
+      return true;
     }
     direction = args.toLowerCase();
   } else {
@@ -155,13 +155,13 @@ export async function execute(ctx: CommandContext): Promise<boolean> {
   // Try to find the exit
   if (!room.getExit) {
     ctx.sendLine("There's nowhere to go.");
-    return false;
+    return true;
   }
 
   const exit = room.getExit(direction);
   if (!exit) {
     ctx.sendLine(`You can't go ${direction}.`);
-    return false;
+    return true;
   }
 
   // Check if exit has a condition
@@ -169,20 +169,20 @@ export async function execute(ctx: CommandContext): Promise<boolean> {
     const canPass = await exit.canPass(player);
     if (!canPass) {
       ctx.sendLine("Something prevents you from going that way.");
-      return false;
+      return true;
     }
   }
 
   // Resolve the exit to get the actual destination room
   if (!room.resolveExit) {
     ctx.sendLine("There's nowhere to go.");
-    return false;
+    return true;
   }
 
   const destination = await room.resolveExit(exit);
   if (!destination) {
     ctx.sendLine(`The way ${direction} seems blocked.`);
-    return false;
+    return true;
   }
 
   // Check terrain requirements for the destination
@@ -199,7 +199,7 @@ export async function execute(ctx: CommandContext): Promise<boolean> {
       const hasBoat = playerWithAbilities.hasBoat?.() ?? false;
       if (!canSwim && !hasBoat) {
         ctx.sendLine("{yellow}You can't enter that water - you need to know how to swim or have a boat.{/}");
-        return false;
+        return true;
       }
     }
 
@@ -208,7 +208,7 @@ export async function execute(ctx: CommandContext): Promise<boolean> {
       const canClimb = playerWithAbilities.canClimb?.() ?? false;
       if (!canClimb) {
         ctx.sendLine("{yellow}The terrain is too steep - you need climbing equipment or skill.{/}");
-        return false;
+        return true;
       }
     }
 
@@ -243,7 +243,7 @@ export async function execute(ctx: CommandContext): Promise<boolean> {
   const moved = await player.moveTo(destination);
   if (!moved) {
     ctx.sendLine("Something prevents you from going that way.");
-    return false;
+    return true;
   }
 
   // Send map update to client (fire and forget - don't block movement)

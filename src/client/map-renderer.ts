@@ -105,6 +105,91 @@ export interface MapWorldDataMessage {
 }
 
 /**
+ * Biome tile id from dense renderer payload.
+ */
+export type BiomeTileId =
+  | 'void'
+  | 'water_deep'
+  | 'water_shallow'
+  | 'coast'
+  | 'sand'
+  | 'grassland'
+  | 'forest'
+  | 'dense_forest'
+  | 'hills'
+  | 'mountain'
+  | 'snow'
+  | 'road'
+  | 'town'
+  | 'dungeon';
+
+/**
+ * Dense biome payload for area maps.
+ */
+export interface BiomeAreaDataMessage {
+  type: 'biome_area';
+  area: {
+    id: string;
+    name: string;
+  };
+  width: number;
+  height: number;
+  tileSize?: number;
+  seed: number;
+  origin: {
+    minX: number;
+    minY: number;
+  };
+  tiles: BiomeTileId[];
+  player: {
+    x: number;
+    y: number;
+  };
+  poi: Array<{
+    x: number;
+    y: number;
+    icon: string;
+    label?: string;
+  }>;
+}
+
+/**
+ * Dense biome payload for world maps.
+ */
+export interface BiomeWorldDataMessage {
+  type: 'biome_world';
+  width: number;
+  height: number;
+  tileSize?: number;
+  seed: number;
+  origin: {
+    minX: number;
+    minY: number;
+  };
+  tiles: BiomeTileId[];
+  areas: Array<{
+    id: string;
+    name: string;
+    worldX: number;
+    worldY: number;
+  }>;
+  player: {
+    x: number;
+    y: number;
+  };
+}
+
+/**
+ * Biome viewport/zoom updates.
+ */
+export interface BiomeViewMessage {
+  type: 'biome_view';
+  zoom: number;
+  viewX?: number;
+  viewY?: number;
+}
+
+/**
  * Union of all MAP messages.
  */
 export type MapMessage =
@@ -112,7 +197,10 @@ export type MapMessage =
   | MapMoveMessage
   | MapZoomMessage
   | MapRevealMessage
-  | MapWorldDataMessage;
+  | MapWorldDataMessage
+  | BiomeAreaDataMessage
+  | BiomeWorldDataMessage
+  | BiomeViewMessage;
 
 /**
  * Terrain visual definition.

@@ -20,6 +20,8 @@ export class Room550 extends Room {
     // Exits
     this.addExit('north', '/areas/valdoria/aldric/center');
     this.addExit('south', '/areas/valdoria/aldric/gates');
+    this.addExit('west', '/areas/guilds/thief/guild_hall');
+    this.addExit('east', '/areas/guilds/cleric/guild_hall');
 
   }
 }

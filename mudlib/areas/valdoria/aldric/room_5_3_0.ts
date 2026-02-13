@@ -20,6 +20,8 @@ export class Room530 extends Room {
     // Exits
     this.addExit('north', '/areas/valdoria/aldric/castle');
     this.addExit('south', '/areas/valdoria/aldric/center');
+    this.addExit('west', '/areas/guilds/fighter/guild_hall');
+    this.addExit('east', '/areas/guilds/mage/guild_hall');
 
   }
 }

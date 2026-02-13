@@ -3,20 +3,21 @@
  */
 
 import { MapRenderer } from './map-renderer.js';
-import type { MapWorldDataMessage } from './map-renderer.js';
+import { BiomeCanvasRenderer } from './biome-canvas-renderer.js';
+import type { BiomeWorldDataMessage, MapWorldDataMessage } from './map-renderer.js';
 
 /**
  * WorldMapModal class.
  */
 export class WorldMapModal {
   private overlay: HTMLElement | null = null;
-  private renderer: MapRenderer | null = null;
+  private renderer: MapRenderer | BiomeCanvasRenderer | null = null;
   private keyHandler: ((e: KeyboardEvent) => void) | null = null;
 
   /**
    * Open the world map modal with the given data.
    */
-  open(message: MapWorldDataMessage): void {
+  open(message: MapWorldDataMessage | BiomeWorldDataMessage): void {
     // Close any existing modal
     this.close();
 
@@ -55,20 +56,24 @@ export class WorldMapModal {
     this.overlay.appendChild(modal);
     document.body.appendChild(this.overlay);
 
-    // Create renderer
-    this.renderer = new MapRenderer(mapContainer);
-
-    // Feed world data as a synthetic area_change message
-    this.renderer.handleAreaChange({
-      type: 'area_change',
-      area: { id: 'world', name: 'World Map' },
-      rooms: message.rooms,
-      current: message.currentRoom,
-      zoom: 1,
-    });
-
-    // Render area labels as SVG text overlays
-    this.renderAreaLabels(message, mapContainer);
+    if (message.type === 'biome_world') {
+      const biomeRenderer = new BiomeCanvasRenderer(mapContainer);
+      biomeRenderer.handleBiomeWorld(message);
+      this.renderer = biomeRenderer;
+    } else {
+      // Legacy world renderer fallback.
+      const legacyRenderer = new MapRenderer(mapContainer);
+      legacyRenderer.handleAreaChange({
+        type: 'area_change',
+        area: { id: 'world', name: 'World Map' },
+        rooms: message.rooms,
+        current: message.currentRoom,
+        zoom: 1,
+      });
+      this.renderer = legacyRenderer;
+      // Render area labels as SVG text overlays for legacy view.
+      this.renderAreaLabels(message, mapContainer);
+    }
 
     // Event handlers
     const closeBtn = header.querySelector('.gui-modal-close');

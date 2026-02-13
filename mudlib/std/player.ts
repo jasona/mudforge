@@ -461,6 +461,12 @@ export class Player extends Living {
     this._lastLogin = this._sessionStart;
     this._lastActivityTime = this._sessionStart;
 
+    // New connection may not have any client-side image cache yet.
+    // Reset dedupe state so current equipment/portrait are sent once.
+    this._lastSentEquipmentImages.clear();
+    this._pendingEquipmentImages.clear();
+    this._lastSentPortraitHash = '';
+
     // Always register for heartbeats when connected (for stats panel updates)
     if (typeof efuns !== 'undefined' && efuns.setHeartbeat) {
       efuns.setHeartbeat(this, true);
@@ -815,24 +821,31 @@ export class Player extends Living {
         const toCoords = mapDaemon.getRoomCoordinates(currentRoom as unknown as MapRoom);
 
         if (fromCoords.area !== toCoords.area) {
-          // Area changed - send full area data for new area
-          const message = mapDaemon.generateAreaMapData(
+          // Area changed - send full biome area payload.
+          const message = mapDaemon.generateBiomeAreaData(
             this as unknown as MapPlayer,
             currentRoom as unknown as MapRoom
           );
           this._connection.sendMap(message);
         } else {
-          // Same area - send move message
-          const message = mapDaemon.generateMoveMessage(
+          // Same area - refresh biome area payload for deterministic viewport updates.
+          const message = mapDaemon.generateBiomeAreaData(
             this as unknown as MapPlayer,
-            fromRoom as unknown as MapRoom,
             currentRoom as unknown as MapRoom
           );
           this._connection.sendMap(message);
+
+          // Also emit lightweight move for legacy clients.
+          const legacyMove = mapDaemon.generateMoveMessage(
+            this as unknown as MapPlayer,
+            fromRoom as MapRoom,
+            currentRoom as unknown as MapRoom
+          );
+          this._connection.sendMap(legacyMove);
         }
       } else {
-        // Player teleported or just logged in - send full area data
-        const message = mapDaemon.generateAreaMapData(
+        // Player teleported or just logged in - send full biome area data
+        const message = mapDaemon.generateBiomeAreaData(
           this as unknown as MapPlayer,
           currentRoom as unknown as MapRoom
         );
@@ -918,9 +931,10 @@ export class Player extends Living {
   /**
    * Send a complete state refresh to the client.
    * Called on login or when tab becomes visible after being hidden.
-   * Sends current STATS, MAP position, COMBAT target, and equipment images.
+   * Sends current STATS, MAP position, COMBAT target, and equipment state.
+   * Equipment images are only resent when changed unless resendImages is true.
    */
-  async sendFullStateRefresh(): Promise<void> {
+  async sendFullStateRefresh(options: { resendImages?: boolean } = {}): Promise<void> {
     if (!this._connection) {
       return;
     }
@@ -933,10 +947,12 @@ export class Player extends Living {
     this._statsSendCount = 0;
     this._lastSentStats = {};
 
-    // Clear equipment/portrait tracking to force resending images
-    // This ensures the client gets fresh image data after being hidden
-    this._lastSentEquipmentImages.clear();
-    this._lastSentPortraitHash = '';
+    // Optionally force a full image resync for callers that need it.
+    // Hidden→visible refreshes should normally keep dedupe state intact.
+    if (options.resendImages === true) {
+      this._lastSentEquipmentImages.clear();
+      this._lastSentPortraitHash = '';
+    }
 
     // Send stats/equipment immediately instead of waiting for the next heartbeat.
     this.sendStatsUpdate(true);
@@ -3171,10 +3187,11 @@ export class Player extends Living {
         try {
           const { getMapDaemon } = await import('../daemons/map.js');
           const mapDaemon = getMapDaemon();
-          type MapPlayer = Parameters<typeof mapDaemon.generateWorldMapData>[0];
-          const worldData = mapDaemon.generateWorldMapData(
+          type MapPlayer = Parameters<typeof mapDaemon.generateBiomeWorldData>[0];
+          type MapRoom = Parameters<typeof mapDaemon.generateBiomeWorldData>[1];
+          const worldData = mapDaemon.generateBiomeWorldData(
             this as unknown as MapPlayer,
-            this.environment,
+            this.environment as unknown as MapRoom,
           );
           this._connection.sendMap(worldData);
         } catch {

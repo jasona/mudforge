@@ -76,30 +76,6 @@ export const CONFIG_OPTIONS: ConfigOption[] = [
 
   // Communication settings
   {
-    key: 'echo',
-    name: 'Command Echo',
-    description: 'Echo your commands back to you',
-    type: 'boolean',
-    default: false,
-    category: 'communication',
-  },
-  {
-    key: 'shoutBlock',
-    name: 'Block Shouts',
-    description: 'Block shout channel messages',
-    type: 'boolean',
-    default: false,
-    category: 'communication',
-  },
-  {
-    key: 'oocBlock',
-    name: 'Block OOC',
-    description: 'Block out-of-character channel messages',
-    type: 'boolean',
-    default: false,
-    category: 'communication',
-  },
-  {
     key: 'tellSound',
     name: 'Tell Sound',
     description: 'Play a sound when receiving tells (if client supports)',
@@ -110,27 +86,11 @@ export const CONFIG_OPTIONS: ConfigOption[] = [
 
   // Gameplay settings
   {
-    key: 'autoLook',
-    name: 'Auto Look',
-    description: 'Automatically look when entering a room',
+    key: 'combatBrief',
+    name: 'Brief Combat',
+    description: 'Show concise, factual combat messages',
     type: 'boolean',
-    default: true,
-    category: 'gameplay',
-  },
-  {
-    key: 'autoExit',
-    name: 'Auto Exits',
-    description: 'Automatically show exits when entering a room',
-    type: 'boolean',
-    default: true,
-    category: 'gameplay',
-  },
-  {
-    key: 'combatVerbose',
-    name: 'Verbose Combat',
-    description: 'Show detailed combat messages',
-    type: 'boolean',
-    default: true,
+    default: false,
     category: 'gameplay',
   },
   {
@@ -153,15 +113,6 @@ export const CONFIG_OPTIONS: ConfigOption[] = [
     default: 20,
     min: 0,
     max: 100,
-    category: 'interface',
-  },
-  {
-    key: 'editorTheme',
-    name: 'Editor Theme',
-    description: 'Color theme for the IDE editor',
-    type: 'choice',
-    default: 'one-dark',
-    choices: ['one-dark', 'light', 'high-contrast', 'solarized-dark'],
     category: 'interface',
   },
 ];

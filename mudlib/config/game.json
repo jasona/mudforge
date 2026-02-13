@@ -1,8 +1,9 @@
 {
   "name": "MudForge",
   "tagline": "Your Adventure Awaits",
-  "version": "1.9.0",
+  "version": "1.9.1",
   "description": "A Modern MUD Experience",
   "establishedYear": 2026,
-  "website": "https://www.mudforge.org"
+  "website": "https://mudforge.org",
+  "setupComplete": true
 }

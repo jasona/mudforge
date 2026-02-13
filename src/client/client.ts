@@ -414,7 +414,7 @@ class MudClient {
 
     // Map events
     this.wsClient.on('map-message', (message: MapMessage) => {
-      if (message.type === 'world_data') {
+      if (message.type === 'world_data' || message.type === 'biome_world') {
         this.worldMapModal.open(message);
       } else {
         this.mapPanel.handleMessage(message);

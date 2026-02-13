@@ -178,6 +178,9 @@ export class ResetDaemon extends MudObject {
       // Skip players and NPCs (livings)
       if ('isLiving' in obj || 'connection' in obj) continue;
 
+      // Skip vehicles (ferries/boats/etc). Cleaning a docked vehicle can orphan passengers.
+      if ((obj as MudObject & { isVehicle?: boolean }).isVehicle === true) continue;
+
       // Skip items that are still in the room that spawned them
       const spawnRoom = (obj as MudObject & { spawnRoom?: MudObject | null }).spawnRoom;
       if (spawnRoom && spawnRoom === room) {

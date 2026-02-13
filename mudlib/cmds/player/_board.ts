@@ -36,12 +36,12 @@ export async function execute(ctx: CommandContext): Promise<boolean> {
 
   if (!room) {
     ctx.sendLine("You're not anywhere!");
-    return false;
+    return true;
   }
 
   if (!args.trim()) {
     ctx.sendLine('Board what?');
-    return false;
+    return true;
   }
 
   const targetName = args.trim().toLowerCase();
@@ -58,19 +58,19 @@ export async function execute(ctx: CommandContext): Promise<boolean> {
 
   if (!vehicle) {
     ctx.sendLine("You don't see that vehicle here.");
-    return false;
+    return true;
   }
 
   // Check if vehicle is docked
   if (!vehicle.isDocked) {
     ctx.sendLine("The vehicle is not docked. You can't board.");
-    return false;
+    return true;
   }
 
   // Check capacity
   if (!vehicle.hasCapacity) {
     ctx.sendLine('The vehicle is full.');
-    return false;
+    return true;
   }
 
   // Board the vehicle
@@ -79,7 +79,7 @@ export async function execute(ctx: CommandContext): Promise<boolean> {
 
   if (!success) {
     ctx.sendLine("You couldn't board the vehicle.");
-    return false;
+    return true;
   }
 
   ctx.sendLine(`You board ${vehicle.shortDesc}.`);

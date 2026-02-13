@@ -28,9 +28,9 @@ sword and shield - the {cyan}training hall{/}. To the {green}southeast{/}, the s
 the {yellow}Bank of Aldric{/} promise security for your hard-earned gold. A dim {red}pub{/} called
 {red}The Rusty Blade{/} lies to the {green}southwest{/}, where mercenaries gather.
 
-Around the square, guild halls beckon adventurers: the {red}Fighter Guild{/} arena
-({green}fighter{/}), the {blue}Mage Guild{/} tower ({green}mage{/}), the {dim}Thief Guild{/} den ({green}thief{/}),
-and the {yellow}Cleric Guild{/} temple ({green}cleric{/}).
+The four guild halls lie just off the central square along the nearby streets:
+the {red}Fighter{/} and {blue}Mage{/} guilds to the north, and the {dim}Thief{/}
+and {yellow}Cleric{/} guilds to the south.
 
 A {magenta}town crier{/} stands near the fountain, occasionally announcing the day's news to
 anyone who will listen.`;
@@ -49,10 +49,6 @@ anyone who will listen.`;
     this.addExit('north', '/areas/valdoria/aldric/room_5_3_0');
     this.addExit('east', '/areas/valdoria/aldric/room_6_4_0');
     this.addExit('south', '/areas/valdoria/aldric/room_5_5_0');
-    this.addExit('fighter', '/areas/guilds/fighter/guild_hall');
-    this.addExit('mage', '/areas/guilds/mage/guild_hall');
-    this.addExit('thief', '/areas/guilds/thief/guild_hall');
-    this.addExit('cleric', '/areas/guilds/cleric/guild_hall');
 
     // NPCs
     this.setNpcs(['/areas/valdoria/aldric/town_crier']);

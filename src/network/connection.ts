@@ -109,6 +109,9 @@ const CRITICAL_BUFFER_SIZE = 1 * 1024 * 1024;
 
 /** Maximum number of messages to buffer for session resume replay */
 const MAX_MESSAGE_BUFFER_SIZE = 50;
+const BUFFER_LOG_INTERVAL_MS = 1000;
+const TCP_DRAIN_LOG_INTERVAL_MS = 1000;
+const BACKPRESSURE_WARN_INTERVAL_MS = 10_000;
 
 /**
  * A single client connection.
@@ -130,6 +133,10 @@ export class Connection extends EventEmitter {
   private _drainTimeout: ReturnType<typeof setTimeout> | null = null;
   private _tabVisible: boolean = true; // Client tab visibility (for pausing updates)
   private _maxBufferSeen: number = 0; // Track max buffer for debugging
+  private _lastBufferHighLog: number = 0;
+  private _bufferHighActive: boolean = false;
+  private _lastTcpDrainLog: number = 0;
+  private _lastBackpressureWarnLog: number = 0;
 
   // Message buffer for session resume replay
   private _messageBuffer: string[] = [];
@@ -204,7 +211,11 @@ export class Connection extends EventEmitter {
 
         // Log when data stops flowing (could indicate network issues)
         rawSocket.on('drain', () => {
-          console.log(`[CONN-TCP] ${this._id} TCP socket drained (write buffer empty)`);
+          const now = Date.now();
+          if (now - this._lastTcpDrainLog >= TCP_DRAIN_LOG_INTERVAL_MS) {
+            this._lastTcpDrainLog = now;
+            console.log(`[CONN-TCP] ${this._id} TCP socket drained (write buffer empty)`);
+          }
         });
       } else {
         console.log(`[CONN-KEEPALIVE] ${this._id} Could not access underlying socket for keepalive`);
@@ -438,9 +449,20 @@ export class Connection extends EventEmitter {
     }
 
     // Log when buffer is getting full (approaching threshold)
-    if (bufferedAmount > BACKPRESSURE_THRESHOLD / 2) {
+    if (bufferedAmount > BACKPRESSURE_THRESHOLD) {
+      const now = Date.now();
+      if (!this._bufferHighActive || now - this._lastBufferHighLog >= BUFFER_LOG_INTERVAL_MS) {
+        const playerName = this.getPlayerName('no-player');
+        this._bufferHighActive = true;
+        this._lastBufferHighLog = now;
+        console.log(`[CONN-BUFFER] ${this._id} (${playerName}) bufferedAmount=${bufferedAmount} (threshold: ${BACKPRESSURE_THRESHOLD})`);
+      }
+    } else if (this._bufferHighActive) {
+      this._bufferHighActive = false;
       const playerName = this.getPlayerName('no-player');
-      console.log(`[CONN-BUFFER] ${this._id} (${playerName}) bufferedAmount=${bufferedAmount} (threshold: ${BACKPRESSURE_THRESHOLD})`);
+      console.log(
+        `[CONN-BUFFER] ${this._id} (${playerName}) recovered bufferedAmount=${bufferedAmount} (threshold: ${BACKPRESSURE_THRESHOLD})`
+      );
     }
 
     // Check for backpressure
@@ -448,9 +470,13 @@ export class Connection extends EventEmitter {
       // Warn once per backpressure episode
       if (!this._backpressureWarned) {
         this._backpressureWarned = true;
-        const playerName = this.getPlayerName('no-player');
-        console.warn(`[CONN-BACKPRESSURE] ${this._id} (${playerName}) hit backpressure threshold, queueing messages`);
-        this.emitEvent('backpressure', bufferedAmount);
+        const now = Date.now();
+        if (!this._lastBackpressureWarnLog || now - this._lastBackpressureWarnLog >= BACKPRESSURE_WARN_INTERVAL_MS) {
+          this._lastBackpressureWarnLog = now;
+          const playerName = this.getPlayerName('no-player');
+          console.warn(`[CONN-BACKPRESSURE] ${this._id} (${playerName}) hit backpressure threshold, queueing messages`);
+          this.emitEvent('backpressure', bufferedAmount);
+        }
       }
 
       // If buffer is critically full, queue the message

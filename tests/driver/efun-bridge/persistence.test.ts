@@ -5,9 +5,12 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createTestEnvironment, createMockPlayer } from '../../helpers/efun-test-utils.js';
 import type { EfunBridge } from '../../../src/driver/efun-bridge.js';
-import { mkdir } from 'fs/promises';
+import { mkdir, writeFile, access } from 'fs/promises';
 import { join } from 'path';
 import { resetFileStore } from '../../../src/driver/persistence/file-store.js';
+import { getPermissions } from '../../../src/driver/permissions.js';
+import { constants } from 'fs';
+import type { MudObject } from '../../../src/driver/types.js';
 
 describe('Persistence Efuns', () => {
   let efunBridge: EfunBridge;
@@ -182,6 +185,62 @@ describe('Persistence Efuns', () => {
       const data = await efunBridge.loadPlayerData('overwrite');
       // Properties are stored in state.properties
       expect(data?.state?.properties?.version).toBe(2);
+    });
+  });
+
+  describe('purgePlayerData', () => {
+    it('should reject non-senior callers', async () => {
+      const player = createMockPlayer('/players/player', { name: 'player', level: 0 });
+      efunBridge.setContext({ thisPlayer: player, thisObject: player });
+      getPermissions().setLevel('player', 0);
+
+      const result = await efunBridge.purgePlayerData('target');
+
+      expect(result.success).toBe(false);
+      expect(result.error).toBe('Permission denied: senior builder required');
+    });
+
+    it('should purge save, workspace, and permissions for a target player', async () => {
+      const senior = createMockPlayer('/players/senior', { name: 'senior', level: 2 });
+      efunBridge.setContext({ thisPlayer: senior, thisObject: senior });
+      getPermissions().setLevel('senior', 2);
+
+      const targetPlayer = createMockPlayer('/players/target', { name: 'target' });
+      await efunBridge.savePlayer(targetPlayer);
+
+      const workspacePath = join(testMudlibPath, 'users', 'target', 'workroom.ts');
+      await mkdir(join(testMudlibPath, 'users', 'target'), { recursive: true });
+      await writeFile(workspacePath, '// test workspace', 'utf-8');
+
+      getPermissions().setLevel('target', 3);
+      getPermissions().addDomain('target', '/users/target/');
+      getPermissions().addCommandPath('target', 'guilds/fighter');
+
+      let quitCalled = false;
+      efunBridge.setFindActivePlayerCallback(() => {
+        return {
+          quit: async () => {
+            quitCalled = true;
+          },
+        } as unknown as MudObject;
+      });
+
+      const result = await efunBridge.purgePlayerData('target');
+
+      expect(result.success).toBe(true);
+      expect(result.details?.playerSaveDeleted).toBe(true);
+      expect(result.details?.workspaceDeleted).toBe(true);
+      expect(result.details?.permissionsReset).toBe(true);
+      expect(result.details?.sessionsInvalidated).toBe(true);
+      expect(result.details?.activePlayerCleared).toBe(true);
+      expect(quitCalled).toBe(true);
+
+      expect(await efunBridge.playerExists('target')).toBe(false);
+      await expect(access(workspacePath, constants.F_OK)).rejects.toBeDefined();
+
+      expect(efunBridge.getPlayerPermissionLevel('target')).toBe(0);
+      expect(getPermissions().getDomains('target')).toEqual([]);
+      expect(getPermissions().getCommandPaths('target')).toBeUndefined();
     });
   });
 });

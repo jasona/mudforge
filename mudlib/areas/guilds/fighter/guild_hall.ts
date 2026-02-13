@@ -21,7 +21,7 @@ where guild members test their mettle against each other.
 The guild's banner, a crimson field with a crossed sword and axe, hangs
 proudly above the guildmaster's elevated platform.`;
 
-    this.addExit('out', '/areas/valdoria/aldric/center');
+    this.addExit('east', '/areas/valdoria/aldric/room_5_3_0');
     this.addId('fighter guild');
     this.addId('guild hall');
 

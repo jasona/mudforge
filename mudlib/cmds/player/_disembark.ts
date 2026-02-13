@@ -31,13 +31,13 @@ export async function execute(ctx: CommandContext): Promise<boolean> {
 
   if (!environment) {
     ctx.sendLine("You're not anywhere!");
-    return false;
+    return true;
   }
 
   // Check if player is on a vehicle
   if (!efuns.isVehicle(environment)) {
     ctx.sendLine("You're not on a vehicle.");
-    return false;
+    return true;
   }
 
   const vehicle = environment as unknown as Vehicle;
@@ -45,13 +45,13 @@ export async function execute(ctx: CommandContext): Promise<boolean> {
   // Check if vehicle is docked
   if (!vehicle.isDocked) {
     ctx.sendLine("The vehicle is moving. You can't disembark until it docks.");
-    return false;
+    return true;
   }
 
   // Check if there's a location to disembark to
   if (!vehicle.currentLocation) {
     ctx.sendLine("There's nowhere to disembark to.");
-    return false;
+    return true;
   }
 
   // Disembark
@@ -60,7 +60,7 @@ export async function execute(ctx: CommandContext): Promise<boolean> {
 
   if (!success) {
     ctx.sendLine("You couldn't disembark.");
-    return false;
+    return true;
   }
 
   ctx.sendLine(`You disembark from ${vehicle.shortDesc}.`);

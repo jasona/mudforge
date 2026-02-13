@@ -23,7 +23,7 @@ A spiral staircase leads to upper floors, but is blocked by a
 shimmering barrier. The guild's banner, a silver star on deep blue,
 hangs above an ornate lectern.`;
 
-    this.addExit('out', '/areas/valdoria/aldric/center');
+    this.addExit('west', '/areas/valdoria/aldric/room_5_3_0');
     this.addId('mage guild');
     this.addId('guild tower');
 

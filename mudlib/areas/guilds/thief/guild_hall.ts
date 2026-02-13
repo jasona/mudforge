@@ -22,7 +22,7 @@ marked with symbols only guild members understand.
 The guild's symbol, a dagger emerging from shadow, is subtly carved
 into the floor near the entrance.`;
 
-    this.addExit('out', '/areas/valdoria/aldric/center');
+    this.addExit('east', '/areas/valdoria/aldric/room_5_5_0');
     this.addId('thief guild');
     this.addId('guild den');
 
