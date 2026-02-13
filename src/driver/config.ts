@@ -7,6 +7,7 @@ export interface DriverConfig {
   // Server
   port: number;
   host: string;
+  shutdownTimeoutMs: number;
 
   // Mudlib
   mudlibPath: string;
@@ -121,6 +122,7 @@ export function loadConfig(): DriverConfig {
     // Server
     port: parseNumber(process.env['PORT'], 3000),
     host: process.env['HOST'] ?? '0.0.0.0',
+    shutdownTimeoutMs: parseNumber(process.env['SHUTDOWN_TIMEOUT_MS'], 15000),
 
     // Mudlib
     mudlibPath: process.env['MUDLIB_PATH'] ?? './mudlib',
@@ -214,9 +216,13 @@ export function loadConfig(): DriverConfig {
  */
 export function validateConfig(config: DriverConfig): string[] {
   const errors: string[] = [];
+  const isProduction = process.env['NODE_ENV'] === 'production' || !config.devMode;
 
   if (config.port < 1 || config.port > 65535) {
     errors.push(`Invalid port: ${config.port}. Must be between 1 and 65535.`);
+  }
+  if (config.shutdownTimeoutMs < 1000) {
+    errors.push(`Shutdown timeout too low: ${config.shutdownTimeoutMs}ms. Minimum is 1000ms.`);
   }
 
   if (config.isolateMemoryMb < 16) {
@@ -265,6 +271,11 @@ export function validateConfig(config: DriverConfig): string[] {
     if (!config.discordChannelId) {
       errors.push('DISCORD_CHANNEL_ID is required when Discord is enabled.');
     }
+  }
+
+  // Security validation for production deployments
+  if (isProduction && !config.wsSessionSecret) {
+    errors.push('WS_SESSION_SECRET is required in production (or when DEV_MODE=false).');
   }
 
   return errors;

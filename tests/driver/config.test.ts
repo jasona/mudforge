@@ -99,10 +99,12 @@ describe('validateConfig', () => {
   const validConfig: DriverConfig = {
     port: 3000,
     host: '0.0.0.0',
+    shutdownTimeoutMs: 15000,
     mudlibPath: './mudlib',
     masterObject: '/master',
     logLevel: 'info',
     logPretty: true,
+    logHttpRequests: false,
     isolateMemoryMb: 64,
     maxIsolates: 2,
     scriptTimeoutMs: 5000,
@@ -111,6 +113,42 @@ describe('validateConfig', () => {
     dataPath: './mudlib/data',
     devMode: true,
     hotReload: true,
+    claudeApiKey: '',
+    claudeModel: 'claude-sonnet-4-20250514',
+    claudeMaxTokens: 1024,
+    claudeRateLimitPerMinute: 20,
+    claudeCacheTtlMs: 300000,
+    geminiApiKey: '',
+    geminiModel: 'gemini-2.5-flash-image',
+    geminiRateLimitPerMinute: 10,
+    geminiCacheTtlMs: 3600000,
+    i3Enabled: false,
+    i3MudName: 'MudForge',
+    i3AdminEmail: '',
+    i3RouterHost: '127.0.0.1',
+    i3RouterPort: 8787,
+    i2Enabled: false,
+    i2MudName: 'MudForge',
+    i2UdpPort: 0,
+    i2Host: '0.0.0.0',
+    grapevineEnabled: false,
+    grapevineClientId: '',
+    grapevineClientSecret: '',
+    grapevineGameName: 'MudForge',
+    grapevineDefaultChannels: ['gossip'],
+    githubToken: '',
+    githubOwner: '',
+    githubRepo: '',
+    giphyApiKey: '',
+    discordEnabled: false,
+    discordBotToken: '',
+    discordGuildId: '',
+    discordChannelId: '',
+    wsHeartbeatIntervalMs: 25000,
+    wsMaxMissedPongs: 20,
+    wsSessionTokenTtlMs: 15 * 60 * 1000,
+    wsSessionSecret: '',
+    wsSessionValidateIp: false,
   };
 
   it('should return no errors for valid config', () => {
@@ -175,5 +213,13 @@ describe('validateConfig', () => {
     const errors = validateConfig(config);
 
     expect(errors).toHaveLength(3);
+  });
+
+  it('requires WS_SESSION_SECRET in production', () => {
+    const originalNodeEnv = process.env['NODE_ENV'];
+    process.env['NODE_ENV'] = 'production';
+    const errors = validateConfig({ ...validConfig, devMode: false, wsSessionSecret: '' });
+    process.env['NODE_ENV'] = originalNodeEnv;
+    expect(errors.some((e) => e.includes('WS_SESSION_SECRET'))).toBe(true);
   });
 });

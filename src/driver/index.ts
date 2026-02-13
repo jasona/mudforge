@@ -119,11 +119,12 @@ async function main(): Promise<void> {
     const forceExitTimer = setTimeout(() => {
       logger.warn('Graceful shutdown timeout - forcing exit');
       process.exit(1);
-    }, 15000);
+    }, config.shutdownTimeoutMs);
 
     try {
-      await server.stop();
+      server.beginShutdown();
       await driver.stop();
+      await server.stop();
     } finally {
       clearTimeout(forceExitTimer);
     }

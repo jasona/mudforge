@@ -4,7 +4,7 @@
  * Saves and loads player data and world state to/from JSON files.
  */
 
-import { readFile, writeFile, access, mkdir, readdir } from 'fs/promises';
+import { readFile, writeFile, access, mkdir, readdir, rename, copyFile, unlink } from 'fs/promises';
 import { join, dirname } from 'path';
 import { constants } from 'fs';
 import {
@@ -59,7 +59,7 @@ export class FileStore {
     await this.ensureDirectory(dirname(filePath));
 
     const json = JSON.stringify(data, null, 2);
-    await writeFile(filePath, json, 'utf-8');
+    await this.writeJsonAtomic(filePath, json, true);
   }
 
   /**
@@ -137,7 +137,7 @@ export class FileStore {
     await this.ensureDirectory(dirname(filePath));
 
     const json = JSON.stringify(state, null, 2);
-    await writeFile(filePath, json, 'utf-8');
+    await this.writeJsonAtomic(filePath, json, true);
   }
 
   /**
@@ -169,7 +169,7 @@ export class FileStore {
     await this.ensureDirectory(dirname(filePath));
 
     const json = JSON.stringify(data, null, 2);
-    await writeFile(filePath, json, 'utf-8');
+    await this.writeJsonAtomic(filePath, json, true);
   }
 
   /**
@@ -249,6 +249,36 @@ export class FileStore {
    */
   private async ensureDirectory(path: string): Promise<void> {
     await mkdir(path, { recursive: true });
+  }
+
+  /**
+   * Write JSON atomically to avoid partial writes on crashes.
+   * Optionally keeps a .bak copy of the previous version.
+   */
+  private async writeJsonAtomic(filePath: string, json: string, keepBackup: boolean): Promise<void> {
+    const tempPath = `${filePath}.tmp-${process.pid}-${Date.now()}`;
+
+    try {
+      await this.ensureDirectory(dirname(filePath));
+      if (keepBackup) {
+        try {
+          await access(filePath, constants.F_OK);
+          await copyFile(filePath, `${filePath}.bak`);
+        } catch {
+          // No existing file yet; nothing to back up.
+        }
+      }
+
+      await writeFile(tempPath, json, 'utf-8');
+      await rename(tempPath, filePath);
+    } catch (error) {
+      try {
+        await unlink(tempPath);
+      } catch {
+        // Best-effort cleanup for temp file.
+      }
+      throw error;
+    }
   }
 
   /**

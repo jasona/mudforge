@@ -69,9 +69,14 @@ export class Server extends EventEmitter {
   private fastify: FastifyInstance;
   private connectionManager: ConnectionManager;
   private running: boolean = false;
+  private shuttingDown: boolean = false;
   private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
   private heartbeatIntervalMs: number;
   private maxMissedPongs: number;
+  private readonly apiRateLimitPerMinute: number;
+  private readonly wsRateLimitPerMinute: number;
+  private apiRateLimitMap: Map<string, { count: number; windowStart: number }> = new Map();
+  private wsRateLimitMap: Map<string, { count: number; windowStart: number }> = new Map();
 
   onEvent<K extends keyof ServerEvents>(
     event: K,
@@ -102,6 +107,8 @@ export class Server extends EventEmitter {
     // Initialize WebSocket heartbeat settings from config
     this.heartbeatIntervalMs = config.wsHeartbeatIntervalMs ?? DEFAULT_HEARTBEAT_INTERVAL_MS;
     this.maxMissedPongs = config.wsMaxMissedPongs ?? DEFAULT_MAX_MISSED_PONGS;
+    this.apiRateLimitPerMinute = Number.parseInt(process.env['API_RATE_LIMIT_PER_MINUTE'] ?? '120', 10);
+    this.wsRateLimitPerMinute = Number.parseInt(process.env['WS_CONNECT_RATE_LIMIT_PER_MINUTE'] ?? '40', 10);
 
     this.connectionManager = getConnectionManager();
 
@@ -116,6 +123,17 @@ export class Server extends EventEmitter {
    * Set up HTTP routes and WebSocket handler.
    */
   private async setupRoutes(): Promise<void> {
+    this.fastify.addHook('preHandler', async (request, reply) => {
+      if (!request.url.startsWith('/api/')) {
+        return;
+      }
+      const allowed = this.consumeRateLimit(this.apiRateLimitMap, request.ip ?? 'unknown', this.apiRateLimitPerMinute);
+      if (allowed) {
+        return;
+      }
+      reply.code(429).send({ error: 'Too many requests. Please try again later.' });
+    });
+
     // Register static file serving
     await this.fastify.register(fastifyStatic, {
       root: resolve(this.config.clientPath),
@@ -145,7 +163,7 @@ export class Server extends EventEmitter {
 
     // Readiness check endpoint
     this.fastify.get('/ready', async () => {
-      if (!this.running) {
+      if (!this.running || this.shuttingDown) {
         throw new Error('Server not ready');
       }
       return { status: 'ready' };
@@ -380,8 +398,17 @@ export class Server extends EventEmitter {
    * Handle a new WebSocket connection.
    */
   private handleWebSocketConnection(socket: WebSocket, request: { ip?: string }): void {
+    if (this.shuttingDown) {
+      socket.close(1001, 'Server shutting down');
+      return;
+    }
     const id = this.connectionManager.generateId();
     const remoteAddress = request.ip || 'unknown';
+    const allowed = this.consumeRateLimit(this.wsRateLimitMap, remoteAddress, this.wsRateLimitPerMinute);
+    if (!allowed) {
+      socket.close(1013, 'Rate limit exceeded');
+      return;
+    }
 
     const connection = new Connection(socket, id, remoteAddress);
     this.connectionManager.add(connection);
@@ -430,6 +457,7 @@ export class Server extends EventEmitter {
         host: this.config.host,
       });
 
+      this.shuttingDown = false;
       this.running = true;
       this.startHeartbeat();
       console.log(`Server listening on ${this.config.host}:${this.config.port}`);
@@ -571,6 +599,28 @@ export class Server extends EventEmitter {
     }
   }
 
+  private consumeRateLimit(
+    map: Map<string, { count: number; windowStart: number }>,
+    key: string,
+    limitPerMinute: number
+  ): boolean {
+    const now = Date.now();
+    const existing = map.get(key);
+
+    if (!existing || now - existing.windowStart >= 60_000) {
+      map.set(key, { count: 1, windowStart: now });
+      return true;
+    }
+
+    if (existing.count >= limitPerMinute) {
+      return false;
+    }
+
+    existing.count += 1;
+    map.set(key, existing);
+    return true;
+  }
+
   /**
    * Stop the server.
    */
@@ -578,6 +628,7 @@ export class Server extends EventEmitter {
     if (!this.running) {
       return;
     }
+    this.shuttingDown = true;
 
     // Stop heartbeat
     this.stopHeartbeat();
@@ -590,6 +641,10 @@ export class Server extends EventEmitter {
 
     this.running = false;
     console.log('Server stopped');
+  }
+
+  beginShutdown(): void {
+    this.shuttingDown = true;
   }
 
   /**

@@ -21,6 +21,10 @@ interface GuildPlayer extends Living {
   setProperty(key: string, value: unknown): void;
 }
 
+interface MaybePlayer extends Living {
+  permissionLevel?: number;
+}
+
 export const name = ['pickpocket', 'steal'];
 export const description = 'Attempt to steal gold from a target';
 export const usage = 'pickpocket <target>';
@@ -58,6 +62,12 @@ export async function execute(ctx: CommandContext): Promise<void> {
 
   if (!target) {
     ctx.sendLine(`{red}Cannot find "${targetName}" here.{/}`);
+    return;
+  }
+
+  const targetEntity = target as MaybePlayer;
+  if (targetEntity.permissionLevel !== undefined) {
+    ctx.sendLine('{red}You can only pickpocket NPCs.{/}');
     return;
   }
 
