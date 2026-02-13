@@ -476,21 +476,24 @@ export class Server extends EventEmitter {
    */
   private startHeartbeat(): void {
     let heartbeatCount = 0;
-    const startTime = Date.now();
+    let lastHeartbeatAt = Date.now();
 
     this.heartbeatInterval = setInterval(() => {
       heartbeatCount++;
-      const expectedTime = startTime + (heartbeatCount * this.heartbeatIntervalMs);
-      const drift = Date.now() - expectedTime;
+      const now = Date.now();
+      // Measure per-tick scheduler delay rather than cumulative drift since startup.
+      // Cumulative drift grows forever from normal callback overhead and causes false alarms.
+      const delayMs = Math.max(0, now - lastHeartbeatAt - this.heartbeatIntervalMs);
+      lastHeartbeatAt = now;
 
       const connections = this.connectionManager.getAll();
 
       // Log heartbeat execution only when there's an issue or periodically (every 100 heartbeats ~= 40 minutes)
-      if (drift > 1000) {
-        console.warn(`[HEARTBEAT #${heartbeatCount}] DELAYED by ${drift}ms - checking ${connections.length} connections`);
+      if (delayMs > 1000) {
+        console.warn(`[HEARTBEAT #${heartbeatCount}] DELAYED by ${delayMs}ms - checking ${connections.length} connections`);
       } else if (heartbeatCount % 100 === 0) {
         // Periodic health check log
-        console.log(`[HEARTBEAT #${heartbeatCount}] Checking ${connections.length} connections (drift: ${drift}ms)`);
+        console.log(`[HEARTBEAT #${heartbeatCount}] Checking ${connections.length} connections (delay: ${delayMs}ms)`);
       }
 
       for (const connection of connections) {
