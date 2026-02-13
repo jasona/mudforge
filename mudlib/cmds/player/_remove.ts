@@ -34,7 +34,7 @@ export function execute(ctx: CommandContext): void {
   const equipped = living.getAllEquipped();
 
   // Build array of removable equipped items (skip weapon slots unless shield)
-  const removableItems = equipped
+  const removableItems = Array.from(equipped.entries())
     .filter(([slot, item]) => {
       if (slot === 'main_hand' || slot === 'off_hand') {
         return 'wear' in item; // Allow shields
