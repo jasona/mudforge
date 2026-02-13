@@ -461,6 +461,12 @@ export class Player extends Living {
     this._lastLogin = this._sessionStart;
     this._lastActivityTime = this._sessionStart;
 
+    // New connection may not have any client-side image cache yet.
+    // Reset dedupe state so current equipment/portrait are sent once.
+    this._lastSentEquipmentImages.clear();
+    this._pendingEquipmentImages.clear();
+    this._lastSentPortraitHash = '';
+
     // Always register for heartbeats when connected (for stats panel updates)
     if (typeof efuns !== 'undefined' && efuns.setHeartbeat) {
       efuns.setHeartbeat(this, true);
@@ -925,9 +931,10 @@ export class Player extends Living {
   /**
    * Send a complete state refresh to the client.
    * Called on login or when tab becomes visible after being hidden.
-   * Sends current STATS, MAP position, COMBAT target, and equipment images.
+   * Sends current STATS, MAP position, COMBAT target, and equipment state.
+   * Equipment images are only resent when changed unless resendImages is true.
    */
-  async sendFullStateRefresh(): Promise<void> {
+  async sendFullStateRefresh(options: { resendImages?: boolean } = {}): Promise<void> {
     if (!this._connection) {
       return;
     }
@@ -940,10 +947,12 @@ export class Player extends Living {
     this._statsSendCount = 0;
     this._lastSentStats = {};
 
-    // Clear equipment/portrait tracking to force resending images
-    // This ensures the client gets fresh image data after being hidden
-    this._lastSentEquipmentImages.clear();
-    this._lastSentPortraitHash = '';
+    // Optionally force a full image resync for callers that need it.
+    // Hidden→visible refreshes should normally keep dedupe state intact.
+    if (options.resendImages === true) {
+      this._lastSentEquipmentImages.clear();
+      this._lastSentPortraitHash = '';
+    }
 
     // Send stats/equipment immediately instead of waiting for the next heartbeat.
     this.sendStatsUpdate(true);
