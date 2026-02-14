@@ -6,6 +6,7 @@
  */
 
 import { Room } from '../../../lib/std.js';
+import { ResourceNode } from '../../../std/profession/resource-node.js';
 
 export class ForestEdgeW extends Room {
   constructor() {
@@ -38,6 +39,10 @@ leads {green}south{/} deeper into the woods.`;
         const rabbit = await efuns.cloneObject('/areas/valdoria/forest/rabbit');
         if (rabbit) await rabbit.moveTo(this);
       }
+
+      const silverleaf = new ResourceNode();
+      silverleaf.initFromDefinition('silverleaf_patch');
+      await silverleaf.moveTo(this);
     }
 }
 

@@ -32,6 +32,7 @@ interface CommandContext {
 export const name = 'wimpycmd';
 export const description = 'Set custom command for wimpy trigger';
 export const usage = 'wimpycmd [command|clear]';
+const ALLOWED_WIMPY_COMMANDS = new Set(['flee', 'quaff', 'recall']);
 
 export function execute(ctx: CommandContext): void {
   const args = ctx.args.trim();
@@ -70,6 +71,13 @@ export function execute(ctx: CommandContext): void {
   }
 
   // Set the command
+  const baseCommand = args.split(/\s+/)[0]?.toLowerCase() ?? '';
+  if (!ALLOWED_WIMPY_COMMANDS.has(baseCommand)) {
+    ctx.sendLine('{red}That command is not allowed for wimpycmd.{/}');
+    ctx.sendLine('{yellow}Allowed commands: flee, quaff, recall{/}');
+    return;
+  }
+
   ctx.player.setProperty('wimpycmd', args);
   ctx.sendLine(`{green}Wimpy command set to: {bold}${args}{/}`);
 

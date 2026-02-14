@@ -6,6 +6,7 @@
  */
 
 import { Room } from '../../../lib/std.js';
+import { ResourceNode } from '../../../std/profession/resource-node.js';
 
 export class ForestPath extends Room {
   constructor() {
@@ -41,6 +42,14 @@ smells of earth and pine needles.{/}`;
         const deer = await efuns.cloneObject('/areas/valdoria/forest/deer');
         if (deer) await deer.moveTo(this);
       }
+
+      const silverleaf = new ResourceNode();
+      silverleaf.initFromDefinition('silverleaf_patch');
+      await silverleaf.moveTo(this);
+
+      const oakTree = new ResourceNode();
+      oakTree.initFromDefinition('oak_tree');
+      await oakTree.moveTo(this);
     }
 }
 

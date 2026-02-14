@@ -6,6 +6,7 @@
  */
 
 import { Room } from '../../../lib/std.js';
+import { ResourceNode } from '../../../std/profession/resource-node.js';
 
 export class DarkWoods extends Room {
   constructor() {
@@ -50,6 +51,14 @@ through the undergrowth.`;
           if (boar) await boar.moveTo(this);
         }
       }
+
+      const mageroyal = new ResourceNode();
+      mageroyal.initFromDefinition('mageroyal_bloom');
+      await mageroyal.moveTo(this);
+
+      const ashTree = new ResourceNode();
+      ashTree.initFromDefinition('ash_tree');
+      await ashTree.moveTo(this);
     }
 
   override async onEnter(obj: MudObject, from?: MudObject): Promise<void> {

@@ -158,6 +158,24 @@ export class PortraitDaemon extends MudObject {
     return imageBase64;
   }
 
+  /**
+   * Normalize a data URI image payload.
+   * Currently strips ancillary PNG chunks to reduce size.
+   */
+  normalizeDataUri(dataUri: string): string {
+    const match = dataUri.match(/^data:([^;]+);base64,(.+)$/);
+    if (!match) {
+      return dataUri;
+    }
+    const mimeType = match[1] ?? '';
+    const base64 = match[2] ?? '';
+    const normalized = this.normalizeEncodedImage(base64, mimeType);
+    if (normalized === base64) {
+      return dataUri;
+    }
+    return `data:${mimeType};base64,${normalized}`;
+  }
+
   constructor() {
     super();
     this.shortDesc = 'Portrait Daemon';
@@ -198,7 +216,7 @@ export class PortraitDaemon extends MudObject {
       if (asPlayer.getProperty) {
         const profilePortrait = asPlayer.getProperty('profilePortrait');
         if (profilePortrait && typeof profilePortrait === 'string') {
-          return profilePortrait; // Return the data URI
+          return this.normalizeDataUri(profilePortrait);
         }
       }
       // Fall back to built-in avatar
@@ -350,7 +368,7 @@ Style requirements:
       };
       this._cache.set(cacheKey, portrait);
       await this.saveToDisk(cacheKey, portrait);
-      return `data:${imageResult.mimeType};base64,${imageResult.imageBase64}`;
+      return `data:${portrait.mimeType};base64,${portrait.image}`;
     }
 
     // Fall back to generic silhouette
@@ -565,7 +583,7 @@ Style requirements:
       };
       this._cache.set(cacheKey, portrait);
       await this.saveObjectToDisk(cacheKey, type, portrait);
-      return `data:${imageResult.mimeType};base64,${imageResult.imageBase64}`;
+      return `data:${portrait.mimeType};base64,${portrait.image}`;
     }
 
     // Fall back to generic image

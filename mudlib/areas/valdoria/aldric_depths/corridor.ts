@@ -4,6 +4,7 @@
 
 import { Room, MudObject } from '../../../lib/std.js';
 import { LightLevel } from '../../../std/visibility/types.js';
+import { ResourceNode } from '../../../std/profession/resource-node.js';
 
 /**
  * The Dungeon Corridor room.
@@ -45,6 +46,10 @@ to the {green}east{/}.`;
   }
 
   override async onCreate(): Promise<void> {
+    const tinVein = new ResourceNode();
+    tinVein.initFromDefinition('tin_vein');
+    await tinVein.moveTo(this);
+
     console.log('[DungeonCorridor] The dungeon corridor has been initialized.');
   }
 

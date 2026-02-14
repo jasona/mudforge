@@ -2,7 +2,8 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { FileStore, getFileStore, resetFileStore } from '../../../src/driver/persistence/file-store.js';
 import { resetSerializer } from '../../../src/driver/persistence/serializer.js';
 import type { MudObject } from '../../../src/driver/types.js';
-import { rm, mkdir } from 'fs/promises';
+import { rm, mkdir, readFile } from 'fs/promises';
+import { join } from 'path';
 
 // Test data directory
 const TEST_DATA_PATH = './test-data-persistence';
@@ -151,6 +152,20 @@ describe('FileStore', () => {
 
       const exists = await store.playerExists('Test@User!');
       expect(exists).toBe(true);
+    });
+
+    it('creates backup when overwriting player save', async () => {
+      const room = createMockObject('/areas/town/square', {});
+      const player = createMockObject('/std/player', { name: 'BackupHero', level: 1 }, true);
+      player.environment = room;
+      await store.savePlayer(player);
+
+      (player as unknown as { level: number }).level = 2;
+      await store.savePlayer(player);
+
+      const bakPath = join(TEST_DATA_PATH, 'players', 'backuphero.json.bak');
+      const backupJson = await readFile(bakPath, 'utf-8');
+      expect(JSON.parse(backupJson).state.properties.level).toBe(1);
     });
   });
 

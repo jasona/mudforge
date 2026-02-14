@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { createTestEnvironment, createMockPlayer } from '../../helpers/efun-test-utils.js';
+import { createTestEnvironment } from '../../helpers/efun-test-utils.js';
 import type { EfunBridge } from '../../../src/driver/efun-bridge.js';
 
 describe('AI Claude Efuns', () => {

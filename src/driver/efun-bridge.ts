@@ -17,8 +17,8 @@ import { getGeminiClient } from './gemini-client.js';
 import type { PlayerSaveData } from './persistence/serializer.js';
 import type { MudObject } from './types.js';
 import type { ObjectLoaderFacade } from './interfaces/object-loader.js';
-import { readFile, writeFile, access, readdir, stat, mkdir, rm, rename, copyFile } from 'fs/promises';
-import { dirname, normalize, resolve } from 'path';
+import { readFile, writeFile, access, readdir, stat, mkdir, rm, rename, copyFile, realpath } from 'fs/promises';
+import { dirname, normalize, resolve, sep } from 'path';
 import { constants } from 'fs';
 import { getI3Client } from '../network/i3-client.js';
 import { getI2Client } from '../network/i2-client.js';
@@ -958,11 +958,43 @@ export class EfunBridge {
 
     // Security check: ensure path is within mudlib
     const mudlibAbs = resolve(this.config.mudlibPath);
-    if (!fullPath.startsWith(mudlibAbs)) {
+    const mudlibPrefix = mudlibAbs.endsWith(sep) ? mudlibAbs : `${mudlibAbs}${sep}`;
+    if (fullPath !== mudlibAbs && !fullPath.startsWith(mudlibPrefix)) {
       throw new Error('Path traversal attempt detected');
     }
 
     return fullPath;
+  }
+
+  /**
+   * Validate resolved path against canonical filesystem paths.
+   * Prevents symlink escapes (e.g., mudlib/foo -> /etc).
+   */
+  private async assertCanonicalPathWithinMudlib(targetPath: string): Promise<void> {
+    const mudlibRoot = await realpath(resolve(this.config.mudlibPath));
+    let existingTarget = targetPath;
+
+    // Walk up until we find an existing path (or root), then resolve it canonically.
+    while (true) {
+      try {
+        const canonicalTarget = await realpath(existingTarget);
+        const rootPrefix = mudlibRoot.endsWith(sep) ? mudlibRoot : `${mudlibRoot}${sep}`;
+        if (canonicalTarget !== mudlibRoot && !canonicalTarget.startsWith(rootPrefix)) {
+          throw new Error('Path traversal attempt detected');
+        }
+        return;
+      } catch (error) {
+        const code = (error as NodeJS.ErrnoException).code;
+        if (code !== 'ENOENT') {
+          throw error;
+        }
+        const parent = dirname(existingTarget);
+        if (parent === existingTarget) {
+          throw new Error('Path traversal attempt detected');
+        }
+        existingTarget = parent;
+      }
+    }
   }
 
   /**
@@ -976,6 +1008,7 @@ export class EfunBridge {
       throw new Error(`Permission denied: cannot read ${path}`);
     }
     const fullPath = this.resolveMudlibPath(path);
+    await this.assertCanonicalPathWithinMudlib(fullPath);
     return readFile(fullPath, 'utf-8');
   }
 
@@ -993,6 +1026,7 @@ export class EfunBridge {
     const fullPath = this.resolveMudlibPath(path);
     // Ensure directory exists
     await mkdir(dirname(fullPath), { recursive: true });
+    await this.assertCanonicalPathWithinMudlib(fullPath);
     await writeFile(fullPath, content, 'utf-8');
   }
 
@@ -1008,6 +1042,7 @@ export class EfunBridge {
     }
     try {
       const fullPath = this.resolveMudlibPath(path);
+      await this.assertCanonicalPathWithinMudlib(fullPath);
       await access(fullPath, constants.F_OK);
       return true;
     } catch {
@@ -1026,6 +1061,7 @@ export class EfunBridge {
       throw new Error(`Permission denied: cannot read ${path}`);
     }
     const fullPath = this.resolveMudlibPath(path);
+    await this.assertCanonicalPathWithinMudlib(fullPath);
     return readdir(fullPath);
   }
 
@@ -1036,7 +1072,12 @@ export class EfunBridge {
   async fileStat(
     path: string
   ): Promise<{ isFile: boolean; isDirectory: boolean; size: number; mtime: Date }> {
+    const player = this.context.thisPlayer;
+    if (!this.permissions.canRead(player, path)) {
+      throw new Error(`Permission denied: cannot read ${path}`);
+    }
     const fullPath = this.resolveMudlibPath(path);
+    await this.assertCanonicalPathWithinMudlib(fullPath);
     const stats = await stat(fullPath);
     return {
       isFile: stats.isFile(),
@@ -1058,6 +1099,7 @@ export class EfunBridge {
       throw new Error(`Permission denied: cannot create ${path}`);
     }
     const fullPath = this.resolveMudlibPath(path);
+    await this.assertCanonicalPathWithinMudlib(fullPath);
     await mkdir(fullPath, { recursive });
   }
 
@@ -1073,6 +1115,7 @@ export class EfunBridge {
       throw new Error(`Permission denied: cannot remove ${path}`);
     }
     const fullPath = this.resolveMudlibPath(path);
+    await this.assertCanonicalPathWithinMudlib(fullPath);
     await rm(fullPath, { recursive });
   }
 
@@ -1087,6 +1130,7 @@ export class EfunBridge {
       throw new Error(`Permission denied: cannot remove ${path}`);
     }
     const fullPath = this.resolveMudlibPath(path);
+    await this.assertCanonicalPathWithinMudlib(fullPath);
     const stats = await stat(fullPath);
     if (stats.isDirectory()) {
       throw new Error(`Is a directory: ${path}`);
@@ -1112,6 +1156,8 @@ export class EfunBridge {
     const destFull = this.resolveMudlibPath(destPath);
     // Ensure destination directory exists
     await mkdir(dirname(destFull), { recursive: true });
+    await this.assertCanonicalPathWithinMudlib(srcFull);
+    await this.assertCanonicalPathWithinMudlib(destFull);
     await rename(srcFull, destFull);
   }
 
@@ -1131,6 +1177,8 @@ export class EfunBridge {
     }
     const srcFull = this.resolveMudlibPath(srcPath);
     const destFull = this.resolveMudlibPath(destPath);
+    await this.assertCanonicalPathWithinMudlib(srcFull);
+    await this.assertCanonicalPathWithinMudlib(destFull);
     // Check source is a file
     const stats = await stat(srcFull);
     if (stats.isDirectory()) {

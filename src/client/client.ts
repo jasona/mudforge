@@ -8,7 +8,6 @@ import { Terminal } from './terminal.js';
 import {
   WebSocketClient,
   IdeMessage,
-  StatsMessage,
   StatsUpdate,
   EquipmentMessage,
   GUIMessage,

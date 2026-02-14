@@ -176,7 +176,7 @@ describe('WerewolfShadow', () => {
 
     it('should override name with werewolf suffix', () => {
       // Mock getOriginalObject to return the target's private _name
-      mockEfuns.getOriginalObject.mockImplementation((obj) => {
+      mockEfuns.getOriginalObject.mockImplementation((_obj) => {
         return { _name: 'TestPlayer' };
       });
 
@@ -188,7 +188,7 @@ describe('WerewolfShadow', () => {
     });
 
     it('should override longDesc with werewolf description', () => {
-      mockEfuns.getOriginalObject.mockImplementation((obj) => {
+      mockEfuns.getOriginalObject.mockImplementation((_obj) => {
         return { _name: 'TestPlayer' };
       });
 
@@ -209,7 +209,7 @@ describe('WerewolfShadow', () => {
     });
 
     it('should override getDisplayName', () => {
-      mockEfuns.getOriginalObject.mockImplementation((obj) => {
+      mockEfuns.getOriginalObject.mockImplementation((_obj) => {
         return { _name: 'TestPlayer' };
       });
 
@@ -346,11 +346,11 @@ describe('Shadow inheritance', () => {
         super('hook_test');
       }
 
-      override async onAttach(target: MudObject): Promise<void> {
+      override async onAttach(_target: MudObject): Promise<void> {
         attachCalled = true;
       }
 
-      override async onDetach(target: MudObject): Promise<void> {
+      override async onDetach(_target: MudObject): Promise<void> {
         detachCalled = true;
       }
     }

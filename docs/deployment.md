@@ -125,15 +125,15 @@ Note: Cluster mode requires additional configuration for shared state.
 MudForge exposes health endpoints:
 
 - `GET /health` - Basic health check (returns 200 OK)
-- `GET /health/ready` - Readiness check (returns driver status)
+- `GET /ready` - Readiness check (returns server readiness)
 
 Example health check response:
 ```json
 {
   "status": "ok",
   "uptime": 3600,
-  "objects": 150,
-  "players": 5
+  "players": 5,
+  "connections": 8
 }
 ```
 
@@ -215,11 +215,11 @@ Caddy automatically handles SSL certificates.
 
 Important directories to back up:
 - `/mudlib/` - All game content
-- `/data/` - Player saves and world state
+- `/mudlib/data/` - Player saves, world state, permissions, moderation data
 
 ```bash
 # Create backup
-tar -czf mudforge-backup-$(date +%Y%m%d).tar.gz mudlib/ data/
+tar -czf mudforge-backup-$(date +%Y%m%d).tar.gz mudlib/ mudlib/data/
 
 # Restore backup
 tar -xzf mudforge-backup-20240101.tar.gz
@@ -229,7 +229,7 @@ tar -xzf mudforge-backup-20240101.tar.gz
 
 Add to crontab:
 ```bash
-0 */6 * * * cd /path/to/mudforge && tar -czf /backups/mudforge-$(date +\%Y\%m\%d-\%H\%M).tar.gz mudlib/ data/
+0 */6 * * * cd /path/to/mudforge && tar -czf /backups/mudforge-$(date +\%Y\%m\%d-\%H\%M).tar.gz mudlib/ mudlib/data/
 ```
 
 ## Security Considerations

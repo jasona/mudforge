@@ -155,9 +155,16 @@ export class ResetDaemon extends MudObject {
     this._stats.lastResetTime = startTime;
 
     const duration = Date.now() - startTime;
-    console.log(
-      `[ResetDaemon] Reset complete: ${roomsReset} rooms, ${itemsCleaned} items cleaned (${duration}ms)`
-    );
+    // Keep reset logging informative without spamming routine no-op runs.
+    const shouldLog =
+      itemsCleaned > 0 ||
+      duration >= 50 ||
+      this._stats.totalResets % 20 === 0;
+    if (shouldLog) {
+      console.log(
+        `[ResetDaemon] Reset complete: ${roomsReset} rooms, ${itemsCleaned} items cleaned (${duration}ms)`
+      );
+    }
 
     // Schedule next reset
     this.scheduleNextReset();

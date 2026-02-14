@@ -6,6 +6,7 @@
  */
 
 import { Room } from '../../../lib/std.js';
+import { ResourceNode } from '../../../std/profession/resource-node.js';
 
 export class HuntersCamp extends Room {
   constructor() {
@@ -40,6 +41,14 @@ The trail leads back {green}west{/} toward the forest path.
         const wolf = await efuns.cloneObject('/areas/valdoria/forest/wolf');
         if (wolf) await wolf.moveTo(this);
       }
+
+      const kingsblood = new ResourceNode();
+      kingsblood.initFromDefinition('kingsblood_bush');
+      await kingsblood.moveTo(this);
+
+      const ironwood = new ResourceNode();
+      ironwood.initFromDefinition('ironwood_tree');
+      await ironwood.moveTo(this);
     }
 
   override async onEnter(obj: MudObject, from?: MudObject): Promise<void> {

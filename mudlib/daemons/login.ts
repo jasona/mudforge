@@ -20,6 +20,7 @@ import type { GeneratedItemData } from '../std/loot/types.js';
 // Note: Mudlib runs in a sandbox. Use efuns for crypto/DNS.
 
 const FALLBACK_SALT_BYTES = 16;
+const BANS_FILE = '/data/moderation/bans.json';
 
 function toHex(bytes: number[]): string {
   return bytes.map(b => b.toString(16).padStart(2, '0')).join('');
@@ -166,11 +167,81 @@ export class LoginDaemon extends MudObject {
 
   // In-memory fallback for testing (when efuns not available)
   private _passwords: Map<string, string> = new Map();
+  private _authFailures: Map<string, { count: number; windowStart: number; blockedUntil: number }> = new Map();
+
+  private static readonly AUTH_WINDOW_MS = 5 * 60 * 1000;
+  private static readonly AUTH_MAX_ATTEMPTS = 8;
+  private static readonly AUTH_BLOCK_MS = 5 * 60 * 1000;
 
   constructor() {
     super();
     this.shortDesc = 'Login Daemon';
     this.longDesc = 'The login daemon handles player authentication.';
+  }
+
+  private getAuthRateLimitKey(connection: Connection, playerName: string): string {
+    const ip = connection.getRemoteAddress() || 'unknown';
+    return `${ip}:${playerName.toLowerCase()}`;
+  }
+
+  private checkAuthRateLimit(connection: Connection, playerName: string): { allowed: boolean; retrySeconds?: number } {
+    const key = this.getAuthRateLimitKey(connection, playerName);
+    const record = this._authFailures.get(key);
+    if (!record) {
+      return { allowed: true };
+    }
+    if (record.blockedUntil > Date.now()) {
+      return {
+        allowed: false,
+        retrySeconds: Math.max(1, Math.ceil((record.blockedUntil - Date.now()) / 1000)),
+      };
+    }
+    return { allowed: true };
+  }
+
+  private recordAuthFailure(connection: Connection, playerName: string): void {
+    const now = Date.now();
+    const key = this.getAuthRateLimitKey(connection, playerName);
+    const existing = this._authFailures.get(key);
+    if (!existing || now - existing.windowStart > LoginDaemon.AUTH_WINDOW_MS) {
+      this._authFailures.set(key, { count: 1, windowStart: now, blockedUntil: 0 });
+      return;
+    }
+
+    const count = existing.count + 1;
+    const blockedUntil = count >= LoginDaemon.AUTH_MAX_ATTEMPTS
+      ? now + LoginDaemon.AUTH_BLOCK_MS
+      : existing.blockedUntil;
+    this._authFailures.set(key, { count, windowStart: existing.windowStart, blockedUntil });
+  }
+
+  private clearAuthFailures(connection: Connection, playerName: string): void {
+    const key = this.getAuthRateLimitKey(connection, playerName);
+    this._authFailures.delete(key);
+  }
+
+  private async checkBanStatus(name: string): Promise<{ banned: boolean; reason?: string }> {
+    if (typeof efuns === 'undefined' || !efuns.fileExists || !efuns.readFile) {
+      return { banned: false };
+    }
+
+    try {
+      const exists = await efuns.fileExists(BANS_FILE);
+      if (!exists) return { banned: false };
+      const raw = await efuns.readFile(BANS_FILE);
+      const data = JSON.parse(raw) as {
+        bans?: Array<{ name: string; reason?: string; expiresAt?: number }>;
+      };
+      const now = Date.now();
+      const ban = data.bans?.find((entry) => {
+        if (entry.name.toLowerCase() !== name.toLowerCase()) return false;
+        return !entry.expiresAt || entry.expiresAt > now;
+      });
+      if (!ban) return { banned: false };
+      return { banned: true, reason: ban.reason };
+    } catch {
+      return { banned: false };
+    }
   }
 
   /**
@@ -265,6 +336,15 @@ ${'='.repeat(bannerWidth)}
     }
 
     session.name = name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+    const banStatus = await this.checkBanStatus(session.name);
+    if (banStatus.banned) {
+      session.connection.send('{red}This character is banned.{/}\n');
+      if (banStatus.reason) {
+        session.connection.send(`{yellow}Reason: ${banStatus.reason}{/}\n`);
+      }
+      session.connection.close();
+      return;
+    }
 
     // Check if player exists using persistence or in-memory fallback
     let playerExists = false;
@@ -307,6 +387,12 @@ ${'='.repeat(bannerWidth)}
       session.connection.send('Please confirm your password: ');
       session.state = 'confirm_password';
     } else {
+      const rateLimit = this.checkAuthRateLimit(session.connection, session.name);
+      if (!rateLimit.allowed) {
+        session.connection.send(`Too many failed attempts. Try again in ${rateLimit.retrySeconds} seconds.\n`);
+        return;
+      }
+
       // Existing player - verify password from saved data or in-memory fallback
       let storedHash: string | undefined;
       if (session.savedData?.state?.properties?.passwordHash) {
@@ -316,6 +402,7 @@ ${'='.repeat(bannerWidth)}
         // Legacy: plain text password (will be upgraded on next save)
         const legacyPassword = session.savedData.state.properties.password as string;
         if (password !== legacyPassword) {
+          this.recordAuthFailure(session.connection, session.name);
           session.connection.send('Incorrect password.\n');
           session.connection.send('Password: ');
           return;
@@ -330,6 +417,7 @@ ${'='.repeat(bannerWidth)}
       }
 
       if (!storedHash) {
+        this.recordAuthFailure(session.connection, session.name);
         session.connection.send('Incorrect password.\n');
         session.connection.send('Password: ');
         return;
@@ -338,12 +426,14 @@ ${'='.repeat(bannerWidth)}
       // Verify the hashed password
       const isValid = await verifyPassword(password, storedHash);
       if (!isValid) {
+        this.recordAuthFailure(session.connection, session.name);
         session.connection.send('Incorrect password.\n');
         session.connection.send('Password: ');
         return;
       }
 
       // Login successful
+      this.clearAuthFailures(session.connection, session.name);
       await this.completeLogin(session);
     }
   }
@@ -906,6 +996,24 @@ ${'='.repeat(bannerWidth)}
 
     // Normalize name
     const normalizedName = name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+    const banStatus = await this.checkBanStatus(normalizedName);
+    if (banStatus.banned) {
+      connection.sendAuthResponse!({
+        success: false,
+        error: banStatus.reason ? `This character is banned: ${banStatus.reason}` : 'This character is banned',
+        errorCode: 'invalid_credentials',
+      });
+      return;
+    }
+    const rateLimit = this.checkAuthRateLimit(connection, normalizedName);
+    if (!rateLimit.allowed) {
+      connection.sendAuthResponse!({
+        success: false,
+        error: `Too many failed attempts. Try again in ${rateLimit.retrySeconds} seconds.`,
+        errorCode: 'invalid_credentials',
+      });
+      return;
+    }
 
     // Check if player exists
     let playerExists = false;
@@ -937,6 +1045,7 @@ ${'='.repeat(bannerWidth)}
       // Legacy plain-text password
       const legacyPassword = savedData.state.properties.password as string;
       if (password !== legacyPassword) {
+        this.recordAuthFailure(connection, normalizedName);
         connection.sendAuthResponse!({
           success: false,
           error: 'Invalid password',
@@ -946,12 +1055,14 @@ ${'='.repeat(bannerWidth)}
       }
       // Password matches - create session and complete login
       await this.completeAuthLogin(connection, normalizedName, savedData, password);
+      this.clearAuthFailures(connection, normalizedName);
       return;
     } else {
       storedHash = this._passwords.get(normalizedName.toLowerCase());
     }
 
     if (!storedHash) {
+      this.recordAuthFailure(connection, normalizedName);
       connection.sendAuthResponse!({
         success: false,
         error: 'Invalid password',
@@ -963,6 +1074,7 @@ ${'='.repeat(bannerWidth)}
     // Verify password
     const isValid = await verifyPassword(password, storedHash);
     if (!isValid) {
+      this.recordAuthFailure(connection, normalizedName);
       connection.sendAuthResponse!({
         success: false,
         error: 'Invalid password',
@@ -972,6 +1084,7 @@ ${'='.repeat(bannerWidth)}
     }
 
     // Login successful
+    this.clearAuthFailures(connection, normalizedName);
     await this.completeAuthLogin(connection, normalizedName, savedData);
   }
 
@@ -998,6 +1111,15 @@ ${'='.repeat(bannerWidth)}
     }
 
     const normalizedName = name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+    const banStatus = await this.checkBanStatus(normalizedName);
+    if (banStatus.banned) {
+      connection.sendAuthResponse!({
+        success: false,
+        error: banStatus.reason ? `This character is banned: ${banStatus.reason}` : 'This character is banned',
+        errorCode: 'invalid_credentials',
+      });
+      return;
+    }
 
     // Check if name is taken
     let playerExists = false;

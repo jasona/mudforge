@@ -6,6 +6,7 @@
  */
 
 import { Room } from '../../../lib/std.js';
+import { ResourceNode } from '../../../std/profession/resource-node.js';
 
 export class Brambles extends Room {
   constructor() {
@@ -42,6 +43,10 @@ leads {green}north{/}. A barely visible trail winds {green}south{/}.`;
         const rabbit = await efuns.cloneObject('/areas/valdoria/forest/rabbit');
         if (rabbit) await rabbit.moveTo(this);
       }
+
+      const peacebloom = new ResourceNode();
+      peacebloom.initFromDefinition('peacebloom_cluster');
+      await peacebloom.moveTo(this);
     }
 }
 

@@ -40,6 +40,7 @@ export function execute(ctx: CommandContext): void {
   // No arguments - show index
   if (!command) {
     ctx.send('\n' + helpDaemon.formatIndex(player));
+    ctx.sendLine('{dim}Tip: try "settings" for options and "report <message>" to contact staff.{/}');
     return;
   }
 

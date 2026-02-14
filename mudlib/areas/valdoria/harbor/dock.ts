@@ -3,6 +3,7 @@
  */
 
 import { Room, MudObject } from '../../../lib/std.js';
+import { ResourceNode } from '../../../std/profession/resource-node.js';
 
 /**
  * The Harbor Dock room.
@@ -42,6 +43,11 @@ about, loading and unloading cargo from the various vessels moored here.`;
 
   override async onCreate(): Promise<void> {
     await super.onCreate();
+
+    const coastalFishing = new ResourceNode();
+    coastalFishing.initFromDefinition('coastal_fishing');
+    await coastalFishing.moveTo(this);
+
     console.log('[HarborDock] The harbor dock has been initialized.');
   }
 

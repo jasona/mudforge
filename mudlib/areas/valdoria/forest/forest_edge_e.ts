@@ -6,6 +6,7 @@
  */
 
 import { Room } from '../../../lib/std.js';
+import { ResourceNode } from '../../../std/profession/resource-node.js';
 
 export class ForestEdgeE extends Room {
   constructor() {
@@ -38,6 +39,14 @@ The main path lies to the {green}west{/}, and a narrow trail winds
         const deer = await efuns.cloneObject('/areas/valdoria/forest/deer');
         if (deer) await deer.moveTo(this);
       }
+
+      const tinVein = new ResourceNode();
+      tinVein.initFromDefinition('tin_vein');
+      await tinVein.moveTo(this);
+
+      const riverFishing = new ResourceNode();
+      riverFishing.initFromDefinition('river_fishing');
+      await riverFishing.moveTo(this);
     }
 }
 

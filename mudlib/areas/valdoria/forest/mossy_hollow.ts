@@ -6,6 +6,7 @@
  */
 
 import { Room } from '../../../lib/std.js';
+import { ResourceNode } from '../../../std/profession/resource-node.js';
 
 export class MossyHollow extends Room {
   constructor() {
@@ -46,6 +47,14 @@ to the {green}north{/} and {green}west{/}.`;
           if (wolf) await wolf.moveTo(this);
         }
       }
+
+      const earthroot = new ResourceNode();
+      earthroot.initFromDefinition('earthroot_growth');
+      await earthroot.moveTo(this);
+
+      const pondFishing = new ResourceNode();
+      pondFishing.initFromDefinition('pond_fishing');
+      await pondFishing.moveTo(this);
     }
 }
 

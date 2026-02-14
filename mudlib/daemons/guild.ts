@@ -660,6 +660,15 @@ export class GuildDaemon extends MudObject {
   }
 
   /**
+   * Get guild XP awarded for successfully using a skill.
+   * This is intentionally lower than skill usage XP so guild progression stays slower.
+   */
+  private getGuildXPFromSkillUse(skillType: SkillType): number {
+    const skillUsageBase = this.getBaseUsageXP(skillType);
+    return Math.max(1, Math.ceil(skillUsageBase * 0.5));
+  }
+
+  /**
    * Award usage XP to a skill and check for auto-leveling.
    */
   awardSkillUsageXP(
@@ -864,6 +873,12 @@ export class GuildDaemon extends MudObject {
       const xpResult = this.awardSkillUsageXP(player, skillId, baseXP);
       if (xpResult.leveledUp && xpResult.newLevel !== undefined) {
         player.receive(`\n{green}Your ${skill.name} has improved to level ${xpResult.newLevel}!{/}\n`);
+      }
+
+      // Award guild XP to the guild this skill belongs to.
+      const guildXPAwarded = this.getGuildXPFromSkillUse(skill.type);
+      if (this.awardGuildXP(player, skill.guild, guildXPAwarded)) {
+        result.guildXPAwarded = guildXPAwarded;
       }
     }
 
