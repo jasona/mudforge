@@ -6,6 +6,7 @@
  */
 
 import { Room } from '../../../lib/std.js';
+import { ResourceNode } from '../../../std/profession/resource-node.js';
 
 export class FernGlade extends Room {
   constructor() {
@@ -44,6 +45,14 @@ trail, and {green}south{/} toward mossy ground.`;
           if (wolf) await wolf.moveTo(this);
         }
       }
+
+      const mageroyal = new ResourceNode();
+      mageroyal.initFromDefinition('mageroyal_bloom');
+      await mageroyal.moveTo(this);
+
+      const ashTree = new ResourceNode();
+      ashTree.initFromDefinition('ash_tree');
+      await ashTree.moveTo(this);
     }
 }
 

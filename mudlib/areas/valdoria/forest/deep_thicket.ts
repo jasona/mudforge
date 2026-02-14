@@ -6,6 +6,7 @@
  */
 
 import { Room } from '../../../lib/std.js';
+import { ResourceNode } from '../../../std/profession/resource-node.js';
 
 export class DeepThicket extends Room {
   constructor() {
@@ -47,6 +48,10 @@ would be unwise without good reason.`;
           if (wolf) await wolf.moveTo(this);
         }
       }
+
+      const ashTree = new ResourceNode();
+      ashTree.initFromDefinition('ash_tree');
+      await ashTree.moveTo(this);
     }
 }
 

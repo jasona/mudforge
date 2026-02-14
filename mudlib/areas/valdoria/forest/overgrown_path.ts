@@ -6,6 +6,7 @@
  */
 
 import { Room } from '../../../lib/std.js';
+import { ResourceNode } from '../../../std/profession/resource-node.js';
 
 export class OvergrownPath extends Room {
   constructor() {
@@ -40,6 +41,14 @@ woods, and {green}south{/} toward what looks like a thicket.`;
         const boar = await efuns.cloneObject('/areas/valdoria/forest/boar');
         if (boar) await boar.moveTo(this);
       }
+
+      const earthroot = new ResourceNode();
+      earthroot.initFromDefinition('earthroot_growth');
+      await earthroot.moveTo(this);
+
+      const oakTree = new ResourceNode();
+      oakTree.initFromDefinition('oak_tree');
+      await oakTree.moveTo(this);
     }
 }
 

@@ -6,6 +6,7 @@
  */
 
 import { Room } from '../../../lib/std.js';
+import { ResourceNode } from '../../../std/profession/resource-node.js';
 
 export class OldTrail extends Room {
   constructor() {
@@ -43,6 +44,10 @@ forest edge, and {green}south{/} deeper into the shadowy woods.`;
         const wolf = await efuns.cloneObject('/areas/valdoria/forest/wolf');
         if (wolf) await wolf.moveTo(this);
       }
+
+      const oakTree = new ResourceNode();
+      oakTree.initFromDefinition('oak_tree');
+      await oakTree.moveTo(this);
     }
 }
 
