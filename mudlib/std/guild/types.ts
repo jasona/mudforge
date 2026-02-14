@@ -229,6 +229,8 @@ export interface UseSkillResult {
   effectApplied?: string;
   /** Mana spent */
   manaSpent?: number;
+  /** Guild XP granted from successful skill use */
+  guildXPAwarded?: number;
 }
 
 /**
