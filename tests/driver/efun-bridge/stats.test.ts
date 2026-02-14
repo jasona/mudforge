@@ -6,7 +6,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createTestEnvironment } from '../../helpers/efun-test-utils.js';
 import type { EfunBridge } from '../../../src/driver/efun-bridge.js';
 import { BaseMudObject } from '../../../src/driver/base-object.js';
-import { getRegistry, resetRegistry } from '../../../src/driver/object-registry.js';
+import { getRegistry } from '../../../src/driver/object-registry.js';
 
 describe('Stats Efuns', () => {
   let efunBridge: EfunBridge;

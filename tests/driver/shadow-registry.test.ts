@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import {
   ShadowRegistry,
   getShadowRegistry,
@@ -6,9 +6,7 @@ import {
 } from '../../src/driver/shadow-registry.js';
 import {
   type Shadow,
-  UNSHADOWABLE_PROPERTIES,
   SHADOW_PROXY_MARKER,
-  SHADOW_ORIGINAL,
 } from '../../src/driver/shadow-types.js';
 import { BaseMudObject } from '../../src/driver/base-object.js';
 
@@ -69,11 +67,11 @@ class TestShadow implements Shadow {
     return 'Hello from shadow!';
   }
 
-  async onAttach(target: BaseMudObject): Promise<void> {
+  async onAttach(_target: BaseMudObject): Promise<void> {
     this.onAttachCalled = true;
   }
 
-  async onDetach(target: BaseMudObject): Promise<void> {
+  async onDetach(_target: BaseMudObject): Promise<void> {
     this.onDetachCalled = true;
   }
 }

@@ -30,6 +30,7 @@ export default [
     },
     rules: {
       ...tseslint.configs.recommended.rules,
+      'no-undef': 'off',
       '@typescript-eslint/explicit-function-return-type': 'off',
       '@typescript-eslint/no-explicit-any': 'warn',
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],

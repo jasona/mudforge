@@ -169,14 +169,14 @@ export class ShadowRegistry {
       originalDescriptors[prop] = originalDescriptor;
 
       // Create shadow-aware getter
-      const shadowRegistry = this;
+      const getShadows = this.getShadows.bind(this);
       const originalGetter = originalDescriptor.get;
       const originalSetter = originalDescriptor.set;
 
       const newDescriptor: PropertyDescriptor = {
         get(): unknown {
           // Check shadows first
-          const shadows = shadowRegistry.getShadows(objectId);
+          const shadows = getShadows(objectId);
           for (const shadow of shadows) {
             if (!shadow.isActive) continue;
 
@@ -226,14 +226,14 @@ export class ShadowRegistry {
       }
 
       // Create shadow-aware method wrapper
-      const shadowRegistry = this;
+      const getShadows = this.getShadows.bind(this);
 
       (target as unknown as Record<string, unknown>)[methodName] = function (
         this: unknown,
         ...args: unknown[]
       ): unknown {
         // Check shadows first
-        const shadows = shadowRegistry.getShadows(objectId);
+        const shadows = getShadows(objectId);
         for (const shadow of shadows) {
           if (!shadow.isActive) continue;
 
@@ -268,7 +268,7 @@ export class ShadowRegistry {
     ];
     if (!originalDescriptors) return;
 
-    for (const [prop, descriptor] of Object.entries(originalDescriptors)) {
+    for (const prop of Object.keys(originalDescriptors)) {
       // Delete the instance property to reveal the prototype's
       delete (target as unknown as Record<string, unknown>)[prop];
 
@@ -526,7 +526,7 @@ export class ShadowRegistry {
       if (shadow.onDetach && shadow.target) {
         try {
           await shadow.onDetach(shadow.target);
-        } catch (error) {
+        } catch {
           // Ignore errors during destruction cleanup
         }
       }
