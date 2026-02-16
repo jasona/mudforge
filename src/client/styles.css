@@ -2351,6 +2351,12 @@ h6.gui-heading { font-size: 12px; }
   letter-spacing: 0.05em;
 }
 
+.comm-header-buttons {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .comm-btn {
   width: 18px;
   height: 18px;
@@ -2372,6 +2378,11 @@ h6.gui-heading { font-size: 12px; }
   color: var(--text-primary);
   background-color: var(--bg-tertiary);
   border-color: var(--accent);
+}
+
+.comm-btn-close:hover {
+  color: #ff5f5f;
+  border-color: #ff5f5f;
 }
 
 .comm-panel-tabs {
@@ -4231,8 +4242,12 @@ h6.gui-heading { font-size: 12px; }
 }
 
 /* ==========================================================================
-   Header Button (Debug Toggle)
+   Header Menu Dropdown
    ========================================================================== */
+
+.header-menu {
+  position: relative;
+}
 
 .header-button {
   font-size: var(--font-size-xs);
@@ -4255,6 +4270,45 @@ h6.gui-heading { font-size: 12px; }
 .header-button:active {
   background-color: var(--accent-subtle);
   color: var(--accent);
+}
+
+.header-menu-dropdown {
+  position: absolute;
+  top: calc(100% + var(--spacing-xs));
+  right: 0;
+  min-width: 180px;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--border-radius-sm);
+  box-shadow: var(--shadow-lg);
+  z-index: 2000;
+  padding: var(--spacing-xs) 0;
+}
+
+.header-menu-dropdown.hidden {
+  display: none;
+}
+
+.header-menu-item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-size: var(--font-size-xs);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background-color 0.1s ease;
+  user-select: none;
+}
+
+.header-menu-item:hover {
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.header-menu-item input[type="checkbox"] {
+  accent-color: var(--accent);
+  cursor: pointer;
 }
 
 /* ==========================================================================
@@ -4322,8 +4376,6 @@ h6.gui-heading { font-size: 12px; }
 
 .debug-panel {
   position: fixed;
-  right: var(--spacing-sm);
-  bottom: calc(var(--input-height) + 250px + var(--spacing-md));
   width: 400px;
   max-width: calc(100vw - 48px);
   max-height: 50vh;
@@ -4597,8 +4649,6 @@ h6.gui-heading { font-size: 12px; }
 @media (max-width: 600px) {
   .debug-panel {
     width: calc(100vw - 32px);
-    right: var(--spacing-md);
-    bottom: calc(var(--input-height) + var(--spacing-md));
   }
 }
 

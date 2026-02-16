@@ -103,7 +103,10 @@ class MudClient {
     const sendBtn = document.getElementById('send-btn');
     const statusEl = document.getElementById('status');
     const updateBanner = document.getElementById('update-banner');
-    const debugToggle = document.getElementById('debug-toggle');
+    const menuToggle = document.getElementById('menu-toggle');
+    const menuDropdown = document.getElementById('header-menu-dropdown');
+    const menuToggleComm = document.getElementById('menu-toggle-comm') as HTMLInputElement | null;
+    const menuToggleDebug = document.getElementById('menu-toggle-debug') as HTMLInputElement | null;
 
     if (!terminalEl || !inputEl || !sendBtn || !statusEl || !updateBanner) {
       throw new Error('Required DOM elements not found');
@@ -181,12 +184,60 @@ class MudClient {
     // Initialize debug panel
     this.debugPanel = new DebugPanel('debug-container', {
       onSendBugReport: (report) => this.sendBugReport(report),
+      onClose: () => {
+        if (menuToggleDebug) {
+          menuToggleDebug.checked = false;
+        }
+      },
     });
 
-    // Debug toggle button
-    if (debugToggle) {
-      debugToggle.addEventListener('click', () => {
-        this.debugPanel.toggle();
+    // Header menu dropdown toggle
+    if (menuToggle && menuDropdown) {
+      menuToggle.addEventListener('click', (e) => {
+        e.stopPropagation();
+        menuDropdown.classList.toggle('hidden');
+      });
+
+      // Close dropdown when clicking outside
+      document.addEventListener('click', () => {
+        menuDropdown.classList.add('hidden');
+      });
+
+      // Prevent dropdown clicks from closing it
+      menuDropdown.addEventListener('click', (e) => {
+        e.stopPropagation();
+      });
+    }
+
+    // Communications toggle in menu
+    if (menuToggleComm) {
+      menuToggleComm.addEventListener('change', () => {
+        if (menuToggleComm.checked) {
+          this.commPanel.show();
+        } else {
+          this.commPanel.hide();
+        }
+      });
+    }
+
+    // Comm panel close callback — sync the menu checkbox
+    this.commPanel.onClose = () => {
+      if (menuToggleComm) {
+        menuToggleComm.checked = false;
+      }
+    };
+
+    // Debug console toggle in menu
+    if (menuToggleDebug) {
+      // Sync checkbox with restored panel state
+      menuToggleDebug.checked = this.debugPanel.visible;
+
+      menuToggleDebug.addEventListener('change', () => {
+        if (menuToggleDebug.checked) {
+          this.debugPanel.show();
+        } else {
+          this.debugPanel.hide();
+        }
       });
     }
 
@@ -195,6 +246,9 @@ class MudClient {
       if (e.ctrlKey && e.key === '`') {
         e.preventDefault();
         this.debugPanel.toggle();
+        if (menuToggleDebug) {
+          menuToggleDebug.checked = this.debugPanel.visible;
+        }
       }
     });
 

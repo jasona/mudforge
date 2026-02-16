@@ -188,7 +188,19 @@
       <h1>MudForge</h1>
       <div id="header-right">
         <div id="clock-container" aria-label="Server time"></div>
-        <button id="debug-toggle" class="header-button" title="Toggle Debug Console (Ctrl+\`)">Debug</button>
+        <div class="header-menu">
+          <button id="menu-toggle" class="header-button" title="Menu">Menu &#9662;</button>
+          <div id="header-menu-dropdown" class="header-menu-dropdown hidden">
+            <label class="header-menu-item">
+              <input type="checkbox" id="menu-toggle-comm" checked />
+              <span>Communications</span>
+            </label>
+            <label class="header-menu-item">
+              <input type="checkbox" id="menu-toggle-debug" />
+              <span>Debug Console</span>
+            </label>
+          </div>
+        </div>
         <span id="status" class="disconnected">Disconnected</span>
       </div>
     </header>
