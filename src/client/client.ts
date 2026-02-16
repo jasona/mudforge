@@ -173,6 +173,9 @@ class MudClient {
           this.wsClient.send(command);
         }
       },
+      onLoadingStateChange: (active: boolean) => {
+        this.inputHandler.setEnabled(!active);
+      },
     });
     this.giphyPanel = new GiphyPanel('giphy-container');
     this.clockPanel = new ClockPanel('clock-container');

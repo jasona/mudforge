@@ -323,7 +323,18 @@ export interface EngageCloseMessage {
   type: 'close';
 }
 
-export type EngageMessage = EngageOpenMessage | EngageCloseMessage;
+/**
+ * Engage loading message to indicate server-side engage preparation
+ * (portrait generation, quest payload assembly, etc.).
+ */
+export interface EngageLoadingMessage {
+  type: 'loading';
+  active: boolean;
+  message?: string;
+  progress?: number;
+}
+
+export type EngageMessage = EngageOpenMessage | EngageCloseMessage | EngageLoadingMessage;
 
 /**
  * Sound category types.

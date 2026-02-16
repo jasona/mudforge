@@ -228,7 +228,14 @@ export interface EngageCloseMessage {
   type: 'close';
 }
 
-export type EngageMessage = EngageOpenMessage | EngageCloseMessage;
+export interface EngageLoadingMessage {
+  type: 'loading';
+  active: boolean;
+  message?: string;
+  progress?: number;
+}
+
+export type EngageMessage = EngageOpenMessage | EngageCloseMessage | EngageLoadingMessage;
 
 /**
  * Equipment image update message (sent separately from STATS to reduce bandwidth).

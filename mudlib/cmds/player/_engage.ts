@@ -97,6 +97,17 @@ function getObjectiveDescription(obj: QuestObjective): string {
 }
 
 export async function execute(ctx: CommandContext): Promise<void> {
+  let loadingShown = false;
+
+  const setLoading = (player: PlayerWithEngage, active: boolean, message?: string): void => {
+    if (!player.sendEngage) return;
+    player.sendEngage({
+      type: 'loading',
+      active,
+      message,
+    });
+  };
+
   try {
     let args = ctx.args.trim();
     let silentRefresh = false;
@@ -147,6 +158,9 @@ export async function execute(ctx: CommandContext): Promise<void> {
     const tutorialPlayer = ctx.player as PlayerWithTutorialState;
     const portraitDaemon = getPortraitDaemon();
     const questDaemon = getQuestDaemon();
+
+    loadingShown = true;
+    setLoading(player, true, 'Preparing dialogue...');
 
     // Fetch portrait for dialogue overlay, but never fail command on portrait issues.
     let portrait = portraitDaemon.getFallbackPortrait();
@@ -301,6 +315,8 @@ export async function execute(ctx: CommandContext): Promise<void> {
 
     const colorEnabled = tutorialPlayer.getConfig?.<boolean>('color') !== false;
     const renderedText = colorEnabled ? colorize(text) : stripColors(text);
+    setLoading(player, false);
+    loadingShown = false;
 
     player.sendEngage({
       type: 'open',
@@ -319,6 +335,16 @@ export async function execute(ctx: CommandContext): Promise<void> {
   } catch (error) {
     console.error('[engage] Unexpected error:', error);
     ctx.sendLine('{red}The dialogue falters for a moment. Try engaging again.{/}');
+  } finally {
+    if (loadingShown) {
+      const player = ctx.player as PlayerWithEngage;
+      if (player.sendEngage) {
+        player.sendEngage({
+          type: 'loading',
+          active: false,
+        });
+      }
+    }
   }
 }
 

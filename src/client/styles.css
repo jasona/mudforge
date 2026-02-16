@@ -3437,6 +3437,64 @@ h6.gui-heading { font-size: 12px; }
   display: none;
 }
 
+.engage-loading-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 220;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 9, 8, 0.72);
+  backdrop-filter: blur(2px);
+  pointer-events: auto;
+}
+
+.engage-loading-overlay.hidden {
+  display: none;
+}
+
+.engage-loading-modal {
+  width: min(420px, calc(100vw - 32px));
+  border: 1px solid #6f5e44;
+  border-radius: 12px;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.11), transparent 36%),
+    linear-gradient(160deg, #302a22, #231f18 60%, #1b1813);
+  box-shadow: 0 14px 24px rgba(0, 0, 0, 0.5);
+  padding: 20px 18px;
+  color: #ecdcbc;
+  text-align: center;
+}
+
+.engage-loading-spinner {
+  width: 34px;
+  height: 34px;
+  margin: 0 auto 10px;
+  border: 3px solid rgba(236, 220, 188, 0.2);
+  border-top-color: #efcf86;
+  border-radius: 50%;
+  animation: engageLoadingSpin 0.85s linear infinite;
+}
+
+.engage-loading-title {
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  margin-bottom: 6px;
+  color: #f2dfb5;
+}
+
+.engage-loading-text {
+  font-size: var(--font-size-xs);
+  color: #d9c8a3;
+  line-height: 1.4;
+}
+
+@keyframes engageLoadingSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .engage-close-btn {
   position: absolute;
   top: 6px;

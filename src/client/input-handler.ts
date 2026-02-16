@@ -42,6 +42,7 @@ export class InputHandler {
   private completionPrefix: string = '';
   private completionStartPos: number = 0; // Where the word being completed starts
   private completionEndPos: number = 0; // Where the current completion ends
+  private isEnabled: boolean = true;
 
   constructor(inputElement: HTMLInputElement, sendButton: HTMLElement) {
     this.inputElement = inputElement;
@@ -108,6 +109,11 @@ export class InputHandler {
    * Handle keydown events.
    */
   private handleKeyDown(event: KeyboardEvent): void {
+    if (!this.isEnabled) {
+      event.preventDefault();
+      return;
+    }
+
     switch (event.key) {
       case 'Enter':
         event.preventDefault();
@@ -380,7 +386,9 @@ export class InputHandler {
    * Set focus to the input.
    */
   focus(): void {
-    this.inputElement.focus();
+    if (this.isEnabled) {
+      this.inputElement.focus();
+    }
   }
 
   /**
@@ -395,6 +403,20 @@ export class InputHandler {
    */
   setValue(value: string): void {
     this.inputElement.value = value;
+  }
+
+  /**
+   * Enable or disable command input interactions.
+   */
+  setEnabled(enabled: boolean): void {
+    this.isEnabled = enabled;
+    this.inputElement.disabled = !enabled;
+    if ('disabled' in this.sendButton) {
+      (this.sendButton as HTMLButtonElement).disabled = !enabled;
+    }
+    if (enabled) {
+      this.focus();
+    }
   }
 }
 
