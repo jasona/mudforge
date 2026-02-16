@@ -179,6 +179,39 @@ export interface CombatTargetClearMessage {
 
 export type CombatMessage = CombatTargetUpdateMessage | CombatHealthUpdateMessage | CombatTargetClearMessage;
 
+export type EngageVerticalAlign = 'top' | 'middle' | 'bottom';
+export type EngageHorizontalAlign = 'left' | 'center' | 'right';
+export type EngageAlignment =
+  | {
+      vertical: EngageVerticalAlign;
+      horizontal: EngageHorizontalAlign;
+    }
+  | 'centered';
+
+export interface EngageOption {
+  id: string;
+  label: string;
+  command: string;
+  rewardText?: string;
+}
+
+export interface EngageOpenMessage {
+  type: 'open';
+  npcName: string;
+  npcPath: string;
+  portrait: string;
+  alignment?: EngageAlignment;
+  text?: string;
+  questOffers?: EngageOption[];
+  questTurnIns?: EngageOption[];
+}
+
+export interface EngageCloseMessage {
+  type: 'close';
+}
+
+export type EngageMessage = EngageOpenMessage | EngageCloseMessage;
+
 /**
  * Equipment image update message (sent separately from STATS to reduce bandwidth).
  * Only sent when equipment actually changes, not every heartbeat.
@@ -214,6 +247,7 @@ export interface Connection {
   sendGUI?(message: GUIMessage): void;
   sendCompletion?(message: CompletionMessage): void;
   sendCombat?(message: CombatMessage): void;
+  sendEngage?(message: EngageMessage): void;
   sendEquipment?(message: EquipmentMessage): boolean | void;
   close(): void;
   isConnected(): boolean;
@@ -933,6 +967,18 @@ export class Player extends Living {
     } catch (error) {
       console.error(`[Player] Error sending combat target update for ${this.name}:`, error);
     }
+  }
+
+  /**
+   * Send an engage overlay message to the client.
+   * Used by the engage command for WoW-style NPC dialogue.
+   */
+  sendEngage(message: EngageMessage): void {
+    if (!this._connection?.sendEngage) {
+      return;
+    }
+
+    this._connection.sendEngage(message);
   }
 
   /**

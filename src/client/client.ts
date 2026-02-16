@@ -15,6 +15,7 @@ import {
   CompletionMessage,
   CommMessage,
   CombatMessage,
+  EngageMessage,
   SoundMessage,
   GiphyMessage,
   TimeMessage,
@@ -30,6 +31,7 @@ import { EquipmentPanel } from './equipment-panel.js';
 import { QuestPanel } from './quest-panel.js';
 import { CommPanel } from './comm-panel.js';
 import { CombatPanel } from './combat-panel.js';
+import { EngagePanel } from './engage-panel.js';
 import { GiphyPanel } from './giphy-panel.js';
 import { ClockPanel } from './clock-panel.js';
 import { SoundManager } from './sound-manager.js';
@@ -77,6 +79,7 @@ class MudClient {
   private questPanel: QuestPanel;
   private commPanel: CommPanel;
   private combatPanel: CombatPanel;
+  private engagePanel: EngagePanel;
   private giphyPanel: GiphyPanel;
   private clockPanel: ClockPanel;
   private soundManager: SoundManager;
@@ -164,6 +167,13 @@ class MudClient {
       },
     });
     this.combatPanel = new CombatPanel('combat-container');
+    this.engagePanel = new EngagePanel('engage-container', {
+      onCommand: (command: string) => {
+        if (this.wsClient.isConnected) {
+          this.wsClient.send(command);
+        }
+      },
+    });
     this.giphyPanel = new GiphyPanel('giphy-container');
     this.clockPanel = new ClockPanel('clock-container');
     this.soundManager = new SoundManager();
@@ -515,6 +525,11 @@ class MudClient {
     // Combat panel events
     this.wsClient.on('combat-message', (message: CombatMessage) => {
       this.combatPanel.handleMessage(message);
+    });
+
+    // Engage dialogue events
+    this.wsClient.on('engage-message', (message: EngageMessage) => {
+      this.engagePanel.handleMessage(message);
     });
 
     // Sound panel events

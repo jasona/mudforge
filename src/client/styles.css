@@ -3406,6 +3406,319 @@ h6.gui-heading { font-size: 12px; }
 }
 
 /* =============================================================================
+   Engage Panel - NPC Dialogue Overlay
+   ============================================================================= */
+
+#engage-container {
+  position: absolute;
+  inset: 0;
+  z-index: 130;
+  pointer-events: none;
+}
+
+.engage-panel {
+  position: absolute;
+  display: flex;
+  align-items: flex-end;
+  gap: var(--spacing-sm);
+  max-width: min(760px, calc(100% - 24px));
+  pointer-events: auto;
+}
+
+.engage-panel:not(.hidden) .engage-portrait-wrap {
+  animation: engagePortraitIn 0.22s ease-out;
+}
+
+.engage-panel:not(.hidden) .engage-bubble {
+  animation: engageBubbleIn 0.24s ease-out;
+}
+
+.engage-panel.hidden {
+  display: none;
+}
+
+.engage-close-btn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--border-primary);
+  border-radius: 999px;
+  background: rgba(20, 18, 15, 0.85);
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  transition: color 0.15s ease, border-color 0.15s ease;
+  z-index: 5;
+}
+
+.engage-close-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--accent);
+}
+
+.engage-portrait-wrap {
+  width: 240px;
+  min-width: 240px;
+  max-height: 340px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.engage-portrait-wrap svg,
+.engage-portrait-img {
+  width: 100%;
+  height: auto;
+  max-height: 340px;
+  object-fit: contain;
+  display: block;
+  filter: drop-shadow(0 8px 10px rgba(0, 0, 0, 0.45));
+}
+
+.engage-bubble {
+  min-width: 280px;
+  max-width: 460px;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.12), transparent 38%),
+    linear-gradient(160deg, #2f2a22, #24201a 55%, #1f1b16);
+  border: 1px solid #655742;
+  border-radius: 12px;
+  box-shadow: 0 14px 22px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  padding: calc(var(--spacing-md) + 8px) var(--spacing-md) var(--spacing-md);
+  position: relative;
+}
+
+.engage-bubble::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 12px;
+  background-image:
+    linear-gradient(transparent 97%, rgba(255, 255, 255, 0.03) 100%),
+    linear-gradient(90deg, transparent 97%, rgba(255, 255, 255, 0.03) 100%);
+  background-size: 100% 6px, 6px 100%;
+  pointer-events: none;
+  opacity: 0.4;
+}
+
+.engage-bubble::after {
+  content: '';
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  background: #2a251e;
+  border: 1px solid #655742;
+  transform: rotate(45deg);
+}
+
+.engage-panel[data-tail='left'] .engage-bubble::after {
+  left: -8px;
+  top: 50%;
+  transform: translateY(-50%) rotate(45deg);
+  border-right: none;
+  border-top: none;
+}
+
+.engage-panel[data-tail='right'] .engage-bubble::after {
+  right: -8px;
+  top: 50%;
+  transform: translateY(-50%) rotate(45deg);
+  border-left: none;
+  border-bottom: none;
+}
+
+.engage-panel[data-tail='bottom'] .engage-bubble::after {
+  left: 50%;
+  bottom: -8px;
+  margin-left: -7px;
+  border-left: none;
+  border-top: none;
+}
+
+.engage-panel[data-tail='top'] .engage-bubble::after {
+  left: 50%;
+  top: -8px;
+  margin-left: -7px;
+  border-right: none;
+  border-bottom: none;
+}
+
+.engage-npc-name {
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  margin-bottom: 6px;
+  color: #f2dfb5;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.5);
+}
+
+.engage-text {
+  font-size: var(--font-size-sm);
+  color: #e8dbc1;
+  line-height: 1.4;
+  margin-bottom: var(--spacing-sm);
+}
+
+.engage-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: var(--spacing-xs);
+}
+
+.engage-section-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #d8c29a;
+}
+
+.engage-section-badge {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  color: #16130f;
+  background: linear-gradient(180deg, #f4d27e, #d9a63a);
+  border: 1px solid #8d6523;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+}
+
+.engage-option-btn {
+  border: 1px solid #6a5a42;
+  background: linear-gradient(180deg, #3a3328, #2d271f);
+  color: #efe2c7;
+  border-radius: 8px;
+  padding: 8px 10px;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: var(--font-size-sm);
+  transition: border-color 0.15s ease, color 0.15s ease, transform 0.12s ease;
+}
+
+.engage-option-btn:hover {
+  border-color: #dfb869;
+  color: #fff4db;
+  transform: translateY(-1px);
+}
+
+.engage-option-btn[data-kind='turnin'] {
+  border-color: #6b6540;
+  background: linear-gradient(180deg, #3a3828, #2f2d20);
+}
+
+.engage-option-title {
+  font-weight: 600;
+}
+
+.engage-option-reward {
+  font-size: var(--font-size-xs);
+  color: #d9c8a3;
+  opacity: 0.92;
+}
+
+.engage-v-top { top: var(--spacing-sm); }
+.engage-v-middle { top: 50%; }
+.engage-v-bottom { bottom: var(--spacing-sm); }
+
+.engage-h-left { left: var(--spacing-sm); }
+.engage-h-center { left: 50%; }
+.engage-h-right { right: var(--spacing-sm); }
+
+.engage-v-middle { transform: translateY(-50%); }
+.engage-h-center { transform: translateX(-50%); }
+.engage-v-middle.engage-h-center { transform: translate(-50%, -50%); }
+
+.engage-bubble-left {
+  flex-direction: row-reverse;
+  align-items: flex-end;
+}
+
+.engage-bubble-right {
+  flex-direction: row;
+  align-items: flex-end;
+}
+
+.engage-bubble-left .engage-bubble,
+.engage-bubble-right .engage-bubble {
+  margin-bottom: 126px;
+}
+
+.engage-bubble-top {
+  flex-direction: column-reverse;
+  align-items: center;
+}
+
+.engage-bubble-bottom {
+  flex-direction: column;
+  align-items: center;
+}
+
+.engage-centered {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
+@keyframes engagePortraitIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes engageBubbleIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (max-width: 768px) {
+  .engage-panel {
+    gap: var(--spacing-xs);
+  }
+
+  .engage-portrait-wrap {
+    width: 150px;
+    min-width: 150px;
+    max-height: 220px;
+  }
+
+  .engage-bubble {
+    min-width: 220px;
+    max-width: 320px;
+  }
+
+  .engage-bubble-left .engage-bubble,
+  .engage-bubble-right .engage-bubble {
+    margin-bottom: 76px;
+  }
+}
+
+/* =============================================================================
    Giphy Panel - Floating GIF Display (Below Combat Panel)
    ============================================================================= */
 

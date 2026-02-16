@@ -68,6 +68,15 @@ export interface ResponseTrigger {
   type: 'say' | 'emote';
 }
 
+export type EngageVerticalAlign = 'top' | 'middle' | 'bottom';
+export type EngageHorizontalAlign = 'left' | 'center' | 'right';
+export type EngageAlignment =
+  | {
+      vertical: EngageVerticalAlign;
+      horizontal: EngageHorizontalAlign;
+    }
+  | 'centered';
+
 /**
  * Base class for NPCs.
  */
@@ -105,6 +114,11 @@ export class NPC extends Living {
 
   // Sound to play when someone looks at this NPC
   private _lookSound: string | null = null;
+
+  // Engage dialogue settings
+  private _engageSound: string | null = null;
+  private _engageGreeting: string | null = null;
+  private _engageAlignment: EngageAlignment = { vertical: 'bottom', horizontal: 'right' };
 
   // Random loot configuration
   private _randomLootConfig: NPCRandomLootConfig | null = null;
@@ -249,6 +263,48 @@ export class NPC extends Living {
    */
   setLookSound(sound: string | null): void {
     this._lookSound = sound;
+  }
+
+  /**
+   * Get the sound to play when this NPC is engaged.
+   */
+  get engageSound(): string | null {
+    return this._engageSound;
+  }
+
+  /**
+   * Set a sound to play when this NPC is engaged.
+   */
+  setEngageSound(sound: string | null): void {
+    this._engageSound = sound;
+  }
+
+  /**
+   * Get optional greeting text used by the engage dialogue bubble.
+   */
+  get engageGreeting(): string | null {
+    return this._engageGreeting;
+  }
+
+  /**
+   * Set greeting text used by the engage dialogue bubble.
+   */
+  setEngageGreeting(text: string | null): void {
+    this._engageGreeting = text;
+  }
+
+  /**
+   * Get engage overlay alignment.
+   */
+  get engageAlignment(): EngageAlignment {
+    return this._engageAlignment;
+  }
+
+  /**
+   * Set engage overlay alignment.
+   */
+  setEngageAlignment(alignment: EngageAlignment): void {
+    this._engageAlignment = alignment;
   }
 
   // ========== Chat System ==========
@@ -1745,6 +1801,10 @@ export class NPC extends Living {
     naturalAttacks?: (string | NaturalAttack)[];
     // Sound options
     lookSound?: string;
+    engageSound?: string;
+    // Engage dialogue options
+    engageGreeting?: string;
+    engageAlignment?: EngageAlignment;
   }): void {
     if (options.name) this.name = options.name;
     if (options.title) this.title = options.title;
@@ -1773,6 +1833,9 @@ export class NPC extends Living {
 
     // Sound configuration
     if (options.lookSound !== undefined) this._lookSound = options.lookSound;
+    if (options.engageSound !== undefined) this._engageSound = options.engageSound;
+    if (options.engageGreeting !== undefined) this._engageGreeting = options.engageGreeting;
+    if (options.engageAlignment !== undefined) this._engageAlignment = options.engageAlignment;
 
     // Natural attacks configuration
     if (options.naturalAttacks) {

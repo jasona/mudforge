@@ -262,6 +262,51 @@ export interface CombatTargetClearMessage {
 export type CombatMessage = CombatTargetUpdateMessage | CombatHealthUpdateMessage | CombatTargetClearMessage;
 
 /**
+ * Engage panel alignment settings.
+ */
+export type EngageVerticalAlign = 'top' | 'middle' | 'bottom';
+export type EngageHorizontalAlign = 'left' | 'center' | 'right';
+export type EngageAlignment =
+  | {
+      vertical: EngageVerticalAlign;
+      horizontal: EngageHorizontalAlign;
+    }
+  | 'centered';
+
+/**
+ * Action button displayed in the engage panel speech bubble.
+ */
+export interface EngageOption {
+  id: string;
+  label: string;
+  command: string;
+  rewardText?: string;
+}
+
+/**
+ * Engage open message for NPC dialogue overlay.
+ */
+export interface EngageOpenMessage {
+  type: 'open';
+  npcName: string;
+  npcPath: string;
+  portrait: string;
+  alignment?: EngageAlignment;
+  text?: string;
+  questOffers?: EngageOption[];
+  questTurnIns?: EngageOption[];
+}
+
+/**
+ * Engage close message to hide the overlay.
+ */
+export interface EngageCloseMessage {
+  type: 'close';
+}
+
+export type EngageMessage = EngageOpenMessage | EngageCloseMessage;
+
+/**
  * Sound category types.
  */
 export type SoundCategory = 'combat' | 'spell' | 'skill' | 'potion' | 'quest' | 'celebration' | 'discussion' | 'alert' | 'ambient' | 'ui';
