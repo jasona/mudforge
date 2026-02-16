@@ -74,6 +74,9 @@ export class CommPanel {
   // Auto-scroll
   private autoScroll: boolean = true;
 
+  // Saved height for collapse/expand
+  private savedHeight: string = '';
+
   // GIF click callback
   private onGifClick?: (gifId: string) => void;
 
@@ -387,6 +390,12 @@ export class CommPanel {
 
         // Restore collapsed state
         this.isCollapsed = layout.collapsed ?? false;
+        if (this.isCollapsed) {
+          // Save the restored height so we can re-apply it on expand,
+          // then clear the inline height so the CSS collapsed rule works
+          this.savedHeight = this.panel.style.height;
+          this.panel.style.height = '';
+        }
         this.panel.classList.toggle('collapsed', this.isCollapsed);
 
         // Restore active tab
@@ -574,6 +583,18 @@ export class CommPanel {
    */
   toggle(): void {
     this.isCollapsed = !this.isCollapsed;
+
+    if (this.isCollapsed) {
+      // Save current inline height before collapsing so we can restore it later
+      this.savedHeight = this.panel.style.height;
+      this.panel.style.height = '';
+    } else {
+      // Restore the saved height when expanding
+      if (this.savedHeight) {
+        this.panel.style.height = this.savedHeight;
+      }
+    }
+
     this.panel.classList.toggle('collapsed', this.isCollapsed);
     this.saveLayout();
   }
