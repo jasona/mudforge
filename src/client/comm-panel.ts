@@ -33,6 +33,7 @@ interface LayoutState {
   height: number;
   collapsed: boolean;
   activeTab: TabType;
+  visible: boolean;
 }
 
 interface Position {
@@ -387,6 +388,7 @@ export class CommPanel {
         height: this.panel.offsetHeight,
         collapsed: this.isCollapsed,
         activeTab: this.activeTab,
+        visible: this.isVisible,
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(layout));
     } catch {
@@ -420,6 +422,10 @@ export class CommPanel {
           this.panel.style.height = '';
         }
         this.panel.classList.toggle('collapsed', this.isCollapsed);
+
+        // Restore visible state
+        this.isVisible = layout.visible ?? true;
+        this.panel.classList.toggle('hidden', !this.isVisible);
 
         // Restore active tab
         this.activeTab = layout.activeTab ?? 'all';
@@ -629,6 +635,7 @@ export class CommPanel {
   show(): void {
     this.isVisible = true;
     this.panel.classList.remove('hidden');
+    this.saveLayout();
   }
 
   /**
@@ -637,13 +644,14 @@ export class CommPanel {
   hide(): void {
     this.isVisible = false;
     this.panel.classList.add('hidden');
+    this.saveLayout();
   }
 
   /**
    * Check if panel is visible.
    */
   get visible(): boolean {
-    return this.isVisible && !this.isCollapsed;
+    return this.isVisible;
   }
 
   /**

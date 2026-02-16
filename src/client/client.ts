@@ -221,6 +221,9 @@ class MudClient {
 
     // Communications toggle in menu
     if (menuToggleComm) {
+      // Sync checkbox with restored panel state
+      menuToggleComm.checked = this.commPanel.visible;
+
       menuToggleComm.addEventListener('change', () => {
         if (menuToggleComm.checked) {
           this.commPanel.show();
