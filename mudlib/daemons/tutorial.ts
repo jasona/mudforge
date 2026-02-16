@@ -16,6 +16,7 @@
 
 import { MudObject } from '../std/object.js';
 import type { Living } from '../std/living.js';
+import type { EngageOption } from '../std/player.js';
 
 // ========== Step Constants ==========
 // Chapter 1: The Conscription (steps 0-7)
@@ -34,11 +35,6 @@ export const STEPS = {
 
 // ========== Types ==========
 
-interface DialogueLine {
-  delay: number;
-  text: string;
-}
-
 interface TutorialPlayer extends Living {
   name: string;
   getProperty(key: string): unknown;
@@ -48,106 +44,58 @@ interface TutorialPlayer extends Living {
   gainExperience?(amount: number): void;
 }
 
+interface RoomExit {
+  direction: string;
+  destination: string | MudObject;
+  description?: string;
+  canPass?: (who: MudObject) => boolean | Promise<boolean>;
+}
+
+interface TutorialRoom extends MudObject {
+  getExits?: () => RoomExit[];
+  removeExit?: (direction: string) => void;
+  addExit?: (direction: string, destination: string | MudObject, description?: string) => void;
+  addConditionalExit?: (
+    direction: string,
+    destination: string | MudObject,
+    canPass: (who: MudObject) => boolean | Promise<boolean>,
+    description?: string
+  ) => void;
+}
+
+interface TutorialInstance {
+  owner: string;
+  rooms: Map<string, MudObject>;
+}
+
 // ========== Dialogue Data ==========
 
-const DIALOGUE: Record<number, DialogueLine[]> = {
-  [STEPS.CH1_ARRIVED]: [
-    {
-      delay: 1000,
-      text: `\n{bold}General Ironheart{/} turns to face you, his scarred features hard as iron.
+const ENGAGE_TEXT_BY_STEP: Record<number, string> = {
+  [STEPS.CH1_ARRIVED]: `So. You're the latest recruit the kingdom has scraped together. I am General Ironheart, and as of this moment, your life is mine.
 
-{bold}General Ironheart{/} says: "So. You're the latest recruit the kingdom has scraped
-together. I am General Ironheart, and as of this moment, your life is mine."`,
-    },
-    {
-      delay: 4000,
-      text: `{bold}General Ironheart{/} says: "The Shadowthorn horde has broken through the northern
-passes. Every village from here to the Silvermark River is burning. King Aldric has
-ordered a general conscription — and that means YOU."
+The Shadowthorn horde has broken through the northern passes. Every village from here to the Silvermark River is burning. King Aldric has ordered a general conscription — and that means YOU.
 
-{bold}General Ironheart{/} says: "First things first — get yourself equipped. Head {green}east{/}
-to the supply tent. Type '{cyan}east{/}' to move."`,
-    },
-  ],
+First things first — get yourself equipped. Head {green}east{/} to the supply tent. Type {cyan}east{/} to move.`,
+  [STEPS.CH1_ENTERED_TENT]: `This is what passes for an armory these days. Grab a sword, chainmail, and helm from the racks.
 
-  [STEPS.CH1_ENTERED_TENT]: [
-    {
-      delay: 1000,
-      text: `\n{bold}General Ironheart{/} ducks through the tent flap behind you.
+Type {cyan}get sword{/}, {cyan}get chainmail{/}, and {cyan}get helm{/} to pick them up.`,
+  [STEPS.CH1_GOT_GEAR]: `Good. Now put that gear ON. Equipment in your pack won't stop an arrow.
 
-{bold}General Ironheart{/} says: "This is what passes for an armory these days. Grab
-a sword, chainmail, and helm from the racks."
+Type {cyan}wear chainmail{/} and {cyan}wear helm{/} to put on your armor, then {cyan}wield sword{/} so you're battle-ready.`,
+  [STEPS.CH1_WORE_ARMOR]: `Better. Now draw your weapon — type {cyan}wield sword{/}.`,
+  [STEPS.CH1_WIELDED]: `You almost look like a soldier. Almost.
 
-{bold}General Ironheart{/} says: "Type '{cyan}get sword{/}', '{cyan}get chainmail{/}', and
-'{cyan}get helm{/}' to pick them up."`,
-    },
-  ],
+Type {cyan}score{/} to check your stats and {cyan}inventory{/} to see your gear. When you're ready, head {green}north{/} to the training yard.`,
+  [STEPS.CH1_ENTERED_YARD]: `See that dummy? I want it in pieces. Show me you know which end of the sword to hold.
 
-  [STEPS.CH1_GOT_GEAR]: [
-    {
-      delay: 500,
-      text: `\n{bold}General Ironheart{/} nods.
+Type {cyan}kill dummy{/} to attack. Combat runs automatically — watch the output and learn the rhythm of battle.`,
+  [STEPS.CH1_KILLED_DUMMY]: `Not pretty, but the dummy's dead and you're not. That's lesson one of warfare.
 
-{bold}General Ironheart{/} says: "Good. Now put that gear ON. Equipment in your pack
-won't stop an arrow."
+If you took hits, your health regenerates over time. Sitting ({cyan}sit{/}) or sleeping ({cyan}sleep{/}) heals faster.
 
-{bold}General Ironheart{/} says: "Type '{cyan}wear chainmail{/}' and '{cyan}wear helm{/}' to
-put on your armor."`,
-    },
-  ],
+You've got the basics, recruit. Head {green}east{/} through the camp gate. The town of Aldric is beyond — find the training hall if you want to improve.
 
-  [STEPS.CH1_WORE_ARMOR]: [
-    {
-      delay: 500,
-      text: `\n{bold}General Ironheart{/} says: "Better. Now draw your weapon — type '{cyan}wield sword{/}'."`,
-    },
-  ],
-
-  [STEPS.CH1_WIELDED]: [
-    {
-      delay: 500,
-      text: `\n{bold}General Ironheart{/} eyes you up and down.
-
-{bold}General Ironheart{/} says: "You almost look like a soldier. Almost."
-
-{bold}General Ironheart{/} says: "Type '{cyan}score{/}' to check your stats and '{cyan}inventory{/}'
-to see your gear. When you're ready, head {green}north{/} to the training yard."`,
-    },
-  ],
-
-  [STEPS.CH1_ENTERED_YARD]: [
-    {
-      delay: 1000,
-      text: `\n{bold}General Ironheart{/} strides into the yard and points at the training dummy.
-
-{bold}General Ironheart{/} says: "See that? I want it in pieces. Show me you know
-which end of the sword to hold."
-
-{bold}General Ironheart{/} says: "Type '{cyan}kill dummy{/}' to attack. Combat runs
-automatically — watch the output and learn the rhythm of battle."`,
-    },
-  ],
-
-  [STEPS.CH1_KILLED_DUMMY]: [
-    {
-      delay: 1500,
-      text: `\n{bold}General Ironheart{/} lets out a gravelly laugh.
-
-{bold}General Ironheart{/} says: "Not pretty, but the dummy's dead and you're not.
-That's lesson one of warfare."
-
-{bold}General Ironheart{/} says: "If you took hits, your health regenerates over time.
-Sitting ({cyan}sit{/}) or sleeping ({cyan}sleep{/}) heals faster."`,
-    },
-    {
-      delay: 3500,
-      text: `{bold}General Ironheart{/} says: "You've got the basics, recruit. Head {green}east{/}
-through the camp gate. The town of Aldric is beyond — find the training
-hall if you want to improve. Old Gareth there has better gear."
-
-{bold}General Ironheart{/} salutes sharply. "Go with honor, soldier. Don't die."`,
-    },
-  ],
+Go with honor, soldier. Don't die.`,
 };
 
 // ========== Event → Step Transition Map ==========
@@ -186,6 +134,13 @@ const TRANSITIONS: Record<string, Transition> = {
 // ========== Constants ==========
 
 const DEFAULT_LOCATION = '/areas/valdoria/aldric/center';
+const TUTORIAL_START_LOCATION = '/areas/tutorial/war_camp';
+const TUTORIAL_ROOM_PATHS = [
+  '/areas/tutorial/war_camp',
+  '/areas/tutorial/supply_tent',
+  '/areas/tutorial/training_yard',
+  '/areas/tutorial/camp_exit',
+] as const;
 const TUTORIAL_ITEMS = [
   '/areas/tutorial/items/recruits_sword',
   '/areas/tutorial/items/recruits_chainmail',
@@ -195,10 +150,132 @@ const TUTORIAL_ITEMS = [
 // ========== Daemon ==========
 
 export class TutorialDaemon extends MudObject {
+  private instances: Map<string, TutorialInstance> = new Map();
+
   constructor() {
     super();
     this.shortDesc = 'Tutorial Daemon';
     this.longDesc = 'The tutorial daemon manages the newbie tutorial experience.';
+  }
+
+  private getInstanceKey(who: Living): string {
+    return (who.name || '').toLowerCase();
+  }
+
+  private async cloneTutorialRoom(path: string): Promise<MudObject | null> {
+    if (typeof efuns === 'undefined' || !efuns.cloneObject) return null;
+
+    if (efuns.loadBlueprint) {
+      await efuns.loadBlueprint(path);
+    }
+
+    try {
+      return await efuns.cloneObject(path);
+    } catch (error) {
+      console.error(`[TUTORIAL] Failed to clone tutorial room ${path}:`, error);
+      return null;
+    }
+  }
+
+  private wireInstanceExits(instance: TutorialInstance): void {
+    for (const room of instance.rooms.values()) {
+      const tutorialRoom = room as TutorialRoom;
+      if (
+        typeof tutorialRoom.getExits !== 'function' ||
+        typeof tutorialRoom.removeExit !== 'function' ||
+        typeof tutorialRoom.addExit !== 'function' ||
+        typeof tutorialRoom.addConditionalExit !== 'function'
+      ) {
+        continue;
+      }
+
+      const exits = tutorialRoom.getExits();
+      for (const exit of exits) {
+        if (typeof exit.destination !== 'string') continue;
+        const instanceDestination = instance.rooms.get(exit.destination);
+        if (!instanceDestination) continue;
+
+        tutorialRoom.removeExit(exit.direction);
+        if (exit.canPass) {
+          tutorialRoom.addConditionalExit(
+            exit.direction,
+            instanceDestination,
+            exit.canPass,
+            exit.description
+          );
+        } else {
+          tutorialRoom.addExit(exit.direction, instanceDestination, exit.description);
+        }
+      }
+    }
+  }
+
+  private async createInstanceFor(who: Living): Promise<TutorialInstance | null> {
+    const key = this.getInstanceKey(who);
+    if (!key) return null;
+
+    const rooms = new Map<string, MudObject>();
+    for (const roomPath of TUTORIAL_ROOM_PATHS) {
+      const room = await this.cloneTutorialRoom(roomPath);
+      if (!room) {
+        // Cleanup partial clones if creation failed.
+        for (const created of rooms.values()) {
+          try {
+            await created.destruct();
+          } catch {
+            // Ignore cleanup errors.
+          }
+        }
+        return null;
+      }
+      rooms.set(roomPath, room);
+    }
+
+    const instance: TutorialInstance = {
+      owner: key,
+      rooms,
+    };
+    this.wireInstanceExits(instance);
+    this.instances.set(key, instance);
+    return instance;
+  }
+
+  async clearInstanceFor(who: Living): Promise<void> {
+    const key = this.getInstanceKey(who);
+    const instance = this.instances.get(key);
+    if (!instance) return;
+
+    this.instances.delete(key);
+    for (const room of instance.rooms.values()) {
+      try {
+        await room.destruct();
+      } catch {
+        // Ignore cleanup errors.
+      }
+    }
+  }
+
+  async getTutorialRoomForPlayer(
+    who: Living,
+    basePath: string = TUTORIAL_START_LOCATION,
+    forceNew: boolean = false
+  ): Promise<MudObject | undefined> {
+    if (!basePath.startsWith('/areas/tutorial/')) {
+      return undefined;
+    }
+
+    if (forceNew) {
+      await this.clearInstanceFor(who);
+    }
+
+    const key = this.getInstanceKey(who);
+    let instance = this.instances.get(key);
+    if (!instance) {
+      instance = await this.createInstanceFor(who) ?? undefined;
+    }
+    if (!instance) return undefined;
+
+    return instance.rooms.get(basePath) ?? instance.rooms.get(TUTORIAL_START_LOCATION);
   }
 
   // ========== Step Management ==========
@@ -210,6 +287,72 @@ export class TutorialDaemon extends MudObject {
 
   private setStep(player: TutorialPlayer, step: number): void {
     player.setProperty('tutorial_step', step);
+  }
+
+  getEngagePromptForStep(step: number): string {
+    switch (step) {
+      case STEPS.CH1_ARRIVED:
+        return '{bold}General Ironheart{/} watches you closely. Type {cyan}engage ironheart{/} for your orders.';
+      case STEPS.CH1_ENTERED_TENT:
+        return '{bold}General Ironheart{/} nods toward the racks. Type {cyan}engage ironheart{/} for instructions.';
+      case STEPS.CH1_GOT_GEAR:
+        return '{bold}General Ironheart{/} says, "Now wear your armor and wield your sword." Type {cyan}engage ironheart{/} if you need the exact steps.';
+      case STEPS.CH1_WORE_ARMOR:
+        return '{bold}General Ironheart{/} says, "Good. Now {cyan}wield sword{/}."';
+      case STEPS.CH1_WIELDED:
+      case STEPS.CH1_ENTERED_YARD:
+      case STEPS.CH1_KILLED_DUMMY:
+        return '{bold}General Ironheart{/} is waiting. Type {cyan}engage ironheart{/} for your next orders.';
+      default:
+        return '{bold}General Ironheart{/} says, "Type {cyan}engage ironheart{/} if you need orders."';
+    }
+  }
+
+  getEngageContentForGeneral(who: Living): { text: string; actions: EngageOption[] } {
+    const player = who as TutorialPlayer;
+    const step = this.getStep(player);
+    const text =
+      ENGAGE_TEXT_BY_STEP[step] ??
+      'Stay focused, recruit. Complete your current objective and report back.';
+
+    const actions: EngageOption[] = [];
+
+    if (step >= STEPS.CH1_ARRIVED && step < STEPS.CH1_COMPLETE) {
+      actions.push({
+        id: 'tutorial-acknowledge',
+        label: `You reply, "Yes sir! I'm on it!"`,
+        command: '__engage_close__',
+        rewardText: 'Close dialogue and continue training',
+      });
+
+      actions.push({
+        id: 'tutorial-skip',
+        label: 'Skip Tutorial',
+        command: 'say skip',
+      });
+    }
+
+    if (step === STEPS.CH1_ARRIVED) {
+      actions.push({
+        id: 'tutorial-east',
+        label: 'Go To Supply Tent',
+        command: 'east',
+      });
+    } else if (step === STEPS.CH1_WIELDED) {
+      actions.push({
+        id: 'tutorial-north',
+        label: 'Go To Training Yard',
+        command: 'north',
+      });
+    } else if (step === STEPS.CH1_KILLED_DUMMY) {
+      actions.push({
+        id: 'tutorial-exit-east',
+        label: 'Leave Camp',
+        command: 'east',
+      });
+    }
+
+    return { text, actions };
   }
 
   // ========== Core Event Handler ==========
@@ -254,10 +397,10 @@ export class TutorialDaemon extends MudObject {
       return;
     }
 
-    // Advance step and play dialogue
+    // Advance step and prompt engage-driven guidance
     console.log(`[TUTORIAL] ${player.name}: step ${currentStep} -> ${transition.toStep} (${event})`);
     this.setStep(player, transition.toStep);
-    this.playDialogue(player, transition.toStep);
+    player.receive(`${this.getEngagePromptForStep(transition.toStep)}\n`);
   }
 
   /**
@@ -269,7 +412,7 @@ export class TutorialDaemon extends MudObject {
 
   /**
    * Called by login.ts when a returning player reconnects mid-tutorial.
-   * Replays the dialogue for their current step so they know what to do.
+   * Re-prompts them to engage for current-step guidance.
    */
   resumeTutorial(who: Living): void {
     const player = who as TutorialPlayer;
@@ -278,7 +421,7 @@ export class TutorialDaemon extends MudObject {
 
     const step = this.getStep(player);
     if (step >= 0 && step < STEPS.CH1_COMPLETE) {
-      this.playDialogue(player, step);
+      player.receive(`${this.getEngagePromptForStep(step)}\n`);
     }
   }
 
@@ -312,30 +455,31 @@ export class TutorialDaemon extends MudObject {
     }
   }
 
-  // ========== Dialogue Delivery ==========
+  /**
+   * Reconcile tutorial equipment milestones from current equipment state.
+   * Useful for batch commands like "equip all" where wield/wear hooks may
+   * fire in an order that doesn't match tutorial transition ordering.
+   */
+  reconcileEquipmentProgress(who: Living): void {
+    const player = who as TutorialPlayer & { getEquipped?: (slot: string) => unknown };
+    if (!player.getProperty || !player.getEquipped) return;
+    if (player.getProperty('tutorial_complete')) return;
 
-  private playDialogue(player: TutorialPlayer, step: number): void {
-    const lines = DIALOGUE[step];
-    if (!lines) return;
-
-    for (const line of lines) {
-      if (line.delay <= 0) {
-        player.receive(line.text + '\n');
-      } else {
-        this.sendDelayed(player, line.text + '\n', line.delay);
-      }
+    const step = this.getStep(player);
+    if (step < STEPS.CH1_GOT_GEAR || step > STEPS.CH1_WORE_ARMOR) {
+      return;
     }
-  }
 
-  private sendDelayed(player: TutorialPlayer, message: string, delayMs: number): void {
-    if (typeof efuns !== 'undefined' && efuns.callOut) {
-      efuns.callOut(() => {
-        try {
-          player.receive(message);
-        } catch {
-          // Player may have disconnected
-        }
-      }, delayMs);
+    const hasArmor = !!player.getEquipped('chest') && !!player.getEquipped('head');
+    const hasMainHandWeapon = !!player.getEquipped('main_hand');
+
+    if (step === STEPS.CH1_GOT_GEAR && hasArmor) {
+      this.notify(player, 'wore_armor');
+    }
+
+    const updatedStep = this.getStep(player);
+    if (updatedStep === STEPS.CH1_WORE_ARMOR && hasMainHandWeapon) {
+      this.notify(player, 'wielded_weapon');
     }
   }
 
@@ -357,6 +501,7 @@ export class TutorialDaemon extends MudObject {
 
     // Teleport to Aldric
     await this.teleportToTown(player);
+    await this.clearInstanceFor(player);
   }
 
   /**
@@ -383,7 +528,9 @@ You earned: {yellow}50 experience points{/}\n`
     // Delayed teleport to let them read the message
     if (typeof efuns !== 'undefined' && efuns.callOut) {
       efuns.callOut(() => {
-        this.teleportToTown(player).catch(() => {});
+        this.teleportToTown(player)
+          .then(() => this.clearInstanceFor(player))
+          .catch(() => {});
       }, 2000);
     }
   }

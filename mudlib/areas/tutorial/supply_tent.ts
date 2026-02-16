@@ -61,10 +61,14 @@ training yard — but you should gear up first.`;
       '/areas/tutorial/items/recruits_chainmail',
       '/areas/tutorial/items/recruits_helm',
     ]);
+
+    // General Ironheart continues guiding recruits here.
+    this.setNpcs(['/areas/tutorial/general_ironheart']);
   }
 
   override async onCreate(): Promise<void> {
     await super.onCreate();
+    await this.spawnMissingNpcs();
     await this.spawnMissingItems();
   }
 
@@ -93,6 +97,7 @@ training yard — but you should gear up first.`;
    */
   override async onReset(): Promise<void> {
     await super.onReset();
+    await this.spawnMissingNpcs();
     await this.spawnMissingItems();
   }
 }

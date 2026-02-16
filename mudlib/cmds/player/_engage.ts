@@ -11,6 +11,8 @@ import { findItem, parseItemInput, countMatching } from '../../lib/item-utils.js
 import { getDefaultEngageGreeting } from '../../lib/engage-defaults.js';
 import { getPortraitDaemon } from '../../daemons/portrait.js';
 import { getQuestDaemon } from '../../daemons/quest.js';
+import { getTutorialDaemon } from '../../daemons/tutorial.js';
+import { colorize, stripColors } from '../../lib/colors.js';
 import type { Living } from '../../std/living.js';
 import type { QuestPlayer } from '../../std/quest/types.js';
 import type { EngageMessage, EngageOption, EngageQuestDetails } from '../../std/player.js';
@@ -32,6 +34,11 @@ interface PlayerWithEngage extends MudObject {
 interface MerchantLike extends MudObject {
   shopName?: string;
   openShop?: unknown;
+}
+
+interface PlayerWithTutorialState extends MudObject {
+  getProperty?: (key: string) => unknown;
+  getConfig?: <T>(key: string) => T;
 }
 
 function isMerchantLike(npc: NPC): npc is NPC & MerchantLike {
@@ -137,6 +144,7 @@ export async function execute(ctx: CommandContext): Promise<void> {
 
     const npc = target;
     const questPlayer = ctx.player as QuestPlayer;
+    const tutorialPlayer = ctx.player as PlayerWithTutorialState;
     const portraitDaemon = getPortraitDaemon();
     const questDaemon = getQuestDaemon();
 
@@ -261,7 +269,7 @@ export async function execute(ctx: CommandContext): Promise<void> {
       });
     }
 
-    const actions: EngageOption[] = [];
+    let actions: EngageOption[] = [];
     if (isMerchantLike(npc)) {
       actions.push({
         id: 'trade',
@@ -278,7 +286,21 @@ export async function execute(ctx: CommandContext): Promise<void> {
       efuns.playSound(ctx.player, 'discussion', introSound);
     }
 
-    const text = getDefaultEngageGreeting(npc, ctx.player as Living, questOffers, questTurnIns);
+    let text = getDefaultEngageGreeting(npc, ctx.player as Living, questOffers, questTurnIns);
+
+    const isTutorialArea = room.objectPath?.startsWith('/areas/tutorial/') ?? false;
+    const tutorialComplete = tutorialPlayer.getProperty?.('tutorial_complete') === true;
+    const npcPath = npc.objectPath || '';
+    const isGeneralIronheart = npcPath.endsWith('/areas/tutorial/general_ironheart');
+
+    if (isTutorialArea && !tutorialComplete && isGeneralIronheart) {
+      const tutorialContent = getTutorialDaemon().getEngageContentForGeneral(ctx.player as Living);
+      text = tutorialContent.text;
+      actions = [...tutorialContent.actions, ...actions];
+    }
+
+    const colorEnabled = tutorialPlayer.getConfig?.<boolean>('color') !== false;
+    const renderedText = colorEnabled ? colorize(text) : stripColors(text);
 
     player.sendEngage({
       type: 'open',
@@ -287,7 +309,7 @@ export async function execute(ctx: CommandContext): Promise<void> {
       portrait,
       portraitUrl,
       alignment: npc.engageAlignment,
-      text,
+      text: renderedText,
       actions,
       questLog,
       questDetails,

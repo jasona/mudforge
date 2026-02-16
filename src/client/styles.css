@@ -3649,6 +3649,25 @@ h6.gui-heading { font-size: 12px; }
   opacity: 0.92;
 }
 
+.engage-option-link {
+  align-self: flex-start;
+  margin-top: 2px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #d6c2a0;
+  font-size: var(--font-size-xs);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+  opacity: 0.9;
+}
+
+.engage-option-link:hover {
+  color: #f2dfbe;
+  opacity: 1;
+}
+
 .engage-quest-detail-body {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 220px;

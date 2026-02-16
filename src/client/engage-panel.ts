@@ -12,6 +12,7 @@ import type {
   EngageQuestDetails,
 } from './websocket-client.js';
 import { getFallbackPortrait, isDataUri, isValidSvg } from './npc-portraits.js';
+import { parseAnsi } from './ansi-parser.js';
 
 interface EngagePanelOptions {
   onCommand?: (command: string) => void;
@@ -103,7 +104,7 @@ export class EngagePanel {
     }
 
     if (this.textEl) {
-      this.textEl.textContent = message.text || '';
+      this.textEl.innerHTML = parseAnsi(message.text || '');
     }
 
     this.renderPortrait(message.portrait, message.npcName, message.portraitUrl);
@@ -169,7 +170,11 @@ export class EngagePanel {
     `;
     sectionEl.appendChild(header);
 
-    for (const option of options) {
+    const buttonOptions =
+      kind === 'action' ? options.filter((option) => option.id !== 'tutorial-skip') : options;
+    const linkOptions = kind === 'action' ? options.filter((option) => option.id === 'tutorial-skip') : [];
+
+    for (const option of buttonOptions) {
       const btn = document.createElement('button');
       btn.className = 'engage-option-btn';
       btn.dataset.kind = kind;
@@ -188,20 +193,44 @@ export class EngagePanel {
       }
 
       btn.addEventListener('click', () => {
-        if (kind === 'questlog') {
-          const questId = option.id.replace(/^questlog-/, '');
-          this.selectedQuestId = questId;
-          this.renderQuestDetail(questId);
-          return;
-        }
-
-        if (this.onCommand) {
-          this.onCommand(option.command);
-        }
-        this.hide();
+        this.handleOptionClick(kind, option);
       });
       sectionEl.appendChild(btn);
     }
+
+    for (const option of linkOptions) {
+      const linkBtn = document.createElement('button');
+      linkBtn.className = 'engage-option-link';
+      linkBtn.type = 'button';
+      linkBtn.dataset.kind = kind;
+      linkBtn.textContent = option.label;
+      linkBtn.addEventListener('click', () => {
+        this.handleOptionClick(kind, option);
+      });
+      sectionEl.appendChild(linkBtn);
+    }
+  }
+
+  private handleOptionClick(
+    kind: 'action' | 'questlog' | 'offer' | 'turnin',
+    option: EngageOption
+  ): void {
+    if (kind === 'questlog') {
+      const questId = option.id.replace(/^questlog-/, '');
+      this.selectedQuestId = questId;
+      this.renderQuestDetail(questId);
+      return;
+    }
+
+    if (option.command === '__engage_close__') {
+      this.hide();
+      return;
+    }
+
+    if (this.onCommand) {
+      this.onCommand(option.command);
+    }
+    this.hide();
   }
 
   private renderQuestDetail(questId: string | null): void {
