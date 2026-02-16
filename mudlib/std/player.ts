@@ -195,6 +195,18 @@ export interface EngageOption {
   label: string;
   command: string;
   rewardText?: string;
+  tone?: 'positive' | 'negative' | 'neutral';
+}
+
+export interface EngageQuestDetails {
+  id: string;
+  name: string;
+  description: string;
+  storyText: string;
+  statusText: string;
+  objectives: string[];
+  acceptAction?: EngageOption;
+  turnInAction?: EngageOption;
 }
 
 export interface EngageOpenMessage {
@@ -205,6 +217,9 @@ export interface EngageOpenMessage {
   portraitUrl?: string;
   alignment?: EngageAlignment;
   text?: string;
+  actions?: EngageOption[];
+  questLog?: EngageOption[];
+  questDetails?: EngageQuestDetails[];
   questOffers?: EngageOption[];
   questTurnIns?: EngageOption[];
 }

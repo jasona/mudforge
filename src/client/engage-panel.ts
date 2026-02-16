@@ -9,6 +9,7 @@ import type {
   EngageOpenMessage,
   EngageAlignment,
   EngageOption,
+  EngageQuestDetails,
 } from './websocket-client.js';
 import { getFallbackPortrait, isDataUri, isValidSvg } from './npc-portraits.js';
 
@@ -22,8 +23,14 @@ export class EngagePanel {
   private portraitEl: HTMLElement | null = null;
   private nameEl: HTMLElement | null = null;
   private textEl: HTMLElement | null = null;
+  private actionsEl: HTMLElement | null = null;
+  private questLogEl: HTMLElement | null = null;
+  private questDetailEl: HTMLElement | null = null;
   private offersEl: HTMLElement | null = null;
   private turnInsEl: HTMLElement | null = null;
+  private questDetailsById: Map<string, EngageQuestDetails> = new Map();
+  private currentNpcName: string = '';
+  private selectedQuestId: string | null = null;
   private onCommand?: (command: string) => void;
   private isVisible: boolean = false;
   private onKeyDownBound: (e: KeyboardEvent) => void;
@@ -49,6 +56,9 @@ export class EngagePanel {
         <button class="engage-close-btn" title="Close">&times;</button>
         <div class="engage-npc-name" data-name></div>
         <div class="engage-text" data-text></div>
+        <div class="engage-section" data-actions></div>
+        <div class="engage-section" data-quest-log></div>
+        <div class="engage-section" data-quest-detail></div>
         <div class="engage-section" data-offers></div>
         <div class="engage-section" data-turnins></div>
       </div>
@@ -58,6 +68,9 @@ export class EngagePanel {
     this.portraitEl = this.panel.querySelector('[data-portrait]');
     this.nameEl = this.panel.querySelector('[data-name]');
     this.textEl = this.panel.querySelector('[data-text]');
+    this.actionsEl = this.panel.querySelector('[data-actions]');
+    this.questLogEl = this.panel.querySelector('[data-quest-log]');
+    this.questDetailEl = this.panel.querySelector('[data-quest-detail]');
     this.offersEl = this.panel.querySelector('[data-offers]');
     this.turnInsEl = this.panel.querySelector('[data-turnins]');
 
@@ -80,6 +93,10 @@ export class EngagePanel {
 
   private render(message: EngageOpenMessage): void {
     this.applyAlignment(message.alignment);
+    this.currentNpcName = message.npcName || '';
+    this.questDetailsById = new Map(
+      (message.questDetails || []).map((entry) => [entry.id, entry])
+    );
 
     if (this.nameEl) {
       this.nameEl.textContent = this.titleCase(message.npcName);
@@ -90,8 +107,16 @@ export class EngagePanel {
     }
 
     this.renderPortrait(message.portrait, message.npcName, message.portraitUrl);
-    this.renderOptions(this.offersEl, 'Available Quests', '!', 'offer', message.questOffers || []);
-    this.renderOptions(this.turnInsEl, 'Ready To Turn In', '?', 'turnin', message.questTurnIns || []);
+    this.renderOptions(this.actionsEl, 'Actions', '$', 'action', message.actions || []);
+    this.renderOptions(this.questLogEl, 'Quests', 'Q', 'questlog', message.questLog || []);
+    const questIdToShow =
+      this.selectedQuestId && this.questDetailsById.has(this.selectedQuestId)
+        ? this.selectedQuestId
+        : null;
+    this.selectedQuestId = questIdToShow;
+    this.renderQuestDetail(questIdToShow);
+    this.renderOptions(this.offersEl, 'Available Quests', '!', 'offer', []);
+    this.renderOptions(this.turnInsEl, 'Ready To Turn In', '?', 'turnin', []);
   }
 
   private renderPortrait(portrait: string, npcName: string, portraitUrl?: string): void {
@@ -128,11 +153,12 @@ export class EngagePanel {
     sectionEl: HTMLElement | null,
     title: string,
     badge: string,
-    kind: 'offer' | 'turnin',
+    kind: 'action' | 'questlog' | 'offer' | 'turnin',
     options: EngageOption[]
   ): void {
     if (!sectionEl) return;
     sectionEl.innerHTML = '';
+    sectionEl.dataset.kind = kind;
     if (options.length === 0) return;
 
     const header = document.createElement('div');
@@ -147,6 +173,7 @@ export class EngagePanel {
       const btn = document.createElement('button');
       btn.className = 'engage-option-btn';
       btn.dataset.kind = kind;
+      btn.dataset.tone = option.tone || 'neutral';
 
       const title = document.createElement('span');
       title.className = 'engage-option-title';
@@ -161,6 +188,13 @@ export class EngagePanel {
       }
 
       btn.addEventListener('click', () => {
+        if (kind === 'questlog') {
+          const questId = option.id.replace(/^questlog-/, '');
+          this.selectedQuestId = questId;
+          this.renderQuestDetail(questId);
+          return;
+        }
+
         if (this.onCommand) {
           this.onCommand(option.command);
         }
@@ -168,6 +202,101 @@ export class EngagePanel {
       });
       sectionEl.appendChild(btn);
     }
+  }
+
+  private renderQuestDetail(questId: string | null): void {
+    if (!this.questDetailEl) return;
+    this.questDetailEl.innerHTML = '';
+    this.questDetailEl.className = 'engage-section';
+    if (!questId) {
+      return;
+    }
+
+    const details = this.questDetailsById.get(questId);
+    if (!details) {
+      return;
+    }
+
+    const header = document.createElement('div');
+    header.className = 'engage-section-title';
+    header.innerHTML = `
+      <span class="engage-section-badge">?</span>
+      <span>${details.name}</span>
+    `;
+    this.questDetailEl.appendChild(header);
+
+    const detailBody = document.createElement('div');
+    detailBody.className = 'engage-quest-detail-body';
+
+    const mainCol = document.createElement('div');
+    mainCol.className = 'engage-quest-detail-main';
+
+    const desc = document.createElement('div');
+    desc.className = 'engage-quest-description';
+    desc.textContent = details.description;
+    mainCol.appendChild(desc);
+
+    const objectiveList = document.createElement('div');
+    objectiveList.className = 'engage-quest-objectives';
+    for (const objective of details.objectives) {
+      const row = document.createElement('div');
+      row.className = 'engage-quest-objective';
+      row.textContent = `- ${objective}`;
+      objectiveList.appendChild(row);
+    }
+    mainCol.appendChild(objectiveList);
+
+    const sideCol = document.createElement('div');
+    sideCol.className = 'engage-quest-detail-side';
+    const primaryAction = details.turnInAction || details.acceptAction;
+    const statusTextLower = details.statusText.toLowerCase();
+    const isInProgress = statusTextLower.includes('in progress');
+    const availabilityBtn = document.createElement('button');
+    availabilityBtn.className = 'engage-option-btn engage-quest-action-btn engage-quest-status-btn';
+    availabilityBtn.dataset.kind = 'quest-detail-action';
+    availabilityBtn.dataset.tone = primaryAction ? 'positive' : isInProgress ? 'neutral' : 'negative';
+    availabilityBtn.disabled = !primaryAction;
+
+    const buttonTitle = document.createElement('span');
+    buttonTitle.className = 'engage-option-title';
+    buttonTitle.textContent = details.turnInAction
+      ? 'Turn In Quest'
+      : details.acceptAction
+        ? 'Accept Quest'
+        : isInProgress
+          ? 'In Progress'
+          : 'Not Available';
+    availabilityBtn.appendChild(buttonTitle);
+
+    const buttonSubtext = document.createElement('span');
+    buttonSubtext.className = 'engage-option-reward';
+    buttonSubtext.textContent = details.statusText;
+    availabilityBtn.appendChild(buttonSubtext);
+
+    if (primaryAction) {
+      availabilityBtn.addEventListener('click', () => {
+        if (this.onCommand) {
+          this.onCommand(primaryAction.command);
+          if (primaryAction.command.startsWith('quest ')) {
+            const npcName = this.currentNpcName.trim();
+            if (npcName) {
+              // Re-open engage shortly after quest action so UI reflects new state.
+              window.setTimeout(() => {
+                if (this.onCommand) {
+                  this.onCommand(`engage --silent ${npcName}`);
+                }
+              }, 180);
+            }
+          }
+        }
+      });
+    }
+
+    sideCol.appendChild(availabilityBtn);
+
+    detailBody.appendChild(mainCol);
+    detailBody.appendChild(sideCol);
+    this.questDetailEl.appendChild(detailBody);
   }
 
   private applyAlignment(alignment?: EngageAlignment): void {

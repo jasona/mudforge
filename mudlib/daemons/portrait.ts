@@ -69,6 +69,8 @@ interface CachedPortrait {
   generatedAt: number;
 }
 
+type NpcEngageKind = 'humanoid' | 'creature';
+
 /**
  * Pre-encoded fallback SVG for living beings (base64).
  * A simple dark silhouette that works for any creature type.
@@ -243,12 +245,11 @@ export class PortraitDaemon extends MudObject {
       return this.getPlayerPortrait(asPlayer.avatar);
     }
 
-    const npcPath = target.objectPath || '';
-    if (!npcPath) {
+    const cacheKey = this.getNpcCacheKey(target);
+    if (!cacheKey) {
       return getFallbackDataUri();
     }
 
-    const cacheKey = this.getCacheKey(npcPath);
     const portrait = await this.getNpcPortrait(target);
 
     if (typeof efuns !== 'undefined' && efuns.fileExists) {
@@ -277,12 +278,11 @@ export class PortraitDaemon extends MudObject {
    * Returns a data URI suitable for use in an img tag.
    */
   private async getNpcPortrait(npc: Living): Promise<string> {
-    const npcPath = npc.objectPath || '';
-    if (!npcPath) {
+    const cacheKey = this.getNpcCacheKey(npc);
+    if (!cacheKey) {
       return getFallbackDataUri();
     }
-
-    const cacheKey = this.getCacheKey(npcPath);
+    const engageKind = this.getNpcEngageKind(npc);
 
     // Check memory cache
     const cached = this._cache.get(cacheKey);
@@ -304,7 +304,7 @@ export class PortraitDaemon extends MudObject {
     }
 
     // Generate new portrait
-    const generationPromise = this.generateNpcPortrait(npc, cacheKey);
+    const generationPromise = this.generateNpcPortrait(npc, cacheKey, engageKind);
     this._pendingGenerations.set(cacheKey, generationPromise);
 
     try {
@@ -322,6 +322,20 @@ export class PortraitDaemon extends MudObject {
     // Create a hash of the path for safe filenames
     const hash = cacheKeyHash16(npcPath);
     return hash;
+  }
+
+  private getNpcEngageKind(npc: Living): NpcEngageKind {
+    const maybeKind = (npc as Living & { engageKind?: unknown }).engageKind;
+    return maybeKind === 'creature' ? 'creature' : 'humanoid';
+  }
+
+  private getNpcCacheKey(npc: Living): string | null {
+    const npcPath = npc.objectPath || '';
+    if (!npcPath) {
+      return null;
+    }
+    const engageKind = this.getNpcEngageKind(npc);
+    return this.getCacheKey(`${npcPath}_${engageKind}`);
   }
 
   /**
@@ -374,12 +388,32 @@ export class PortraitDaemon extends MudObject {
   /**
    * Generate a portrait for an NPC using Gemini AI (Nano Banana).
    */
-  private async generateNpcPortrait(npc: Living, cacheKey: string): Promise<string> {
+  private async generateNpcPortrait(
+    npc: Living,
+    cacheKey: string,
+    engageKind: NpcEngageKind
+  ): Promise<string> {
     // Get the NPC's description
     const description = npc.longDesc || npc.shortDesc || 'a mysterious creature';
 
     // Build the portrait prompt
-    const prompt = `Create a small square portrait icon for a fantasy RPG game character:
+    const prompt = engageKind === 'creature'
+      ? `Create a small square portrait icon for a fantasy RPG creature or beast:
+
+${description}
+
+Style requirements:
+- Dark fantasy art style with rich, moody colors
+- Portrait composition focused on the creature's face and body
+- This is an animal or beast, not a humanoid character
+- Do not depict a werewolf, person, or humanoid hybrid unless explicitly described
+- Show the creature in its natural form
+- Dramatic lighting with shadows
+- Painterly texture suitable for a game UI
+- 64x64 pixel icon style, bold and recognizable
+- The artwork must fill the entire canvas from edge to edge
+- No borders, margins, or empty space around the subject`
+      : `Create a small square portrait icon for a fantasy RPG game character:
 
 ${description}
 

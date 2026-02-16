@@ -9,7 +9,6 @@
  */
 
 import type { MudObject } from '../../lib/std.js';
-import { Merchant } from '../../std/merchant.js';
 
 interface CommandContext {
   player: MudObject & {
@@ -29,6 +28,15 @@ interface Room extends MudObject {
   inventory: MudObject[];
 }
 
+interface MerchantLike extends MudObject {
+  shopName?: string;
+  openShop(player: CommandContext['player']): Promise<void>;
+}
+
+function isMerchantLike(obj: MudObject): obj is MerchantLike {
+  return 'openShop' in obj && typeof (obj as MerchantLike).openShop === 'function';
+}
+
 export const name = ['shop', 'browse', 'trade'];
 export const description = 'Open a shop interface with a merchant';
 export const usage = 'shop [merchant name]';
@@ -36,10 +44,10 @@ export const usage = 'shop [merchant name]';
 /**
  * Find a merchant by name in the room.
  */
-function findMerchant(name: string, contents: MudObject[]): Merchant | undefined {
+function findMerchant(name: string, contents: MudObject[]): MerchantLike | undefined {
   const lowerName = name.toLowerCase();
   return contents.find((obj) => {
-    if (!(obj instanceof Merchant)) return false;
+    if (!isMerchantLike(obj)) return false;
     // Check against merchant name
     const merchantName = obj.name?.toLowerCase() || '';
     const shortDesc = obj.shortDesc?.toLowerCase() || '';
@@ -48,14 +56,14 @@ function findMerchant(name: string, contents: MudObject[]): Merchant | undefined
       shortDesc.includes(lowerName) ||
       (obj.shopName?.toLowerCase().includes(lowerName))
     );
-  }) as Merchant | undefined;
+  }) as MerchantLike | undefined;
 }
 
 /**
  * Get all merchants in a room.
  */
-function getMerchants(contents: MudObject[]): Merchant[] {
-  return contents.filter((obj) => obj instanceof Merchant) as Merchant[];
+function getMerchants(contents: MudObject[]): MerchantLike[] {
+  return contents.filter((obj) => isMerchantLike(obj)) as MerchantLike[];
 }
 
 export async function execute(ctx: CommandContext): Promise<void> {
@@ -74,7 +82,7 @@ export async function execute(ctx: CommandContext): Promise<void> {
     return;
   }
 
-  let merchant: Merchant | undefined;
+  let merchant: MerchantLike | undefined;
 
   if (args) {
     // Find specific merchant by name

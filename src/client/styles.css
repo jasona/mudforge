@@ -3481,16 +3481,19 @@ h6.gui-heading { font-size: 12px; }
 }
 
 .engage-bubble {
-  min-width: 280px;
-  max-width: 460px;
+  min-width: 340px;
+  max-width: 620px;
+  max-height: calc(100vh - 84px);
   background:
     radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.12), transparent 38%),
     linear-gradient(160deg, #2f2a22, #24201a 55%, #1f1b16);
   border: 1px solid #655742;
   border-radius: 12px;
   box-shadow: 0 14px 22px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.08);
-  padding: calc(var(--spacing-md) + 8px) var(--spacing-md) var(--spacing-md);
+  padding: calc(var(--spacing-md) + 10px) calc(var(--spacing-md) + 2px) calc(var(--spacing-md) + 2px);
   position: relative;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .engage-bubble::before {
@@ -3551,23 +3554,39 @@ h6.gui-heading { font-size: 12px; }
 .engage-npc-name {
   font-size: var(--font-size-sm);
   font-weight: 700;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
   color: #f2dfb5;
   text-shadow: 0 1px 0 rgba(0, 0, 0, 0.5);
+  line-height: 1.25;
 }
 
 .engage-text {
   font-size: var(--font-size-sm);
   color: #e8dbc1;
-  line-height: 1.4;
-  margin-bottom: var(--spacing-sm);
+  line-height: 1.5;
+  margin-bottom: calc(var(--spacing-sm) + 4px);
 }
 
 .engage-section {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  margin-top: var(--spacing-xs);
+  gap: 8px;
+  margin-top: calc(var(--spacing-xs) + 2px);
+}
+
+.engage-section[data-kind='questlog'] {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.engage-section[data-kind='questlog'] .engage-section-title {
+  grid-column: 1 / -1;
+  padding-top: 4px;
+}
+
+.engage-section[data-quest-detail] .engage-section-title {
+  margin-top: 4px;
 }
 
 .engage-section-title {
@@ -3599,12 +3618,12 @@ h6.gui-heading { font-size: 12px; }
   background: linear-gradient(180deg, #3a3328, #2d271f);
   color: #efe2c7;
   border-radius: 8px;
-  padding: 8px 10px;
+  padding: 10px 12px;
   text-align: left;
   cursor: pointer;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
   font-size: var(--font-size-sm);
   transition: border-color 0.15s ease, color 0.15s ease, transform 0.12s ease;
 }
@@ -3628,6 +3647,75 @@ h6.gui-heading { font-size: 12px; }
   font-size: var(--font-size-xs);
   color: #d9c8a3;
   opacity: 0.92;
+}
+
+.engage-quest-detail-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 220px;
+  gap: 12px;
+  align-items: start;
+}
+
+.engage-quest-detail-main {
+  min-width: 0;
+}
+
+.engage-quest-description {
+  font-size: var(--font-size-xs);
+  line-height: 1.45;
+  color: #e6d6b9;
+  margin-bottom: 8px;
+}
+
+.engage-quest-objectives {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 180px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.engage-quest-objective {
+  font-size: var(--font-size-xs);
+  line-height: 1.35;
+  color: #dbc9a5;
+}
+
+.engage-quest-detail-side {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.engage-quest-action-btn {
+  width: 100%;
+}
+
+.engage-quest-status-btn {
+  cursor: default;
+}
+
+.engage-quest-status-btn:hover {
+  transform: none;
+}
+
+.engage-quest-status-btn[data-tone='positive'] {
+  border-color: #6da079;
+  background: linear-gradient(180deg, rgba(121, 184, 137, 0.36), rgba(82, 139, 98, 0.3));
+  color: #e7f9eb;
+}
+
+.engage-quest-status-btn[data-tone='negative'] {
+  border-color: #a36e6e;
+  background: linear-gradient(180deg, rgba(194, 118, 118, 0.34), rgba(147, 76, 76, 0.28));
+  color: #ffe8e8;
+}
+
+.engage-quest-status-btn[data-tone='neutral'] {
+  border-color: #a8925e;
+  background: linear-gradient(180deg, rgba(220, 198, 124, 0.34), rgba(171, 146, 74, 0.28));
+  color: #fff5d9;
 }
 
 .engage-v-top { top: var(--spacing-sm); }
@@ -3710,6 +3798,15 @@ h6.gui-heading { font-size: 12px; }
   .engage-bubble {
     min-width: 220px;
     max-width: 320px;
+    max-height: calc(100vh - 92px);
+  }
+
+  .engage-section[data-kind='questlog'] {
+    grid-template-columns: 1fr;
+  }
+
+  .engage-quest-detail-body {
+    grid-template-columns: 1fr;
   }
 
   .engage-bubble-left .engage-bubble,

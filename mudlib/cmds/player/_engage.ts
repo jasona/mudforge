@@ -8,11 +8,13 @@
 import type { MudObject } from '../../lib/std.js';
 import { NPC } from '../../lib/std.js';
 import { findItem, parseItemInput, countMatching } from '../../lib/item-utils.js';
+import { getDefaultEngageGreeting } from '../../lib/engage-defaults.js';
 import { getPortraitDaemon } from '../../daemons/portrait.js';
 import { getQuestDaemon } from '../../daemons/quest.js';
+import type { Living } from '../../std/living.js';
 import type { QuestPlayer } from '../../std/quest/types.js';
-import type { EngageMessage, EngageOption } from '../../std/player.js';
-import type { QuestDefinition } from '../../std/quest/types.js';
+import type { EngageMessage, EngageOption, EngageQuestDetails } from '../../std/player.js';
+import type { QuestDefinition, QuestObjective } from '../../std/quest/types.js';
 
 const MAX_ENGAGE_PORTRAIT_CHARS = 2_400_000;
 
@@ -25,6 +27,15 @@ interface CommandContext {
 
 interface PlayerWithEngage extends MudObject {
   sendEngage?: (message: EngageMessage) => void;
+}
+
+interface MerchantLike extends MudObject {
+  shopName?: string;
+  openShop?: unknown;
+}
+
+function isMerchantLike(npc: NPC): npc is NPC & MerchantLike {
+  return 'openShop' in npc && typeof (npc as MerchantLike).openShop === 'function';
 }
 
 export const name = ['engage'];
@@ -55,9 +66,37 @@ function formatRewardPreview(quest: QuestDefinition): string {
   return parts.join('  |  ');
 }
 
+function getObjectiveDescription(obj: QuestObjective): string {
+  switch (obj.type) {
+    case 'kill':
+      return `Defeat ${obj.required} ${obj.targetName}`;
+    case 'fetch':
+      return `Collect ${obj.required} ${obj.itemName}`;
+    case 'deliver':
+      return `Deliver ${obj.itemName} to ${obj.targetName}`;
+    case 'escort':
+      return `Escort ${obj.npcName} to ${obj.destinationName}`;
+    case 'explore':
+      return `Explore ${obj.locationName}`;
+    case 'talk':
+      return obj.keyword
+        ? `Speak to ${obj.npcName} about "${obj.keyword}"`
+        : `Speak to ${obj.npcName}`;
+    case 'custom':
+      return obj.description;
+    default:
+      return 'Complete objective';
+  }
+}
+
 export async function execute(ctx: CommandContext): Promise<void> {
   try {
-    const args = ctx.args.trim();
+    let args = ctx.args.trim();
+    let silentRefresh = false;
+    if (args.startsWith('--silent ')) {
+      silentRefresh = true;
+      args = args.slice('--silent '.length).trim();
+    }
     if (!args) {
       ctx.sendLine('Engage whom?');
       return;
@@ -146,20 +185,100 @@ export async function execute(ctx: CommandContext): Promise<void> {
       });
     }
 
+    const availableQuestIds = new Set(available.map((quest) => quest.id));
+    const readyTurnInIds = new Set(completed.map((state) => state.questId));
+    const npcQuestIds = Array.from(new Set([...npc.questsOffered, ...npc.questsTurnedIn]));
+    const questLog: EngageOption[] = [];
+    const questDetails: EngageQuestDetails[] = [];
+    for (const questId of npcQuestIds) {
+      const quest = questDaemon.getQuest(questId);
+      if (!quest || quest.hidden) continue;
+
+      const activeState = questDaemon.getActiveQuest(questPlayer, questId);
+      const isCompleted = questDaemon.hasCompletedQuest(questPlayer, questId);
+      const isReadyToTurnIn = readyTurnInIds.has(questId);
+      const isAvailableToAccept = availableQuestIds.has(questId);
+      const canAccept = await questDaemon.canAcceptQuest(questPlayer, questId);
+
+      let status = canAccept.reason ? `Unavailable: ${canAccept.reason}` : 'Unavailable';
+      let command = `quest info ${quest.name}`;
+      let tone: EngageOption['tone'] = canAccept.canAccept ? 'positive' : 'negative';
+      if (isReadyToTurnIn) {
+        status = 'Ready to turn in';
+        command = `quest turnin ${quest.name}`;
+        tone = 'positive';
+      } else if (isAvailableToAccept) {
+        status = 'Available';
+        command = `quest accept ${quest.name}`;
+        tone = 'positive';
+      } else if (activeState) {
+        status = activeState.status === 'completed' ? 'Ready to turn in' : 'In progress';
+        tone = activeState.status === 'completed' ? 'positive' : 'neutral';
+      } else if (isCompleted) {
+        status = 'Completed';
+        tone = 'neutral';
+      }
+
+      const objectiveLines = quest.objectives.map((objective, index) => {
+        const progress = activeState?.objectives[index];
+        if (!progress) {
+          return `${getObjectiveDescription(objective)} (0/${'required' in objective ? objective.required : 1})`;
+        }
+        return `${getObjectiveDescription(objective)} (${progress.current}/${progress.required})`;
+      });
+
+      const detail: EngageQuestDetails = {
+        id: quest.id,
+        name: quest.name,
+        description: quest.description,
+        storyText: quest.storyText,
+        statusText: status,
+        objectives: objectiveLines,
+      };
+
+      if (isReadyToTurnIn) {
+        detail.turnInAction = {
+          id: `turnin-${quest.id}`,
+          label: 'Turn In',
+          command: `quest turnin ${quest.name}`,
+        };
+      } else if (isAvailableToAccept || canAccept.canAccept) {
+        detail.acceptAction = {
+          id: `accept-${quest.id}`,
+          label: 'Accept',
+          command: `quest accept ${quest.name}`,
+        };
+      }
+
+      questDetails.push(detail);
+
+      questLog.push({
+        id: `questlog-${quest.id}`,
+        label: quest.name,
+        command,
+        rewardText: status,
+        tone,
+      });
+    }
+
+    const actions: EngageOption[] = [];
+    if (isMerchantLike(npc)) {
+      actions.push({
+        id: 'trade',
+        label: 'Trade',
+        command: `shop ${npc.name}`,
+        rewardText: npc.shopName || undefined,
+      });
+    }
+
     // Intro sound defaults to engageSound, then lookSound.
     // Use discussion category so it plays with default sound settings.
     const introSound = npc.engageSound || npc.lookSound;
-    if (introSound && typeof efuns !== 'undefined' && efuns.playSound) {
+    if (!silentRefresh && introSound && typeof efuns !== 'undefined' && efuns.playSound) {
       efuns.playSound(ctx.player, 'discussion', introSound);
     }
 
-    const text =
-      npc.engageGreeting ||
-      (questOffers.length > 0
-        ? `Greetings. I have ${questOffers.length === 1 ? 'a task' : 'tasks'} for you.`
-        : questTurnIns.length > 0
-          ? 'You return with news. Let us settle your task.'
-          : 'Greetings, traveler.');
+    const text = getDefaultEngageGreeting(npc, ctx.player as Living, questOffers, questTurnIns);
 
     player.sendEngage({
       type: 'open',
@@ -169,6 +288,9 @@ export async function execute(ctx: CommandContext): Promise<void> {
       portraitUrl,
       alignment: npc.engageAlignment,
       text,
+      actions,
+      questLog,
+      questDetails,
       questOffers,
       questTurnIns,
     });
