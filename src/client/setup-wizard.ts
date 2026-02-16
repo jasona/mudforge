@@ -250,23 +250,23 @@ export class SetupWizard {
       <p class="setup-subtitle">Configure your game's name and branding.</p>
       <div class="setup-field">
         <label for="setup-game-name">Game Name *</label>
-        <input type="text" id="setup-game-name" value="MudForge" maxlength="50">
+        <input type="text" id="setup-game-name" value="MudForge" maxlength="50" data-1p-ignore="true" data-op-ignore="true">
       </div>
       <div class="setup-field">
         <label for="setup-tagline">Tagline</label>
-        <input type="text" id="setup-tagline" value="Your Adventure Awaits" maxlength="100">
+        <input type="text" id="setup-tagline" value="Your Adventure Awaits" maxlength="100" data-1p-ignore="true" data-op-ignore="true">
       </div>
       <div class="setup-field">
         <label for="setup-description">Description</label>
-        <textarea id="setup-description" rows="2" maxlength="250">A Modern MUD Experience</textarea>
+        <textarea id="setup-description" rows="2" maxlength="250" data-1p-ignore="true" data-op-ignore="true">A Modern MUD Experience</textarea>
       </div>
       <div class="setup-field">
         <label for="setup-website">Website URL</label>
-        <input type="url" id="setup-website" placeholder="https://yourgame.com">
+        <input type="url" id="setup-website" placeholder="https://yourgame.com" data-1p-ignore="true" data-op-ignore="true">
       </div>
       <div class="setup-field">
         <label for="setup-year">Established Year</label>
-        <input type="number" id="setup-year" value="${new Date().getFullYear()}" min="1990" max="2099">
+        <input type="number" id="setup-year" value="${new Date().getFullYear()}" min="1990" max="2099" data-1p-ignore="true" data-op-ignore="true">
       </div>
     `;
   }
@@ -283,7 +283,7 @@ export class SetupWizard {
           <span class="setup-logo-placeholder">No logo selected</span>
         </div>
         <div class="setup-logo-upload">
-          <input type="file" id="setup-logo-file" accept="image/png,image/jpeg,image/svg+xml">
+          <input type="file" id="setup-logo-file" accept="image/png,image/jpeg,image/svg+xml" data-1p-ignore="true" data-op-ignore="true">
           <button type="button" class="setup-logo-btn" id="setup-logo-choose">Choose Image</button>
           <button type="button" class="setup-logo-clear hidden" id="setup-logo-remove">Remove</button>
         </div>
@@ -409,6 +409,8 @@ export class SetupWizard {
     toggle.className = 'setup-toggle';
     const input = document.createElement('input');
     input.type = 'checkbox';
+    input.setAttribute('data-1p-ignore', 'true');
+    input.setAttribute('data-op-ignore', 'true');
     input.checked = meta.value as boolean;
     input.dataset.settingKey = key;
     const slider = document.createElement('span');
@@ -445,6 +447,8 @@ export class SetupWizard {
 
     const input = document.createElement('input');
     input.type = 'number';
+    input.setAttribute('data-1p-ignore', 'true');
+    input.setAttribute('data-op-ignore', 'true');
     input.value = String(meta.value);
     if (meta.min !== undefined) input.min = String(meta.min);
     if (meta.max !== undefined) input.max = String(meta.max);
@@ -487,6 +491,8 @@ export class SetupWizard {
     } else {
       const input = document.createElement('input');
       input.type = 'text';
+      input.setAttribute('data-1p-ignore', 'true');
+      input.setAttribute('data-op-ignore', 'true');
       input.value = String(meta.value ?? '');
       input.dataset.settingKey = key;
       row.appendChild(input);

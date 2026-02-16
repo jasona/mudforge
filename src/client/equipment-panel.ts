@@ -498,8 +498,8 @@ export class EquipmentPanel {
       // Slot is equipped
       slotEl.classList.add('equipped');
 
-      // Use image from STATS if present, otherwise use cached image from EQUIPMENT protocol
-      const image = equipment.image || this.cachedImages.get(slot);
+      // Prefer URL-based image from STATS/EQUIPMENT, fall back to inline data URI.
+      const image = equipment.imageUrl || equipment.image || this.cachedImages.get(slot);
 
       if (image) {
         // Real image available — show it, clear spinner
@@ -566,6 +566,9 @@ export class EquipmentPanel {
       if (data === null) {
         // Slot is now empty
         this.cachedImages.delete(slotName);
+        this.pendingImageChunks.delete(slotName);
+      } else if (data.imageUrl) {
+        this.cachedImages.set(slotName, data.imageUrl);
         this.pendingImageChunks.delete(slotName);
       } else if (data.image) {
         // Real image arrived directly

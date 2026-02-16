@@ -1460,7 +1460,7 @@ export async function openLookModal(
   if (!skipPortraitFetch) {
     allImagePromises.push((async () => {
       const extraContext = getExtraContext(target, type);
-      const actualImage = await portraitDaemon.getObjectImage(target, type, extraContext);
+      const actualImage = await portraitDaemon.getObjectImageUrl(target, type, extraContext);
       if (actualImage !== initialImage) {
         try {
           efuns.guiSend({
@@ -1488,7 +1488,7 @@ export async function openLookModal(
         const itemType = detectObjectType(item);
         const itemExtraContext = getExtraContext(item, itemType);
         try {
-          const itemImage = await portraitDaemon.getObjectImage(item, itemType, itemExtraContext);
+          const itemImage = await portraitDaemon.getObjectImageUrl(item, itemType, itemExtraContext);
           return { key: `equip-slot-${slot}`, src: itemImage };
         } catch {
           return null;

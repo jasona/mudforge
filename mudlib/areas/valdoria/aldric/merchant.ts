@@ -5,9 +5,9 @@
  * Area: Town of Aldric (valdoria:aldric)
  */
 
-import { NPC } from '../../../lib/std.js';
+import { Merchant as ShopMerchant } from '../../../lib/std.js';
 
-export class Merchant extends NPC {
+export class Merchant extends ShopMerchant {
   constructor() {
     super();
     this.name = 'Merchant Aldwin';
@@ -42,6 +42,17 @@ his way, but business is business.`;
     ];
     this.setQuestsOffered(['aldric:lost_supplies']);
     this.setQuestsTurnedIn(['aldric:lost_supplies']);
+    this.setMerchant({
+      name: 'Merchant Aldwin',
+      shopName: "Aldwin's Caravan Goods",
+      shopDescription: 'Practical supplies for roads, ruins, and rough nights outdoors.',
+      buyRate: 0.45,
+      sellRate: 1.05,
+      acceptedTypes: ['misc', 'food'],
+      shopGold: 1200,
+      charismaEffect: 0.01,
+    });
+    this.setupStock();
 
     // Preserved custom code
     // Override auto-calculated health
@@ -61,6 +72,14 @@ his way, but business is business.`;
         this.addChat('The guild will have my head if I don\'t recover those supplies.', 'say');
         this.addChat('peers anxiously toward the south road.', 'emote');
         this.addChat('Three crates of valuable goods... just taken!', 'say');
+      }
+
+  private setupStock(): void {
+        // Core travel supplies
+        this.addStock('/areas/valdoria/aldric/items/torch', 'Torch', 5, -1, 'misc');
+        this.addStock('/std/consumables/travel_rations', 'Travel Rations', 5, -1, 'food');
+        this.addStock('/std/materials/firewood', 'Firewood Bundle', 2, -1, 'misc');
+        this.addStock('/std/materials/tinder', 'Tinder Pouch', 1, -1, 'misc');
       }
 
   private setupResponses(): void {
@@ -98,6 +117,12 @@ his way, but business is business.`;
           /quest/i,
           "clasps his hands together pleadingly. \"Please, if you could recover my stolen supplies, type 'quest accept' and I'll make it worth your while!\"",
           'emote'
+        );
+
+        this.addResponse(
+          /shop|buy|sell|trade|wares|browse/i,
+          "If you need road supplies while I'm rebuilding, say 'shop' and I'll show what I still have.",
+          'say'
         );
       }
 

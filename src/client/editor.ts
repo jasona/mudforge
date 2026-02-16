@@ -113,6 +113,8 @@ export class CodeEditor {
 
     this.editorElement = document.createElement('textarea');
     this.editorElement.className = 'code-editor-textarea';
+    this.editorElement.setAttribute('data-1p-ignore', 'true');
+    this.editorElement.setAttribute('data-op-ignore', 'true');
     this.editorElement.value = this.originalContent;
     this.editorElement.readOnly = this.readOnly;
     this.editorElement.spellcheck = false;

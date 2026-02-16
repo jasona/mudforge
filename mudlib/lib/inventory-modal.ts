@@ -1044,7 +1044,7 @@ async function buildAndSendModal(player: InventoryPlayer, defaultTab: number = 0
     const type = detectObjectType(item);
     const extraContext = getExtraContext(item, type);
     try {
-      const actualImage = await portraitDaemon.getObjectImage(item, type, extraContext);
+      const actualImage = await portraitDaemon.getObjectImageUrl(item, type, extraContext);
       const fallbackImage = itemImages.get(item);
       if (actualImage !== fallbackImage && !equippedSet.has(item)) {
         return { key: `item-img-${i}`, src: actualImage };
@@ -1060,7 +1060,7 @@ async function buildAndSendModal(player: InventoryPlayer, defaultTab: number = 0
     const type = detectObjectType(item);
     const extraContext = getExtraContext(item, type);
     try {
-      const actualImage = await portraitDaemon.getObjectImage(item, type, extraContext);
+      const actualImage = await portraitDaemon.getObjectImageUrl(item, type, extraContext);
       const fallbackImage = getFallbackImage(type);
       if (actualImage !== fallbackImage) {
         return { key: `slot-img-${slot}`, src: actualImage };

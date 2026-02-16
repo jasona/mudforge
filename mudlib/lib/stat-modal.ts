@@ -1183,7 +1183,7 @@ export async function openStatModal(
   const imagePromises = [...equipped].map(async ([slot, item]) => {
     const type = detectObjectType(item);
     try {
-      const actualImage = await portraitDaemon.getObjectImage(item, type);
+      const actualImage = await portraitDaemon.getObjectImageUrl(item, type);
       const fallbackImage = getFallbackImage(type);
       if (actualImage !== fallbackImage) {
         return { key: `eq-slot-img-${slot}`, src: actualImage };

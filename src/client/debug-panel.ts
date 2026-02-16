@@ -53,6 +53,7 @@ interface BugReport {
  */
 interface DebugPanelOptions {
   onSendBugReport?: (report: BugReport) => void;
+  onClose?: () => void;
 }
 
 /**
@@ -70,6 +71,7 @@ interface PanelState {
   y: number;
   collapsed: boolean;
   filter: LogFilter;
+  visible: boolean;
 }
 
 /**
@@ -201,7 +203,10 @@ export class DebugPanel {
   private setupEventHandlers(): void {
     // Close button
     const closeBtn = this.panel.querySelector('.debug-close-btn');
-    closeBtn?.addEventListener('click', () => this.hide());
+    closeBtn?.addEventListener('click', () => {
+      this.hide();
+      this.options.onClose?.();
+    });
 
     // Collapse button
     const collapseBtn = this.panel.querySelector('.debug-collapse-btn');
@@ -270,12 +275,22 @@ export class DebugPanel {
     const x = e.clientX - this.dragOffset.x;
     const y = e.clientY - this.dragOffset.y;
 
-    // Keep within viewport
-    const maxX = window.innerWidth - this.panel.offsetWidth;
-    const maxY = window.innerHeight - this.panel.offsetHeight;
+    // Clamp to terminal container bounds (or fall back to viewport)
+    const terminal = document.getElementById('terminal-container');
+    const bounds = terminal
+      ? terminal.getBoundingClientRect()
+      : { left: 0, top: 0, right: window.innerWidth, bottom: window.innerHeight };
 
-    this.panel.style.left = `${Math.max(0, Math.min(x, maxX))}px`;
-    this.panel.style.top = `${Math.max(0, Math.min(y, maxY))}px`;
+    const panelWidth = this.panel.offsetWidth;
+    const panelHeight = this.panel.offsetHeight;
+
+    const minX = bounds.left;
+    const minY = bounds.top;
+    const maxX = bounds.right - panelWidth;
+    const maxY = bounds.bottom - panelHeight;
+
+    this.panel.style.left = `${Math.max(minX, Math.min(x, maxX))}px`;
+    this.panel.style.top = `${Math.max(minY, Math.min(y, maxY))}px`;
     this.panel.style.right = 'auto';
     this.panel.style.bottom = 'auto';
   }
@@ -528,6 +543,7 @@ export class DebugPanel {
     this.panel.classList.remove('hidden');
     // Scroll to bottom
     this.logList.scrollTop = this.logList.scrollHeight;
+    this.saveState();
   }
 
   /**
@@ -535,8 +551,10 @@ export class DebugPanel {
    */
   hide(): void {
     this.isVisible = false;
-    this.panel.classList.add('hidden');
+    // Save state BEFORE adding hidden class, otherwise getBoundingClientRect
+    // returns (0,0) since display:none elements have no layout
     this.saveState();
+    this.panel.classList.add('hidden');
   }
 
   /**
@@ -548,6 +566,13 @@ export class DebugPanel {
     } else {
       this.show();
     }
+  }
+
+  /**
+   * Check if panel is visible.
+   */
+  get visible(): boolean {
+    return this.isVisible;
   }
 
   /**
@@ -588,6 +613,7 @@ export class DebugPanel {
       y: rect.top,
       collapsed: this.isCollapsed,
       filter: this.currentFilter,
+      visible: this.isVisible,
     };
 
     try {
@@ -608,13 +634,9 @@ export class DebugPanel {
 
         // Apply position
         if (typeof state.x === 'number' && typeof state.y === 'number') {
-          // Ensure within viewport
-          const maxX = window.innerWidth - 400; // Approximate panel width
-          const maxY = window.innerHeight - 300; // Approximate panel height
-          this.panel.style.left = `${Math.max(0, Math.min(state.x, maxX))}px`;
-          this.panel.style.top = `${Math.max(0, Math.min(state.y, maxY))}px`;
-          this.panel.style.right = 'auto';
-          this.panel.style.bottom = 'auto';
+          this.applyPosition(state.x, state.y);
+        } else {
+          this.positionDefault();
         }
 
         // Apply collapse state
@@ -628,10 +650,66 @@ export class DebugPanel {
         if (state.filter) {
           this.setFilter(state.filter);
         }
+
+        // Apply visibility
+        if (state.visible) {
+          this.isVisible = true;
+          this.panel.classList.remove('hidden');
+        }
+      } else {
+        // No saved state — use default position
+        this.positionDefault();
       }
     } catch {
       // localStorage might not be available or data corrupted
+      this.positionDefault();
     }
+  }
+
+  /**
+   * Position the panel at the bottom-right of the terminal container,
+   * or fall back to the bottom-right of the viewport.
+   */
+  private positionDefault(): void {
+    requestAnimationFrame(() => {
+      const terminal = document.getElementById('terminal-container');
+      const panelWidth = this.panel.offsetWidth || 400;
+      const panelHeight = this.panel.offsetHeight || 300;
+
+      if (terminal) {
+        const rect = terminal.getBoundingClientRect();
+        const x = rect.right - panelWidth - 8;
+        const y = rect.bottom - panelHeight - 8;
+        this.applyPosition(x, y);
+      } else {
+        const x = window.innerWidth - panelWidth - 8;
+        const y = window.innerHeight - panelHeight - 8;
+        this.applyPosition(x, y);
+      }
+    });
+  }
+
+  /**
+   * Apply a position to the panel, clamping it within the terminal container.
+   */
+  private applyPosition(x: number, y: number): void {
+    const panelWidth = this.panel.offsetWidth || 400;
+    const panelHeight = this.panel.offsetHeight || 300;
+
+    const terminal = document.getElementById('terminal-container');
+    const bounds = terminal
+      ? terminal.getBoundingClientRect()
+      : { left: 0, top: 0, right: window.innerWidth, bottom: window.innerHeight };
+
+    const minX = bounds.left;
+    const minY = bounds.top;
+    const maxX = bounds.right - panelWidth;
+    const maxY = bounds.bottom - panelHeight;
+
+    this.panel.style.left = `${Math.max(minX, Math.min(x, maxX))}px`;
+    this.panel.style.top = `${Math.max(minY, Math.min(y, maxY))}px`;
+    this.panel.style.right = 'auto';
+    this.panel.style.bottom = 'auto';
   }
 }
 

@@ -12,6 +12,7 @@ import type { NPCAIContext } from './ai-types.js';
  * NPC type for auto-balance multipliers.
  */
 export type NPCType = 'normal' | 'elite' | 'boss' | 'miniboss';
+export type NPCEngageKind = 'humanoid' | 'creature';
 
 /**
  * Area lifecycle status.
@@ -296,6 +297,9 @@ export interface DraftNPC {
 
   /** NPC type for auto-balance multipliers (default: 'normal') */
   npcType?: NPCType;
+
+  /** Engage behavior kind (default inferred): humanoid or creature */
+  engageKind?: NPCEngageKind;
 
   /** Maximum health (auto-calculated if not set and level is provided) */
   maxHealth: number;

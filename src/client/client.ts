@@ -15,6 +15,7 @@ import {
   CompletionMessage,
   CommMessage,
   CombatMessage,
+  EngageMessage,
   SoundMessage,
   GiphyMessage,
   TimeMessage,
@@ -30,6 +31,7 @@ import { EquipmentPanel } from './equipment-panel.js';
 import { QuestPanel } from './quest-panel.js';
 import { CommPanel } from './comm-panel.js';
 import { CombatPanel } from './combat-panel.js';
+import { EngagePanel } from './engage-panel.js';
 import { GiphyPanel } from './giphy-panel.js';
 import { ClockPanel } from './clock-panel.js';
 import { SoundManager } from './sound-manager.js';
@@ -77,6 +79,7 @@ class MudClient {
   private questPanel: QuestPanel;
   private commPanel: CommPanel;
   private combatPanel: CombatPanel;
+  private engagePanel: EngagePanel;
   private giphyPanel: GiphyPanel;
   private clockPanel: ClockPanel;
   private soundManager: SoundManager;
@@ -103,7 +106,10 @@ class MudClient {
     const sendBtn = document.getElementById('send-btn');
     const statusEl = document.getElementById('status');
     const updateBanner = document.getElementById('update-banner');
-    const debugToggle = document.getElementById('debug-toggle');
+    const menuToggle = document.getElementById('menu-toggle');
+    const menuDropdown = document.getElementById('header-menu-dropdown');
+    const menuToggleComm = document.getElementById('menu-toggle-comm') as HTMLInputElement | null;
+    const menuToggleDebug = document.getElementById('menu-toggle-debug') as HTMLInputElement | null;
 
     if (!terminalEl || !inputEl || !sendBtn || !statusEl || !updateBanner) {
       throw new Error('Required DOM elements not found');
@@ -161,6 +167,16 @@ class MudClient {
       },
     });
     this.combatPanel = new CombatPanel('combat-container');
+    this.engagePanel = new EngagePanel('engage-container', {
+      onCommand: (command: string) => {
+        if (this.wsClient.isConnected) {
+          this.wsClient.send(command);
+        }
+      },
+      onLoadingStateChange: (active: boolean) => {
+        this.inputHandler.setEnabled(!active);
+      },
+    });
     this.giphyPanel = new GiphyPanel('giphy-container');
     this.clockPanel = new ClockPanel('clock-container');
     this.soundManager = new SoundManager();
@@ -181,12 +197,63 @@ class MudClient {
     // Initialize debug panel
     this.debugPanel = new DebugPanel('debug-container', {
       onSendBugReport: (report) => this.sendBugReport(report),
+      onClose: () => {
+        if (menuToggleDebug) {
+          menuToggleDebug.checked = false;
+        }
+      },
     });
 
-    // Debug toggle button
-    if (debugToggle) {
-      debugToggle.addEventListener('click', () => {
-        this.debugPanel.toggle();
+    // Header menu dropdown toggle
+    if (menuToggle && menuDropdown) {
+      menuToggle.addEventListener('click', (e) => {
+        e.stopPropagation();
+        menuDropdown.classList.toggle('hidden');
+      });
+
+      // Close dropdown when clicking outside
+      document.addEventListener('click', () => {
+        menuDropdown.classList.add('hidden');
+      });
+
+      // Prevent dropdown clicks from closing it
+      menuDropdown.addEventListener('click', (e) => {
+        e.stopPropagation();
+      });
+    }
+
+    // Communications toggle in menu
+    if (menuToggleComm) {
+      // Sync checkbox with restored panel state
+      menuToggleComm.checked = this.commPanel.visible;
+
+      menuToggleComm.addEventListener('change', () => {
+        if (menuToggleComm.checked) {
+          this.commPanel.show();
+        } else {
+          this.commPanel.hide();
+        }
+      });
+    }
+
+    // Comm panel close callback — sync the menu checkbox
+    this.commPanel.onClose = () => {
+      if (menuToggleComm) {
+        menuToggleComm.checked = false;
+      }
+    };
+
+    // Debug console toggle in menu
+    if (menuToggleDebug) {
+      // Sync checkbox with restored panel state
+      menuToggleDebug.checked = this.debugPanel.visible;
+
+      menuToggleDebug.addEventListener('change', () => {
+        if (menuToggleDebug.checked) {
+          this.debugPanel.show();
+        } else {
+          this.debugPanel.hide();
+        }
       });
     }
 
@@ -195,6 +262,9 @@ class MudClient {
       if (e.ctrlKey && e.key === '`') {
         e.preventDefault();
         this.debugPanel.toggle();
+        if (menuToggleDebug) {
+          menuToggleDebug.checked = this.debugPanel.visible;
+        }
       }
     });
 
@@ -461,6 +531,11 @@ class MudClient {
     // Combat panel events
     this.wsClient.on('combat-message', (message: CombatMessage) => {
       this.combatPanel.handleMessage(message);
+    });
+
+    // Engage dialogue events
+    this.wsClient.on('engage-message', (message: EngageMessage) => {
+      this.engagePanel.handleMessage(message);
     });
 
     // Sound panel events

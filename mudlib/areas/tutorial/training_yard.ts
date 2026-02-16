@@ -52,8 +52,8 @@ leads out of the camp.`;
       }
     );
 
-    // Spawn training dummy
-    this.setNpcs(['/areas/tutorial/training_dummy']);
+    // Spawn training dummy and General Ironheart for guidance.
+    this.setNpcs(['/areas/tutorial/training_dummy', '/areas/tutorial/general_ironheart']);
   }
 
   override async onCreate(): Promise<void> {

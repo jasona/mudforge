@@ -38,6 +38,7 @@ export type {
   CombatTargetUpdateMessage,
   CombatTargetClearMessage,
   CombatMessage,
+  EngageMessage,
   SoundCategory,
   SoundMessage,
   GiphyMessage,
@@ -77,6 +78,7 @@ type WebSocketClientEvent =
   | 'completion-message'
   | 'comm-message'
   | 'combat-message'
+  | 'engage-message'
   | 'sound-message'
   | 'giphy-message'
   | 'auth-response'

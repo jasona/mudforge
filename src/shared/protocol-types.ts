@@ -24,6 +24,7 @@ export interface MapMessage {
 export interface EquipmentSlotData {
   name: string;
   image?: string;
+  imageUrl?: string;
   itemType: 'weapon' | 'armor';
   // Tooltip data
   description?: string;
@@ -114,6 +115,7 @@ export interface EquipmentMessage {
   slots: {
     [slot: string]: {
       image: string | null;
+      imageUrl?: string;
       name: string;
     } | null;
   };
@@ -234,6 +236,7 @@ export interface CombatTargetUpdateMessage {
     name: string;
     level: number;
     portrait: string;      // SVG markup or avatar ID
+    portraitUrl?: string;
     health: number;
     maxHealth: number;
     healthPercent: number;
@@ -260,6 +263,78 @@ export interface CombatTargetClearMessage {
 }
 
 export type CombatMessage = CombatTargetUpdateMessage | CombatHealthUpdateMessage | CombatTargetClearMessage;
+
+/**
+ * Engage panel alignment settings.
+ */
+export type EngageVerticalAlign = 'top' | 'middle' | 'bottom';
+export type EngageHorizontalAlign = 'left' | 'center' | 'right';
+export type EngageAlignment =
+  | {
+      vertical: EngageVerticalAlign;
+      horizontal: EngageHorizontalAlign;
+    }
+  | 'centered';
+
+/**
+ * Action button displayed in the engage panel speech bubble.
+ */
+export interface EngageOption {
+  id: string;
+  label: string;
+  command: string;
+  rewardText?: string;
+  tone?: 'positive' | 'negative' | 'neutral';
+}
+
+export interface EngageQuestDetails {
+  id: string;
+  name: string;
+  description: string;
+  storyText: string;
+  statusText: string;
+  objectives: string[];
+  acceptAction?: EngageOption;
+  turnInAction?: EngageOption;
+}
+
+/**
+ * Engage open message for NPC dialogue overlay.
+ */
+export interface EngageOpenMessage {
+  type: 'open';
+  npcName: string;
+  npcPath: string;
+  portrait: string;
+  portraitUrl?: string;
+  alignment?: EngageAlignment;
+  text?: string;
+  actions?: EngageOption[];
+  questLog?: EngageOption[];
+  questDetails?: EngageQuestDetails[];
+  questOffers?: EngageOption[];
+  questTurnIns?: EngageOption[];
+}
+
+/**
+ * Engage close message to hide the overlay.
+ */
+export interface EngageCloseMessage {
+  type: 'close';
+}
+
+/**
+ * Engage loading message to indicate server-side engage preparation
+ * (portrait generation, quest payload assembly, etc.).
+ */
+export interface EngageLoadingMessage {
+  type: 'loading';
+  active: boolean;
+  message?: string;
+  progress?: number;
+}
+
+export type EngageMessage = EngageOpenMessage | EngageCloseMessage | EngageLoadingMessage;
 
 /**
  * Sound category types.

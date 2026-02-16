@@ -26,6 +26,7 @@ import type {
   CombatHealthUpdateMessage,
   CombatTargetClearMessage,
   CombatMessage,
+  EngageMessage,
   SoundCategory,
   SoundMessage,
   SessionTokenMessage,
@@ -51,6 +52,7 @@ export type {
   CombatHealthUpdateMessage,
   CombatTargetClearMessage,
   CombatMessage,
+  EngageMessage,
   SoundCategory,
   SoundMessage,
   SessionTokenMessage,
@@ -109,6 +111,8 @@ const CRITICAL_BUFFER_SIZE = 1 * 1024 * 1024;
 
 /** Hard cap for a single protocol frame (512KB) to prevent runaway socket buffers. */
 const MAX_PROTOCOL_MESSAGE_SIZE = 512 * 1024;
+/** ENGAGE can include large portrait payloads; allow a larger cap for this protocol only. */
+const MAX_ENGAGE_PROTOCOL_MESSAGE_SIZE = 3 * 1024 * 1024;
 
 /** Maximum number of messages to buffer for session resume replay */
 const MAX_MESSAGE_BUFFER_SIZE = 50;
@@ -646,10 +650,12 @@ export class Connection extends EventEmitter {
     const bufferedAmount = this.socket.bufferedAmount || 0;
 
     // Guardrail: never send oversized protocol frames.
-    if (messageSize > MAX_PROTOCOL_MESSAGE_SIZE) {
+    // ENGAGE overlays can legitimately carry larger image payloads.
+    const sizeCap = protoType === 'ENGAGE' ? MAX_ENGAGE_PROTOCOL_MESSAGE_SIZE : MAX_PROTOCOL_MESSAGE_SIZE;
+    if (messageSize > sizeCap) {
       const playerName = this.getPlayerName('no-player');
       console.error(
-        `[CONN-PROTO-DROP] ${this._id} (${playerName}) proto=${protoType} msgSize=${messageSize}B exceeds max=${MAX_PROTOCOL_MESSAGE_SIZE}B`
+        `[CONN-PROTO-DROP] ${this._id} (${playerName}) proto=${protoType} msgSize=${messageSize}B exceeds max=${sizeCap}B`
       );
       return false;
     }
@@ -786,6 +792,17 @@ export class Connection extends EventEmitter {
   sendCombat(message: CombatMessage): void {
     const json = JSON.stringify(message);
     this.sendProtocolMessage(`\x00[COMBAT]${json}`);
+  }
+
+  /**
+   * Send an ENGAGE protocol message to the client.
+   * ENGAGE messages are prefixed with \x00[ENGAGE] to distinguish them from regular text.
+   * Used for NPC dialogue overlays shown by the engage command.
+   * @param message The engage message to send
+   */
+  sendEngage(message: EngageMessage): void {
+    const json = JSON.stringify(message);
+    this.sendProtocolMessage(`\x00[ENGAGE]${json}`);
   }
 
   /**

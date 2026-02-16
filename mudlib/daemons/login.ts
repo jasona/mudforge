@@ -781,7 +781,18 @@ ${'='.repeat(bannerWidth)}
         startLocation = DEFAULT_LOCATION;
       }
     }
-    let room = typeof efuns !== 'undefined' ? efuns.findObject(startLocation) : undefined;
+    let room: MudObject | undefined;
+    if (startLocation.startsWith('/areas/tutorial/')) {
+      try {
+        const { getTutorialDaemon } = await import('./tutorial.js');
+        room = await getTutorialDaemon().getTutorialRoomForPlayer(player, startLocation);
+      } catch (e) {
+        console.error('[TUTORIAL] Failed to resolve tutorial instance room:', e);
+      }
+    } else {
+      room = typeof efuns !== 'undefined' ? efuns.findObject(startLocation) : undefined;
+    }
+
     // If the saved room doesn't exist, fall back to default
     if (!room && startLocation !== DEFAULT_LOCATION) {
       console.warn(`[LOGIN] Saved location "${startLocation}" not found, using default`);

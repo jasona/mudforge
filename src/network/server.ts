@@ -4,7 +4,7 @@
  * Serves the web client and handles WebSocket connections for the MUD.
  */
 
-import Fastify, { type FastifyInstance } from 'fastify';
+import Fastify, { type FastifyInstance, type FastifyReply } from 'fastify';
 import fastifyStatic from '@fastify/static';
 import fastifyWebsocket from '@fastify/websocket';
 import { WebSocket } from 'ws';
@@ -117,6 +117,33 @@ export class Server extends EventEmitter {
       logger: this.config.logger ? true : false,
       disableRequestLogging: !this.config.logHttpRequests,
     });
+  }
+
+  private isValidImageKey(value: string): boolean {
+    return /^[A-Za-z0-9_]+$/.test(value);
+  }
+
+  private async serveCachedImageJson(imageJsonPath: string, reply: FastifyReply): Promise<void> {
+    try {
+      const content = await readFile(imageJsonPath, 'utf-8');
+      const parsed = JSON.parse(content) as { image?: string; mimeType?: string };
+      if (!parsed.image || typeof parsed.image !== 'string') {
+        reply.code(404).send({ error: 'Image data not found' });
+        return;
+      }
+
+      const mimeType = typeof parsed.mimeType === 'string' && parsed.mimeType.startsWith('image/')
+        ? parsed.mimeType
+        : 'image/png';
+
+      const buffer = Buffer.from(parsed.image, 'base64');
+      reply
+        .type(mimeType)
+        .header('Cache-Control', 'public, max-age=31536000, immutable')
+        .send(buffer);
+    } catch {
+      reply.code(404).send({ error: 'Image not found' });
+    }
   }
 
   /**
@@ -248,6 +275,50 @@ export class Server extends EventEmitter {
       } catch {
         reply.code(404).send({ error: 'No logo configured' });
       }
+    });
+
+    // Object image endpoint - serves cached generated object images.
+    this.fastify.get('/api/images/object/:cacheKey', async (request, reply) => {
+      const params = request.params as { cacheKey?: string };
+      const cacheKey = params.cacheKey ?? '';
+      if (!this.isValidImageKey(cacheKey)) {
+        reply.code(400).send({ error: 'Invalid image key' });
+        return;
+      }
+
+      const underscoreIndex = cacheKey.indexOf('_');
+      if (underscoreIndex <= 0) {
+        reply.code(400).send({ error: 'Invalid object image key format' });
+        return;
+      }
+
+      const objectType = cacheKey.slice(0, underscoreIndex);
+      if (!this.isValidImageKey(objectType)) {
+        reply.code(400).send({ error: 'Invalid object image type' });
+        return;
+      }
+
+      const imageJsonPath = resolve(
+        this.config.mudlibPath,
+        'data',
+        'images',
+        objectType,
+        `${cacheKey}.json`
+      );
+      await this.serveCachedImageJson(imageJsonPath, reply);
+    });
+
+    // Portrait image endpoint - serves cached NPC portraits.
+    this.fastify.get('/api/images/portrait/:id', async (request, reply) => {
+      const params = request.params as { id?: string };
+      const id = params.id ?? '';
+      if (!this.isValidImageKey(id)) {
+        reply.code(400).send({ error: 'Invalid portrait key' });
+        return;
+      }
+
+      const imageJsonPath = resolve(this.config.mudlibPath, 'data', 'portraits', `${id}.json`);
+      await this.serveCachedImageJson(imageJsonPath, reply);
     });
 
     // Setup defaults endpoint - returns ConfigDaemon setting metadata

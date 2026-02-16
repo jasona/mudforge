@@ -198,7 +198,13 @@ export class CombatPanel {
       // Clear existing content
       this.portraitContainer.innerHTML = '';
 
-      if (isAvatarId(target.portrait)) {
+      if (target.portraitUrl) {
+        const img = document.createElement('img');
+        img.src = target.portraitUrl;
+        img.alt = target.name;
+        img.className = 'combat-portrait-img';
+        this.portraitContainer.appendChild(img);
+      } else if (isAvatarId(target.portrait)) {
         // Player portrait - use avatar system (SVG)
         this.portraitContainer.innerHTML = getAvatarSvg(target.portrait);
       } else if (isDataUri(target.portrait)) {

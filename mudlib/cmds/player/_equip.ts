@@ -9,6 +9,7 @@
 import type { MudObject, Living, Room, Weapon, Armor } from '../../lib/std.js';
 import type { EquipmentSlot } from '../../std/equipment.js';
 import { parseItemInput, findItem, countMatching } from '../../lib/item-utils.js';
+import { getTutorialDaemon } from '../../daemons/tutorial.js';
 
 interface CommandContext {
   player: MudObject;
@@ -240,6 +241,11 @@ export function execute(ctx: CommandContext): void {
   // Handle "equip all"
   if (parsed.isAll) {
     equipAll(ctx, living);
+    try {
+      getTutorialDaemon().reconcileEquipmentProgress(living);
+    } catch (error) {
+      console.error('[TUTORIAL] equip all reconcile error:', error);
+    }
     return;
   }
 

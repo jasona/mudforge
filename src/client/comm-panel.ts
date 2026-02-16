@@ -33,6 +33,7 @@ interface LayoutState {
   height: number;
   collapsed: boolean;
   activeTab: TabType;
+  visible: boolean;
 }
 
 interface Position {
@@ -46,6 +47,8 @@ interface Position {
 interface CommPanelOptions {
   /** Callback when a GIF link is clicked */
   onGifClick?: (gifId: string) => void;
+  /** Callback when the panel is closed via the X button */
+  onClose?: () => void;
 }
 
 /**
@@ -74,8 +77,14 @@ export class CommPanel {
   // Auto-scroll
   private autoScroll: boolean = true;
 
+  // Saved height for collapse/expand
+  private savedHeight: string = '';
+
   // GIF click callback
   private onGifClick?: (gifId: string) => void;
+
+  // Close callback (notifies parent when panel is closed via X button)
+  public onClose?: () => void;
 
   // Bound event handlers (stored for cleanup)
   private boundDragMove: (e: MouseEvent) => void;
@@ -102,7 +111,10 @@ export class CommPanel {
     this.panel.innerHTML = `
       <div class="comm-panel-header">
         <span class="comm-panel-title">Communications</span>
-        <button class="comm-btn comm-btn-toggle" title="Toggle panel">_</button>
+        <div class="comm-header-buttons">
+          <button class="comm-btn comm-btn-toggle" title="Collapse panel">&#9660;</button>
+          <button class="comm-btn comm-btn-close" title="Close panel">&times;</button>
+        </div>
       </div>
       <div class="comm-panel-tabs">
         <button class="comm-tab active" data-tab="all">All</button>
@@ -131,6 +143,7 @@ export class CommPanel {
 
     // Store options
     this.onGifClick = options?.onGifClick;
+    this.onClose = options?.onClose;
 
     // Pre-bind event handlers for proper cleanup
     this.boundDragMove = this.onDragMove.bind(this);
@@ -154,6 +167,18 @@ export class CommPanel {
     toggleBtn?.addEventListener('click', (e) => {
       e.stopPropagation();
       this.toggle();
+      // Update the caret icon direction
+      if (toggleBtn) {
+        toggleBtn.innerHTML = this.isCollapsed ? '&#9650;' : '&#9660;';
+      }
+    });
+
+    // Close button
+    const closeBtn = this.panel.querySelector('.comm-btn-close');
+    closeBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.hide();
+      this.onClose?.();
     });
 
     // Tab buttons
@@ -277,18 +302,19 @@ export class CommPanel {
    * Handle drag movement.
    */
   private handleDragMove(clientX: number, clientY: number): void {
-    const parent = this.container.parentElement;
-    if (!parent) return;
+    const terminal = document.getElementById('terminal-container');
+    if (!terminal) return;
 
-    const parentRect = parent.getBoundingClientRect();
-    const panelRect = this.container.getBoundingClientRect();
+    const termRect = terminal.getBoundingClientRect();
+    const panelWidth = this.panel.offsetWidth;
+    const panelHeight = this.panel.offsetHeight;
 
-    let newX = clientX - parentRect.left - this.dragOffset.x;
-    let newY = clientY - parentRect.top - this.dragOffset.y;
+    let newX = clientX - termRect.left - this.dragOffset.x;
+    let newY = clientY - termRect.top - this.dragOffset.y;
 
-    // Clamp to parent bounds
-    newX = Math.max(0, Math.min(newX, parentRect.width - panelRect.width));
-    newY = Math.max(0, Math.min(newY, parentRect.height - panelRect.height));
+    // Clamp to terminal container bounds
+    newX = Math.max(0, Math.min(newX, termRect.width - panelWidth));
+    newY = Math.max(0, Math.min(newY, termRect.height - panelHeight));
 
     this.setPosition(newX, newY);
   }
@@ -347,6 +373,7 @@ export class CommPanel {
     this.container.style.left = `${x}px`;
     this.container.style.top = `${y}px`;
     this.container.style.right = 'auto';
+    this.container.style.bottom = 'auto';
   }
 
   /**
@@ -361,6 +388,7 @@ export class CommPanel {
         height: this.panel.offsetHeight,
         collapsed: this.isCollapsed,
         activeTab: this.activeTab,
+        visible: this.isVisible,
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(layout));
     } catch {
@@ -387,7 +415,17 @@ export class CommPanel {
 
         // Restore collapsed state
         this.isCollapsed = layout.collapsed ?? false;
+        if (this.isCollapsed) {
+          // Save the restored height so we can re-apply it on expand,
+          // then clear the inline height so the CSS collapsed rule works
+          this.savedHeight = this.panel.style.height;
+          this.panel.style.height = '';
+        }
         this.panel.classList.toggle('collapsed', this.isCollapsed);
+
+        // Restore visible state
+        this.isVisible = layout.visible ?? true;
+        this.panel.classList.toggle('hidden', !this.isVisible);
 
         // Restore active tab
         this.activeTab = layout.activeTab ?? 'all';
@@ -395,14 +433,15 @@ export class CommPanel {
 
         // Defer position restore to allow container to be positioned
         requestAnimationFrame(() => {
-          const parent = this.container.parentElement;
-          if (parent) {
-            const parentRect = parent.getBoundingClientRect();
-            const panelRect = this.container.getBoundingClientRect();
+          const terminal = document.getElementById('terminal-container');
+          if (terminal) {
+            const termRect = terminal.getBoundingClientRect();
+            const panelWidth = this.panel.offsetWidth;
+            const panelHeight = this.panel.offsetHeight;
 
-            // Validate position is still within bounds
-            const x = Math.max(0, Math.min(layout.x, parentRect.width - panelRect.width));
-            const y = Math.max(0, Math.min(layout.y, parentRect.height - panelRect.height));
+            // Validate position is still within terminal bounds
+            const x = Math.max(0, Math.min(layout.x, termRect.width - panelWidth));
+            const y = Math.max(0, Math.min(layout.y, termRect.height - panelHeight));
 
             this.setPosition(x, y);
           }
@@ -574,6 +613,18 @@ export class CommPanel {
    */
   toggle(): void {
     this.isCollapsed = !this.isCollapsed;
+
+    if (this.isCollapsed) {
+      // Save current inline height before collapsing so we can restore it later
+      this.savedHeight = this.panel.style.height;
+      this.panel.style.height = '';
+    } else {
+      // Restore the saved height when expanding
+      if (this.savedHeight) {
+        this.panel.style.height = this.savedHeight;
+      }
+    }
+
     this.panel.classList.toggle('collapsed', this.isCollapsed);
     this.saveLayout();
   }
@@ -584,6 +635,7 @@ export class CommPanel {
   show(): void {
     this.isVisible = true;
     this.panel.classList.remove('hidden');
+    this.saveLayout();
   }
 
   /**
@@ -592,13 +644,14 @@ export class CommPanel {
   hide(): void {
     this.isVisible = false;
     this.panel.classList.add('hidden');
+    this.saveLayout();
   }
 
   /**
    * Check if panel is visible.
    */
   get visible(): boolean {
-    return this.isVisible && !this.isCollapsed;
+    return this.isVisible;
   }
 
   /**

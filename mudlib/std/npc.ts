@@ -68,6 +68,16 @@ export interface ResponseTrigger {
   type: 'say' | 'emote';
 }
 
+export type EngageVerticalAlign = 'top' | 'middle' | 'bottom';
+export type EngageHorizontalAlign = 'left' | 'center' | 'right';
+export type EngageAlignment =
+  | {
+      vertical: EngageVerticalAlign;
+      horizontal: EngageHorizontalAlign;
+    }
+  | 'centered';
+export type EngageKind = 'humanoid' | 'creature';
+
 /**
  * Base class for NPCs.
  */
@@ -105,6 +115,12 @@ export class NPC extends Living {
 
   // Sound to play when someone looks at this NPC
   private _lookSound: string | null = null;
+
+  // Engage dialogue settings
+  private _engageSound: string | null = null;
+  private _engageGreeting: string | null = null;
+  private _engageAlignment: EngageAlignment = { vertical: 'bottom', horizontal: 'right' };
+  private _engageKind: EngageKind | null = null;
 
   // Random loot configuration
   private _randomLootConfig: NPCRandomLootConfig | null = null;
@@ -249,6 +265,94 @@ export class NPC extends Living {
    */
   setLookSound(sound: string | null): void {
     this._lookSound = sound;
+  }
+
+  /**
+   * Get the sound to play when this NPC is engaged.
+   */
+  get engageSound(): string | null {
+    return this._engageSound;
+  }
+
+  /**
+   * Set a sound to play when this NPC is engaged.
+   */
+  setEngageSound(sound: string | null): void {
+    this._engageSound = sound;
+  }
+
+  /**
+   * Get optional greeting text used by the engage dialogue bubble.
+   */
+  get engageGreeting(): string | null {
+    return this._engageGreeting;
+  }
+
+  /**
+   * Set greeting text used by the engage dialogue bubble.
+   */
+  setEngageGreeting(text: string | null): void {
+    this._engageGreeting = text;
+  }
+
+  /**
+   * Get engage overlay alignment.
+   */
+  get engageAlignment(): EngageAlignment {
+    return this._engageAlignment;
+  }
+
+  /**
+   * Set engage overlay alignment.
+   */
+  setEngageAlignment(alignment: EngageAlignment): void {
+    this._engageAlignment = alignment;
+  }
+
+  /**
+   * Get the engage behavior kind for this NPC.
+   * Explicitly configured values are respected; otherwise we infer from behavior.
+   */
+  get engageKind(): EngageKind {
+    if (this._engageKind) {
+      return this._engageKind;
+    }
+    return this.inferEngageKind();
+  }
+
+  /**
+   * Set or clear the engage behavior kind.
+   */
+  setEngageKind(kind: EngageKind | null): void {
+    this._engageKind = kind;
+  }
+
+  private inferEngageKind(): EngageKind {
+    const hasNoQuestHooks = this._questsOffered.length === 0 && this._questsTurnedIn.length === 0;
+    const hasVerbalChats = this._chats.some((chat) => chat.type === 'say');
+    const hasOnlyEmoteChats = this._chats.length > 0 && this._chats.every((chat) => chat.type === 'emote');
+    const hasVerbalResponses = this._responses.some((response) => response.type === 'say');
+    const hasNoDialogue = !hasVerbalChats && !hasVerbalResponses;
+    const hasBeastLikeNaturalAttacks = this._naturalAttacks.some((attack) => {
+      const signature = `${attack.name} ${attack.hitVerb} ${attack.missVerb}`.toLowerCase();
+      return /(fang|claw|tusk|beak|tail|bite|gore|sting|peck|snap|swipe|lunge)/.test(signature);
+    });
+    const textSignature = `${this.name} ${this.shortDesc} ${this.longDesc}`.toLowerCase();
+    const hasHumanoidSignature = /\b(man|woman|person|human|elf|dwarf|orc|guard|merchant|baker|smith|priest|wizard|knight|soldier|bandit|villager|trader|master|lady|lord)\b/.test(textSignature);
+    const hasCreatureSignature = /\b(wolf|boar|deer|rabbit|fox|bear|rat|snake|spider|hound|dog|cat|horse|stag|doe|fawn|beast|animal|creature|predator|prey|fur|hoof|antler|tusk|fang|tail|paw|paws|snout|ears)\b/.test(textSignature);
+
+    if (hasHumanoidSignature) {
+      return 'humanoid';
+    }
+
+    if (
+      hasNoQuestHooks &&
+      (hasBeastLikeNaturalAttacks || hasCreatureSignature || (hasOnlyEmoteChats && hasNoDialogue))
+    ) {
+      return 'creature';
+    }
+
+    return 'humanoid';
   }
 
   // ========== Chat System ==========
@@ -1745,6 +1849,11 @@ export class NPC extends Living {
     naturalAttacks?: (string | NaturalAttack)[];
     // Sound options
     lookSound?: string;
+    engageSound?: string;
+    // Engage dialogue options
+    engageGreeting?: string;
+    engageAlignment?: EngageAlignment;
+    engageKind?: EngageKind;
   }): void {
     if (options.name) this.name = options.name;
     if (options.title) this.title = options.title;
@@ -1773,6 +1882,10 @@ export class NPC extends Living {
 
     // Sound configuration
     if (options.lookSound !== undefined) this._lookSound = options.lookSound;
+    if (options.engageSound !== undefined) this._engageSound = options.engageSound;
+    if (options.engageGreeting !== undefined) this._engageGreeting = options.engageGreeting;
+    if (options.engageAlignment !== undefined) this._engageAlignment = options.engageAlignment;
+    if (options.engageKind !== undefined) this._engageKind = options.engageKind;
 
     // Natural attacks configuration
     if (options.naturalAttacks) {

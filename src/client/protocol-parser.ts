@@ -33,6 +33,7 @@ const PROTOCOL_REGISTRY: ReadonlyArray<{ prefix: string; event: string }> = [
   { prefix: '\x00[COMM]',      event: 'comm-message' },
   { prefix: '\x00[AUTH]',      event: 'auth-response' },
   { prefix: '\x00[COMBAT]',    event: 'combat-message' },
+  { prefix: '\x00[ENGAGE]',    event: 'engage-message' },
   { prefix: '\x00[SOUND]',     event: 'sound-message' },
   { prefix: '\x00[GIPHY]',     event: 'giphy-message' },
   { prefix: '\x00[SESSION]',   event: 'session-message' },

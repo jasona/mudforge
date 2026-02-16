@@ -83,6 +83,7 @@ export interface MercenarySaveData {
 export interface EquipmentSlotData {
   name: string;
   image?: string;
+  imageUrl?: string;
   itemType: 'weapon' | 'armor';
   // Tooltip data
   description?: string;
@@ -152,6 +153,7 @@ export interface CombatTargetUpdateMessage {
     name: string;
     level: number;
     portrait: string;      // SVG markup or avatar ID
+    portraitUrl?: string;
     health: number;
     maxHealth: number;
     healthPercent: number;
@@ -179,6 +181,62 @@ export interface CombatTargetClearMessage {
 
 export type CombatMessage = CombatTargetUpdateMessage | CombatHealthUpdateMessage | CombatTargetClearMessage;
 
+export type EngageVerticalAlign = 'top' | 'middle' | 'bottom';
+export type EngageHorizontalAlign = 'left' | 'center' | 'right';
+export type EngageAlignment =
+  | {
+      vertical: EngageVerticalAlign;
+      horizontal: EngageHorizontalAlign;
+    }
+  | 'centered';
+
+export interface EngageOption {
+  id: string;
+  label: string;
+  command: string;
+  rewardText?: string;
+  tone?: 'positive' | 'negative' | 'neutral';
+}
+
+export interface EngageQuestDetails {
+  id: string;
+  name: string;
+  description: string;
+  storyText: string;
+  statusText: string;
+  objectives: string[];
+  acceptAction?: EngageOption;
+  turnInAction?: EngageOption;
+}
+
+export interface EngageOpenMessage {
+  type: 'open';
+  npcName: string;
+  npcPath: string;
+  portrait: string;
+  portraitUrl?: string;
+  alignment?: EngageAlignment;
+  text?: string;
+  actions?: EngageOption[];
+  questLog?: EngageOption[];
+  questDetails?: EngageQuestDetails[];
+  questOffers?: EngageOption[];
+  questTurnIns?: EngageOption[];
+}
+
+export interface EngageCloseMessage {
+  type: 'close';
+}
+
+export interface EngageLoadingMessage {
+  type: 'loading';
+  active: boolean;
+  message?: string;
+  progress?: number;
+}
+
+export type EngageMessage = EngageOpenMessage | EngageCloseMessage | EngageLoadingMessage;
+
 /**
  * Equipment image update message (sent separately from STATS to reduce bandwidth).
  * Only sent when equipment actually changes, not every heartbeat.
@@ -189,6 +247,7 @@ export interface EquipmentMessage {
   slots: {
     [slot: string]: {
       image: string | null;
+      imageUrl?: string;
       name: string;
     } | null;
   };
@@ -214,6 +273,7 @@ export interface Connection {
   sendGUI?(message: GUIMessage): void;
   sendCompletion?(message: CompletionMessage): void;
   sendCombat?(message: CombatMessage): void;
+  sendEngage?(message: EngageMessage): void;
   sendEquipment?(message: EquipmentMessage): boolean | void;
   close(): void;
   isConnected(): boolean;
@@ -904,6 +964,10 @@ export class Player extends Living {
 
       // Get portrait for the target and cap payload size for combat updates.
       const portrait = await portraitDaemon.getPortrait(target);
+      const portraitUrlCandidate = await portraitDaemon.getPortraitUrl(target);
+      const portraitUrl = portraitUrlCandidate.startsWith('/api/images/')
+        ? portraitUrlCandidate
+        : undefined;
       const safePortrait = this.sanitizeCombatPortrait(target, portrait, () => portraitDaemon.getFallbackPortrait());
       if (safePortrait !== portrait) {
         console.warn(
@@ -924,6 +988,7 @@ export class Player extends Living {
           name: target.name,
           level: target.level,
           portrait: safePortrait,
+          portraitUrl,
           health: target.health,
           maxHealth: target.maxHealth,
           healthPercent: target.healthPercent,
@@ -933,6 +998,18 @@ export class Player extends Living {
     } catch (error) {
       console.error(`[Player] Error sending combat target update for ${this.name}:`, error);
     }
+  }
+
+  /**
+   * Send an engage overlay message to the client.
+   * Used by the engage command for WoW-style NPC dialogue.
+   */
+  sendEngage(message: EngageMessage): void {
+    if (!this._connection?.sendEngage) {
+      return;
+    }
+
+    this._connection.sendEngage(message);
   }
 
   /**
@@ -1484,6 +1561,13 @@ export class Player extends Living {
     return image;
   }
 
+  private normalizeEquipmentImageUrl(imageUrl: unknown): string | null {
+    if (typeof imageUrl !== 'string' || !imageUrl.startsWith('/api/images/object/')) {
+      return null;
+    }
+    return imageUrl;
+  }
+
   private normalizeProfilePortrait(portrait: unknown): string | undefined {
     if (typeof portrait !== 'string' || !portrait.startsWith('data:')) {
       return undefined;
@@ -1506,7 +1590,7 @@ export class Player extends Living {
   }
 
   private sendEquipmentBatched(
-    changedSlots: Record<string, { image: string | null; name: string } | null>,
+    changedSlots: Record<string, { image: string | null; imageUrl?: string; name: string } | null>,
     slotHashes: Map<string, string>,
     profilePortrait?: string
   ): { sentSlots: Set<string>; portraitSent: boolean } {
@@ -1525,6 +1609,17 @@ export class Player extends Living {
     }
 
     for (const [slot, data] of Object.entries(changedSlots)) {
+      if (data?.imageUrl) {
+        const sent = this._connection.sendEquipment({
+          type: 'equipment_update',
+          slots: { [slot]: { image: data.image, imageUrl: data.imageUrl, name: data.name } },
+        }) !== false;
+        if (sent) {
+          result.sentSlots.add(slot);
+        }
+        continue;
+      }
+
       if (data?.image) {
         // Queue image for one-by-one sending via drainEquipmentImageQueue()
         const hash = slotHashes.get(slot) || data.image.substring(0, 50);
@@ -1620,7 +1715,7 @@ export class Player extends Living {
     const equipped = this.getAllEquipped();
 
     // Track current equipment images for change detection
-    const currentEquipmentImages: Map<string, { hash: string; image: string | null; name: string }> = new Map();
+    const currentEquipmentImages: Map<string, { hash: string; image: string | null; imageUrl: string | null; name: string }> = new Map();
 
     for (const slot of EQUIPMENT_UPDATE_SLOTS) {
       const item = equipped.get(slot);
@@ -1628,23 +1723,25 @@ export class Player extends Living {
         const isWeapon = 'wield' in item;
         const itemType = isWeapon ? 'weapon' : 'armor';
         let imageStr = this.normalizeEquipmentImage(item.getProperty('cachedImage'));
+        let imageUrl = this.normalizeEquipmentImageUrl(item.getProperty('cachedImageUrl'));
         if (imageStr && imageStr.startsWith('data:image/svg+xml;base64,')) {
           // Equipment slots should keep UI fallback icons while real item art loads.
           // Treat SVG fallback as "not ready" and retry caching asynchronously.
           imageStr = null;
         }
-        if (!imageStr) {
+        if (!imageStr && !imageUrl) {
           void cacheItemImageBestEffort(item);
         }
 
-        // Track image for change detection (use first 50 chars as simple hash)
-        const imageHash = imageStr ? imageStr.substring(0, 50) : 'empty';
-        currentEquipmentImages.set(slot, { hash: imageHash, image: imageStr, name: item.shortDesc });
+        // Track image for change detection (URL preferred when available).
+        const imageHash = imageUrl ? `url:${imageUrl}` : imageStr ? imageStr.substring(0, 50) : 'empty';
+        currentEquipmentImages.set(slot, { hash: imageHash, image: imageStr, imageUrl, name: item.shortDesc });
 
         // Build slot data WITHOUT image (image sent separately via EQUIPMENT)
         const slotData: EquipmentSlotData = {
           name: item.shortDesc,
-          // NOTE: image omitted here - sent via EQUIPMENT protocol instead
+          // NOTE: image is sent via EQUIPMENT protocol; URL hint can be sent here.
+          imageUrl: imageUrl || undefined,
           itemType: itemType as 'weapon' | 'armor',
           description: item.longDesc,
           weight: 'weight' in item ? (item as unknown as { weight: number }).weight : undefined,
@@ -1676,7 +1773,7 @@ export class Player extends Living {
         equipmentData[slot] = slotData;
       } else {
         equipmentData[slot] = null;
-        currentEquipmentImages.set(slot, { hash: 'empty', image: null, name: '' });
+        currentEquipmentImages.set(slot, { hash: 'empty', image: null, imageUrl: null, name: '' });
       }
     }
 
@@ -1686,7 +1783,7 @@ export class Player extends Living {
     const portraitChanged = currentPortraitHash !== this._lastSentPortraitHash;
 
     // Check for equipment image changes
-    const changedSlots: Record<string, { image: string | null; name: string } | null> = {};
+    const changedSlots: Record<string, { image: string | null; imageUrl?: string; name: string } | null> = {};
     let hasEquipmentChanges = false;
 
     for (const slot of EQUIPMENT_UPDATE_SLOTS) {
@@ -1695,7 +1792,9 @@ export class Player extends Living {
 
       if (current && current.hash !== lastHash) {
         hasEquipmentChanges = true;
-        changedSlots[slot] = current.image ? { image: current.image, name: current.name } : null;
+        changedSlots[slot] = (current.image || current.imageUrl)
+          ? { image: current.image, imageUrl: current.imageUrl || undefined, name: current.name }
+          : null;
       }
     }
 

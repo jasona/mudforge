@@ -106,7 +106,7 @@ export class SoundPanel {
       <div class="sound-panel-expanded hidden">
         <div class="sound-volume-row">
           <label class="sound-volume-label">Volume</label>
-          <input type="range" class="sound-volume-slider" min="0" max="100" value="70">
+          <input type="range" class="sound-volume-slider" min="0" max="100" value="70" data-1p-ignore="true" data-op-ignore="true">
           <span class="sound-volume-value">70%</span>
         </div>
         <div class="sound-categories">
