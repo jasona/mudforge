@@ -30,8 +30,8 @@
         </div>
         <div class="launcher-login">
           <div class="login-form">
-            <input type="text" id="login-username" placeholder="Character Name" autocomplete="username" autocapitalize="none" spellcheck="false">
-            <input type="password" id="login-password" placeholder="Password" autocomplete="current-password">
+            <input type="text" id="login-username" placeholder="Character Name" autocomplete="username" autocapitalize="none" spellcheck="false" data-1p-ignore="true" data-op-ignore="true">
+            <input type="password" id="login-password" placeholder="Password" autocomplete="current-password" data-1p-ignore="true" data-op-ignore="true">
             <button id="login-btn" class="login-button">Login</button>
             <div id="login-error" class="login-error"></div>
           </div>
@@ -89,19 +89,19 @@
             <h3 class="register-section-title">Account Details</h3>
             <div class="register-field">
               <label for="reg-name">Character Name</label>
-              <input type="text" id="reg-name" placeholder="Enter name" autocomplete="username" autocapitalize="none" spellcheck="false" readonly>
+              <input type="text" id="reg-name" placeholder="Enter name" autocomplete="username" autocapitalize="none" spellcheck="false" readonly data-1p-ignore="true" data-op-ignore="true">
             </div>
             <div class="register-field">
               <label for="reg-password">Password</label>
-              <input type="password" id="reg-password" placeholder="6+ characters" autocomplete="new-password">
+              <input type="password" id="reg-password" placeholder="6+ characters" autocomplete="new-password" data-1p-ignore="true" data-op-ignore="true">
             </div>
             <div class="register-field">
               <label for="reg-confirm">Confirm Password</label>
-              <input type="password" id="reg-confirm" placeholder="Confirm password" autocomplete="new-password">
+              <input type="password" id="reg-confirm" placeholder="Confirm password" autocomplete="new-password" data-1p-ignore="true" data-op-ignore="true">
             </div>
             <div class="register-field">
               <label for="reg-email">Email (Optional)</label>
-              <input type="email" id="reg-email" placeholder="For account recovery" autocomplete="email">
+              <input type="email" id="reg-email" placeholder="For account recovery" autocomplete="email" data-1p-ignore="true" data-op-ignore="true">
             </div>
             <div class="register-field">
               <label for="reg-gender">Gender</label>
@@ -192,11 +192,11 @@
           <button id="menu-toggle" class="header-button" title="Menu">Menu &#9662;</button>
           <div id="header-menu-dropdown" class="header-menu-dropdown hidden">
             <label class="header-menu-item">
-              <input type="checkbox" id="menu-toggle-comm" checked />
+              <input type="checkbox" id="menu-toggle-comm" checked data-1p-ignore="true" data-op-ignore="true" />
               <span>Communications</span>
             </label>
             <label class="header-menu-item">
-              <input type="checkbox" id="menu-toggle-debug" />
+              <input type="checkbox" id="menu-toggle-debug" data-1p-ignore="true" data-op-ignore="true" />
               <span>Debug Console</span>
             </label>
           </div>
@@ -241,6 +241,8 @@
         autocapitalize="none"
         spellcheck="false"
         aria-label="Command input"
+        data-1p-ignore="true"
+        data-op-ignore="true"
       >
       <button id="send-btn" aria-label="Send command">Send</button>
     </footer>

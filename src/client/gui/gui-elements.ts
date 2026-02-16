@@ -283,6 +283,8 @@ function createTextInput(
   onChange?: (name: string, value: unknown) => void
 ): HTMLInputElement {
   const input = document.createElement('input');
+  input.setAttribute('data-1p-ignore', 'true');
+  input.setAttribute('data-op-ignore', 'true');
   input.type = element.type;
   input.id = `gui-input-${element.id}`;
   input.name = element.name;
@@ -316,6 +318,8 @@ function createTextarea(
   onChange?: (name: string, value: unknown) => void
 ): HTMLTextAreaElement {
   const textarea = document.createElement('textarea');
+  textarea.setAttribute('data-1p-ignore', 'true');
+  textarea.setAttribute('data-op-ignore', 'true');
   textarea.id = `gui-input-${element.id}`;
   textarea.name = element.name;
   textarea.className = 'gui-textarea';
@@ -453,6 +457,8 @@ function createSlider(
   wrapper.className = 'gui-slider-wrapper';
 
   const slider = document.createElement('input');
+  slider.setAttribute('data-1p-ignore', 'true');
+  slider.setAttribute('data-op-ignore', 'true');
   slider.type = 'range';
   slider.id = `gui-input-${element.id}`;
   slider.name = element.name;

@@ -260,6 +260,13 @@ export class Launcher {
     this.regCancel = document.getElementById('reg-cancel') as HTMLButtonElement;
     this.regError = document.getElementById('reg-error');
 
+    this.applyPasswordManagerIgnore(this.usernameInput);
+    this.applyPasswordManagerIgnore(this.passwordInput);
+    this.applyPasswordManagerIgnore(this.regName);
+    this.applyPasswordManagerIgnore(this.regPassword);
+    this.applyPasswordManagerIgnore(this.regConfirm);
+    this.applyPasswordManagerIgnore(this.regEmail);
+
     // Announcement elements
     this.announcementSection = document.getElementById('announcement-section');
     this.announcementTitle = document.getElementById('announcement-title');
@@ -273,6 +280,17 @@ export class Launcher {
 
     // Fetch and populate race picker
     this.fetchRaces();
+  }
+
+  /**
+   * Best-effort suppression for password manager overlays on non-form auth flows.
+   */
+  private applyPasswordManagerIgnore(
+    element: HTMLInputElement | HTMLTextAreaElement | null
+  ): void {
+    if (!element) return;
+    element.setAttribute('data-1p-ignore', 'true');
+    element.setAttribute('data-op-ignore', 'true');
   }
 
   /**
@@ -895,6 +913,9 @@ export class Launcher {
     this.setRegisterLoading(false);
 
     if (response.success) {
+      // Clear credential fields before switching views to reduce save prompts.
+      if (this.usernameInput) this.usernameInput.value = '';
+      if (this.passwordInput) this.passwordInput.value = '';
       // Login/registration successful - transition to game
       this.transitionToGame();
     } else if (response.requiresRegistration) {
