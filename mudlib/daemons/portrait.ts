@@ -228,6 +228,41 @@ export class PortraitDaemon extends MudObject {
   }
 
   /**
+   * Get a portrait URL for client-side HTTP loading when available.
+   * Falls back to avatar/data URI when the image is not disk-cached.
+   */
+  async getPortraitUrl(target: Living): Promise<string> {
+    const asPlayer = target as Living & { avatar?: string; getProperty?: (key: string) => unknown };
+    if (asPlayer.avatar) {
+      if (asPlayer.getProperty) {
+        const profilePortrait = asPlayer.getProperty('profilePortrait');
+        if (profilePortrait && typeof profilePortrait === 'string') {
+          return this.normalizeDataUri(profilePortrait);
+        }
+      }
+      return this.getPlayerPortrait(asPlayer.avatar);
+    }
+
+    const npcPath = target.objectPath || '';
+    if (!npcPath) {
+      return getFallbackDataUri();
+    }
+
+    const cacheKey = this.getCacheKey(npcPath);
+    const portrait = await this.getNpcPortrait(target);
+
+    if (typeof efuns !== 'undefined' && efuns.fileExists) {
+      const filePath = `/data/portraits/${cacheKey}.json`;
+      const exists = await efuns.fileExists(filePath);
+      if (exists) {
+        return `/api/images/portrait/${cacheKey}`;
+      }
+    }
+
+    return portrait;
+  }
+
+  /**
    * Get a player's portrait from their avatar ID.
    */
   private getPlayerPortrait(avatarId: string): string {
@@ -421,36 +456,11 @@ Style requirements:
     // since all corpses share the same blueprint path
     // For gold piles, use the size category as the identifier since they're created dynamically
     // For pets, use the template type since they're dynamically created
-    let cacheIdentifier: string;
-    if (type === 'pet' && 'templateType' in obj) {
-      const pet = obj as MudObject & { templateType: string };
-      cacheIdentifier = `pet_${pet.templateType}`;
-    } else if (type === 'corpse' && 'ownerName' in obj) {
-      const corpse = obj as MudObject & { ownerName: string };
-      cacheIdentifier = `corpse_${corpse.ownerName}`;
-    } else if (type === 'gold' && 'amount' in obj) {
-      const goldPile = obj as MudObject & { amount: number };
-      // Use size categories to share images between similar pile sizes
-      const amount = goldPile.amount;
-      let sizeCategory: string;
-      if (amount === 1) sizeCategory = 'single';
-      else if (amount < 10) sizeCategory = 'few';
-      else if (amount < 50) sizeCategory = 'small';
-      else if (amount < 200) sizeCategory = 'pile';
-      else if (amount < 500) sizeCategory = 'medium';
-      else if (amount < 1000) sizeCategory = 'large';
-      else if (amount < 5000) sizeCategory = 'huge';
-      else sizeCategory = 'hoard';
-      cacheIdentifier = `gold_${sizeCategory}`;
-    } else if (isGeneratedItem(obj)) {
-      // Generated items use their seed as a unique identifier
-      const genData = obj.getGeneratedItemData();
-      cacheIdentifier = `generated_${genData.generatedType}_${genData.seed}`;
-    } else {
-      cacheIdentifier = obj.objectPath || '';
-      if (!cacheIdentifier) {
-        return type === 'npc' || type === 'player' || type === 'pet' ? getFallbackDataUri() : getFallbackItemDataUri();
-      }
+    const cacheIdentifier = this.getObjectCacheIdentifier(obj, type);
+    if (!cacheIdentifier) {
+      return type === 'npc' || type === 'player' || type === 'pet'
+        ? getFallbackDataUri()
+        : getFallbackItemDataUri();
     }
 
     const cacheKey = this.getObjectCacheKey(cacheIdentifier, type);
@@ -484,6 +494,81 @@ Style requirements:
     } finally {
       this._pendingGenerations.delete(cacheKey);
     }
+  }
+
+  /**
+   * Get an object image URL for client-side HTTP loading when available.
+   * Falls back to data URI when no disk cache exists.
+   */
+  async getObjectImageUrl(
+    obj: MudObject,
+    type: ObjectImageType,
+    extraContext?: Record<string, unknown>
+  ): Promise<string> {
+    const cacheIdentifier = this.getObjectCacheIdentifier(obj, type);
+    const fallback = type === 'npc' || type === 'player' || type === 'pet'
+      ? getFallbackDataUri()
+      : getFallbackItemDataUri();
+    if (!cacheIdentifier) {
+      return fallback;
+    }
+
+    const cacheKey = this.getObjectCacheKey(cacheIdentifier, type);
+    const image = await this.getObjectImage(obj, type, extraContext);
+    if (image === fallback) {
+      return image;
+    }
+
+    if (typeof efuns !== 'undefined' && efuns.fileExists) {
+      const filePath = `/data/images/${type}/${cacheKey}.json`;
+      const exists = await efuns.fileExists(filePath);
+      if (exists) {
+        return `/api/images/object/${cacheKey}`;
+      }
+    }
+
+    return image;
+  }
+
+  /**
+   * Get deterministic cache key for object images.
+   */
+  getObjectImageCacheKey(obj: MudObject, type: ObjectImageType): string | null {
+    const cacheIdentifier = this.getObjectCacheIdentifier(obj, type);
+    if (!cacheIdentifier) {
+      return null;
+    }
+    return this.getObjectCacheKey(cacheIdentifier, type);
+  }
+
+  private getObjectCacheIdentifier(obj: MudObject, type: ObjectImageType): string | null {
+    if (type === 'pet' && 'templateType' in obj) {
+      const pet = obj as MudObject & { templateType: string };
+      return `pet_${pet.templateType}`;
+    }
+    if (type === 'corpse' && 'ownerName' in obj) {
+      const corpse = obj as MudObject & { ownerName: string };
+      return `corpse_${corpse.ownerName}`;
+    }
+    if (type === 'gold' && 'amount' in obj) {
+      const goldPile = obj as MudObject & { amount: number };
+      const amount = goldPile.amount;
+      let sizeCategory: string;
+      if (amount === 1) sizeCategory = 'single';
+      else if (amount < 10) sizeCategory = 'few';
+      else if (amount < 50) sizeCategory = 'small';
+      else if (amount < 200) sizeCategory = 'pile';
+      else if (amount < 500) sizeCategory = 'medium';
+      else if (amount < 1000) sizeCategory = 'large';
+      else if (amount < 5000) sizeCategory = 'huge';
+      else sizeCategory = 'hoard';
+      return `gold_${sizeCategory}`;
+    }
+    if (isGeneratedItem(obj)) {
+      const genData = obj.getGeneratedItemData();
+      return `generated_${genData.generatedType}_${genData.seed}`;
+    }
+    return obj.objectPath || null;
   }
 
   /**
@@ -804,6 +889,13 @@ Fill entire canvas edge to edge, no borders or margins`;
       const existing = item.getProperty('cachedImage');
       const fallback = this.getFallbackImage(itemType);
       if (typeof existing === 'string' && existing.startsWith('data:') && existing !== fallback) {
+        const existingUrl = item.getProperty('cachedImageUrl');
+        if (typeof existingUrl !== 'string') {
+          const cacheKey = this.getObjectImageCacheKey(item, itemType);
+          if (cacheKey) {
+            item.setProperty('cachedImageUrl', `/api/images/object/${cacheKey}`);
+          }
+        }
         if (existing.startsWith('data:image/png;base64,')) {
           const prefix = 'data:image/png;base64,';
           const normalized = this.stripPngAncillaryChunks(existing.slice(prefix.length));
@@ -834,6 +926,10 @@ Fill entire canvas edge to edge, no borders or margins`;
 
       // Cache on the item.
       item.setProperty('cachedImage', image);
+      const cacheKey = this.getObjectImageCacheKey(item, itemType);
+      if (cacheKey) {
+        item.setProperty('cachedImageUrl', `/api/images/object/${cacheKey}`);
+      }
     } catch {
       // Silently fail - image caching is best-effort
     }

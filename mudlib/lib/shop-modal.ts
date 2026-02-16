@@ -240,7 +240,7 @@ async function loadShopImages(
     try {
       const obj = efuns.findObject(item.itemPath);
       if (!obj) return null;
-      const image = await portraitDaemon.getObjectImage(obj, detectItemCategory(obj) as 'item');
+      const image = await portraitDaemon.getObjectImageUrl(obj, detectItemCategory(obj) as 'item');
       if (image !== fallback) {
         return { key: `item-img-${item.itemPath}`, src: image };
       }
@@ -254,7 +254,7 @@ async function loadShopImages(
     const itemObj = merchant.getSoldItemObject(item.objectId);
     if (!itemObj) return null;
     try {
-      const image = await portraitDaemon.getObjectImage(itemObj, detectItemCategory(itemObj) as 'item');
+      const image = await portraitDaemon.getObjectImageUrl(itemObj, detectItemCategory(itemObj) as 'item');
       if (image !== fallback) {
         return { key: `sold-img-${item.objectId}`, src: image };
       }
@@ -266,7 +266,7 @@ async function loadShopImages(
 
   const invPromises = (player.inventory || []).map(async (item) => {
     try {
-      const image = await portraitDaemon.getObjectImage(item, detectItemCategory(item) as 'item');
+      const image = await portraitDaemon.getObjectImageUrl(item, detectItemCategory(item) as 'item');
       if (image !== fallback) {
         return { key: `inv-img-${item.objectId}`, src: image };
       }

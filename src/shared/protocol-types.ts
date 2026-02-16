@@ -24,6 +24,7 @@ export interface MapMessage {
 export interface EquipmentSlotData {
   name: string;
   image?: string;
+  imageUrl?: string;
   itemType: 'weapon' | 'armor';
   // Tooltip data
   description?: string;
@@ -114,6 +115,7 @@ export interface EquipmentMessage {
   slots: {
     [slot: string]: {
       image: string | null;
+      imageUrl?: string;
       name: string;
     } | null;
   };
@@ -234,6 +236,7 @@ export interface CombatTargetUpdateMessage {
     name: string;
     level: number;
     portrait: string;      // SVG markup or avatar ID
+    portraitUrl?: string;
     health: number;
     maxHealth: number;
     healthPercent: number;
@@ -291,6 +294,7 @@ export interface EngageOpenMessage {
   npcName: string;
   npcPath: string;
   portrait: string;
+  portraitUrl?: string;
   alignment?: EngageAlignment;
   text?: string;
   questOffers?: EngageOption[];

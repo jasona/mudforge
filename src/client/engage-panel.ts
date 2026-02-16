@@ -89,14 +89,23 @@ export class EngagePanel {
       this.textEl.textContent = message.text || '';
     }
 
-    this.renderPortrait(message.portrait, message.npcName);
+    this.renderPortrait(message.portrait, message.npcName, message.portraitUrl);
     this.renderOptions(this.offersEl, 'Available Quests', '!', 'offer', message.questOffers || []);
     this.renderOptions(this.turnInsEl, 'Ready To Turn In', '?', 'turnin', message.questTurnIns || []);
   }
 
-  private renderPortrait(portrait: string, npcName: string): void {
+  private renderPortrait(portrait: string, npcName: string, portraitUrl?: string): void {
     if (!this.portraitEl) return;
     this.portraitEl.innerHTML = '';
+
+    if (portraitUrl) {
+      const img = document.createElement('img');
+      img.className = 'engage-portrait-img';
+      img.src = portraitUrl;
+      img.alt = npcName;
+      this.portraitEl.appendChild(img);
+      return;
+    }
 
     if (isDataUri(portrait)) {
       const img = document.createElement('img');

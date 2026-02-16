@@ -103,8 +103,13 @@ export async function execute(ctx: CommandContext): Promise<void> {
 
     // Fetch portrait for dialogue overlay, but never fail command on portrait issues.
     let portrait = portraitDaemon.getFallbackPortrait();
+    let portraitUrl: string | undefined;
     try {
       portrait = await portraitDaemon.getPortrait(npc);
+      const portraitUrlCandidate = await portraitDaemon.getPortraitUrl(npc);
+      if (portraitUrlCandidate.startsWith('/api/images/')) {
+        portraitUrl = portraitUrlCandidate;
+      }
       portrait = portraitDaemon.normalizeDataUri(portrait);
       if (portrait.length > MAX_ENGAGE_PORTRAIT_CHARS) {
         console.warn(
@@ -142,9 +147,10 @@ export async function execute(ctx: CommandContext): Promise<void> {
     }
 
     // Intro sound defaults to engageSound, then lookSound.
+    // Use discussion category so it plays with default sound settings.
     const introSound = npc.engageSound || npc.lookSound;
     if (introSound && typeof efuns !== 'undefined' && efuns.playSound) {
-      efuns.playSound(ctx.player, 'ambient', introSound);
+      efuns.playSound(ctx.player, 'discussion', introSound);
     }
 
     const text =
@@ -160,6 +166,7 @@ export async function execute(ctx: CommandContext): Promise<void> {
       npcName: npc.name,
       npcPath: npc.objectPath || npc.name,
       portrait,
+      portraitUrl,
       alignment: npc.engageAlignment,
       text,
       questOffers,
