@@ -4,6 +4,7 @@
 
 import type { MudObject } from '../../lib/std.js';
 import { getTerrain, type TerrainType, type TerrainDefinition } from '../../lib/terrain.js';
+import type { ProfessionPlayer } from '../../daemons/profession.js';
 
 interface CommandContext {
   player: MudObject;
@@ -192,10 +193,24 @@ export async function execute(ctx: CommandContext): Promise<boolean> {
     const terrainDef = getTerrain(terrainType);
 
     const playerWithAbilities = player as Player;
+    let swimmingLevel = 0;
+    let climbingLevel = 0;
+
+    // Fallback to profession skill checks when legacy ability helpers are not defined.
+    if (terrainDef.requiresSwim || terrainDef.requiresClimb) {
+      try {
+        const { getProfessionDaemon } = await import('../../daemons/profession.js');
+        const professionDaemon = getProfessionDaemon();
+        swimmingLevel = professionDaemon.getPlayerSkill(player as ProfessionPlayer, 'swimming').level;
+        climbingLevel = professionDaemon.getPlayerSkill(player as ProfessionPlayer, 'climbing').level;
+      } catch {
+        // Ignore daemon lookup errors and fall back to legacy helper methods only.
+      }
+    }
 
     // Check swim requirement
     if (terrainDef.requiresSwim) {
-      const canSwim = playerWithAbilities.canSwim?.() ?? false;
+      const canSwim = (playerWithAbilities.canSwim?.() ?? false) || swimmingLevel >= 1;
       const hasBoat = playerWithAbilities.hasBoat?.() ?? false;
       if (!canSwim && !hasBoat) {
         ctx.sendLine("{yellow}You can't enter that water - you need to know how to swim or have a boat.{/}");
@@ -205,7 +220,7 @@ export async function execute(ctx: CommandContext): Promise<boolean> {
 
     // Check climb requirement
     if (terrainDef.requiresClimb) {
-      const canClimb = playerWithAbilities.canClimb?.() ?? false;
+      const canClimb = (playerWithAbilities.canClimb?.() ?? false) || climbingLevel >= 1;
       if (!canClimb) {
         ctx.sendLine("{yellow}The terrain is too steep - you need climbing equipment or skill.{/}");
         return true;

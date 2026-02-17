@@ -73,7 +73,7 @@ function showProfessionList(
 
   for (const prof of professions) {
     const skill = allSkills.find((s) => s.professionId === prof.id);
-    const level = skill?.level || (category === 'movement' ? 1 : 0);
+    const level = skill?.level || 1;
     const xp = skill?.experience || 0;
     const xpRequired = getXPRequired(level);
     const rank = daemon.getSkillRank(level);
@@ -120,7 +120,7 @@ function showCategory(
 
   for (const prof of professions) {
     const skill = allSkills.find((s) => s.professionId === prof.id);
-    const level = skill?.level || (category === 'movement' ? 1 : 0);
+    const level = skill?.level || 1;
     const xp = skill?.experience || 0;
     const xpRequired = getXPRequired(level);
     const totalUses = skill?.totalUses || 0;
@@ -129,17 +129,13 @@ function showCategory(
     sendLine(`{bold}{yellow}${prof.name}{/} - {dim}${rank}{/}`);
     sendLine(`  ${prof.description}`);
 
-    if (level > 0) {
-      if (level >= PROFESSION_CONSTANTS.MAX_SKILL_LEVEL) {
-        sendLine(`  Level: {yellow}${level}{/} (MAX)`);
-      } else {
-        const percent = Math.floor((xp / xpRequired) * 100);
-        sendLine(`  Level: {yellow}${level}{/}  XP: ${xp}/${xpRequired} (${percent}%)`);
-      }
-      sendLine(`  Total uses: {cyan}${totalUses}{/}`);
+    if (level >= PROFESSION_CONSTANTS.MAX_SKILL_LEVEL) {
+      sendLine(`  Level: {yellow}${level}{/} (MAX)`);
     } else {
-      sendLine(`  {dim}Not yet trained{/}`);
+      const percent = Math.floor((xp / xpRequired) * 100);
+      sendLine(`  Level: {yellow}${level}{/}  XP: ${xp}/${xpRequired} (${percent}%)`);
     }
+    sendLine(`  Total uses: {cyan}${totalUses}{/}`);
 
     if (prof.toolRequired) {
       sendLine(`  Requires: ${formatToolName(prof.toolRequired)}`);

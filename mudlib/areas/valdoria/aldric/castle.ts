@@ -24,6 +24,9 @@ A weathered {yellow}notice board{/} stands beside the gate, covered in official
 proclamations and wanted posters. The town square lies to the {green}south{/}, its
 distant fountain visible past the crowds of petitioners waiting to enter.
 
+To the {green}east{/}, a practical storefront with a painted sign of crossed tools
+offers supplies for miners, herbalists, fishers, loggers, and skinners.
+
 To one side, a {dim}heavy iron grate{/} in the cobblestones marks the entrance to
 the castle {red}dungeons{/} below. A set of worn stone steps leads {green}down{/} into darkness.`;
     this.setMapCoordinates({ x: 2, y: 0, z: 0, area: '/areas/valdoria/aldric' });
@@ -39,6 +42,7 @@ the castle {red}dungeons{/} below. A set of worn stone steps leads {green}down{/
     // Exits
     this.addExit('south', '/areas/valdoria/aldric/room_5_3_0');
     this.addExit('west', '/areas/valdoria/aldric/bank');
+    this.addExit('east', '/areas/valdoria/aldric/profession_supplies');
     this.addExit('down', '/areas/valdoria/aldric_depths/entrance');
 
     // NPCs

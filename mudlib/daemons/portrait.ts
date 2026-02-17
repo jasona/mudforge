@@ -576,6 +576,27 @@ Style requirements:
   }
 
   private getObjectCacheIdentifier(obj: MudObject, type: ObjectImageType): string | null {
+    // Material items share one blueprint path; key by material identity instead.
+    if ('getProperty' in obj && typeof obj.getProperty === 'function') {
+      const materialId = obj.getProperty('materialId');
+      if (typeof materialId === 'string' && materialId.length > 0) {
+        const quality = obj.getProperty('quality');
+        const qualityPart = typeof quality === 'string' && quality.length > 0 ? quality : 'common';
+        return `material_${materialId}_${qualityPart}`;
+      }
+    }
+
+    // Resource nodes all share the same blueprint path, so cache by node definition.
+    // Include node size so small/medium/large variants can render differently.
+    if ('getProperty' in obj && typeof obj.getProperty === 'function') {
+      const nodeDefinitionId = obj.getProperty('nodeDefinitionId');
+      if (typeof nodeDefinitionId === 'string' && nodeDefinitionId.length > 0) {
+        const nodeSize = obj.getProperty('nodeSize');
+        const sizePart = typeof nodeSize === 'string' && nodeSize.length > 0 ? nodeSize : 'default';
+        return `resource_${nodeDefinitionId}_${sizePart}`;
+      }
+    }
+
     if (type === 'pet' && 'templateType' in obj) {
       const pet = obj as MudObject & { templateType: string };
       return `pet_${pet.templateType}`;

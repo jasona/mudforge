@@ -17,8 +17,8 @@ above the forest floor. The cliff face is weathered and cracked, with
 {green}vines{/} and {dim}lichens{/} clinging to its surface.
 
 Patches of {cyan}ore{/} glint in the rock where the stone has fractured,
-hinting at mineral deposits within. A narrow {dim}ledge{/} zigzags up the
-cliff face, offering a possible route for skilled climbers.
+hinting at mineral deposits within. A narrow {dim}ledge{/} zigzags {green}up{/}
+the cliff face, offering a possible route for skilled climbers.
 
 The forest trail continues to the {green}west{/}.`;
     this.setMapCoordinates({ x: 4, y: 1, z: 0, area: '/areas/valdoria/forest' });
@@ -28,7 +28,12 @@ The forest trail continues to the {green}west{/}.`;
 
   private setupRoom(): void {
     // Exits
-    this.addExit('west', '/areas/valdoria/forest/old_trail');
+    this.addExit('southwest', '/areas/valdoria/forest/old_trail');
+    this.addSkillGatedExit('up', '/areas/valdoria/forest/cliff_ledge', {
+      profession: 'climbing',
+      level: 1,
+      failMessage: 'The ledge above is too steep. You need climbing level 1.',
+    });
 
   }
 

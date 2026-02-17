@@ -31,7 +31,16 @@ You can carefully descend {green}down{/} to the cliff base.`;
 
   private setupRoom(): void {
     // Exits
-    // No exits
+    this.addSkillGatedExit('down', '/areas/valdoria/forest/cliff_base', {
+      profession: 'climbing',
+      level: 1,
+      failMessage: 'The descent is too treacherous. You need climbing level 1.',
+    });
+    this.addSkillGatedExit('north', '/areas/valdoria/forest/cliff_summit', {
+      profession: 'climbing',
+      level: 1,
+      failMessage: 'The upper cliff is too steep. You need climbing level 1.',
+    });
 
   }
 

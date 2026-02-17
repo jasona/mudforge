@@ -20,6 +20,120 @@ export class MaterialItem extends Item {
     this.longDesc = 'This is a crafting material.';
   }
 
+  override get shortDesc(): string {
+    const matDef = getMaterial(this.materialId);
+    if (!matDef) {
+      return super.shortDesc;
+    }
+
+    const qty = this.quantity;
+    const qual = this.quality;
+    const qualityPrefix = qual !== 'common' ? `${QUALITY_NAMES[qual].toLowerCase()} ` : '';
+    const color = QUALITY_COLORS[qual];
+
+    if (qty > 1) {
+      return `{${color}}${qty} ${qualityPrefix}${matDef.name}{/}`;
+    }
+
+    const article = /^[aeiou]/i.test(qualityPrefix || matDef.name) ? 'an' : 'a';
+    return `{${color}}${article} ${qualityPrefix}${matDef.name}{/}`;
+  }
+
+  override set shortDesc(value: string) {
+    super.shortDesc = value;
+  }
+
+  override get longDesc(): string {
+    const matDef = getMaterial(this.materialId);
+    if (!matDef) {
+      return super.longDesc;
+    }
+    return matDef.longDesc;
+  }
+
+  override set longDesc(value: string) {
+    super.longDesc = value;
+  }
+
+  override id(name: string): boolean {
+    if (super.id(name)) {
+      return true;
+    }
+
+    const matDef = getMaterial(this.materialId);
+    if (!matDef) {
+      return false;
+    }
+
+    const normalize = (value: string): string =>
+      value
+        .toLowerCase()
+        .replace(/\{[^}]*\}/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+    const pluralize = (word: string): string => {
+      if (word.endsWith('s')) return word;
+      if (word.endsWith('x') || word.endsWith('z') || word.endsWith('ch') || word.endsWith('sh')) {
+        return `${word}es`;
+      }
+      return `${word}s`;
+    };
+
+    const baseName = normalize(matDef.name);
+    const words = baseName.split(' ');
+    const lastWord = words[words.length - 1] || baseName;
+    const pluralLastWord = pluralize(lastWord);
+    const basePlural = baseName.endsWith(lastWord)
+      ? `${baseName.slice(0, baseName.length - lastWord.length)}${pluralLastWord}`.trim()
+      : pluralLastWord;
+    const qualityWord = this.quality !== 'common' ? QUALITY_NAMES[this.quality].toLowerCase() : '';
+
+    const candidates = new Set<string>([
+      baseName,
+      basePlural,
+      lastWord,
+      pluralLastWord,
+    ]);
+
+    if (qualityWord) {
+      candidates.add(`${qualityWord} ${baseName}`);
+      candidates.add(`${qualityWord} ${basePlural}`);
+      candidates.add(`${qualityWord} ${lastWord}`);
+      candidates.add(`${qualityWord} ${pluralLastWord}`);
+    }
+
+    if (this.quantity > 1) {
+      const qty = String(this.quantity);
+      for (const candidate of [...candidates]) {
+        candidates.add(`${qty} ${candidate}`);
+      }
+    }
+
+    const target = normalize(name);
+    if (candidates.has(target)) {
+      return true;
+    }
+
+    // Tolerate optional quantity + adjective prefixes, e.g. "3 crude logs".
+    let relaxed = target.replace(/^(\d+)\s+/, '');
+    relaxed = relaxed.replace(/^(poor|common|fine|superior|exceptional|legendary|crude)\s+/, '');
+    return candidates.has(relaxed);
+  }
+
+  override onCreate(): void {
+    super.onCreate();
+    this.syncFromProperties();
+  }
+
+  override setProperty(key: string, value: unknown): void {
+    super.setProperty(key, value);
+
+    if (key === 'materialId' || key === 'quality' || key === 'quantity') {
+      this.syncFromProperties();
+    }
+  }
+
   /**
    * Get the material definition ID.
    */
@@ -40,7 +154,7 @@ export class MaterialItem extends Item {
   set quantity(value: number) {
     const matDef = getMaterial(this.materialId);
     const maxStack = matDef?.maxStack || 1;
-    this.setProperty('quantity', Math.min(Math.max(1, value), maxStack));
+    super.setProperty('quantity', Math.min(Math.max(1, value), maxStack));
     this.updateDescription();
   }
 
@@ -161,6 +275,23 @@ export class MaterialItem extends Item {
 
     // Set quantity last (triggers description update)
     this.quantity = quantity;
+  }
+
+  private syncFromProperties(): void {
+    const materialId = this.getProperty<string>('materialId');
+    if (!materialId) {
+      return;
+    }
+
+    const matDef = getMaterial(materialId);
+    if (!matDef) {
+      return;
+    }
+
+    this.name = matDef.name.toLowerCase();
+    this.longDesc = matDef.longDesc;
+    this.ids = [materialId, matDef.name.toLowerCase(), ...matDef.name.toLowerCase().split(' ')];
+    this.updateDescription();
   }
 
   /**

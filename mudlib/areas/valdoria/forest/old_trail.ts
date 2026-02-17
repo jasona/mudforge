@@ -21,7 +21,8 @@ the remains of some unfortunate creature. The forest seems quieter
 here, as if even the birds avoid this place.
 
 The trail leads {green}west{/} toward a clearing, {green}north{/} to the
-forest edge, and {green}south{/} deeper into the shadowy woods.`;
+forest edge, and {green}south{/} deeper into the shadowy woods. A rocky
+{green}northeast{/} path climbs toward the cliffs.`;
     this.setMapCoordinates({ x: 3, y: 2, z: 0, area: '/areas/valdoria/forest' });
     this.setTerrain('forest');
     this.mapIcon = '-';
@@ -33,7 +34,11 @@ forest edge, and {green}south{/} deeper into the shadowy woods.`;
     this.addExit('west', '/areas/valdoria/forest/clearing');
     this.addExit('south', '/areas/valdoria/forest/fern_glade');
     this.addExit('east', '/areas/valdoria/forest/hunters_camp');
-    this.addExit('northeast', '/areas/valdoria/forest/cliff_base');
+    this.addSkillGatedExit('northeast', '/areas/valdoria/forest/cliff_base', {
+      profession: 'climbing',
+      level: 1,
+      failMessage: 'The rocky trail is too steep. You need climbing level 1.',
+    });
 
   }
 

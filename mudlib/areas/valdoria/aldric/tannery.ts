@@ -37,6 +37,9 @@ The {green}market square{/} lies to the {green}east{/}.`;
     // Exits
     this.addExit('south', '/areas/valdoria/aldric/room_3_4_0');
 
+    // Crafting station
+    this.setItems(['/areas/valdoria/aldric/items/tanning_rack_station']);
+
     // NPCs
     this.setNpcs(['/areas/valdoria/aldric/tanner']);
   }

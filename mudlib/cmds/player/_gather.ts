@@ -31,11 +31,9 @@ export async function execute(ctx: CommandContext): Promise<void> {
   // Get the target argument
   const target = args.trim().toLowerCase();
 
-  // Find nodes in the room
-  const roomContents = room.getProperty<MudObject[]>('contents') || [];
+  // Find nodes in the room.
   const nodes: ResourceNode[] = [];
-
-  for (const item of roomContents) {
+  for (const item of room.inventory) {
     if (item instanceof ResourceNode) {
       nodes.push(item);
     }
@@ -49,13 +47,7 @@ export async function execute(ctx: CommandContext): Promise<void> {
     }
   }
 
-  // Filter out hidden nodes that player hasn't discovered
-  const visibleNodes = nodes.filter((node) => {
-    if (!node.isHidden) return true;
-    const nodeDef = node.definition;
-    if (!nodeDef) return false;
-    return professionDaemon.hasDiscoveredNode(player, nodeDef.id);
-  });
+  const visibleNodes = nodes;
 
   // If no target specified, list available nodes
   if (!target && verb === 'gather') {
@@ -108,24 +100,27 @@ export async function execute(ctx: CommandContext): Promise<void> {
   if (verb !== 'gather' && verbProfessionMap[verb]) {
     // Find a node matching this profession
     const professionId = verbProfessionMap[verb];
-
-    for (const node of visibleNodes) {
+    const professionNodes = nodes.filter((node) => {
       const nodeDef = node.definition;
-      if (nodeDef?.gatherProfession === professionId) {
-        // If target specified, check if it matches
-        if (target) {
-          if (
-            node.name.toLowerCase().includes(target) ||
-            node.ids?.some((id) => id.toLowerCase().includes(target))
-          ) {
-            targetNode = node;
-            break;
-          }
-        } else {
-          // Use first matching node
+      return nodeDef?.gatherProfession === professionId;
+    });
+    const visibleProfessionNodes = visibleNodes.filter((node) => {
+      const nodeDef = node.definition;
+      return nodeDef?.gatherProfession === professionId;
+    });
+
+    const candidateNodes = target ? professionNodes : (visibleProfessionNodes.length > 0 ? visibleProfessionNodes : professionNodes);
+    for (const node of candidateNodes) {
+      // If target specified, check if it matches
+      if (target) {
+        if (node.id(target)) {
           targetNode = node;
           break;
         }
+      } else {
+        // Use first matching node
+        targetNode = node;
+        break;
       }
     }
 
@@ -141,10 +136,7 @@ export async function execute(ctx: CommandContext): Promise<void> {
     if (!targetNode) {
       // Also search visible nodes
       for (const node of visibleNodes) {
-        if (
-          node.name.toLowerCase().includes(target) ||
-          node.ids?.some((id) => id.toLowerCase().includes(target))
-        ) {
+        if (node.id(target)) {
           targetNode = node;
           break;
         }
@@ -172,10 +164,10 @@ export async function execute(ctx: CommandContext): Promise<void> {
   }
 
   // Show gathering message
-  const nodeDef = targetNode.definition;
-  if (nodeDef) {
-    const profession = PROFESSION_DEFINITIONS[nodeDef.gatherProfession];
-    send(`You begin ${getGatheringVerb(nodeDef.gatherProfession)} ${targetNode.shortDesc}...`);
+  const selectedNodeDef = targetNode.definition;
+  if (selectedNodeDef) {
+    const profession = PROFESSION_DEFINITIONS[selectedNodeDef.gatherProfession];
+    send(`You begin ${getGatheringVerb(selectedNodeDef.gatherProfession)} ${targetNode.shortDesc}...`);
 
     // Small delay for flavor (non-blocking)
     await new Promise((resolve) => setTimeout(resolve, 500));
@@ -239,8 +231,5 @@ function getHighestGatheringSkill(
 
   return highestProfession;
 }
-
-// Import MudObject type
-import type { MudObject } from '../../std/object.js';
 
 export default { name, description, usage, execute };

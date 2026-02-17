@@ -317,7 +317,7 @@ export const RESOURCE_NODE_DEFINITIONS: Record<string, ResourceNodeDefinition> =
     name: 'River Bend',
     nodeType: 'fishing_spot',
     gatherProfession: 'fishing',
-    levelRequired: 10,
+    levelRequired: 1,
     materials: [
       { materialId: 'small_fish', weight: 40, minQuantity: 1, maxQuantity: 2 },
       { materialId: 'trout', weight: 60, minQuantity: 1, maxQuantity: 1 },
