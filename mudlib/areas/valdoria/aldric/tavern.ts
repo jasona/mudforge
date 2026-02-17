@@ -40,10 +40,14 @@ The exit to the town square lies to the {green}west{/}.`;
     // Exits
     this.addExit('south', '/areas/valdoria/aldric/room_7_4_0');
 
+    // Crafting station
+    this.setItems(['/areas/valdoria/aldric/items/cooking_fire_station']);
+
   }
 
   // Preserved custom methods
   override async onCreate(): Promise<void> {
+        await super.onCreate();
         console.log('[Tavern] The Foaming Flagon has been initialized.');
       }
 

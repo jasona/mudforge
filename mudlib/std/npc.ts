@@ -9,6 +9,7 @@ import { Living, type StatName } from './living.js';
 import { MudObject } from './object.js';
 import { Room } from './room.js';
 import { Corpse } from './corpse.js';
+import { ResourceNode } from './profession/resource-node.js';
 import { getCombatDaemon } from '../daemons/combat.js';
 import type { NPCCombatConfig, LootEntry, GoldDrop, NaturalAttack, ThreatEntry } from './combat/types.js';
 import { NATURAL_ATTACKS } from './combat/types.js';
@@ -1645,6 +1646,7 @@ export class NPC extends Living {
       // Move corpse to death location
       if (deathRoom) {
         await corpse.moveTo(deathRoom);
+        await this.spawnSkinningNode(deathRoom);
       }
 
       // Start decay timer
@@ -1816,6 +1818,29 @@ export class NPC extends Living {
           });
         }, 1000);
       }
+    }
+  }
+
+  private async spawnSkinningNode(room: MudObject): Promise<void> {
+    if (this.engageKind !== 'creature') {
+      return;
+    }
+
+    let nodeDefId = 'small_beast_corpse';
+    if (this.level >= 55) {
+      nodeDefId = 'elite_beast_corpse';
+    } else if (this.level >= 40) {
+      nodeDefId = 'large_beast_corpse';
+    } else if (this.level >= 25) {
+      nodeDefId = 'medium_beast_corpse';
+    }
+
+    try {
+      const node = new ResourceNode();
+      node.initFromDefinition(nodeDefId);
+      await node.moveTo(room);
+    } catch (error) {
+      console.error(`[NPC] Failed to spawn skinning node for ${this.name}:`, error);
     }
   }
 

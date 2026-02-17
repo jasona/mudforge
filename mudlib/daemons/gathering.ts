@@ -9,7 +9,6 @@ import { ResourceNode } from '../std/profession/resource-node.js';
 import type { ProfessionId, GatherResult, MaterialQuality } from '../std/profession/types.js';
 import { PROFESSION_DEFINITIONS } from '../std/profession/definitions.js';
 import { getMaterial } from '../std/profession/materials.js';
-import { getResourceNode } from '../std/profession/resource-nodes.js';
 import { getProfessionDaemon, type ProfessionPlayer } from './profession.js';
 
 // Singleton instance
@@ -80,9 +79,8 @@ export class GatheringDaemon extends MudObject {
     const roomPath = room.objectPath;
     const nodes = this.getNodesInRoom(roomPath);
 
-    // Also check room contents for ResourceNode instances
-    const contents = room.getProperty<MudObject[]>('contents') || [];
-    for (const item of contents) {
+    // Also check live room inventory for ResourceNode instances.
+    for (const item of room.inventory) {
       if (item instanceof ResourceNode) {
         if (!nodes.includes(item)) {
           nodes.push(item);
@@ -93,10 +91,7 @@ export class GatheringDaemon extends MudObject {
     // Match by keyword
     const lowerKeyword = keyword.toLowerCase();
     for (const node of nodes) {
-      if (
-        node.name.toLowerCase().includes(lowerKeyword) ||
-        (node.ids && node.ids.some((id) => id.toLowerCase().includes(lowerKeyword)))
-      ) {
+      if (node.id(lowerKeyword)) {
         return node;
       }
     }
@@ -119,27 +114,12 @@ export class GatheringDaemon extends MudObject {
       return { success: false, message: 'This cannot be gathered.' };
     }
 
-    // Check if hidden and not discovered
-    if (nodeDef.hidden) {
-      if (!professionDaemon.hasDiscoveredNode(player, nodeDef.id)) {
-        // Check if player can discover it
-        const skill = professionDaemon.getPlayerSkill(player, nodeDef.gatherProfession);
-        if (skill.level >= (nodeDef.discoverLevel || nodeDef.levelRequired)) {
-          // Discover it!
-          professionDaemon.discoverNode(player, nodeDef.id);
-        } else {
-          return { success: false, message: 'You don\'t notice anything gatherable here.' };
-        }
-      }
-    }
-
     // Check profession and level
     const skill = professionDaemon.getPlayerSkill(player, nodeDef.gatherProfession);
     if (skill.level < nodeDef.levelRequired) {
-      const profession = PROFESSION_DEFINITIONS[nodeDef.gatherProfession];
       return {
         success: false,
-        message: `You need ${profession.name} level ${nodeDef.levelRequired} to gather this. You are level ${skill.level}.`,
+        message: `You can't ${this.getGatherAction(nodeDef.gatherProfession)} this until level ${nodeDef.levelRequired}.`,
       };
     }
 
@@ -333,6 +313,17 @@ export class GatheringDaemon extends MudObject {
     }
 
     return null;
+  }
+
+  private getGatherAction(professionId: ProfessionId): string {
+    const actions: Partial<Record<ProfessionId, string>> = {
+      mining: 'mine',
+      herbalism: 'harvest',
+      fishing: 'fish',
+      logging: 'chop',
+      skinning: 'skin',
+    };
+    return actions[professionId] || 'gather';
   }
 }
 

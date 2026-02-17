@@ -36,6 +36,7 @@ A narrow alley leads {green}south{/} back to the market square.`;
   private setupRoom(): void {
     // Exits
     this.addExit('north', '/areas/valdoria/aldric/room_7_4_0');
+    this.addExit('down', '/areas/valdoria/aldric/bakery_cellar');
 
     // NPCs
     this.setNpcs(['/areas/valdoria/aldric/baker']);

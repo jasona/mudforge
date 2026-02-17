@@ -45,6 +45,12 @@ salt and fish mingles with the market's aromas.`;
     this.addExit('north', '/areas/valdoria/aldric/room_6_4_0');
     this.addExit('southwest', '/areas/valdoria/harbor/dock');
 
+    // Crafting stations (Thaddeus and jeweler storefronts)
+    this.setItems([
+      '/areas/valdoria/aldric/items/alchemy_table_station',
+      '/areas/valdoria/aldric/items/jeweler_bench_station',
+    ]);
+
     // NPCs
     this.setNpcs(['/areas/valdoria/aldric/merchant', '/areas/valdoria/aldric/food_vendor', '/areas/valdoria/aldric/alchemist']);
   }

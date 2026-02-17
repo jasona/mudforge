@@ -409,6 +409,8 @@ export interface LevelUpResult {
 export const PROFESSION_CONSTANTS = {
   /** Maximum profession skill level */
   MAX_SKILL_LEVEL: 100,
+  /** Default starting level for all professions */
+  PROFESSION_STARTING_LEVEL: 1,
   /** Default starting level for movement skills */
   MOVEMENT_STARTING_LEVEL: 1,
   /** XP bonus for challenging content (node/recipe above skill level) */

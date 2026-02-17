@@ -99,9 +99,9 @@ export class ProfessionDaemon extends MudObject {
     let skill = data.skills.find((s) => s.professionId === professionId);
 
     if (!skill) {
-      const profession = PROFESSION_DEFINITIONS[professionId];
-      // Movement skills start at level 1 (everyone can do basics)
-      const startingLevel = profession?.category === 'movement' ? PROFESSION_CONSTANTS.MOVEMENT_STARTING_LEVEL : 0;
+      // All professions start at level 1 so new players can immediately use
+      // baseline crafting/gathering/movement actions.
+      const startingLevel = PROFESSION_CONSTANTS.PROFESSION_STARTING_LEVEL;
 
       skill = {
         professionId,
@@ -110,6 +110,11 @@ export class ProfessionDaemon extends MudObject {
         totalUses: 0,
       };
       data.skills.push(skill);
+      this.savePlayerData(player, data);
+    } else if (skill.level < PROFESSION_CONSTANTS.PROFESSION_STARTING_LEVEL) {
+      // Migration: upgrade legacy level-0 profession records to new baseline.
+      skill.level = PROFESSION_CONSTANTS.PROFESSION_STARTING_LEVEL;
+      skill.experience = Math.max(0, skill.experience);
       this.savePlayerData(player, data);
     }
 

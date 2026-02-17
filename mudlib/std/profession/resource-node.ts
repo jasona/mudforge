@@ -30,10 +30,22 @@ export interface NodeState {
   respawnTime: number; // Time per capacity point to respawn
 }
 
+type NodeSize = 'small' | 'medium' | 'large';
+
+const NODE_SIZE_CONFIG: Record<NodeSize, { label: string; capacityMult: number; quantityMult: number; weight: number }> = {
+  small: { label: 'small', capacityMult: 0.75, quantityMult: 0.75, weight: 35 },
+  medium: { label: 'medium', capacityMult: 1.0, quantityMult: 1.0, weight: 45 },
+  large: { label: 'large', capacityMult: 1.5, quantityMult: 1.5, weight: 20 },
+};
+
 /**
  * ResourceNode class for gatherable world objects.
  */
 export class ResourceNode extends MudObject {
+  // Resource nodes are world fixtures, not lootable objects.
+  // Reset cleanup skips non-takeable objects.
+  takeable: boolean = false;
+
   private _nodeDefinitionId: string = '';
   private _state: NodeState = {
     currentCapacity: 0,
@@ -62,18 +74,31 @@ export class ResourceNode extends MudObject {
     this.shortDesc = def.shortDesc;
     this.longDesc = def.longDesc;
 
+    const size = this.rollNodeSize();
+    const sizeCfg = NODE_SIZE_CONFIG[size];
+    const scaledCapacity = Math.max(1, Math.round(def.capacity * sizeCfg.capacityMult));
+
     this._state = {
-      currentCapacity: def.capacity,
-      maxCapacity: def.capacity,
+      currentCapacity: scaledCapacity,
+      maxCapacity: scaledCapacity,
       lastGatherTime: 0,
       respawnTime: def.respawnTime,
     };
 
     // Store definition ID as property for persistence
     this.setProperty('nodeDefinitionId', definitionId);
+    this.setProperty('nodeSize', size);
 
-    // Add keywords for matching
-    this.ids = [this.name, ...def.name.toLowerCase().split(' ')];
+    // Add keywords for matching.
+    const ids = new Set<string>([this.name, ...def.name.toLowerCase().split(' ')]);
+    if (def.nodeType === 'corpse') {
+      ids.add('corpse');
+      ids.add('carcass');
+      ids.add('remains');
+      ids.add('hide');
+    }
+    this.setIds([...ids]);
+    this.shortDesc = this.formatSizeShortDesc(def.shortDesc, size);
   }
 
   /**
@@ -134,6 +159,14 @@ export class ResourceNode extends MudObject {
     return this.definition?.hidden || false;
   }
 
+  get nodeSize(): NodeSize {
+    const stored = this.getProperty<NodeSize>('nodeSize');
+    if (stored === 'small' || stored === 'medium' || stored === 'large') {
+      return stored;
+    }
+    return 'medium';
+  }
+
   /**
    * Get level required to discover this node.
    */
@@ -161,6 +194,7 @@ export class ResourceNode extends MudObject {
    */
   processRespawn(): void {
     if (this._state.currentCapacity >= this._state.maxCapacity) return;
+    if (this._state.respawnTime <= 0) return;
 
     const now = Date.now();
     const timeSinceLastGather = (now - this._state.lastGatherTime) / 1000;
@@ -233,6 +267,23 @@ export class ResourceNode extends MudObject {
     this._state.currentCapacity--;
     this._state.lastGatherTime = Date.now();
 
+    // Corpse nodes are single-use and should disappear once skinned.
+    if (def.nodeType === 'corpse' && this._state.currentCapacity <= 0) {
+      try {
+        if (typeof efuns !== 'undefined' && efuns.callOut && efuns.destruct) {
+          efuns.callOut(() => {
+            try {
+              efuns.destruct?.(this);
+            } catch {
+              // Ignore cleanup errors
+            }
+          }, 0);
+        }
+      } catch {
+        // Ignore cleanup errors
+      }
+    }
+
     // Calculate XP
     const profession = PROFESSION_DEFINITIONS[def.gatherProfession];
     let xpGained = profession.baseXPPerUse;
@@ -286,9 +337,11 @@ export class ResourceNode extends MudObject {
       accumulated += drop.weight;
       if (roll < accumulated) {
         // Selected this drop
-        const quantity = Math.floor(
+        const baseQuantity = Math.floor(
           Math.random() * (drop.maxQuantity - drop.minQuantity + 1) + drop.minQuantity
         );
+        const sizeCfg = NODE_SIZE_CONFIG[this.nodeSize];
+        const quantity = Math.max(1, Math.round(baseQuantity * sizeCfg.quantityMult));
 
         // Calculate quality based on skill vs node level and stat
         const quality = this.calculateGatherQuality(playerLevel, nodeLevel, primaryStat);
@@ -359,10 +412,33 @@ export class ResourceNode extends MudObject {
 
     viewer.receive(`${this.longDesc}\n`);
     viewer.receive(`State: ${this.getStateDescription()}\n`);
+    viewer.receive(`Size: {cyan}${NODE_SIZE_CONFIG[this.nodeSize].label}{/}\n`);
     viewer.receive(`{dim}Requires: ${PROFESSION_DEFINITIONS[def.gatherProfession].name} level ${def.levelRequired}{/}\n`);
     if (def.toolRequired) {
       viewer.receive(`{dim}Tool: ${def.toolRequired.replace('_', ' ')}{/}\n`);
     }
+  }
+
+  private rollNodeSize(): NodeSize {
+    const roll = Math.random() * 100;
+    let acc = 0;
+    for (const size of ['small', 'medium', 'large'] as const) {
+      acc += NODE_SIZE_CONFIG[size].weight;
+      if (roll < acc) return size;
+    }
+    return 'medium';
+  }
+
+  private formatSizeShortDesc(base: string, size: NodeSize): string {
+    if (size === 'medium') return base;
+
+    const stripped = base.replace(/^(a|an)\s+/i, '');
+    if (/^some\s+/i.test(base)) {
+      return base.replace(/^some\s+/i, `some ${size} `);
+    }
+
+    const article = /^[aeiou]/i.test(size) ? 'an' : 'a';
+    return `${article} ${size} ${stripped}`;
   }
 }
 

@@ -41,6 +41,12 @@ A doorway to the {green}southeast{/} leads back to the market square.`;
     // Exits
     this.addExit('south', '/areas/valdoria/aldric/room_4_4_0');
 
+    // Crafting stations
+    this.setItems([
+      '/areas/valdoria/aldric/items/forge_station',
+      '/areas/valdoria/aldric/items/workbench_station',
+    ]);
+
     // NPCs
     this.setNpcs(['/areas/valdoria/aldric/blacksmith']);
   }

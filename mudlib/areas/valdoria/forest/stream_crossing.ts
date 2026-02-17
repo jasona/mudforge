@@ -33,6 +33,11 @@ The path continues to the {green}east{/} along the stream bank.
   private setupRoom(): void {
     // Exits
     this.addExit('east', '/areas/valdoria/forest/brambles');
+    this.addSkillGatedExit('west', '/areas/valdoria/forest/pond_shallows', {
+      profession: 'swimming',
+      level: 1,
+      failMessage: 'You need swimming level 1 to enter the pond safely.',
+    });
 
   }
 
