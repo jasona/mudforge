@@ -6,15 +6,39 @@ Daemons are background services that provide global functionality to the MUD. Th
 
 ```
 mudlib/daemons/
-├── login.ts      # Player authentication and session management
-├── channels.ts   # Communication channels
-├── help.ts       # Help system
-├── admin.ts      # Administration functions
-├── config.ts     # Mud-wide configuration settings
-├── combat.ts     # Combat system management
-├── quest.ts      # Quest system management
-├── lore.ts       # World lore registry for AI integration
-└── discord.ts    # Discord channel bridge
+├── login.ts        # Player authentication and session management
+├── channels.ts     # Communication channels
+├── help.ts         # Help system
+├── admin.ts        # Administration functions
+├── config.ts       # Mud-wide configuration settings
+├── combat.ts       # Combat system management
+├── quest.ts        # Quest system management
+├── guild.ts        # Multi-guild system with skills and levels
+├── lore.ts         # World lore registry for AI integration
+├── discord.ts      # Discord channel bridge
+├── area.ts         # Draft area builder with grid layout
+├── time.ts         # In-game day/night cycle
+├── reset.ts        # Periodic room resets and NPC respawns
+├── map.ts          # Map/minimap generation
+├── loot.ts         # Random loot generation with quality tiers
+├── race.ts         # Race definitions and latent abilities
+├── profession.ts   # Profession/crafting skill tracking
+├── gathering.ts    # Resource gathering nodes
+├── party.ts        # Party grouping and auto-assist
+├── pet.ts          # Pet summoning and management
+├── mercenary.ts    # Mercenary hiring system
+├── portrait.ts     # AI character portrait generation with caching
+├── tutorial.ts     # New player tutorial progression
+├── bots.ts         # Simulated player bots
+├── behavior.ts     # NPC behavior script management
+├── aggro.ts        # NPC grudge/threat memory
+├── announcement.ts # System announcements
+├── snoop.ts        # Admin snooping utility
+├── soul.ts         # Emote/social action system
+├── vehicle.ts      # Vehicle system
+├── intermud.ts     # Intermud 3 protocol (TCP)
+├── intermud2.ts    # Intermud 2 protocol (UDP)
+└── grapevine.ts    # Grapevine cross-MUD network (WebSocket)
 ```
 
 ## Login Daemon
@@ -583,6 +607,408 @@ lore tags                         # List all tags
 ```
 
 See [Commands Reference](commands.md#lore) for details.
+
+## Guild Daemon
+
+The guild daemon manages the multi-guild system with skills, levels, XP, and passive modifiers.
+
+### Location
+
+`/mudlib/daemons/guild.ts`
+
+### Responsibilities
+
+- Guild membership and level tracking
+- Skill definitions and advancement
+- XP awards and level-up requirements
+- Passive stat modifiers applied on login
+- Guild-specific commands and abilities
+
+See [Guilds](guilds.md) for full documentation.
+
+## Combat Daemon
+
+The combat daemon orchestrates all combat in the game.
+
+### Location
+
+`/mudlib/daemons/combat.ts`
+
+### Responsibilities
+
+- Combat round scheduling (1-5s dynamic intervals)
+- Hit/dodge/parry/riposte/block resolution
+- Threat calculation and target selection
+- Death handling and corpse creation
+
+See [Combat](combat.md) for full documentation.
+
+## Quest Daemon
+
+The quest daemon tracks quest definitions, player progress, and reward distribution.
+
+### Location
+
+`/mudlib/daemons/quest.ts`
+
+### Responsibilities
+
+- Quest definitions with kill/fetch/explore/deliver/talk/escort/custom objectives
+- Player quest state tracking
+- Reward distribution (XP, quest points, gold, items, guild XP)
+- Quest panel updates via protocol messages
+
+See [Quests](quests.md) for full documentation.
+
+## Time Daemon
+
+The time daemon manages the in-game day/night cycle with four phases: dawn, day, dusk, and night.
+
+### Location
+
+`/mudlib/daemons/time.ts`
+
+### Responsibilities
+
+- Game clock with configurable cycle duration (default 60 real minutes = 24 game hours)
+- Phase transitions with light modifiers for outdoor rooms
+- GAMETIME protocol messages to update client sky/clock panels
+
+See [Sky and Time Display](sky-and-time-display.md) for full documentation.
+
+## Portrait Daemon
+
+The portrait daemon generates and caches AI-created images for NPCs, players, and items.
+
+### Location
+
+`/mudlib/daemons/portrait.ts`
+
+### Responsibilities
+
+- AI image generation via Gemini
+- Three-tier caching (memory, disk, HTTP)
+- Fallback SVG silhouettes
+- Object image support for weapons, armor, containers, items
+
+See [Portraits](portraits.md) for full documentation.
+
+## Profession Daemon
+
+The profession daemon tracks player crafting, gathering, and movement skill progression.
+
+### Location
+
+`/mudlib/daemons/profession.ts`
+
+### Responsibilities
+
+- Profession level and XP tracking
+- Skill rank calculations
+- Recipe availability based on skill level
+- Tool and station requirements
+
+See [Professions](professions.md) for full documentation.
+
+## Gathering Daemon
+
+The gathering daemon manages resource nodes and the gathering skill check system.
+
+### Location
+
+`/mudlib/daemons/gathering.ts`
+
+### Responsibilities
+
+- Resource node definitions and placement
+- Gather attempt resolution (skill checks, yields)
+- XP awards for successful gathering
+
+See [Professions](professions.md) for related documentation.
+
+## Tutorial Daemon
+
+The tutorial daemon manages new player tutorial progression and special engage content.
+
+### Location
+
+`/mudlib/daemons/tutorial.ts`
+
+### Responsibilities
+
+- Tutorial step tracking per player
+- Special engage content for tutorial NPCs
+- Progression gating and completion tracking
+
+## Bot Daemon
+
+The bot daemon manages simulated player bots that populate the game world.
+
+### Location
+
+`/mudlib/daemons/bots.ts`
+
+### Responsibilities
+
+- Bot creation with AI-generated personalities
+- Bot login/logout and lifecycle management
+- Bot behavior (roaming, chatting, NPC interaction)
+- Configurable maximum bot count
+
+Managed via the `botadmin` admin command. See [Commands](commands.md#botadmin) for details.
+
+## Area Daemon
+
+The area daemon provides a draft area builder with grid layout and publish-to-files system.
+
+### Location
+
+`/mudlib/daemons/area.ts`
+
+### Responsibilities
+
+- Grid-based area layout editing
+- Room, NPC, and item template generation
+- Publishing draft areas to the file system
+
+## Reset Daemon
+
+The reset daemon periodically resets rooms to their initial state.
+
+### Location
+
+`/mudlib/daemons/reset.ts`
+
+### Responsibilities
+
+- Periodic room resets (default 15 minute interval)
+- Respawning missing items and NPCs
+- Reset scheduling and tracking
+
+## Map Daemon
+
+The map daemon generates map and minimap data for client display.
+
+### Location
+
+`/mudlib/daemons/map.ts`
+
+### Responsibilities
+
+- Map data generation for explored areas
+- Minimap rendering data
+
+See [Map Navigation](map-navigation.md) for related documentation.
+
+## Loot Daemon
+
+The loot daemon generates random loot drops for NPCs with quality tiers and enchantments.
+
+### Location
+
+`/mudlib/daemons/loot.ts`
+
+### Responsibilities
+
+- Random loot table resolution
+- Quality tier assignment (common through legendary)
+- Affix and enchantment generation
+
+See [Random Loot](random-loot.md) for full documentation.
+
+## Race Daemon
+
+The race daemon manages race definitions and racial abilities.
+
+### Location
+
+`/mudlib/daemons/race.ts`
+
+### Responsibilities
+
+- Race stat bonuses and penalties
+- Latent racial abilities applied on login
+- Race data for character creation
+
+See [Races](races.md) for full documentation.
+
+## Party Daemon
+
+The party daemon manages player grouping and auto-assist combat.
+
+### Location
+
+`/mudlib/daemons/party.ts`
+
+### Responsibilities
+
+- Party creation, invitation, and membership
+- Auto-assist in combat
+- XP sharing between party members
+
+See [Party System](party-system.md) for full documentation.
+
+## Pet Daemon
+
+The pet daemon manages pet summoning, behavior, and persistence.
+
+### Location
+
+`/mudlib/daemons/pet.ts`
+
+### Responsibilities
+
+- Pet template definitions
+- Pet summoning and dismissal
+- Pet behavior and following
+
+See [Pets](pets.md) for full documentation.
+
+## Mercenary Daemon
+
+The mercenary daemon manages hireable mercenary NPCs.
+
+### Location
+
+`/mudlib/daemons/mercenary.ts`
+
+### Responsibilities
+
+- Mercenary hiring and dismissal
+- Mercenary combat AI
+- Contract duration and cost
+
+See [Mercenaries](mercenaries.md) for full documentation.
+
+## Behavior Daemon
+
+The behavior daemon manages NPC behavior scripts and combat AI.
+
+### Location
+
+`/mudlib/daemons/behavior.ts`
+
+### Responsibilities
+
+- Behavior script loading and execution
+- Combat skill selection AI
+- NPC behavior state management
+
+## Aggro Daemon
+
+The aggro daemon maintains NPC grudge and threat memory.
+
+### Location
+
+`/mudlib/daemons/aggro.ts`
+
+### Responsibilities
+
+- Persistent threat memory (24-hour expiry)
+- NPC grudge tracking across sessions
+- Threat-based aggression triggers
+
+See [Aggro & Threat](aggro-threat.md) for full documentation.
+
+## Announcement Daemon
+
+The announcement daemon manages system-wide announcements displayed on the login screen.
+
+### Location
+
+`/mudlib/daemons/announcement.ts`
+
+### Responsibilities
+
+- Announcement creation and storage
+- Latest announcement display on launcher
+- Announcement history
+
+## Snoop Daemon
+
+The snoop daemon provides admin snooping capability to monitor player activity.
+
+### Location
+
+`/mudlib/daemons/snoop.ts`
+
+### Responsibilities
+
+- Admin can monitor another player's input/output
+- Snoop session management
+
+## Soul Daemon
+
+The soul daemon provides the emote and social action system.
+
+### Location
+
+`/mudlib/daemons/soul.ts`
+
+### Responsibilities
+
+- Emote definitions (targeted and untargeted)
+- Social action resolution
+- Emote listing and discovery
+
+## Vehicle Daemon
+
+The vehicle daemon manages the vehicle system for player transportation.
+
+### Location
+
+`/mudlib/daemons/vehicle.ts`
+
+### Responsibilities
+
+- Vehicle definitions and behavior
+- Boarding and disembarking
+- Vehicle movement and routes
+
+See [Vehicles](vehicles.md) for full documentation.
+
+## Intermud Daemon
+
+The intermud daemon connects to the Intermud 3 network via TCP for cross-MUD communication.
+
+### Location
+
+`/mudlib/daemons/intermud.ts`
+
+### Responsibilities
+
+- I3 protocol implementation (TCP)
+- Cross-MUD channel messaging
+- MUD directory and who lists
+
+See [Intermud](intermud.md) for full documentation.
+
+## Intermud 2 Daemon
+
+The intermud2 daemon implements the older Intermud 2 protocol via UDP.
+
+### Location
+
+`/mudlib/daemons/intermud2.ts`
+
+### Responsibilities
+
+- I2 protocol implementation (UDP)
+- Legacy cross-MUD communication
+
+## Grapevine Daemon
+
+The grapevine daemon connects to the Grapevine cross-MUD network via WebSocket.
+
+### Location
+
+`/mudlib/daemons/grapevine.ts`
+
+### Responsibilities
+
+- Grapevine protocol implementation (WebSocket)
+- Cross-MUD channel messaging
+- Player presence sharing
 
 ---
 

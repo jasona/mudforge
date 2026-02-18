@@ -38,6 +38,7 @@ It focuses on message type, trigger source, cadence/frequency, payload syntax, a
 | `\x00[SESSION]` | `Session*Message` | `session-message` | Session/reconnect state | Driver session resume/token flow | On resume attempts and token issuance |
 | `\x00[TIME]` | `TimeMessage` | `time-message` | Clock/debug latency/version checks | `server` heartbeat -> `connection.sendTime()` | Every server heartbeat (default 10s) |
 | `\x00[TIME_PONG]` | raw timestamp string | `time-pong` | Latency metric only | `connection.sendTimePong()` in response to client `TIME_ACK` | Per received `TIME`/`TIME_ACK` cycle |
+| `\x00[ENGAGE]` | `EngageMessage` | `engage-message` | Engage dialogue panel | `player.sendEngage()` from `_engage.ts` command | On demand (player engages NPC) |
 | `\x00[GAMETIME]` | `GameTimeMessage` | `gametime-message` | Sky/day-night UI | `efuns.sendGameTime()` from login + time daemon phase changes | On login/reconnect and phase transitions |
 
 ## Detailed Notes By Message
@@ -162,6 +163,29 @@ It focuses on message type, trigger source, cadence/frequency, payload syntax, a
   - `hide`.
 - Triggered by channel GIF-sharing flows and explicit close events.
 
+### `ENGAGE`
+
+- Sender: `player.sendEngage(message)` from `_engage.ts` command.
+- Message subtypes:
+  - `open`: Full NPC dialogue payload with portrait, greeting text, quest data, and action buttons.
+  - `close`: Close the dialogue panel.
+  - `loading`: Show/hide loading overlay with optional message and progress.
+- Payload fields (open):
+  - `npcName`, `npcPath`: NPC identity.
+  - `portrait`: Data URI (base64 image or SVG) or avatar ID.
+  - `portraitUrl`: Optional HTTP URL for lazy-loading (`/api/images/portrait/<hash>`).
+  - `alignment`: Panel positioning (`{vertical, horizontal}` or `'centered'`).
+  - `text`: Greeting text with color codes rendered.
+  - `actions`, `questLog`, `questDetails`, `questOffers`, `questTurnIns`: Structured quest and action data.
+- Size considerations:
+  - Portrait data can be large (up to `MAX_ENGAGE_PORTRAIT_CHARS = 2,400,000` chars).
+  - Oversized portraits are replaced with fallback SVG silhouette before sending.
+  - When `portraitUrl` is available, client can lazy-load portrait via HTTP instead of inline data.
+- Client routing: `engage-message` -> `engagePanel`.
+- Keyboard: Escape closes the panel.
+
+See [Engage System](engage-system.md) for full documentation.
+
 ## Client Routing Summary
 
 `src/client/client.ts` binds protocol events to UI handlers:
@@ -173,6 +197,7 @@ It focuses on message type, trigger source, cadence/frequency, payload syntax, a
 - `quest-message` -> `questPanel`
 - `comm-message` -> `commPanel`
 - `combat-message` -> `combatPanel`
+- `engage-message` -> `engagePanel`
 - `sound-message` -> `soundPanel`
 - `giphy-message` -> `giphyPanel`
 - `time-message` -> `clockPanel` (+ debug latency/version checks)
