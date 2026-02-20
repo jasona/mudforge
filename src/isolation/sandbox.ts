@@ -6,6 +6,9 @@
  */
 
 import ivm from 'isolated-vm';
+import { getLogger } from '../driver/logger.js';
+
+const logger = getLogger();
 
 export interface ExposedFunction {
   /** The function name to expose in the sandbox */
@@ -60,7 +63,7 @@ export class Sandbox {
     const createLogFn = (level: string) => {
       return new ivm.Callback((...args: unknown[]) => {
         const message = args.map((a) => String(a)).join(' ');
-        console.log(`[sandbox:${level}]`, message);
+        logger.debug({ sandboxLevel: level }, message);
       });
     };
 

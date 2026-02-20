@@ -14,6 +14,9 @@ import {
   SHADOW_PROXY_MARKER,
   SHADOW_ORIGINAL,
 } from './shadow-types.js';
+import { getLogger } from './logger.js';
+
+const logger = getLogger();
 
 /**
  * Properties that can be shadowed and need getter interception.
@@ -327,7 +330,7 @@ export class ShadowRegistry {
       try {
         await shadow.onAttach(shadow.target);
       } catch (error) {
-        console.error(`[ShadowRegistry] Error in onAttach for shadow ${shadow.shadowId}:`, error);
+        logger.error({ error, shadowId: shadow.shadowId }, 'Error in onAttach for shadow');
       }
     }
 
@@ -363,7 +366,7 @@ export class ShadowRegistry {
       try {
         await shadow.onDetach(shadow.target);
       } catch (error) {
-        console.error(`[ShadowRegistry] Error in onDetach for shadow ${shadow.shadowId}:`, error);
+        logger.error({ error, shadowId: shadow.shadowId }, 'Error in onDetach for shadow');
       }
     }
 
@@ -435,7 +438,7 @@ export class ShadowRegistry {
         try {
           await shadow.onDetach(shadow.target);
         } catch (error) {
-          console.error(`[ShadowRegistry] Error in onDetach for shadow ${shadow.shadowId}:`, error);
+          logger.error({ error, shadowId: shadow.shadowId }, 'Error in onDetach for shadow');
         }
       }
       shadow.target = null;

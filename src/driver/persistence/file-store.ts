@@ -14,6 +14,9 @@ import {
   type SerializedState,
 } from './serializer.js';
 import type { MudObject } from '../types.js';
+import { getLogger } from '../logger.js';
+
+const logger = getLogger();
 
 /**
  * File store configuration.
@@ -205,7 +208,7 @@ export class FileStore {
         const objects = getObjects();
         await this.saveWorldState(objects);
       } catch (error) {
-        console.error('Auto-save failed:', error);
+        logger.error({ error }, 'Auto-save failed');
       }
     }, intervalMs);
   }

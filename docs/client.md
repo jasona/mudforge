@@ -208,6 +208,84 @@ The Sound Panel is a compact widget in the bottom-right corner for controlling g
 - **Drag volume slider**: Adjust master volume
 - **Click category buttons**: Toggle individual categories
 
+## Engage Panel
+
+The Engage Panel opens a WoW-style NPC dialogue overlay when players use the `engage <npc>` command.
+
+### Features
+
+- **NPC Portrait** - AI-generated portrait or fallback silhouette
+- **Speech Bubble** - Contextual greeting with color support
+- **Action Buttons** - Trade, quest accept/turn-in, tutorial actions
+- **Quest Log** - Sidebar listing all NPC-associated quests with status
+- **Quest Details** - Expanded view with objectives, progress, and rewards
+- **Loading Overlay** - Humorous rotating messages while portraits load
+
+### Controls
+
+- **Escape**: Close the engage panel
+- **Click actions**: Send the associated command
+
+See [Engage System](engage-system.md) for full documentation.
+
+## Sky Panel
+
+The Sky Panel renders an animated day/night cycle as a collapsible SVG widget.
+
+### Features
+
+- **Animated Sky** - Gradient background with smooth color transitions across 9 keyframes
+- **Sun/Moon Arcs** - Sun visible 5am-8pm, moon visible 8pm-5am
+- **Star Field** - 20 stars that fade in at dusk and out at dawn
+- **Phase Display** - CSS class updates for dawn/day/dusk/night styling
+- **Collapsible** - Click to expand or minimize
+
+Updates from `GAMETIME` protocol messages with 1-second client-side interpolation.
+
+See [Sky and Time Display](sky-and-time-display.md) for full documentation.
+
+## Clock Panel
+
+The Clock Panel displays the current server time with fantasy period names.
+
+### Display
+
+```
+Morning  9:30 AM EST
+```
+
+- Fantasy period name (Midnight, Night, Dawn, Morning, Midday, Afternoon, Dusk, Evening)
+- 12-hour formatted time with AM/PM
+- Server timezone abbreviation
+
+Syncs via `TIME` protocol messages every 10 seconds with local interpolation.
+
+See [Sky and Time Display](sky-and-time-display.md) for full documentation.
+
+## World Map Modal
+
+The World Map Modal opens a full-screen map view showing all explored areas. Triggered by the world map UI action, it provides a zoomed-out view compared to the floating map panel.
+
+## Launcher
+
+The Launcher is the pre-game login/registration interface shown before entering the game world.
+
+### Features
+
+- **Login Form** - Username and password authentication
+- **Registration Modal** - New account creation with name, password, email, gender, race picker, and avatar picker
+- **Race Selection** - Visual race picker showing stat bonuses and racial abilities
+- **Announcements** - Latest game news displayed on the login screen
+- **Setup Wizard Integration** - First-run wizard shown when no admin exists
+
+The launcher fetches game configuration from `/api/config` and race data from `/api/races`.
+
+See [Setup Wizard](setup-wizard.md) for first-run documentation.
+
+## Reconnect Overlay
+
+When the WebSocket connection drops, a reconnect overlay appears over the terminal. The client uses exponential backoff (up to 5 minutes max) for automatic reconnection attempts. The overlay shows connection status and attempt count.
+
 ## Keyboard Shortcuts
 
 | Key | Action |
@@ -354,14 +432,29 @@ Features:
 
 ```
 src/client/
-├── index.html          # HTML structure
-├── styles.css          # Linear.app-inspired styles
-├── index.ts            # Entry point
-├── client.ts           # Main client class
-├── terminal.ts         # Terminal rendering
-├── input-handler.ts    # Keyboard/input handling
-├── websocket-client.ts # WebSocket connection
-└── editor.ts           # Code editor component
+├── index.html                  # HTML structure
+├── styles.css                  # Linear.app-inspired styles
+├── index.ts                    # Entry point
+├── client.ts                   # Main client class
+├── terminal.ts                 # Terminal rendering
+├── input-handler.ts            # Keyboard/input handling
+├── websocket-client.ts         # WebSocket connection
+├── shared-websocket-worker.ts  # SharedWorker for tab-resilient connections
+├── protocol-parser.ts          # Protocol message parser
+├── editor.ts                   # Code editor component
+├── launcher.ts                 # Login/registration UI
+├── setup-wizard.ts             # First-run setup wizard
+├── engage-panel.ts             # NPC dialogue overlay
+├── sky-panel.ts                # Animated day/night sky
+├── clock-panel.ts              # Server time display
+├── stats-panel.ts              # Floating HP/MP/XP bars
+├── map-renderer.ts             # Map panel rendering
+├── combat-panel.ts             # Combat target display
+├── sound-panel.ts              # Audio controls
+├── quest-panel.ts              # Quest sidebar
+├── comm-panel.ts               # Communications panel
+├── npc-portraits.ts            # Portrait rendering utilities
+└── equipment-panel.ts          # Equipment sidebar with images
 ```
 
 ### WebSocket Protocol

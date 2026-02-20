@@ -19,6 +19,9 @@ import { getMaterial } from '../../std/profession/materials.js';
 import { RECIPE_DEFINITIONS, getRecipesByProfession } from '../../std/profession/recipes.js';
 import type { RecipeDefinition, MaterialQuality, ProfessionId } from '../../std/profession/types.js';
 import { QUALITY_NAMES, QUALITY_COLORS } from '../../std/profession/types.js';
+import type { DamageType, WeaponHandedness } from '../../std/weapon.js';
+import type { ArmorSlot } from '../../std/armor.js';
+import type { ConsumableConfig, ConsumableType, StatBuff } from '../../std/consumable.js';
 
 interface CommandContext {
   player: MudObject;
@@ -388,7 +391,19 @@ async function createMaterialResult(
 }
 
 /**
- * Create an equipment result (weapon, armor, etc.).
+ * Quality multipliers for crafted item stats.
+ */
+const QUALITY_MULTIPLIERS: Record<MaterialQuality, number> = {
+  poor: 0.75,
+  common: 1.0,
+  fine: 1.15,
+  superior: 1.30,
+  exceptional: 1.50,
+  legendary: 2.0,
+};
+
+/**
+ * Create an equipment result (weapon, armor, consumable, accessory).
  */
 async function createEquipmentResult(
   ctx: CommandContext,
@@ -398,39 +413,135 @@ async function createEquipmentResult(
   const { player } = ctx;
   const config = recipe.resultConfig as Record<string, unknown>;
 
-  if (typeof efuns !== 'undefined' && efuns.cloneObject) {
-    const basePath = (config.basePath as string) || '/std/item';
-
-    for (let i = 0; i < recipe.resultQuantity; i++) {
-      try {
-        const item = await efuns.cloneObject(basePath);
-        if (item) {
-          item.name = (config.name as string) || recipe.name.toLowerCase();
-          item.shortDesc = applyCraftedQuality((config.shortDesc as string) || `a ${recipe.name}`, quality);
-          item.longDesc = (config.longDesc as string) || `A crafted ${recipe.name}.`;
-
-          for (const [key, value] of Object.entries(config)) {
-            if (key !== 'basePath' && key !== 'name' && key !== 'shortDesc' && key !== 'longDesc') {
-              item.setProperty(key, value);
-            }
-          }
-
-          applyCraftedQualityBonuses(item, quality, recipe.resultType);
-          item.setProperty('crafted', true);
-          item.setProperty('craftedQuality', quality);
-          item.setProperty('craftedFrom', recipe.id);
-
-          await item.moveTo(player as unknown as MudObject);
-        }
-      } catch {
-        // Continue with next item
-      }
-    }
+  if (typeof efuns === 'undefined' || !efuns.cloneObject) {
+    ctx.sendLine(`{green}You crafted ${recipe.name}.{/}`);
     return true;
   }
 
-  ctx.sendLine(`{green}You crafted ${recipe.name}.{/}`);
+  const basePath = (config.basePath as string) || '/std/item';
+  const multiplier = recipe.qualityAffected ? QUALITY_MULTIPLIERS[quality] : 1.0;
+  const valueMultiplier = multiplier * multiplier;
+
+  for (let i = 0; i < recipe.resultQuantity; i++) {
+    try {
+      const item = await efuns.cloneObject(basePath);
+      if (!item) continue;
+
+      // Set common properties via direct setters
+      item.name = (config.name as string) || recipe.name.toLowerCase();
+      item.shortDesc = applyCraftedQuality((config.shortDesc as string) || `a ${recipe.name}`, quality);
+      item.longDesc = (config.longDesc as string) || `A crafted ${recipe.name}.`;
+
+      // Configure type-specific stats using proper class APIs
+      await configureCraftedItem(item, config, recipe, multiplier, valueMultiplier);
+
+      // Mark as crafted
+      item.setProperty('crafted', true);
+      item.setProperty('craftedQuality', quality);
+      item.setProperty('craftedFrom', recipe.id);
+
+      await item.moveTo(player as unknown as MudObject);
+    } catch (error) {
+      console.error('[Craft] Error creating item:', error);
+    }
+  }
   return true;
+}
+
+/**
+ * Configure a crafted item's stats using the proper class APIs.
+ * Uses dynamic imports and instanceof checks to access type-specific setters.
+ */
+async function configureCraftedItem(
+  item: MudObject,
+  config: Record<string, unknown>,
+  recipe: RecipeDefinition,
+  multiplier: number,
+  valueMultiplier: number
+): Promise<void> {
+  switch (recipe.resultType) {
+    case 'weapon': {
+      const { Weapon } = await import('../../std/weapon.js');
+      if (item instanceof Weapon) {
+        if (config.minDamage != null) item.minDamage = Math.round((config.minDamage as number) * multiplier);
+        if (config.maxDamage != null) item.maxDamage = Math.round((config.maxDamage as number) * multiplier);
+        if (config.damageType != null) item.damageType = config.damageType as DamageType;
+        if (config.handedness != null) item.handedness = config.handedness as WeaponHandedness;
+        if (config.weight != null) item.weight = config.weight as number;
+        if (config.value != null) item.value = Math.round((config.value as number) * valueMultiplier);
+      }
+      break;
+    }
+    case 'armor': {
+      const { Armor } = await import('../../std/armor.js');
+      if (item instanceof Armor) {
+        if (config.armor != null) item.armor = Math.round((config.armor as number) * multiplier);
+        if (config.slot != null) item.slot = config.slot as ArmorSlot;
+        if (config.weight != null) item.weight = config.weight as number;
+        if (config.value != null) item.value = Math.round((config.value as number) * valueMultiplier);
+      }
+      break;
+    }
+    case 'consumable': {
+      const { Consumable } = await import('../../std/consumable.js');
+      if (item instanceof Consumable) {
+        const consumableType: ConsumableType = recipe.profession === 'cooking' ? 'food' : 'potion';
+        const consumableConfig = mapToConsumableConfig(config, consumableType, multiplier);
+        item.setConsumable(consumableConfig);
+        if (config.weight != null) item.weight = config.weight as number;
+        if (config.value != null) item.value = Math.round((config.value as number) * valueMultiplier);
+      }
+      break;
+    }
+    default: {
+      // Generic item (accessory, etc.)
+      if (item instanceof Item) {
+        if (config.weight != null) item.weight = config.weight as number;
+        if (config.value != null) item.value = Math.round(((config.value as number) || 0) * valueMultiplier);
+      }
+      for (const [key, value] of Object.entries(config)) {
+        if (!['basePath', 'name', 'shortDesc', 'longDesc', 'weight', 'value'].includes(key)) {
+          item.setProperty(key, value);
+        }
+      }
+      break;
+    }
+  }
+}
+
+/**
+ * Map recipe effect config to ConsumableConfig for setConsumable().
+ */
+function mapToConsumableConfig(
+  config: Record<string, unknown>,
+  consumableType: ConsumableType,
+  qualityMultiplier: number
+): ConsumableConfig {
+  const effect = config.effect as string;
+  const magnitude = Math.round(((config.magnitude as number) || 0) * qualityMultiplier);
+  const baseDuration = (config.duration as number) || 0;
+  const durationMs = Math.round(baseDuration * 1000 * qualityMultiplier);
+
+  const result: ConsumableConfig = { type: consumableType };
+
+  switch (effect) {
+    case 'heal':
+      result.healHp = magnitude;
+      break;
+    case 'restore_mana':
+      result.healMp = magnitude;
+      break;
+    default:
+      if (effect?.startsWith('buff_')) {
+        const statMap: Record<string, string> = { stamina: 'constitution' };
+        const rawStat = effect.replace('buff_', '');
+        const stat = statMap[rawStat] || rawStat;
+        result.statBuffs = [{ stat, amount: magnitude, duration: durationMs } as StatBuff];
+      }
+      break;
+  }
+
+  return result;
 }
 
 /**
@@ -449,46 +560,6 @@ function applyCraftedQuality(desc: string, quality: MaterialQuality): string {
   }
 
   return `{${color}}${qualityName} ${desc}{/}`;
-}
-
-/**
- * Apply stat bonuses based on crafted quality.
- */
-function applyCraftedQualityBonuses(item: MudObject, quality: MaterialQuality, itemType: string): void {
-  const qualityMultipliers: Record<MaterialQuality, number> = {
-    poor: 0.75,
-    common: 1.0,
-    fine: 1.15,
-    superior: 1.30,
-    exceptional: 1.50,
-    legendary: 2.0,
-  };
-
-  const multiplier = qualityMultipliers[quality];
-
-  if (itemType === 'weapon') {
-    const minDamage = item.getProperty<number>('minDamage');
-    const maxDamage = item.getProperty<number>('maxDamage');
-    if (minDamage) item.setProperty('minDamage', Math.round(minDamage * multiplier));
-    if (maxDamage) item.setProperty('maxDamage', Math.round(maxDamage * multiplier));
-  }
-
-  if (itemType === 'armor') {
-    const armor = item.getProperty<number>('armor');
-    if (armor) item.setProperty('armor', Math.round(armor * multiplier));
-  }
-
-  if (itemType === 'consumable') {
-    const magnitude = item.getProperty<number>('magnitude');
-    if (magnitude) item.setProperty('magnitude', Math.round(magnitude * multiplier));
-    const duration = item.getProperty<number>('duration');
-    if (duration) item.setProperty('duration', Math.round(duration * multiplier));
-  }
-
-  const value = item.getProperty<number>('value');
-  if (value) {
-    item.setProperty('value', Math.round(value * multiplier * multiplier));
-  }
 }
 
 function formatName(name: string): string {

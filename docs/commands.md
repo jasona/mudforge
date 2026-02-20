@@ -517,6 +517,75 @@ mon on          # Enable vitals monitor
 mon off         # Disable vitals monitor
 ```
 
+### NPC Interaction
+
+#### engage
+Open a WoW-style NPC dialogue overlay.
+
+```
+engage <npc>
+engage guard 2              # Engage the 2nd guard
+```
+
+Opens a visual dialogue panel showing the NPC's portrait, a speech bubble with greeting text, and action buttons for trading, accepting quests, and turning in quests. The panel also includes a quest log sidebar listing all quests associated with the NPC.
+
+See [Engage System](engage-system.md) for full documentation.
+
+### Professions and Crafting
+
+#### gather (mine, harvest, fish, chop, skin)
+Gather resources from nodes in the current room.
+
+```
+gather                      # List available resource nodes
+gather iron ore             # Gather from a specific node
+mine                        # Auto-target mining nodes
+harvest                     # Auto-target herb/plant nodes
+fish                        # Auto-target fishing nodes
+chop                        # Auto-target woodcutting nodes
+skin                        # Auto-target skinning nodes
+```
+
+Each verb auto-targets nodes matching that profession. Gathering checks your profession skill level, awards XP, and yields materials for crafting.
+
+#### professions (profs, skills)
+View your profession skills and progress.
+
+```
+professions                 # Show overview of all professions
+professions crafting        # Show crafting professions in detail
+professions gathering       # Show gathering professions in detail
+professions movement        # Show movement professions in detail
+professions blacksmithing   # Show details for a specific profession
+```
+
+Displays profession levels, XP progress, ranks, tool/station requirements, and available recipes. Professions are organized into crafting, gathering, and movement categories.
+
+See [Professions](professions.md) for full documentation.
+
+#### recipes (recipe)
+View crafting recipes for your professions.
+
+```
+recipes                     # Show recipe overview across all professions
+recipes blacksmithing       # Show all recipes for a profession
+recipes blacksmithing sword # Show detailed recipe info
+```
+
+Shows recipes organized by level tiers, color-coded by your current skill level (green for learnable, red for too high). Detailed view shows ingredients with your current material counts, station/tool requirements, craft time, and XP reward.
+
+#### craft (make, build)
+Craft items from materials.
+
+```
+craft list                  # Show all available recipes with materials
+craft iron sword            # Craft a specific recipe
+make campfire               # Alias for craft
+build wooden shield         # Alias for craft
+```
+
+Checks profession level requirements, station/tool availability, and material inventory. Consumes materials and creates the output item with quality based on your skill level, material quality, and crafting station. Awards crafting XP with bonuses for first-time crafts and skill-appropriate challenges.
+
 ### Session
 
 #### save
@@ -1024,6 +1093,43 @@ discordadmin test                             # Send test message
 - Valid guild and channel IDs must be configured
 
 See [Discord Integration](discord-integration.md) for setup instructions and full documentation.
+
+### Bots
+
+#### botadmin
+Manage the bot system (simulated players).
+
+```
+botadmin status             # Show bot system state and settings
+botadmin enable             # Enable bot system (logs bots in)
+botadmin disable            # Disable bot system (logs all bots out)
+botadmin configure <max>    # Set maximum number of bots
+botadmin list               # List all bots with status info
+botadmin create             # Create a new bot with AI personality
+botadmin delete <id|name>   # Permanently delete a bot
+botadmin login <id|name>    # Force a bot to log in
+botadmin logout <id|name>   # Force a bot to log out
+botadmin info <id|name>     # Show detailed bot info and personality
+botadmin regenerate <id|name> # Regenerate bot's personality
+```
+
+**Subcommands:**
+
+| Subcommand | Description |
+|------------|-------------|
+| `status` | Show enabled state, online/total counts, max bots setting |
+| `enable` | Enable the bot system and log bots in automatically |
+| `disable` | Disable the system and log all bots out |
+| `configure` | Set the maximum number of concurrent bots |
+| `list` | Show all bots with name, level, race, guild, location, status |
+| `create` | Create a new bot with AI-generated personality and appearance |
+| `delete` | Permanently remove a bot (by ID or name) |
+| `login` | Force a specific bot to log in |
+| `logout` | Force a specific bot to log out |
+| `info` | Show detailed info: stats, personality, demeanor, chat style, interests |
+| `regenerate` | Regenerate a bot's personality (logs out if online) |
+
+Bots are simulated players that roam the world, chat on channels, and interact with NPCs. They help make the game feel populated. Bot accepts both numeric IDs and bot names for targeting.
 
 ## Creating Custom Commands
 

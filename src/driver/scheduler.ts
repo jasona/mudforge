@@ -8,6 +8,9 @@
 
 import type { MudObject } from './types.js';
 import { getMetrics } from './metrics.js';
+import { getLogger } from './logger.js';
+
+const logger = getLogger();
 
 /**
  * Maximum number of heartbeats to execute in parallel.
@@ -216,7 +219,7 @@ export class Scheduler {
       const elapsed = Date.now() - start;
       metrics.recordHeartbeat(elapsed, object.objectId);
       // Log error but continue with other objects
-      console.error(`Heartbeat error for ${object.objectId}:`, error);
+      logger.error({ error, objectId: object.objectId }, 'Heartbeat error');
     }
   }
 
@@ -258,7 +261,7 @@ export class Scheduler {
       } catch (error) {
         const elapsed = Date.now() - start;
         metrics.recordCallOut(elapsed, `callOut#${entry.id}`);
-        console.error(`CallOut error:`, error);
+        logger.error({ error }, 'CallOut error');
       }
 
       if (entry.recurring && entry.intervalMs) {

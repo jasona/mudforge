@@ -290,6 +290,22 @@ export const MATERIAL_DEFINITIONS: Record<string, MaterialDefinition> = {
     longDesc: 'An uncut diamond, cloudy but with hints of brilliant fire within.',
   },
 
+  // ========== Cut Gems (Jeweling output) ==========
+
+  cut_quartz: {
+    id: 'cut_quartz',
+    name: 'Cut Quartz',
+    type: 'gem',
+    quality: 'common',
+    tier: 1,
+    stackable: true,
+    maxStack: 20,
+    weight: 0.3,
+    value: 25,
+    shortDesc: 'a cut quartz crystal',
+    longDesc: 'A carefully cut and polished quartz crystal that catches the light beautifully.',
+  },
+
   // ========== Herbs (Herbalism) ==========
 
   silverleaf: {

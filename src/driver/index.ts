@@ -7,24 +7,17 @@
 import 'dotenv/config';
 import { getDriver } from './driver.js';
 import { Server } from '../network/server.js';
+import { getLogger } from './logger.js';
 
 // Global error handlers to prevent crashes from unhandled errors
 process.on('uncaughtException', (error) => {
-  console.error('[FATAL] Uncaught exception at', new Date().toISOString());
-  console.error('[FATAL] Error:', error.message);
-  console.error('[FATAL] Stack:', error.stack);
-  console.error('[FATAL] This may cause WebSocket disconnects (code 1005/1006)');
+  getLogger().fatal({ error: error.message, stack: error.stack }, 'Uncaught exception - may cause WebSocket disconnects (code 1005/1006)');
   // Don't exit - let the process continue if possible
 });
 
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('[FATAL] Unhandled rejection at', new Date().toISOString());
-  console.error('[FATAL] Promise:', promise);
-  console.error('[FATAL] Reason:', reason);
-  if (reason instanceof Error) {
-    console.error('[FATAL] Stack:', reason.stack);
-  }
-  console.error('[FATAL] This may cause WebSocket disconnects (code 1005/1006)');
+process.on('unhandledRejection', (reason) => {
+  const err = reason instanceof Error ? { error: reason.message, stack: reason.stack } : { error: String(reason) };
+  getLogger().fatal(err, 'Unhandled rejection - may cause WebSocket disconnects (code 1005/1006)');
   // Don't exit - let the process continue if possible
 });
 
@@ -43,7 +36,7 @@ function startEventLoopMonitor(): void {
     const lag = elapsed - 1000; // Expected 1s interval
 
     if (lag > 100) {
-      console.warn(`[EVENT-LOOP-LAG] Check #${checkCount}: ${lag}ms delay (elapsed: ${elapsed}ms)`);
+      getLogger().warn({ checkCount, lagMs: lag, elapsedMs: elapsed }, 'Event loop lag detected');
     }
 
     lastCheck = now;
@@ -137,6 +130,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((error) => {
-  console.error('Fatal error:', error);
+  getLogger().fatal({ error }, 'Fatal error');
   process.exit(1);
 });

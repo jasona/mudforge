@@ -152,6 +152,52 @@ NPC quest helper APIs:
 
 See `docs/quests.md` for quest definitions/workflows.
 
+## Engage System Properties
+
+NPCs support the engage dialogue system, which opens a WoW-style speech bubble overlay when a player uses `engage <npc>`. All NPCs are engageable by default; these properties customize the experience.
+
+### Properties
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `engageGreeting` | `string \| null` | `null` | Custom greeting text shown in the speech bubble. When `null`, a contextual default is generated based on NPC kind and quest state. |
+| `engageSound` | `string \| null` | `null` | Sound effect played when dialogue opens. Falls back to `lookSound` if not set. Uses the `discussion` sound category. |
+| `engageAlignment` | `EngageAlignment` | `{vertical: 'bottom', horizontal: 'right'}` | Panel positioning on the client screen. Options: `{vertical: 'top'|'middle'|'bottom', horizontal: 'left'|'center'|'right'}` or `'centered'`. |
+| `engageKind` | `'humanoid' \| 'creature'` | auto-inferred | Type of NPC for portrait generation and greeting style. Creatures get growl/snarl greetings; humanoids get spoken greetings. |
+
+### Setting via `setNPC()`
+
+```typescript
+import { NPC } from '../std/npc.js';
+
+export class ForestSpirit extends NPC {
+  constructor() {
+    super();
+    this.setNPC({
+      name: 'forest spirit',
+      shortDesc: 'a shimmering forest spirit',
+      longDesc: 'A translucent figure of leaves and light hovers among the trees.',
+      level: 15,
+      engageGreeting: 'The ancient woods speak through me, traveler...',
+      engageSound: 'wind_chimes',
+      engageAlignment: { vertical: 'middle', horizontal: 'center' },
+      engageKind: 'creature',
+    });
+  }
+}
+```
+
+### Setting via Individual Setters
+
+```typescript
+this.setEngageGreeting('Welcome to my shop!');
+this.setEngageSound('bell_ring');
+this.setEngageAlignment({ vertical: 'bottom', horizontal: 'left' });
+this.setEngageKind('humanoid');
+```
+
+See [Engage System](engage-system.md) for full documentation including protocol messages, client panel details, and quest integration.
+
 ## Optional AI Dialogue
 
 NPCs can use AI-backed conversational responses via AI context configuration and per-player conversation memory.
@@ -176,7 +222,9 @@ See `docs/ai-integration.md`.
 
 ## Related Docs
 
-- `docs/behavior-system.md`
-- `docs/combat.md`
-- `docs/quests.md`
-- `docs/random-loot.md`
+- [Engage System](engage-system.md) - NPC dialogue overlay
+- [Portraits](portraits.md) - AI-generated portraits
+- [Behavior System](behavior-system.md) - NPC combat AI
+- [Combat](combat.md) - Combat system
+- [Quests](quests.md) - Quest system
+- [Random Loot](random-loot.md) - Loot generation
