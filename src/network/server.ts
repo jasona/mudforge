@@ -14,6 +14,7 @@ import { Connection } from './connection.js';
 import { ConnectionManager, getConnectionManager } from './connection-manager.js';
 import { EventEmitter } from 'events';
 import type { Logger } from 'pino';
+import { getLogger } from '../driver/logger.js';
 import { getDriverVersion, getGameConfig, loadGameConfig } from '../driver/version.js';
 
 /**
@@ -66,6 +67,7 @@ const DEFAULT_MAX_MISSED_PONGS = 18;
  */
 export class Server extends EventEmitter {
   private config: ServerConfig;
+  private logger: Logger;
   private fastify: FastifyInstance;
   private connectionManager: ConnectionManager;
   private running: boolean = false;
@@ -103,6 +105,8 @@ export class Server extends EventEmitter {
       mudlibPath: config.mudlibPath ?? join(process.cwd(), 'mudlib'),
       ...(config.logger ? { logger: config.logger } : {}),
     };
+
+    this.logger = config.logger ?? getLogger();
 
     // Initialize WebSocket heartbeat settings from config
     this.heartbeatIntervalMs = config.wsHeartbeatIntervalMs ?? DEFAULT_HEARTBEAT_INTERVAL_MS;
@@ -453,7 +457,7 @@ export class Server extends EventEmitter {
 
         return { success: true };
       } catch (error) {
-        this.config.logger?.error({ error }, 'Failed to save setup');
+        this.logger.error({ error }, 'Failed to save setup');
         reply.code(500).send({ error: 'Failed to save configuration' });
         return;
       }
@@ -489,7 +493,7 @@ export class Server extends EventEmitter {
       try {
         this.emitEvent('message', connection, message);
       } catch (error) {
-        this.config.logger?.error({ connectionId: connection.id, error }, 'Error in message handler');
+        this.logger.error({ connectionId: connection.id, error }, 'Error in message handler');
       }
     });
 
@@ -497,7 +501,7 @@ export class Server extends EventEmitter {
       try {
         this.emitEvent('disconnect', connection, code, reason);
       } catch (error) {
-        this.config.logger?.error({ connectionId: connection.id, error }, 'Error in disconnect handler');
+        this.logger.error({ connectionId: connection.id, error }, 'Error in disconnect handler');
       }
     });
 
@@ -505,7 +509,7 @@ export class Server extends EventEmitter {
       try {
         this.emitEvent('error', error);
       } catch (emitError) {
-        this.config.logger?.error({ connectionId: connection.id, error, emitError }, 'Error in error handler');
+        this.logger.error({ connectionId: connection.id, error, emitError }, 'Error in error handler');
       }
     });
 
@@ -531,8 +535,8 @@ export class Server extends EventEmitter {
       this.shuttingDown = false;
       this.running = true;
       this.startHeartbeat();
-      console.log(`Server listening on ${this.config.host}:${this.config.port}`);
-      console.log(`[WS-CONFIG] heartbeatIntervalMs=${this.heartbeatIntervalMs}, maxMissedPongs=${this.maxMissedPongs}`);
+      this.logger.info({ host: this.config.host, port: this.config.port }, 'Server listening');
+      this.logger.debug({ heartbeatIntervalMs: this.heartbeatIntervalMs, maxMissedPongs: this.maxMissedPongs }, 'WebSocket config');
     } catch (error) {
       this.emitEvent('error', error as Error);
       throw error;
@@ -561,10 +565,10 @@ export class Server extends EventEmitter {
 
       // Log heartbeat execution only when there's an issue or periodically (every 100 heartbeats ~= 40 minutes)
       if (delayMs > 1000) {
-        console.warn(`[HEARTBEAT #${heartbeatCount}] DELAYED by ${delayMs}ms - checking ${connections.length} connections`);
+        this.logger.warn({ heartbeat: heartbeatCount, delayMs, connections: connections.length }, 'Heartbeat delayed');
       } else if (heartbeatCount % 100 === 0) {
         // Periodic health check log
-        console.log(`[HEARTBEAT #${heartbeatCount}] Checking ${connections.length} connections (delay: ${delayMs}ms)`);
+        this.logger.info({ heartbeat: heartbeatCount, connections: connections.length, delayMs }, 'Heartbeat health check');
       }
 
       for (const connection of connections) {
@@ -574,7 +578,7 @@ export class Server extends EventEmitter {
           // Skip connections that are already closed or closing
           // This prevents repeatedly processing terminated connections
           if (connection.state === 'closed' || connection.state === 'closing') {
-            console.log(`[HEARTBEAT] ${connection.id} (${playerName}): SKIPPING - state=${connection.state}, removing from manager`);
+            this.logger.debug({ id: connection.id, player: playerName, state: connection.state }, 'Skipping closed connection, removing');
             // Clean up: remove from connection manager and emit disconnect
             this.connectionManager.remove(connection.id);
             this.emitEvent('disconnect', connection, 1006, 'Connection already closed');
@@ -587,15 +591,15 @@ export class Server extends EventEmitter {
           // and allow the player to reconnect when their connection is restored.
           const bufferedAmount = connection.bufferedAmount;
           if (connection.hasCriticalBackpressure) {
-            this.config.logger?.warn(
+            this.logger.error(
               {
                 id: connection.id,
+                player: playerName,
                 bufferedAmount,
                 bufferedMB: (bufferedAmount / (1024 * 1024)).toFixed(2),
               },
-              'Connection terminated: critical buffer backlog (client cannot receive data)'
+              'Terminating connection: critical buffer backlog'
             );
-            console.error(`[HEARTBEAT] ${connection.id} (${playerName}): TERMINATING - critical buffer backlog ${(bufferedAmount / (1024 * 1024)).toFixed(2)}MB (client cannot receive data, allowing reconnect)`);
             connection.terminate();
             this.connectionManager.remove(connection.id);
             this.emitEvent('disconnect', connection, 1006, 'Buffer backlog exceeded');
@@ -608,14 +612,14 @@ export class Server extends EventEmitter {
           // Only log connection status when there's something concerning
           // (missed pongs, high lastActivity, etc.)
           if (metrics.missedPongs > 0 || metrics.lastActivity > this.heartbeatIntervalMs * 2) {
-            console.log(`[HEARTBEAT] ${connection.id} (${playerName}): missedPongs=${metrics.missedPongs}, state=${metrics.state}, lastActivity=${metrics.lastActivity}ms ago`);
+            this.logger.debug({ id: connection.id, player: playerName, missedPongs: metrics.missedPongs, state: metrics.state, lastActivityMs: metrics.lastActivity }, 'Connection health concern');
           }
 
           // If connection has significant backpressure, skip ping - it would just queue behind
           // the existing data and never reach the client anyway. The buffer check above will
           // catch connections that are truly stuck.
           if (connection.hasBackpressure) {
-            console.warn(`[HEARTBEAT] ${connection.id} (${playerName}): SKIPPING ping - backpressure (buffer=${(bufferedAmount / 1024).toFixed(0)}KB)`);
+            this.logger.warn({ id: connection.id, player: playerName, bufferKB: (bufferedAmount / 1024).toFixed(0) }, 'Skipping ping due to backpressure');
             // Still increment missed pongs since we're not sending a ping the client could respond to
             connection.incrementMissedPongs();
             continue;
@@ -626,14 +630,16 @@ export class Server extends EventEmitter {
 
           if (missedPongs > this.maxMissedPongs) {
             // Connection has missed too many heartbeats - terminate it
-            this.config.logger?.warn(
+            this.logger.warn(
               {
-                id: connection.id,
                 ...metrics,
+                id: connection.id,
+                player: playerName,
+                missedPongs,
+                maxMissedPongs: this.maxMissedPongs,
               },
-              'Connection terminated: missed too many heartbeats'
+              'Terminating connection: missed too many heartbeats'
             );
-            console.warn(`[HEARTBEAT] ${connection.id} (${playerName}): TERMINATING - missedPongs ${missedPongs} > max ${this.maxMissedPongs}`);
             connection.terminate();
 
             // IMPORTANT: terminate() calls cleanup() which removes listeners before socket.terminate()
@@ -656,8 +662,7 @@ export class Server extends EventEmitter {
           const gameVersion = getGameConfig()?.version;
           connection.sendTime(gameVersion);
         } catch (error) {
-          this.config.logger?.error({ connectionId: connection.id, error }, 'Error in heartbeat for connection');
-          console.error(`[HEARTBEAT] Error for connection ${connection.id}:`, error);
+          this.logger.error({ connectionId: connection.id, error }, 'Error in heartbeat for connection');
         }
       }
     }, this.heartbeatIntervalMs);
@@ -714,7 +719,7 @@ export class Server extends EventEmitter {
     await this.fastify.close();
 
     this.running = false;
-    console.log('Server stopped');
+    this.logger.info('Server stopped');
   }
 
   beginShutdown(): void {

@@ -11,6 +11,9 @@ import { join } from 'path';
 import { Compiler } from './compiler.js';
 import { ObjectRegistry, getRegistry } from './object-registry.js';
 import type { BlueprintInfo, MudObject } from './types.js';
+import { getLogger } from './logger.js';
+
+const logger = getLogger();
 
 export interface HotReloadConfig {
   /** Root directory for mudlib files */
@@ -87,16 +90,16 @@ export class HotReload {
               this.handleFileChange(eventType, filename);
             }
           } catch (error) {
-            console.error('[HotReload] Error in watch callback:', error);
+            logger.error({ error }, 'Error in watch callback');
           }
         }
       );
 
       this.watcher.on('error', (error) => {
-        console.error('[HotReload] Watcher error:', error);
+        logger.error({ error }, 'Watcher error');
       });
     } catch (error) {
-      console.error('[HotReload] Failed to start watching:', error);
+      logger.error({ error }, 'Failed to start watching');
     }
   }
 
@@ -143,7 +146,7 @@ export class HotReload {
         return;
       }
 
-      console.log(`[HotReload] File rename event: ${filename}`);
+      logger.debug({ filename }, 'File rename event');
 
       // Debounce rapid changes
       const existing = this.debounceTimers.get(filename);
@@ -154,13 +157,13 @@ export class HotReload {
       const timer = setTimeout(() => {
         this.debounceTimers.delete(filename);
         this.processFileEvent(eventType, filename).catch((error) => {
-          console.error(`[HotReload] Unhandled error processing ${filename}:`, error);
+          logger.error({ error, filename }, 'Unhandled error processing file');
         });
       }, this.config.debounceMs);
 
       this.debounceTimers.set(filename, timer);
     } catch (error) {
-      console.error(`[HotReload] Error in handleFileChange:`, error);
+      logger.error({ error }, 'Error in handleFileChange');
     }
   }
 
@@ -183,7 +186,7 @@ export class HotReload {
       await stat(fullPath);
       // File exists - this is a creation or rename, not a deletion
       // Do nothing - modifications require manual 'update' command
-      console.log(`[HotReload] File created/renamed (ignored): ${objectPath}`);
+      logger.debug({ objectPath }, 'File created/renamed (ignored)');
     } catch {
       // File doesn't exist - this is a deletion
       await this.handleDeletion(objectPath);
@@ -209,43 +212,41 @@ export class HotReload {
    * Handle file deletion by unloading the object and all its clones.
    */
   private async handleDeletion(objectPath: string): Promise<void> {
-    console.log(`[HotReload] File deleted, checking: ${objectPath}`);
+    logger.debug({ objectPath }, 'File deleted, checking');
 
     // Check safelist - never auto-unload critical objects
     if (this.config.safelist?.includes(objectPath)) {
-      console.log(`[HotReload] Skipping safelisted object: ${objectPath}`);
+      logger.debug({ objectPath }, 'Skipping safelisted object');
       return;
     }
 
     // Check if object is actually loaded
     const blueprint = this.registry.findBlueprint(objectPath);
     if (!blueprint) {
-      console.log(`[HotReload] Object not loaded, skipping: ${objectPath}`);
+      logger.debug({ objectPath }, 'Object not loaded, skipping');
       return;
     }
 
     const cloneCount = blueprint.clones.size;
-    console.log(`[HotReload] Unloading ${objectPath} with ${cloneCount} clones`);
+    logger.info({ objectPath, cloneCount }, 'Unloading object');
 
     // Handle rooms with players - evacuate them first
     try {
       if (this.hasPlayersInObject(objectPath)) {
-        console.log(`[HotReload] Evacuating players from: ${objectPath}`);
+        logger.info({ objectPath }, 'Evacuating players');
         await this.evacuatePlayers(objectPath);
       }
     } catch (error) {
-      console.error(`[HotReload] Error evacuating players from ${objectPath}:`, error);
+      logger.error({ error, objectPath }, 'Error evacuating players');
       // Continue with unload even if evacuation fails
     }
 
     // Unregister the blueprint (destroys all clones)
     try {
       await this.registry.unregisterBlueprint(objectPath);
-      console.log(
-        `[HotReload] Unloaded ${objectPath} (${cloneCount} clone${cloneCount !== 1 ? 's' : ''} destroyed)`
-      );
+      logger.info({ objectPath, clonesDestroyed: cloneCount }, 'Unloaded object');
     } catch (error) {
-      console.error(`[HotReload] Error unloading ${objectPath}:`, error);
+      logger.error({ error, objectPath }, 'Error unloading object');
     }
   }
 
@@ -293,7 +294,7 @@ export class HotReload {
           await item.moveTo(voidRoom || null);
         }
       } catch (error) {
-        console.error(`[HotReload] Error moving player:`, error);
+        logger.error({ error }, 'Error moving player');
       }
     }
   }

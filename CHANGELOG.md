@@ -2,7 +2,39 @@
 
 All notable changes to this project are documented in this file.
 
-## [2.0.0] - Unreleased
+## [1.9.5] - Unreleased
+
+### Fixed
+
+- Crafted items now use proper class setters instead of generic setProperty.
+
+### Documentation
+
+- Added engage, portraits, setup wizard, sky/time docs and updated existing references.
+
+## [1.9.4]
+
+### Added
+
+- Expanded professions content and fixed gathering interactions.
+
+## [1.9.3]
+
+### Added
+
+- WoW-style NPC engage dialogue overlay with interactive tutorial flow.
+- Blocking engage loading modal with rotating status text.
+- Enhanced engage dialogue for quests, trading, and NPC behavior.
+- Serve generated images over HTTP with URL-first payloads.
+- Communications panel with persistent open/closed state.
+- Debug dropdown menu with panel controls.
+
+### Fixed
+
+- Strengthened 1Password ignore handling across client inputs.
+- Communications panel collapse now properly shrinks the window.
+
+## [1.9.2]
 
 ### Added
 

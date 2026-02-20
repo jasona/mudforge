@@ -42,6 +42,9 @@ import type { Shadow, AddShadowResult } from './shadow-types.js';
 import { randomBytes, scrypt, timingSafeEqual } from 'crypto';
 import { reverse as dnsReverse } from 'dns/promises';
 import { promisify } from 'util';
+import { getLogger } from './logger.js';
+
+const logger = getLogger();
 
 /**
  * Pager options for the page efun.
@@ -3118,7 +3121,7 @@ export class EfunBridge {
     // Auto-save on successful change
     if (result.success && configDaemon.save) {
       configDaemon.save().catch((err: Error) => {
-        console.error('[EfunBridge] Failed to save config:', err);
+        logger.error({ error: err.message }, 'Failed to save config');
       });
     }
 
@@ -3323,11 +3326,11 @@ export class EfunBridge {
    * @returns Object with success status
    */
   shutdown(reason?: string): { success: boolean; error?: string } {
-    console.log(`[EfunBridge] Server shutdown requested: ${reason || 'no reason given'}`);
+    logger.info({ reason: reason || 'no reason given' }, 'Server shutdown requested');
 
     // Schedule immediate shutdown to allow response to be sent
     setTimeout(() => {
-      console.log('[EfunBridge] Server shutting down...');
+      logger.info('Server shutting down...');
       process.exit(0);
     }, 100);
 
@@ -3693,7 +3696,7 @@ Respond in this exact JSON format:
           worldLoreContext = loreDaemon.buildContext(npcContext.knowledgeScope.worldLore, 2000);
         }
       } catch (error) {
-        console.warn('[aiNpcResponse] Failed to load world lore:', error);
+        logger.warn({ error }, 'Failed to load world lore');
       }
     }
 
@@ -4797,7 +4800,7 @@ RULES:
    * Register a callback to receive Grapevine messages.
    */
   grapevineOnMessage(callback: (event: GrapevineEvent) => void): void {
-    console.log('[EfunBridge] grapevineOnMessage callback registered');
+    logger.debug('grapevineOnMessage callback registered');
     this.grapevineMessageCallback = callback;
   }
 
@@ -4805,7 +4808,7 @@ RULES:
    * Internal method called by the driver when Grapevine message is received.
    */
   handleGrapevineMessage(event: GrapevineEvent): void {
-    console.log(`[EfunBridge] handleGrapevineMessage: ${event.event}, hasCallback: ${!!this.grapevineMessageCallback}`);
+    logger.debug({ event: event.event, hasCallback: !!this.grapevineMessageCallback }, 'handleGrapevineMessage');
     if (this.grapevineMessageCallback) {
       this.grapevineMessageCallback(event);
     }
