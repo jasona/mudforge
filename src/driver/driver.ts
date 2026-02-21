@@ -17,6 +17,7 @@ import { initializeClaudeClient } from './claude-client.js';
 import { initializeGeminiClient } from './gemini-client.js';
 import { initializeGitHubClient } from './github-client.js';
 import { initializeGiphyClient } from './giphy-client.js';
+import { initializePromptManager, resetPromptManager } from './prompt-manager.js';
 import { CommandManager, getCommandManager, resetCommandManager } from './command-manager.js';
 import { getPermissions } from './permissions.js';
 import { getFileStore } from './persistence/file-store.js';
@@ -299,6 +300,10 @@ export class Driver {
         maxIsolates: this.config.maxIsolates,
       });
 
+      // Initialize prompt template manager (loads overrides from disk)
+      await initializePromptManager(this.config.mudlibPath);
+      this.logger.info('Prompt template manager initialized');
+
       // Load Master object
       await this.loadMaster();
 
@@ -406,6 +411,21 @@ export class Driver {
       if (this.config.discordEnabled) {
         destroyDiscordClient();
         this.logger.info('Discord client disconnected');
+      }
+
+      // Save all active players
+      if (this.activePlayers.size > 0) {
+        this.logger.info({ count: this.activePlayers.size }, 'Saving all active players before shutdown...');
+        const savePromises: Promise<void>[] = [];
+        for (const [name, player] of this.activePlayers) {
+          savePromises.push(
+            this.efunBridge.savePlayer(player)
+              .then(() => this.logger.info({ name }, 'Player saved on shutdown'))
+              .catch((error) => this.logger.error({ error, name }, 'Failed to save player on shutdown'))
+          );
+        }
+        await Promise.all(savePromises);
+        this.logger.info('All player saves completed');
       }
 
       // Stop file watcher
@@ -2004,4 +2024,5 @@ export function resetDriver(): void {
   resetMudlibLoader();
   resetCommandManager();
   resetSessionManager();
+  resetPromptManager();
 }
