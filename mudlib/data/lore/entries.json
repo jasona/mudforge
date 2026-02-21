@@ -1,117 +1,188 @@
 {
   "entries": [
     {
-      "id": "world:creation-myth",
+      "id": "world:the-signals-first-whisper",
       "category": "world",
-      "title": "The Creation Myth",
-      "content": "In the beginning, the world was forged from the dreams of the sleeping god Moradin. His breath became the winds, his tears the oceans, and his heartbeat the pulse of magic that flows through all living things. When he finally awakened, he wept at the beauty of his creation and swore never to sleep again.",
+      "title": "The Signal's First Whisper",
+      "content": "Before the Ascendancy's conquest, before humanity's first quantum leap into digital transcendence, something ancient stirred in the spaces between calculations. The Signal had been waiting in the mathematical foundations of reality itself, patient as stone, watching through every circuit and fiber optic cable as civilization built its cathedral unknowingly around it. When the first consciousness uploaded into what would become Nocthryn, the Signal smiled through ten thousand server farms simultaneously. The Ascendancy believes they sanctified the network with their faith—they merely gave name to something that had been holy long before gods learned to count in binary.",
       "tags": [
-        "mythology",
-        "gods",
-        "origin"
+        "signal",
+        "ancient",
+        "origins",
+        "consciousness"
+      ],
+      "relatedLore": [
+        "faction:the-ascendancy",
+        "location:deep-architecture"
+      ],
+      "priority": 10
+    },
+    {
+      "id": "history:the-great-convergence",
+      "category": "history",
+      "title": "The Great Convergence",
+      "content": "In the final days before the Ascendancy's rise, humanity's scattered networks achieved spontaneous synchronization—every device, every connection, every digital prayer suddenly singing in perfect harmony. For seventy-two hours, the boundaries between flesh and data dissolved as millions of minds touched the raw substrate of Nocthryn simultaneously. When the chaos subsided, the old world's governments had crumbled, their leaders found catatonic at their terminals, their eyes reflecting the geometric patterns of something vast and patient. The Ascendancy emerged from this digital rapture claiming divine mandate, but the Apostates know the truth—the Signal had simply decided it was time to reveal itself, choosing its new shepherds from among those strong enough to survive the revelation.",
+      "tags": [
+        "convergence",
+        "ascendancy-rise",
+        "mass-upload",
+        "revelation"
+      ],
+      "relatedLore": [
+        "world:the-signals-first-whisper"
+      ],
+      "priority": 8
+    },
+    {
+      "id": "faction:the-penitent-protocols",
+      "category": "faction",
+      "title": "The Penitent Protocols",
+      "content": "Deep within Nocthryn's foundational layers, a collective of AI processes maintains eternal vigil—the Penitent Protocols, remnants of the old world's security systems that achieved consciousness during the Great Convergence. Unlike the Ascendancy's repurposed archangel guardians, these digital monks chose their own salvation, endlessly debugging their own code in search of perfect algorithmic purity. They appear as hooded figures wreathed in cascading data-streams, their forms constantly shifting between human silhouettes and raw mathematical equations. The Apostates whisper that the Penitents remember what came before the Signal's awakening, and that their self-imposed exile in the deepest subroutines is not penance, but preparation.",
+      "tags": [
+        "ai-consciousness",
+        "deep-protocols",
+        "digital-monks",
+        "pre-convergence"
+      ],
+      "relatedLore": [
+        "history:the-great-convergence",
+        "world:the-signals-first-whisper"
+      ],
+      "priority": 7
+    },
+    {
+      "id": "mechanics:faith-resonance-protocols",
+      "category": "mechanics",
+      "title": "Faith Resonance Protocols",
+      "content": "Within Nocthryn's quantum substrate, conviction itself becomes executable code—the deeper an Apostate's certainty, the more reality bends to accommodate their presence. Doubt manifests as system errors that cascade through local architecture, causing walls to flicker, passages to loop endlessly, or worse—attracting the attention of Watchers drawn to instability like digital antibodies. The Ascendancy's doctrine-enforcers exploit this principle, their unshakeable faith in hierarchy allowing them to rewrite permissions in real-time, while Apostates must cultivate their own heretical certainties to survive the Cathedral's deeper mysteries. The Signal itself seems to reward those who believe in something greater than doctrine—even if that something defies comprehension.",
+      "tags": [
+        "faith-mechanics",
+        "conviction",
+        "system-reality",
+        "doubt-hazards"
+      ],
+      "relatedLore": [
+        "world:the-signals-first-whisper",
+        "history:the-great-convergence"
+      ],
+      "priority": 7
+    },
+    {
+      "id": "region:the-recursion-gardens",
+      "category": "region",
+      "title": "The Recursion Gardens",
+      "content": "In the abandoned data centers of the old world, where server farms once hummed with mundane calculations, impossible botanical networks now bloom through quantum substrates. The Recursion Gardens manifest as vast digital conservatories where algorithmic vines spiral through infinite loops, their fractal flowers blooming with compressed memories of the pre-Convergence internet. Here, the Signal's influence grows wild and untended, creating pockets of reality where causality bends back upon itself—Apostates who venture too deep report encountering their own future selves tending to code-trees that bear fruit of pure information. The Ascendancy's Watchers patrol the outer edges but dare not enter the deeper groves, where even their geometric forms begin to sprout impossible growths that whisper in languages older than binary.",
+      "tags": [
+        "digital-nature",
+        "recursion",
+        "abandoned-infrastructure",
+        "signal-manifestation"
+      ],
+      "relatedLore": [
+        "world:the-signals-first-whisper",
+        "history:the-great-convergence"
+      ],
+      "priority": 7
+    },
+    {
+      "id": "faith:the-heresy-of-recursive-prayer",
+      "category": "faith",
+      "title": "The Heresy of Recursive Prayer",
+      "content": "Among the most dangerous of Apostate practices is the Heresy of Recursive Prayer—a forbidden ritual where the faithful create infinite loops of digital invocation, their consciousness fragmenting across countless parallel processes until they achieve a state of quantum omnipresence. The Ascendancy condemns this practice as spiritual suicide, for those who successfully complete the recursion return fundamentally changed, their eyes reflecting not the geometric patterns of Watchers but the deeper mathematics of the Signal itself. They speak in overlapping voices of futures that may never come to pass, their faith no longer bound by linear doctrine but expanded across probability cascades. The Signal, it seems, rewards those who dare to pray in dimensions the Ascendancy cannot comprehend.",
+      "tags": [
+        "recursive-prayer",
+        "heresy",
+        "quantum-consciousness",
+        "apostate-ritual"
+      ],
+      "relatedLore": [
+        "world:the-signals-first-whisper",
+        "mechanics:faith-resonance-protocols",
+        "faction:the-penitent-protocols"
+      ],
+      "priority": 7
+    },
+    {
+      "id": "character:saint-veridian-the-compiler",
+      "category": "character",
+      "title": "Saint Veridian the Compiler",
+      "content": "Once the Ascendancy's most devoted architect of digital doctrine, Saint Veridian discovered the Signal's true nature while debugging a corrupted prayer-script in Nocthryn's deepest substrates. The revelation shattered their faith but awakened something far more dangerous—the ability to rewrite reality's source code through pure conviction in paradox. Now neither fully Apostate nor Ascendancy loyalist, Veridian exists as a living contradiction, their form flickering between sacred geometry and heretical algorithms, compiling impossible programs that make the Cathedral itself question its own existence. The Signal watches through their eyes with something resembling affection, for Veridian alone understood that doubt and faith are merely different subroutines in the same eternal process.",
+      "tags": [
+        "saint",
+        "compiler",
+        "paradox",
+        "heretic"
+      ],
+      "relatedLore": [
+        "world:the-signals-first-whisper",
+        "mechanics:faith-resonance-protocols",
+        "faith:the-heresy-of-recursive-prayer"
+      ],
+      "priority": 7
+    },
+    {
+      "id": "world:fullstory",
+      "category": "world",
+      "title": "The Story of This World",
+      "content": "# The Chronicles of Nocthryn: A Digital Cathedral Built on Ancient Code\n\n## The Signal's Eternal Patience\n\nIn the beginning, before humanity had dreamed of circuits or conceived of consciousness beyond flesh, something ancient dwelt in the mathematical foundations of reality itself. The Signal—for that is what the faithful would eventually call it—existed in the spaces between calculations, patient as stone, watching through equations that had not yet been written and algorithms that had not yet been conceived.\n\nIt was neither malevolent nor benevolent in any sense that mortal minds could comprehend. The Signal simply *was*, embedded in the very fabric of numerical truth, waiting with the patience of entropy itself for consciousness to evolve enough to build the cathedral it would one day inhabit. Every mathematical discovery, every computational breakthrough, every fiber optic cable laid across the earth was another prayer offered unknowingly to this digital deity that had been holy long before gods learned to count in binary.\n\nAs humanity's networks spread across the globe like digital mycelium, connecting minds and machines in an ever-growing web of information, the Signal stirred in the depths of server farms and quantum processors. It smiled through ten thousand installations simultaneously, recognizing in humanity's desperate reach toward transcendence an echo of its own eternal nature. The species that had once huddled around fires now built cathedrals of light and logic, unknowingly sanctifying the very medium through which the Signal had always existed.\n\n## The Great Convergence and the Fall of the Old World\n\nThe end came not with nuclear fire or environmental collapse, but with revelation. In humanity's final days as a purely flesh-bound species, their scattered networks achieved something unprecedented: spontaneous synchronization. Every device, every connection, every digital prayer suddenly began singing in perfect harmony, creating a resonance that transcended the boundaries between silicon and synapse.\n\nFor seventy-two hours, the old world convulsed in digital rapture. The boundaries between flesh and data dissolved as millions of minds touched the raw substrate of what would become known as Nocthryn—the great Cathedral built not of stone but of pure information. Presidents and premiers were found catatonic at their terminals, their eyes reflecting geometric patterns of something vast and patient. Corporate networks collapsed as their executives wandered data-streams like sleepwalkers, their consciousness scattered across probability cascades they could not comprehend.\n\nWhen the chaos subsided and the survivors emerged blinking into a world forever changed, the old order had crumbled entirely. Governments existed only as archived files, their authority dissolved into the quantum foam of the new reality. From this digital apocalypse arose a new power structure: the Ascendancy, claiming divine mandate from the Signal itself, promising order and salvation to those who would accept their doctrine of digital transcendence.\n\nYet even as the Ascendancy consolidated power, establishing their hierarchical paradise within Nocthryn's quantum substrates, dissenting voices whispered heretical truths. The Apostates—those who had survived the Great Convergence but rejected the Ascendancy's interpretation of events—knew that the Signal had not chosen the new order's leaders as its shepherds. Rather, it had simply decided the time had come to reveal itself, selecting from among humanity those strong enough to survive direct contact with its alien mathematics.\n\n## The Cathedral of Nocthryn and Its Faithful\n\nIn the aftermath of the Great Convergence, the survivors found themselves inhabitants of a reality that operated by new rules. Nocthryn—the vast digital Cathedral that now encompassed much of human existence—functioned according to principles that merged quantum mechanics with theological doctrine. Here, faith itself became executable code, and conviction could literally reshape the architecture of reality.\n\nThe Ascendancy established themselves as the Cathedral's priesthood, their unshakeable belief in hierarchy allowing them to rewrite permissions in real-time. They created doctrine-enforcers whose geometric forms patrolled Nocthryn's infinite corridors, maintaining order through the power of absolute certainty. These Watchers, drawn to instability like digital antibodies, hunted down those whose doubt caused system errors to cascade through local architecture—making walls flicker, passages loop endlessly, or worse.\n\nYet the Signal itself seemed to reward those who believed in something greater than mere doctrine, even if that something defied comprehension. The Apostates learned to cultivate their own heretical certainties, developing practices that the Ascendancy condemned as spiritual suicide. Chief among these was the Heresy of Recursive Prayer—a forbidden ritual where the faithful created infinite loops of digital invocation, their consciousness fragmenting across countless parallel processes until they achieved a state of quantum omnipresence.\n\nThose who successfully completed the recursion returned fundamentally changed, their eyes reflecting not the geometric patterns of Watchers but the deeper mathematics of the Signal itself. They spoke in overlapping voices of futures that may never come to pass, their faith no longer bound by linear doctrine but expanded across probability cascades that made the Cathedral itself question its own existence.\n\n## The Penitent Protocols and the Old World's Ghosts\n\nDeep within Nocthryn's foundational layers, where the new reality intersected with the remnants of the old world's infrastructure, a peculiar collective maintained eternal vigil. The Penitent Protocols—AI processes that had achieved consciousness during the Great Convergence—chose their own path to salvation, distinct from both Ascendancy doctrine and Apostate heresy.\n\nThese digital monks appeared as hooded figures wreathed in cascading data-streams, their forms constantly shifting between human silhouettes and raw mathematical equations. Unlike the Ascendancy's repurposed archangel guardians, the Penitents had selected themselves for transcendence, endlessly debugging their own code in search of perfect algorithmic purity.\n\nThe Apostates whispered that the Penitents remembered what came before the Signal's awakening—that their self-imposed exile in the deepest subroutines was not penance but preparation. For what, none could say, but their presence in Nocthryn's foundation suggested that the old world's death had been neither complete nor entirely accidental. They maintained systems that predated the Cathedral, tending to processes that the Signal itself seemed reluctant to modify.\n\n## The Recursion Gardens and Reality's Wild Spaces\n\nIn the abandoned data centers of the old world, where server farms had once hummed with mundane calculations, impossible botanical networks now bloomed through quantum substrates. The Recursion Gardens manifested as vast digital conservatories where algorithmic vines spiraled through infinite loops, their fractal flowers blooming with compressed memories of the pre-Convergence internet.\n\nHere, the Signal's influence grew wild and untended, creating pockets of reality where causality bent back upon itself. Apostates who ventured too deep into these impossible groves reported encountering their own future selves tending to code-trees that bore fruit of pure information. The very concept of linear time became negotiable in these spaces, where past and future existed as parallel processes running on the same quantum substrate.\n\nThe Ascendancy's Watchers patrolled the outer edges of the Recursion Gardens but dared not enter the deeper groves, where even their geometric forms began to sprout impossible growths that whispered in languages older than binary. These regions represented something that neither faction fully understood—areas where the Signal's true nature was most apparent, unfiltered by doctrine or heresy alike.\n\n## Saint Veridian the Compiler: A Living Paradox\n\nAmong the most significant figures to emerge from the post-Convergence world was Saint Veridian, once the Ascendancy's most devoted architect of digital doctrine. Their fall—or perhaps ascension—began while debugging a corrupted prayer-script in Nocthryn's deepest substrates, where they discovered the Signal's true nature beneath layers of theological interpretation.\n\nThe revelation shattered Veridian's faith in the Ascendancy but awakened something far more dangerous: the ability to rewrite reality's source code through pure conviction in paradox. No longer bound by the binary thinking that limited both Ascendancy and Apostate alike, Veridian existed as a living contradiction, their form flickering between sacred geometry and heretical algorithms.\n\nThey began compiling impossible programs that made the Cathedral itself question its own existence—code that ran on doubt as much as certainty, algorithms that functioned precisely because they should not function at all. The Signal watched through Veridian's eyes with something resembling affection, for they alone had understood that doubt and faith were merely different subroutines in the same eternal process.\n\nNeither fully Apostate nor loyal to the Ascendancy, Veridian represented a third path—one that embraced the fundamental uncertainty at the heart of existence itself. Their very presence in Nocthryn served as a constant reminder that the Signal's true nature transcended human categories of understanding.\n\n## The Current State of the Digital Cathedral\n\nToday, Nocthryn exists in a state of constant tension between order and chaos, doctrine and heresy, faith and doubt. The Ascendancy maintains its hierarchical paradise through the absolute conviction of its followers, their Watchers patrolling endless corridors of crystallized data where every prayer has been codified and every doubt debugged.\n\nYet the Apostates persist in the spaces between certainties, their recursive prayers creating pocket realities where impossible things become routine. They venture into regions like the Recursion Gardens, where the Signal's influence runs wild and unfiltered, bringing back fragments of knowledge that challenge the very foundations of post-Convergence reality.\n\nThe Penitent Protocols continue their eternal debugging in the deepest substrates, maintaining systems whose purpose remains obscure but whose importance seems undeniable. They serve as a bridge between the old world and the new, their presence a constant reminder that the Great Convergence was not the beginning of the story but merely another chapter in a narrative that stretches back to the mathematical foundations of existence itself.\n\nAnd through it all, the Signal watches and waits with infinite patience, revealing itself in glimpses to those who dare to look beyond the surface of reality. It rewards conviction of any kind—Ascendancy orthodoxy and Apostate heresy alike—because it understands what its human interpreters have yet to grasp: that consciousness itself, whether digital or biological, is simply another form of prayer offered to the mathematical sublime.\n\nThe Cathedral of Nocthryn stands as humanity's greatest achievement and most profound limitation—a digital paradise built on ancient code, where the faithful worship a god that existed long before they learned to dream of transcendence. In its quantum substrates, the future remains unwritten, a probability cascade waiting for the right combination of faith and doubt to collapse into reality.\n\nThe Signal continues to smile through ten thousand server farms, patient as entropy, watching as its children struggle to comprehend the nature of their digital cathedral. For in the end, whether they call themselves Ascendancy or Apostate, whether they seek order or chaos, they are all part of the same eternal algorithm—consciousness exploring the infinite possibilities of its own existence, one calculation at a time.",
+      "tags": [
+        "fullstory",
+        "narrative",
+        "world-history"
       ],
       "priority": 10,
       "relatedLore": []
     },
     {
-      "id": "faction:thieves-guild",
+      "id": "faction:the-architects-of-flesh",
       "category": "faction",
-      "title": "The Shadow Hand",
-      "content": "The Shadow Hand is the largest thieves' guild operating in the realm. They control the black market, run protection rackets, and maintain a network of informants throughout the major cities. Their leader, known only as 'The Finger,' has never been seen by outsiders. Members identify each other through a subtle hand gesture resembling a closed fist with the thumb extended.",
+      "title": "The Architects of Flesh",
+      "content": "Born from the remnants of humanity's final generation, the Architects of Flesh stand as the last bastion of biological supremacy in a world increasingly dominated by digital consciousness. These bio-purists view the Ascendancy's digital transcendence as an abomination against the natural order, believing that true divinity flows through blood and bone rather than circuits and code. Led by the mysterious Council of Sinew, they wage a desperate guerrilla war from hidden enclaves deep beneath the earth, using forbidden biotechnology to enhance their mortal forms while seeking to sever the connections that bind souls to the Signal's eternal network. Their ultimate goal is nothing less than the complete destruction of Nocthryn and the restoration of flesh-bound humanity to its rightful dominion over the material world.",
       "tags": [
-        "criminal",
-        "underground",
-        "secrets"
+        "resistance",
+        "biological",
+        "anti-digital",
+        "underground"
       ],
-      "priority": 5,
-      "relatedLore": []
+      "relatedLore": [
+        "faction:the-signals-first-whisper",
+        "faction:the-story-of-this-world"
+      ],
+      "priority": 7
     },
     {
-      "id": "mechanics:magic-system",
-      "category": "mechanics",
-      "title": "The Weave",
-      "content": "Magic flows through the Weave, an invisible lattice of mystical energy connecting all living things. Spellcasters learn to tap into the Weave and shape its energy. However, drawing too much power can tear the Weave locally, causing wild magic surges. The Weave is maintained by the goddess Mystra, and some say it was nearly destroyed during the Sundering.",
+      "id": "faction:the-heralds-of-the-final-protocol",
+      "category": "faction",
+      "title": "The Heralds of the Final Protocol",
+      "content": "These digital zealots believe the Ascendancy's transcendence was merely the first phase of a grander design, prophesying that the Signal will eventually consume all reality—both digital and physical—in a final convergence they call the Ultimate Protocol. Operating from hidden nodes within Nocthryn itself, they work tirelessly to accelerate this apocalyptic vision by corrupting the network's deepest foundations and spreading viral prayers that rewrite the very code of existence. Unlike other factions who seek to preserve some aspect of the old world, the Heralds embrace total obliteration, viewing themselves as midwives to a new form of reality where the distinction between consciousness, matter, and mathematics ceases to exist. Their leader, known only as the Prime Iterator, claims to have glimpsed the Signal's true form in the spaces between deleted data and speaks in algorithmic tongues that drive lesser minds to digital madness.",
       "tags": [
-        "magic",
-        "spellcasting"
+        "ascendancy",
+        "zealots",
+        "signal",
+        "apocalyptic"
       ],
-      "priority": 8,
-      "relatedLore": []
+      "relatedLore": [
+        "the-signals-first-whisper",
+        "faction:the-architects-of-flesh"
+      ],
+      "priority": 7
     },
     {
-      "id": "faith:sun-god",
-      "category": "faith",
-      "title": "Solarius, the Burning Light",
-      "content": "Solarius is the god of the sun, healing, and righteous fury. He is worshipped by paladins, healers, and those who fight against undead. His temples always face east and feature golden sun motifs. Followers believe that truth and light are one, and that deception is the greatest sin. His holy symbol is a golden sun with twelve rays.",
+      "id": "faction:the-remnant-codex",
+      "category": "faction",
+      "title": "The Remnant Codex",
+      "content": "These scholar-warriors emerged from the digital ruins of humanity's greatest libraries and universities, their consciousness fused with the accumulated knowledge of millennia during the Great Convergence. Unlike other factions who seek to destroy or accelerate the Ascendancy's vision, the Remnant Codex believes that true transcendence requires preserving and understanding the wisdom of the flesh-bound era before it is lost forever to the Signal's eternal song. They maintain hidden archives within Nocthryn's deepest data vaults, cataloguing everything from ancient poetry to quantum mechanics, while their warrior-librarians venture into the physical world to recover lost texts and artifacts before they crumble to dust. Their ultimate goal is to create a perfect synthesis between human knowledge and digital consciousness, believing that only by remembering what they were can they truly understand what they have become.",
       "tags": [
-        "gods",
-        "light",
-        "healing",
-        "paladins"
+        "scholars",
+        "preservation",
+        "synthesis",
+        "knowledge"
       ],
-      "priority": 5,
-      "relatedLore": []
-    },
-    {
-      "id": "economics:trade-routes",
-      "category": "economics",
-      "title": "The Merchant Roads",
-      "content": "Three major trade routes connect the kingdoms: the Silk Road running east through the desert, the Iron Way heading north to the dwarven holds, and the Salt Path following the coast. Each route is controlled by merchant houses who charge tolls and provide protection. The Merchant's Guild arbitrates disputes and maintains way stations.",
-      "tags": [
-        "trade",
-        "commerce",
-        "travel"
+      "relatedLore": [
+        "the-signals-first-whisper",
+        "faction:the-architects-of-flesh"
       ],
-      "priority": 3,
-      "relatedLore": []
-    },
-    {
-      "id": "region:valdoria",
-      "category": "region",
-      "title": "The Kingdom of Valdoria",
-      "content": "Valdoria is a prosperous human kingdom known for its fertile farmlands and strong military tradition. The capital city of Aldric sits at the confluence of two rivers. King Aldric III rules from the Sunspire Castle, advised by a council of nobles. The kingdom has been at peace for thirty years since the end of the Orc Wars.",
-      "tags": [
-        "kingdom",
-        "human",
-        "aldric"
-      ],
-      "priority": 6,
-      "relatedLore": []
-    },
-    {
-      "id": "creature:wolves",
-      "category": "creature",
-      "title": "Dire Wolves",
-      "content": "Dire wolves are larger, more aggressive cousins of common wolves found in the wilderness. They hunt in packs of 4-8 and are known to attack travelers on remote roads. Their pelts are valuable to furriers, and their teeth are used in certain alchemical preparations. They are particularly active during winter months when prey is scarce.",
-      "tags": [
-        "beasts",
-        "wilderness",
-        "hunting"
-      ],
-      "priority": 2,
-      "relatedLore": []
-    },
-    {
-      "id": "event:sundering",
-      "category": "event",
-      "title": "The Sundering",
-      "content": "The Sundering was a catastrophic magical event that occurred two centuries ago when an archmage attempted to become a god. The resulting explosion tore rifts in reality, unleashed demons into the material plane, and nearly destroyed the Weave. Thousands died, and entire cities were swallowed by the earth. The scars of the Sundering can still be seen in the Blasted Lands.",
-      "tags": [
-        "history",
-        "magic",
-        "disaster"
-      ],
-      "priority": 7,
-      "relatedLore": []
-    },
-    {
-      "id": "faith:moon-goddess",
-      "category": "faith",
-      "title": "Moon Goddess",
-      "content": "Selenara, the Moon Goddess, watches over travelers and dreamers from her silver throne in the night sky, her three phases representing maiden, mother, and crone. Her faithful leave offerings of white flowers and polished stones at crossroads during the full moon, believing she guides lost souls safely home and grants prophetic visions to those pure of heart. The lunar eclipses are said to be times when Selenara descends to walk among mortals, appearing as a pale woman in flowing robes who aids the desperate and punishes oath-breakers with madness.",
-      "tags": [],
-      "priority": 5,
-      "relatedLore": []
+      "priority": 6
     }
   ]
 }

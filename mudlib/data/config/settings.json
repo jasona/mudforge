@@ -1,4 +1,25 @@
 {
   "disconnect.timeoutMinutes": 15,
-  "combat.playerKilling": false
+  "combat.playerKilling": false,
+  "corpse.playerDecayMinutes": 60,
+  "corpse.npcDecayMinutes": 5,
+  "reset.intervalMinutes": 15,
+  "reset.cleanupDroppedItems": true,
+  "giphy.enabled": true,
+  "giphy.autoCloseSeconds": 5,
+  "giphy.rating": "pg",
+  "giphy.playerRateLimitPerMinute": 3,
+  "discord.enabled": false,
+  "discord.guildId": "",
+  "discord.channelId": "",
+  "bots.enabled": false,
+  "bots.maxBots": 5,
+  "bots.minOnlineMinutes": 15,
+  "bots.maxOnlineMinutes": 120,
+  "bots.minOfflineMinutes": 30,
+  "bots.maxOfflineMinutes": 240,
+  "bots.chatFrequencyMinutes": 10,
+  "time.cycleDurationMinutes": 60,
+  "time.enabled": true,
+  "game.theme": "cyberpunk"
 }
