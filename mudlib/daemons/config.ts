@@ -172,6 +172,11 @@ const DEFAULT_SETTINGS: Record<string, ConfigSetting> = {
     description: 'Enable the day/night cycle (affects outdoor room lighting)',
     type: 'boolean',
   },
+  'game.theme': {
+    value: 'fantasy',
+    description: 'Game theme/genre used in AI-generated content (e.g., fantasy, sci-fi, cyberpunk, horror, steampunk)',
+    type: 'string',
+  },
 };
 
 /**

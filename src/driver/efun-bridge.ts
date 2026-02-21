@@ -39,6 +39,7 @@ import { getGitHubClient } from './github-client.js';
 import { getGiphyClient, type CachedGif } from './giphy-client.js';
 import { getShadowRegistry, type ShadowRegistry } from './shadow-registry.js';
 import type { Shadow, AddShadowResult } from './shadow-types.js';
+import { getPromptManager } from './prompt-manager.js';
 import { randomBytes, scrypt, timingSafeEqual } from 'crypto';
 import { reverse as dnsReverse } from 'dns/promises';
 import { promisify } from 'util';
@@ -3510,9 +3511,11 @@ export class EfunBridge {
 
     const playerName = this.getPlayerNameForRateLimit();
 
+    const pm = getPromptManager();
+    const defaultSystem = pm?.render('generate.system') ?? 'You are a helpful assistant for a MUD game. Generate creative, atmospheric content.';
     const systemPrompt = context
       ? `${context}\n\nFollow the user's instructions carefully.`
-      : 'You are a helpful assistant for a fantasy MUD game. Generate creative, atmospheric content.';
+      : defaultSystem;
 
     const request: { systemPrompt: string; messages: ClaudeMessage[]; maxTokens?: number; temperature?: number } = {
       systemPrompt,
@@ -3586,24 +3589,18 @@ export class EfunBridge {
         ? 'Be brief and direct. No flowery language.'
         : 'Create an atmospheric, immersive description.';
 
-    const systemPrompt = `You are a creative writer for a fantasy MUD (text-based RPG) game.
-Generate descriptions for game content. ${styleGuide}
-
-IMPORTANT RULES:
-- Short description: 3-8 words, lowercase, no period (e.g., "a dusty old tavern")
-- Long description: 2-4 sentences, present tense, second person where appropriate
-- Use color codes like {cyan}, {yellow}, {red}, {green}, {bold}, {/} for emphasis sparingly
-- Never break character or mention being an AI`;
+    const pm = getPromptManager();
+    const systemPrompt = pm?.render('describe.system', { styleGuide })
+      ?? `You are a creative writer for a MUD (text-based RPG) game.\nGenerate descriptions for game content. ${styleGuide}\n\nIMPORTANT RULES:\n- Short description: 3-8 words, lowercase, no period\n- Long description: 2-4 sentences, present tense, second person where appropriate\n- Never break character or mention being an AI`;
 
     const keywords = details.keywords?.join(', ') || '';
-    const prompt = `Generate a ${type} description.
-Name: ${details.name}
-${keywords ? `Keywords/Theme: ${keywords}` : ''}
-${details.theme ? `Theme: ${details.theme}` : ''}
-${details.existing ? `Existing description to enhance: ${details.existing}` : ''}
-
-Respond in this exact JSON format:
-{"shortDesc": "...", "longDesc": "..."}`;
+    const prompt = pm?.render('describe.user', {
+      type,
+      name: details.name,
+      keywords,
+      theme: details.theme,
+      existing: details.existing,
+    }) ?? `Generate a ${type} description.\nName: ${details.name}\n${keywords ? `Keywords/Theme: ${keywords}` : ''}\n${details.theme ? `Theme: ${details.theme}` : ''}\n\nRespond in this exact JSON format:\n{"shortDesc": "...", "longDesc": "..."}`;
 
     const result = await client.completeWithRateLimit(`desc:${playerName}`, {
       systemPrompt,
@@ -3697,30 +3694,22 @@ Respond in this exact JSON format:
       }
     }
 
-    const systemPrompt = `You are ${npcContext.name}, an NPC in a fantasy MUD game.
-
-PERSONALITY: ${npcContext.personality}
-BACKGROUND: ${npcContext.background}
-${npcContext.currentMood ? `CURRENT MOOD: ${npcContext.currentMood}` : ''}
-
-SPEAKING STYLE:
-- ${formalityDesc}
-- ${verbosityDesc}
-${npcContext.speakingStyle?.accent ? `- Speech pattern: ${npcContext.speakingStyle.accent}` : ''}
-
-KNOWLEDGE:
-- You can discuss: ${topics}
-${forbidden ? `- NEVER discuss or reveal information about: ${forbidden}` : ''}
-${npcContext.knowledgeScope?.localKnowledge ? `- Local knowledge: ${npcContext.knowledgeScope.localKnowledge.join(', ')}` : ''}
-${worldLoreContext ? `\nWORLD LORE (use this knowledge naturally in conversation):\n${worldLoreContext}` : ''}
-
-RULES:
-- Stay completely in character as ${npcContext.name}
-- Never break the fourth wall or mention being an AI
-- Respond as if you are actually this character in the game world
-- IMPORTANT: Keep responses under ${maxWords} words - this is a strict limit for game dialogue
-- Do not use quotation marks around your speech
-- End your response at a natural stopping point`;
+    const pm = getPromptManager();
+    const localKnowledge = npcContext.knowledgeScope?.localKnowledge?.join(', ') || '';
+    const systemPrompt = pm?.render('npc.dialogue.system', {
+      npcName: npcContext.name,
+      personality: npcContext.personality,
+      background: npcContext.background,
+      currentMood: npcContext.currentMood,
+      formalityDesc,
+      verbosityDesc,
+      accent: npcContext.speakingStyle?.accent,
+      topics,
+      forbidden: forbidden || '',
+      localKnowledge,
+      worldLoreContext,
+      maxWords: String(maxWords),
+    }) ?? `You are ${npcContext.name}, an NPC in a MUD game.\n\nPERSONALITY: ${npcContext.personality}\nBACKGROUND: ${npcContext.background}\n\nSPEAKING STYLE:\n- ${formalityDesc}\n- ${verbosityDesc}\n\nRULES:\n- Stay completely in character as ${npcContext.name}\n- Never break the fourth wall or mention being an AI\n- Keep responses under ${maxWords} words`;
 
     // Convert conversation history to Claude format
     const messages: ClaudeMessage[] = [];
@@ -3816,6 +3805,74 @@ RULES:
       response.cached = result.cached;
     }
     return response;
+  }
+
+  // ========== Prompt Template Efuns ==========
+
+  /**
+   * Get the effective template for a prompt ID (override if set, else default).
+   */
+  getPromptTemplate(id: string): string | undefined {
+    const pm = getPromptManager();
+    return pm?.get(id);
+  }
+
+  /**
+   * Get the hardcoded default template for a prompt ID.
+   */
+  getPromptDefault(id: string): string | undefined {
+    const pm = getPromptManager();
+    return pm?.getDefault(id);
+  }
+
+  /**
+   * Get all registered prompt IDs.
+   */
+  getPromptIds(): string[] {
+    const pm = getPromptManager();
+    return pm?.getIds() ?? [];
+  }
+
+  /**
+   * Render a prompt template with variables.
+   */
+  renderPrompt(id: string, vars?: Record<string, string | undefined>): string | undefined {
+    const pm = getPromptManager();
+    return pm?.render(id, vars ?? {});
+  }
+
+  /**
+   * Set an override for a prompt template. Requires admin permission.
+   */
+  async setPromptOverride(id: string, template: string): Promise<{ success: boolean; error?: string }> {
+    const pm = getPromptManager();
+    if (!pm) return { success: false, error: 'Prompt manager not initialized' };
+    return pm.set(id, template);
+  }
+
+  /**
+   * Reset a prompt template to its default. Requires admin permission.
+   */
+  async resetPromptOverride(id: string): Promise<{ success: boolean; error?: string }> {
+    const pm = getPromptManager();
+    if (!pm) return { success: false, error: 'Prompt manager not initialized' };
+    return pm.reset(id);
+  }
+
+  /**
+   * Reload prompt overrides from disk.
+   */
+  async reloadPrompts(): Promise<void> {
+    const pm = getPromptManager();
+    if (pm) await pm.reload();
+  }
+
+  /**
+   * Check whether a prompt ID has an active override.
+   */
+  hasPromptOverride(id: string): boolean {
+    const pm = getPromptManager();
+    return pm?.hasOverride(id) ?? false;
   }
 
   // ========== GitHub Efuns ==========
@@ -4227,6 +4284,16 @@ RULES:
       aiNpcResponse: this.aiNpcResponse.bind(this),
       aiImageAvailable: this.aiImageAvailable.bind(this),
       aiImageGenerate: this.aiImageGenerate.bind(this),
+
+      // AI Prompt Templates
+      getPromptTemplate: this.getPromptTemplate.bind(this),
+      getPromptDefault: this.getPromptDefault.bind(this),
+      getPromptIds: this.getPromptIds.bind(this),
+      renderPrompt: this.renderPrompt.bind(this),
+      setPromptOverride: this.setPromptOverride.bind(this),
+      resetPromptOverride: this.resetPromptOverride.bind(this),
+      reloadPrompts: this.reloadPrompts.bind(this),
+      hasPromptOverride: this.hasPromptOverride.bind(this),
 
       // Intermud 3
       i3IsConnected: this.i3IsConnected.bind(this),
