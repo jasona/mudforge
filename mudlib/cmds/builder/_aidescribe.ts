@@ -12,6 +12,7 @@
 
 import type { MudObject } from '../../lib/std.js';
 import { getLoreDaemon } from '../../daemons/lore.js';
+import { getPromptsDaemon } from '../../daemons/prompts.js';
 import { parseArgs } from '../../lib/text-utils.js';
 
 interface Player extends MudObject {
@@ -118,27 +119,13 @@ export async function execute(ctx: CommandContext): Promise<void> {
     armor: 'armor or protective gear that players can wear',
   };
 
-  const prompt = `Generate descriptions for ${typeDescriptions[type as ObjectType]} in a fantasy MUD game.
-
-Name: "${name}"
-${theme ? `Theme/Keywords: ${theme}` : ''}
-
-${loreContext ? `WORLD LORE (use for consistency):
-${loreContext}
-
-` : ''}Respond with a JSON object:
-{
-  "shortDesc": "A brief 3-8 word description${type === 'npc' ? " starting lowercase (e.g., 'a grizzled old warrior')" : ''}",
-  "longDesc": "A 2-4 sentence atmospheric description"
-}
-
-Requirements:
-- shortDesc should be concise and evocative
-- longDesc should be immersive and detailed
-- If world lore is provided, incorporate relevant details naturally
-- Match the tone and style of the game world
-
-Respond with ONLY the JSON object, no markdown.`;
+  const prompts = getPromptsDaemon();
+  const prompt = prompts.render('aidescribe.user', {
+    typeDescription: typeDescriptions[type as ObjectType],
+    name,
+    theme: theme || undefined,
+    loreContext: loreContext || undefined,
+  }) ?? `Generate descriptions for ${typeDescriptions[type as ObjectType]} in a fantasy MUD game.\n\nName: "${name}"\n\nRespond with ONLY the JSON object, no markdown.`;
 
   try {
     const result = await efuns.aiGenerate(prompt, undefined, { maxTokens: 400 });
