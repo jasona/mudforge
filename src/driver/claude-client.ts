@@ -23,6 +23,8 @@ export interface ClaudeRequest {
   messages: ClaudeMessage[];
   maxTokens?: number;
   temperature?: number;
+  /** Request timeout in milliseconds (default: 25000) */
+  timeout?: number;
 }
 
 export interface ClaudeResponse {
@@ -191,9 +193,10 @@ export class ClaudeClient {
     }
 
     try {
-      // Add 25s timeout to prevent blocking event loop and failing health checks
+      // Add timeout to prevent blocking event loop and failing health checks
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 25000);
+      const timeoutMs = request.timeout ?? 25000;
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
       let response: Response;
       try {

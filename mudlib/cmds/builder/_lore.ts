@@ -10,6 +10,7 @@
  *   lore generate <category> <title> [theme]  - AI-generate lore entry
  *   lore search <query>            - Search lore by title/content
  *   lore tags                      - List all tags in use
+ *   lore clear                     - Remove all lore entries
  */
 
 import type { MudObject } from '../../lib/std.js';
@@ -38,7 +39,7 @@ interface CommandContext {
 
 export const name = ['lore'];
 export const description = 'Manage world lore entries';
-export const usage = 'lore <list|show|add|edit|remove|generate|search|tags> [args]';
+export const usage = 'lore <list|show|add|edit|remove|generate|search|tags|clear> [args]';
 
 /**
  * Convert a title to a URL-safe slug.
@@ -230,6 +231,7 @@ function showUsage(ctx: CommandContext): void {
   ctx.sendLine('  generate <category> <title> [theme] - AI-generate lore');
   ctx.sendLine('  search <query>                   - Search lore content');
   ctx.sendLine('  tags                             - List all tags in use');
+  ctx.sendLine('  clear                            - Remove all lore entries');
   ctx.sendLine('');
   ctx.sendLine(`Categories: ${categories}`);
   ctx.sendLine('');
@@ -621,6 +623,39 @@ function cmdTags(ctx: CommandContext): void {
   ctx.sendLine(`{dim}Total: ${tagCounts.size} unique tags{/}`);
 }
 
+/**
+ * Clear all lore entries (with confirmation).
+ */
+function cmdClear(ctx: CommandContext): void {
+  const loreDaemon = getLoreDaemon();
+  const entries = loreDaemon.getAllLore();
+
+  if (entries.length === 0) {
+    ctx.sendLine('{dim}No lore entries to clear.{/}');
+    return;
+  }
+
+  ctx.sendLine(`{yellow}This will remove all ${entries.length} lore entries.{/}`);
+  ctx.sendLine('Are you sure? ({green}yes{/}/{red}no{/})');
+
+  const player = ctx.player as PlayerWithIde;
+  player.setInputHandler(async (input: string) => {
+    const cmd = input.trim().toLowerCase();
+    if (cmd === 'yes' || cmd === 'y') {
+      player.setInputHandler(null);
+      const allLore = loreDaemon.getAllLore();
+      for (const entry of allLore) {
+        loreDaemon.removeLore(entry.id);
+      }
+      await loreDaemon.save();
+      ctx.sendLine(`{green}Cleared ${entries.length} lore entries.{/}`);
+    } else {
+      player.setInputHandler(null);
+      ctx.sendLine('{dim}Cancelled.{/}');
+    }
+  });
+}
+
 export async function execute(ctx: CommandContext): Promise<void> {
   const args = parseArgs(ctx.args.trim());
   const subcommand = args[0]?.toLowerCase() || '';
@@ -666,6 +701,11 @@ export async function execute(ctx: CommandContext): Promise<void> {
 
     case 'tags':
       cmdTags(ctx);
+      break;
+
+    case 'clear':
+    case 'purge':
+      cmdClear(ctx);
       break;
 
     default:

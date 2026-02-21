@@ -27,7 +27,7 @@ describe('PromptManager', () => {
     it('should have all expected prompt IDs', () => {
       const pm = new PromptManager(testMudlibPath);
       const ids = pm.getIds();
-      expect(ids.length).toBeGreaterThanOrEqual(22);
+      expect(ids.length).toBeGreaterThanOrEqual(25);
       expect(ids).toContain('generate.system');
       expect(ids).toContain('describe.system');
       expect(ids).toContain('describe.user');
@@ -39,6 +39,9 @@ describe('PromptManager', () => {
       expect(ids).toContain('area.room.user');
       expect(ids).toContain('area.npc.user');
       expect(ids).toContain('area.item.user');
+      expect(ids).toContain('ailore.bootstrap.entry');
+      expect(ids).toContain('ailore.expand.entry');
+      expect(ids).toContain('ailore.fullstory.user');
       expect(ids).toContain('portrait.creature');
       expect(ids).toContain('portrait.humanoid');
       expect(ids).toContain('portrait.player');

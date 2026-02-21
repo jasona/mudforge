@@ -152,6 +152,8 @@ export interface AIGenerateOptions {
   useContinuation?: boolean;
   /** Maximum continuation requests (default: 2) */
   maxContinuations?: number;
+  /** Request timeout in milliseconds (default: 25000). Use higher values for large generations. */
+  timeout?: number;
 }
 
 /**
@@ -3517,7 +3519,7 @@ export class EfunBridge {
       ? `${context}\n\nFollow the user's instructions carefully.`
       : defaultSystem;
 
-    const request: { systemPrompt: string; messages: ClaudeMessage[]; maxTokens?: number; temperature?: number } = {
+    const request: { systemPrompt: string; messages: ClaudeMessage[]; maxTokens?: number; temperature?: number; timeout?: number } = {
       systemPrompt,
       messages: [{ role: 'user', content: prompt }],
     };
@@ -3526,6 +3528,9 @@ export class EfunBridge {
     }
     if (options?.temperature !== undefined) {
       request.temperature = options.temperature;
+    }
+    if (options?.timeout !== undefined) {
+      request.timeout = options.timeout;
     }
 
     // Check rate limit first

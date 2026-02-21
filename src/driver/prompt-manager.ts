@@ -278,6 +278,97 @@ Requirements:
 
 Respond with ONLY the JSON object.`,
 
+  // === _ailore.ts: bootstrap (per-entry) ===
+  'ailore.bootstrap.entry': `Generate ONE lore entry for a {{gameTheme}} MUD game.
+
+World Name: "{{worldName}}"
+{{#if worldDescription}}World Description: {{worldDescription}}{{/if}}
+
+Category to generate: {{category}} — {{categoryDescription}}
+
+{{#if pendingLore}}LORE ALREADY GENERATED FOR THIS WORLD (build on this, reference where relevant):
+{{pendingLore}}
+
+{{/if}}{{#if existingLore}}EXISTING SAVED LORE (do not contradict):
+{{existingLore}}
+
+{{/if}}Respond with ONLY a single JSON object:
+{
+  "category": "{{category}}",
+  "title": "A Short Title",
+  "content": "2-4 sentences of rich, atmospheric lore.",
+  "tags": ["tag1", "tag2"],
+  "relatedLore": ["category:related-slug"],
+  "priority": 7
+}
+
+Requirements:
+- title should be evocative and unique
+- content should be 2-4 sentences, rich and atmospheric
+- tags should be 2-4 keywords for searchability
+- relatedLore should reference other entries by ID (format: "category:slug-name")
+- priority 1-10 (world=9-10, others=5-8)
+- Match the tone and style of a {{gameTheme}} setting
+
+Respond with ONLY the JSON object, no markdown or explanation.`,
+
+  // === _ailore.ts: expand (per-entry) ===
+  'ailore.expand.entry': `Generate ONE new lore entry for a {{gameTheme}} MUD game in the "{{category}}" category.
+
+Category: {{category}} — {{categoryDescription}}
+{{#if theme}}Theme/Focus: {{theme}}{{/if}}
+
+{{#if pendingLore}}ENTRIES ALREADY GENERATED IN THIS BATCH (do not duplicate):
+{{pendingLore}}
+
+{{/if}}{{#if existingLore}}EXISTING WORLD LORE (maintain consistency, do not duplicate):
+{{existingLore}}
+
+{{/if}}Respond with ONLY a single JSON object:
+{
+  "category": "{{category}}",
+  "title": "Entry Title",
+  "content": "2-4 sentences of detailed, atmospheric lore.",
+  "tags": ["tag1", "tag2"],
+  "relatedLore": ["category:related-entry-slug"],
+  "priority": 5
+}
+
+Requirements:
+- title should be unique and not duplicate any existing entries
+- content should be 2-4 sentences, detailed and atmospheric
+- Reference existing lore entries in relatedLore where relevant
+- priority 1-10 (5 is default, higher = more important)
+- Match the tone and style of a {{gameTheme}} setting
+
+Respond with ONLY the JSON object, no markdown or explanation.`,
+
+  // === _ailore.ts: fullstory ===
+  'ailore.fullstory.user': `You are a master storyteller for a {{gameTheme}} world. Using the lore entries below, write a rich, verbose long-form narrative — the story of this world.
+
+LORE ENTRIES:
+{{loreContent}}
+
+Write a comprehensive world history and story document that covers:
+- The origins and nature of the world
+- Major historical events and turning points
+- The rise and fall of factions and civilizations
+- Notable characters and their legacies
+- The geography and distinct regions
+- Religions, magic, or supernatural forces
+- Current tensions and the state of the world today
+
+Style requirements:
+- Write in third person, past and present tense as appropriate
+- Be vivid, atmospheric, and immersive
+- Weave all lore entries together into a cohesive narrative
+- Use section headers to organize the story
+- Aim for 1500-3000 words
+- Match the tone of a {{gameTheme}} setting
+- This is prose, not JSON — write naturally
+
+Begin the narrative now.`,
+
   // === portrait.ts: creature portrait ===
   'portrait.creature': `Create a small square portrait icon for a {{gameTheme}} RPG creature or beast:
 
