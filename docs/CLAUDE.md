@@ -25,7 +25,7 @@ Features: `pets.md`, `vehicles.md`, `lore-system.md`, `random-loot.md`, `buffs-d
 
 ## Operations
 
-`deployment.md`, `getting-started.md`, `connection-and-session-lifecycle.md`, `persistence-and-save-data.md`
+`deployment.md`, `getting-started.md`, `connection-and-session-lifecycle.md`, `persistence-and-save-data.md`, `persistence-adapter.md`
 
 ## Subdirectories
 

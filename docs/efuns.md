@@ -410,10 +410,86 @@ const result2 = await efuns.reloadCommand('/cmds/builder/_update');
 
 ### savePlayer(player)
 
-Save a player's data to disk. Called automatically on quit, but can be triggered manually.
+Save a player's data. Called automatically on quit, but can be triggered manually. Data is stored via the active persistence adapter (filesystem or Supabase).
 
 ```typescript
 await efuns.savePlayer(player);
+```
+
+### loadPlayerData(name)
+
+Load a player's saved data by name.
+
+```typescript
+const data = await efuns.loadPlayerData('hero');
+// Returns: PlayerSaveData | null
+```
+
+### playerExists(name)
+
+Check if a player save exists.
+
+```typescript
+const exists = await efuns.playerExists('hero');
+// Returns: boolean
+```
+
+### listPlayers()
+
+List all saved player names.
+
+```typescript
+const players = await efuns.listPlayers();
+// Returns: string[] (e.g. ['hero', 'villain'])
+```
+
+## Data Persistence
+
+Generic data storage for daemon state. Data is organized by namespace and key, stored via the active persistence adapter. See [Persistence Adapter](persistence-adapter.md) for backend details.
+
+### saveData(namespace, key, data)
+
+Save arbitrary data under a namespace/key pair.
+
+```typescript
+await efuns.saveData('config', 'settings', { theme: 'dark', fontSize: 14 });
+await efuns.saveData('bots', 'guard', { personality: 'friendly', patrol: true });
+```
+
+### loadData(namespace, key)
+
+Load data by namespace/key pair.
+
+```typescript
+const settings = await efuns.loadData<{ theme: string }>('config', 'settings');
+// Returns: T | null
+```
+
+### dataExists(namespace, key)
+
+Check if data exists for a namespace/key pair.
+
+```typescript
+const exists = await efuns.dataExists('config', 'settings');
+// Returns: boolean
+```
+
+### deleteData(namespace, key)
+
+Delete data for a namespace/key pair.
+
+```typescript
+const deleted = await efuns.deleteData('config', 'settings');
+// Returns: boolean (true if deleted, false if not found)
+```
+
+### listDataKeys(namespace)
+
+List all keys within a namespace.
+
+```typescript
+const keys = await efuns.listDataKeys('bots');
+// Returns: string[] (e.g. ['guard', 'merchant'])
 ```
 
 ## Output

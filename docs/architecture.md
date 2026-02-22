@@ -176,7 +176,7 @@ mudforge/
 │   │   ├── compiler.ts
 │   │   ├── hot-reload.ts
 │   │   ├── permissions.ts
-│   │   └── persistence/
+│   │   └── persistence/    # Pluggable persistence adapters
 │   ├── isolation/
 │   │   ├── isolate-pool.ts
 │   │   └── script-runner.ts
@@ -276,9 +276,13 @@ update here               # Reload current room
 
 ## Persistence
 
+MudForge uses a pluggable persistence adapter pattern. The default `FilesystemAdapter` stores JSON files locally; an optional `SupabaseAdapter` stores data in PostgreSQL with Supabase Storage for images. See [Persistence Adapter](persistence-adapter.md) for full details.
+
+Daemon services persist their state via data efuns (`efuns.saveData`/`efuns.loadData`) which route through the active adapter. The adapter is configured via the `PERSISTENCE_ADAPTER` environment variable.
+
 ### Player Data
 
-Players are saved to JSON files in `/mudlib/data/players/`:
+Players are saved to JSON files in `/mudlib/data/players/` (filesystem adapter):
 
 ```json
 {
