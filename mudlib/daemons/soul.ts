@@ -75,24 +75,20 @@ export class SoulDaemon extends MudObject {
   async load(): Promise<void> {
     if (this._loaded) return;
 
-    if (typeof efuns === 'undefined' || !efuns.readFile) {
+    if (typeof efuns === 'undefined' || !efuns.loadData) {
       console.log('[SoulDaemon] efuns not available, using defaults');
       this._loaded = true;
       return;
     }
 
     try {
-      const emotePath = '/data/emotes.json';
-      const exists = await efuns.fileExists(emotePath);
+      const data = await efuns.loadData<Record<string, EmoteDefinition>>('emotes', 'emotes');
 
-      if (!exists) {
-        console.log('[SoulDaemon] No emotes file found, using defaults');
+      if (!data) {
+        console.log('[SoulDaemon] No emotes data found, using defaults');
         this._loaded = true;
         return;
       }
-
-      const content = await efuns.readFile(emotePath);
-      const data = JSON.parse(content) as Record<string, EmoteDefinition>;
 
       // Merge disk emotes into existing (defaults already loaded)
       for (const [verb, rules] of Object.entries(data)) {
@@ -234,7 +230,7 @@ export class SoulDaemon extends MudObject {
    * Save emotes to disk.
    */
   async save(): Promise<void> {
-    if (typeof efuns === 'undefined' || !efuns.writeFile) {
+    if (typeof efuns === 'undefined' || !efuns.saveData) {
       console.log('[SoulDaemon] efuns not available, cannot save');
       return;
     }
@@ -245,8 +241,7 @@ export class SoulDaemon extends MudObject {
         data[verb] = rules;
       }
 
-      const emotePath = '/data/emotes.json';
-      await efuns.writeFile(emotePath, JSON.stringify(data, null, 2));
+      await efuns.saveData('emotes', 'emotes', data);
       console.log(`[SoulDaemon] Saved ${this._emotes.size} emotes to disk`);
     } catch (error) {
       console.error('[SoulDaemon] Failed to save emotes:', error);

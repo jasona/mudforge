@@ -1503,24 +1503,20 @@ export default ${className};
   async load(): Promise<void> {
     if (this._loaded) return;
 
-    if (typeof efuns === 'undefined' || !efuns.readFile) {
+    if (typeof efuns === 'undefined' || !efuns.loadData) {
       console.log('[AreaDaemon] efuns not available, starting with empty areas');
       this._loaded = true;
       return;
     }
 
     try {
-      const dataPath = '/data/areas/drafts.json';
-      const exists = await efuns.fileExists(dataPath);
+      const saved = await efuns.loadData<SerializedAreas>('areas', 'drafts');
 
-      if (!exists) {
+      if (!saved) {
         console.log('[AreaDaemon] No saved areas found, starting fresh');
         this._loaded = true;
         return;
       }
-
-      const content = await efuns.readFile(dataPath);
-      const saved = JSON.parse(content) as SerializedAreas;
 
       for (const area of saved.areas ?? []) {
         this._areas.set(area.id, area);
@@ -1539,7 +1535,7 @@ export default ${className};
    * Save areas to disk.
    */
   async save(): Promise<void> {
-    if (typeof efuns === 'undefined' || !efuns.writeFile) {
+    if (typeof efuns === 'undefined' || !efuns.saveData) {
       console.log('[AreaDaemon] efuns not available, cannot save');
       return;
     }
@@ -1549,16 +1545,7 @@ export default ${className};
         areas: Array.from(this._areas.values()),
       };
 
-      const dataPath = '/data/areas/drafts.json';
-      const dirPath = '/data/areas';
-
-      // Ensure directory exists
-      const dirExists = await efuns.fileExists(dirPath);
-      if (!dirExists) {
-        await efuns.makeDir(dirPath, true);
-      }
-
-      await efuns.writeFile(dataPath, JSON.stringify(serialized, null, 2));
+      await efuns.saveData('areas', 'drafts', serialized);
       console.log(`[AreaDaemon] Saved ${this._areas.size} areas to disk`);
       this._dirty = false;
     } catch (error) {

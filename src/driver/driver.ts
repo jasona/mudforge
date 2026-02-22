@@ -20,7 +20,7 @@ import { initializeGiphyClient } from './giphy-client.js';
 import { initializePromptManager, resetPromptManager } from './prompt-manager.js';
 import { CommandManager, getCommandManager, resetCommandManager } from './command-manager.js';
 import { getPermissions } from './permissions.js';
-import { getFileStore } from './persistence/file-store.js';
+import { createAdapter, getAdapter } from './persistence/adapter-factory.js';
 import { Compiler } from './compiler.js';
 import { HotReload } from './hot-reload.js';
 import { getIsolatePool, resetIsolatePool } from '../isolation/isolate-pool.js';
@@ -294,6 +294,16 @@ export class Driver {
     this.logger.info('Starting MudForge Driver...');
 
     try {
+      // Initialize persistence adapter
+      const adapter = await createAdapter({
+        adapter: this.config.persistenceAdapter,
+        dataPath: this.config.dataPath,
+        supabaseUrl: this.config.supabaseUrl,
+        supabaseServiceKey: this.config.supabaseServiceKey,
+      });
+      await adapter.initialize();
+      this.logger.info({ adapter: this.config.persistenceAdapter }, 'Persistence adapter initialized');
+
       // Initialize isolate pool (for future sandbox use)
       getIsolatePool({
         memoryLimitMb: this.config.isolateMemoryMb,
@@ -434,6 +444,14 @@ export class Driver {
       // Stop scheduler
       this.scheduler.stop();
 
+      // Shutdown persistence adapter
+      try {
+        const adapter = getAdapter();
+        await adapter.shutdown();
+      } catch {
+        // Adapter may not have been initialized
+      }
+
       // Clean up
       this.scheduler.clear();
       this.connectionHandlers.clear();
@@ -489,8 +507,8 @@ export class Driver {
     this.logger.info('Loading permissions');
 
     try {
-      const fileStore = getFileStore({ dataPath: this.config.mudlibPath + '/data' });
-      const data = await fileStore.loadPermissions();
+      const adapter = getAdapter();
+      const data = await adapter.loadPermissions();
 
       if (data) {
         const permissions = getPermissions();

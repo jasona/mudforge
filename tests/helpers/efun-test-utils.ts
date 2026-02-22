@@ -7,6 +7,8 @@ import { getMudlibLoader, resetMudlibLoader } from '../../src/driver/mudlib-load
 import { resetRegistry } from '../../src/driver/object-registry.js';
 import { resetScheduler } from '../../src/driver/scheduler.js';
 import { resetPermissions } from '../../src/driver/permissions.js';
+import { resetAdapter, setAdapter } from '../../src/driver/persistence/adapter-factory.js';
+import { FilesystemAdapter } from '../../src/driver/persistence/filesystem-adapter.js';
 import { BaseMudObject } from '../../src/driver/base-object.js';
 import { mkdir, rm } from 'fs/promises';
 import { join } from 'path';
@@ -25,10 +27,16 @@ export async function createTestEnvironment(): Promise<{
   resetEfunBridge();
   resetMudlibLoader();
   resetPermissions();
+  resetAdapter();
 
   const testMudlibPath = join(process.cwd(), `test-mudlib-${randomUUID()}`);
   await mkdir(testMudlibPath, { recursive: true });
   await mkdir(join(testMudlibPath, 'data'), { recursive: true });
+
+  // Set up adapter pointing to test data directory
+  const adapter = new FilesystemAdapter({ dataPath: join(testMudlibPath, 'data') });
+  await adapter.initialize();
+  setAdapter(adapter);
 
   const efunBridge = new EfunBridge({ mudlibPath: testMudlibPath });
   const mudlibLoader = getMudlibLoader({
@@ -43,6 +51,7 @@ export async function createTestEnvironment(): Promise<{
     resetScheduler();
     resetRegistry();
     resetPermissions();
+    resetAdapter();
 
     try {
       await rm(testMudlibPath, { recursive: true, force: true });

@@ -10,7 +10,8 @@ import { getRegistry, type ObjectRegistry } from './object-registry.js';
 import { getScheduler, type Scheduler } from './scheduler.js';
 import { getMetrics } from './metrics.js';
 import { getPermissions, resetPermissions, type Permissions, PermissionLevel } from './permissions.js';
-import { getFileStore } from './persistence/file-store.js';
+import { getAdapter } from './persistence/adapter-factory.js';
+import { getSerializer } from './persistence/serializer.js';
 import { getCommandManager } from './command-manager.js';
 import { getClaudeClient, type ClaudeMessage } from './claude-client.js';
 import { getGeminiClient } from './gemini-client.js';
@@ -1810,8 +1811,8 @@ export class EfunBridge {
 
     try {
       const data = this.permissions.export();
-      const fileStore = getFileStore({ dataPath: this.config.mudlibPath + '/data' });
-      await fileStore.savePermissions(data);
+      const adapter = getAdapter();
+      await adapter.savePermissions(data);
       return { success: true };
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
@@ -2259,8 +2260,10 @@ export class EfunBridge {
    * @param player The player object to save
    */
   async savePlayer(player: MudObject): Promise<void> {
-    const fileStore = getFileStore({ dataPath: this.config.mudlibPath + '/data' });
-    await fileStore.savePlayer(player);
+    const serializer = getSerializer();
+    const data = serializer.serializePlayer(player);
+    const adapter = getAdapter();
+    await adapter.savePlayer(data);
   }
 
   /**
@@ -2269,8 +2272,8 @@ export class EfunBridge {
    * @returns The player save data, or null if not found
    */
   async loadPlayerData(name: string): Promise<PlayerSaveData | null> {
-    const fileStore = getFileStore({ dataPath: this.config.mudlibPath + '/data' });
-    return fileStore.loadPlayer(name);
+    const adapter = getAdapter();
+    return adapter.loadPlayer(name);
   }
 
   /**
@@ -2278,8 +2281,8 @@ export class EfunBridge {
    * @param name The player's name
    */
   async playerExists(name: string): Promise<boolean> {
-    const fileStore = getFileStore({ dataPath: this.config.mudlibPath + '/data' });
-    return fileStore.playerExists(name);
+    const adapter = getAdapter();
+    return adapter.playerExists(name);
   }
 
   /**
@@ -2287,8 +2290,8 @@ export class EfunBridge {
    * @returns Array of player names
    */
   async listPlayers(): Promise<string[]> {
-    const fileStore = getFileStore({ dataPath: this.config.mudlibPath + '/data' });
-    return fileStore.listPlayers();
+    const adapter = getAdapter();
+    return adapter.listPlayers();
   }
 
   /**
@@ -2332,7 +2335,7 @@ export class EfunBridge {
       activePlayerCleared: false,
     };
     const warnings: string[] = [];
-    const fileStore = getFileStore({ dataPath: this.config.mudlibPath + '/data' });
+    const adapter = getAdapter();
 
     try {
       const activePlayer = this.findActivePlayer(normalizedName) as (MudObject & {
@@ -2364,7 +2367,7 @@ export class EfunBridge {
         }
       }
 
-      details.playerSaveDeleted = await fileStore.deletePlayer(normalizedName);
+      details.playerSaveDeleted = await adapter.deletePlayer(normalizedName);
 
       const userDirPath = `/users/${normalizedName}`;
       try {
@@ -2382,7 +2385,7 @@ export class EfunBridge {
       this.permissions.setDomains(normalizedName, []);
       this.permissions.clearCommandPaths(normalizedName);
 
-      await fileStore.savePermissions(this.permissions.export());
+      await adapter.savePermissions(this.permissions.export());
       details.permissionsReset = true;
 
       try {
@@ -2408,6 +2411,50 @@ export class EfunBridge {
         warnings,
       };
     }
+  }
+
+  // ========== Data Persistence Efuns ==========
+
+  /**
+   * Save arbitrary data under a namespace/key pair.
+   * Used by daemons for persistent storage.
+   */
+  async saveData(namespace: string, key: string, data: unknown): Promise<void> {
+    const adapter = getAdapter();
+    await adapter.saveData(namespace, key, data);
+  }
+
+  /**
+   * Load data by namespace/key pair.
+   * Returns null if not found.
+   */
+  async loadData<T = unknown>(namespace: string, key: string): Promise<T | null> {
+    const adapter = getAdapter();
+    return adapter.loadData<T>(namespace, key);
+  }
+
+  /**
+   * Check if data exists for a namespace/key pair.
+   */
+  async dataExists(namespace: string, key: string): Promise<boolean> {
+    const adapter = getAdapter();
+    return adapter.dataExists(namespace, key);
+  }
+
+  /**
+   * Delete data for a namespace/key pair.
+   */
+  async deleteData(namespace: string, key: string): Promise<boolean> {
+    const adapter = getAdapter();
+    return adapter.deleteData(namespace, key);
+  }
+
+  /**
+   * List all keys within a namespace.
+   */
+  async listDataKeys(namespace: string): Promise<string[]> {
+    const adapter = getAdapter();
+    return adapter.listKeys(namespace);
   }
 
   // ========== Paging Efuns ==========
@@ -4233,6 +4280,13 @@ export class EfunBridge {
       playerExists: this.playerExists.bind(this),
       listPlayers: this.listPlayers.bind(this),
       purgePlayerData: this.purgePlayerData.bind(this),
+
+      // Data Persistence (generic namespace/key store for daemons)
+      saveData: this.saveData.bind(this),
+      loadData: this.loadData.bind(this),
+      dataExists: this.dataExists.bind(this),
+      deleteData: this.deleteData.bind(this),
+      listDataKeys: this.listDataKeys.bind(this),
 
       // Hot Reload
       reloadObject: this.reloadObject.bind(this),

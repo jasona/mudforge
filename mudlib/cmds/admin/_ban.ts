@@ -19,19 +19,15 @@ interface BanData {
   bans: BanEntry[];
 }
 
-const BANS_FILE = '/data/moderation/bans.json';
-
 export const name = ['ban', 'unban'];
 export const description = 'Ban or unban players';
 export const usage = 'ban <name> [durationMinutes] [reason] | ban list | unban <name>';
 
 async function loadBans(): Promise<BanData> {
-  if (!efuns.fileExists || !efuns.readFile) return { bans: [] };
+  if (!efuns.loadData) return { bans: [] };
   try {
-    const exists = await efuns.fileExists(BANS_FILE);
-    if (!exists) return { bans: [] };
-    const raw = await efuns.readFile(BANS_FILE);
-    const parsed = JSON.parse(raw) as BanData;
+    const parsed = await efuns.loadData<BanData>('moderation', 'bans');
+    if (!parsed) return { bans: [] };
     return { bans: parsed.bans ?? [] };
   } catch {
     return { bans: [] };
@@ -39,8 +35,8 @@ async function loadBans(): Promise<BanData> {
 }
 
 async function saveBans(data: BanData): Promise<void> {
-  if (!efuns.writeFile) return;
-  await efuns.writeFile(BANS_FILE, JSON.stringify(data, null, 2));
+  if (!efuns.saveData) return;
+  await efuns.saveData('moderation', 'bans', data);
 }
 
 function pruneExpired(data: BanData): BanData {

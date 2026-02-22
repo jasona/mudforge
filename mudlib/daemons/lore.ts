@@ -278,24 +278,20 @@ export class LoreDaemon extends MudObject {
   async load(): Promise<void> {
     if (this._loaded) return;
 
-    if (typeof efuns === 'undefined' || !efuns.readFile) {
+    if (typeof efuns === 'undefined' || !efuns.loadData) {
       console.log('[LoreDaemon] efuns not available, starting with empty lore');
       this._loaded = true;
       return;
     }
 
     try {
-      const lorePath = '/data/lore/entries.json';
-      const exists = await efuns.fileExists(lorePath);
+      const saved = await efuns.loadData<SerializedLore>('lore', 'entries');
 
-      if (!exists) {
+      if (!saved) {
         console.log('[LoreDaemon] No saved lore found, starting fresh');
         this._loaded = true;
         return;
       }
-
-      const content = await efuns.readFile(lorePath);
-      const saved = JSON.parse(content) as SerializedLore;
 
       let loaded = 0;
       for (const entry of saved.entries ?? []) {
@@ -317,7 +313,7 @@ export class LoreDaemon extends MudObject {
    * Save lore entries to disk.
    */
   async save(): Promise<void> {
-    if (typeof efuns === 'undefined' || !efuns.writeFile) {
+    if (typeof efuns === 'undefined' || !efuns.saveData) {
       console.log('[LoreDaemon] efuns not available, cannot save');
       return;
     }
@@ -327,16 +323,7 @@ export class LoreDaemon extends MudObject {
         entries: Array.from(this._lore.values()),
       };
 
-      const lorePath = '/data/lore/entries.json';
-
-      // Ensure directory exists
-      const dirPath = '/data/lore';
-      const dirExists = await efuns.fileExists(dirPath);
-      if (!dirExists) {
-        await efuns.makeDir(dirPath, true);
-      }
-
-      await efuns.writeFile(lorePath, JSON.stringify(serialized, null, 2));
+      await efuns.saveData('lore', 'entries', serialized);
       console.log(`[LoreDaemon] Saved ${this._lore.size} lore entries to disk`);
       this._dirty = false;
     } catch (error) {

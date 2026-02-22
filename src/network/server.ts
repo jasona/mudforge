@@ -15,6 +15,7 @@ import { ConnectionManager, getConnectionManager } from './connection-manager.js
 import { EventEmitter } from 'events';
 import type { Logger } from 'pino';
 import { getDriverVersion, getGameConfig, loadGameConfig } from '../driver/version.js';
+import { getAdapter } from '../driver/persistence/adapter-factory.js';
 
 /**
  * Server configuration.
@@ -298,14 +299,20 @@ export class Server extends EventEmitter {
         return;
       }
 
-      const imageJsonPath = resolve(
-        this.config.mudlibPath,
-        'data',
-        'images',
-        objectType,
-        `${cacheKey}.json`
-      );
-      await this.serveCachedImageJson(imageJsonPath, reply);
+      const adapter = getAdapter();
+      const imageData = await adapter.loadData<{ image?: string; mimeType?: string }>(`images-${objectType}`, cacheKey);
+      if (!imageData?.image) {
+        reply.code(404).send({ error: 'Image not found' });
+        return;
+      }
+      const mimeType = typeof imageData.mimeType === 'string' && imageData.mimeType.startsWith('image/')
+        ? imageData.mimeType
+        : 'image/png';
+      const buffer = Buffer.from(imageData.image, 'base64');
+      reply
+        .type(mimeType)
+        .header('Cache-Control', 'public, max-age=31536000, immutable')
+        .send(buffer);
     });
 
     // Portrait image endpoint - serves cached NPC portraits.
@@ -317,21 +324,27 @@ export class Server extends EventEmitter {
         return;
       }
 
-      const imageJsonPath = resolve(this.config.mudlibPath, 'data', 'portraits', `${id}.json`);
-      await this.serveCachedImageJson(imageJsonPath, reply);
+      const adapter = getAdapter();
+      const imageData = await adapter.loadData<{ image?: string; mimeType?: string }>('portraits', id);
+      if (!imageData?.image) {
+        reply.code(404).send({ error: 'Image not found' });
+        return;
+      }
+      const mimeType = typeof imageData.mimeType === 'string' && imageData.mimeType.startsWith('image/')
+        ? imageData.mimeType
+        : 'image/png';
+      const buffer = Buffer.from(imageData.image, 'base64');
+      reply
+        .type(mimeType)
+        .header('Cache-Control', 'public, max-age=31536000, immutable')
+        .send(buffer);
     });
 
     // Setup defaults endpoint - returns ConfigDaemon setting metadata
     this.fastify.get('/api/setup/defaults', async () => {
       try {
-        const settingsPath = resolve(this.config.mudlibPath, 'data', 'config', 'settings.json');
-        let savedValues: Record<string, unknown> = {};
-        try {
-          const content = await readFile(settingsPath, 'utf-8');
-          savedValues = JSON.parse(content);
-        } catch {
-          // No saved settings, use defaults
-        }
+        const adapter = getAdapter();
+        const savedValues: Record<string, unknown> = (await adapter.loadData<Record<string, unknown>>('config', 'settings')) ?? {};
 
         // Return the default settings with metadata
         // These mirror the ConfigDaemon DEFAULT_SETTINGS

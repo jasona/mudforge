@@ -61,6 +61,7 @@
     "@fastify/static": "^9.0.0",
     "@fastify/websocket": "^11.2.0",
     "@openai/codex": "^0.98.0",
+    "@supabase/supabase-js": "^2.97.0",
     "codemirror": "^6.0.2",
     "discord.js": "^14.25.1",
     "dotenv": "^17.2.3",

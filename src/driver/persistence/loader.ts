@@ -4,7 +4,8 @@
  * Handles preloading objects and restoring world state on startup.
  */
 
-import { getFileStore, type FileStore } from './file-store.js';
+import { getAdapter } from './adapter-factory.js';
+import type { PersistenceAdapter } from './adapter.js';
 import { getSerializer, type ObjectReference, type PlayerSaveData } from './serializer.js';
 import type { MudObject } from '../types.js';
 
@@ -43,11 +44,11 @@ export interface PreloadResult {
  * World loader.
  */
 export class Loader {
-  private fileStore: FileStore;
+  private adapter: PersistenceAdapter;
   private config: LoaderConfig | null = null;
 
   constructor() {
-    this.fileStore = getFileStore();
+    this.adapter = getAdapter();
   }
 
   /**
@@ -101,7 +102,7 @@ export class Loader {
       throw new Error('Loader not configured');
     }
 
-    const state = await this.fileStore.loadWorldState();
+    const state = await this.adapter.loadWorldState();
 
     if (!state) {
       return { loaded: 0, failed: 0, skipped: 0 };
@@ -170,7 +171,7 @@ export class Loader {
       throw new Error('Loader not configured');
     }
 
-    const saveData = await this.fileStore.loadPlayer(name);
+    const saveData = await this.adapter.loadPlayer(name);
     if (!saveData) {
       return null;
     }
@@ -270,7 +271,7 @@ export class Loader {
    * @param name The player's name
    */
   async playerExists(name: string): Promise<boolean> {
-    return this.fileStore.playerExists(name);
+    return this.adapter.playerExists(name);
   }
 
   /**

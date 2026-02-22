@@ -253,9 +253,8 @@ export class PortraitDaemon extends MudObject {
 
     const portrait = await this.getNpcPortrait(target);
 
-    if (typeof efuns !== 'undefined' && efuns.fileExists) {
-      const filePath = `/data/portraits/${cacheKey}.json`;
-      const exists = await efuns.fileExists(filePath);
+    if (typeof efuns !== 'undefined' && efuns.dataExists) {
+      const exists = await efuns.dataExists('portraits', cacheKey);
       if (exists) {
         return `/api/images/portrait/${cacheKey}`;
       }
@@ -343,19 +342,16 @@ export class PortraitDaemon extends MudObject {
    * Load a cached portrait from disk.
    */
   private async loadFromDisk(cacheKey: string): Promise<CachedPortrait | null> {
-    if (typeof efuns === 'undefined' || !efuns.readFile) {
+    if (typeof efuns === 'undefined' || !efuns.loadData) {
       return null;
     }
 
     try {
-      const filePath = `/data/portraits/${cacheKey}.json`;
-      const exists = await efuns.fileExists(filePath);
-      if (!exists) {
+      const data = await efuns.loadData<CachedPortrait>('portraits', cacheKey);
+      if (!data) {
         return null;
       }
 
-      const content = await efuns.readFile(filePath);
-      const data = JSON.parse(content) as CachedPortrait;
       data.image = this.normalizeEncodedImage(data.image, data.mimeType);
       return data;
     } catch {
@@ -367,20 +363,12 @@ export class PortraitDaemon extends MudObject {
    * Save a portrait to disk cache.
    */
   private async saveToDisk(cacheKey: string, portrait: CachedPortrait): Promise<void> {
-    if (typeof efuns === 'undefined' || !efuns.writeFile) {
+    if (typeof efuns === 'undefined' || !efuns.saveData) {
       return;
     }
 
     try {
-      // Ensure directory exists
-      const dirPath = '/data/portraits';
-      const dirExists = await efuns.fileExists(dirPath);
-      if (!dirExists) {
-        await efuns.makeDir(dirPath, true);
-      }
-
-      const filePath = `/data/portraits/${cacheKey}.json`;
-      await efuns.writeFile(filePath, JSON.stringify(portrait, null, 2));
+      await efuns.saveData('portraits', cacheKey, portrait);
     } catch (error) {
       console.error('[PortraitDaemon] Failed to save portrait to disk:', error);
     }
@@ -529,9 +517,8 @@ export class PortraitDaemon extends MudObject {
       return image;
     }
 
-    if (typeof efuns !== 'undefined' && efuns.fileExists) {
-      const filePath = `/data/images/${type}/${cacheKey}.json`;
-      const exists = await efuns.fileExists(filePath);
+    if (typeof efuns !== 'undefined' && efuns.dataExists) {
+      const exists = await efuns.dataExists(`images-${type}`, cacheKey);
       if (exists) {
         return `/api/images/object/${cacheKey}`;
       }
@@ -614,19 +601,16 @@ export class PortraitDaemon extends MudObject {
    * Load a cached object image from disk.
    */
   private async loadObjectFromDisk(cacheKey: string, type: ObjectImageType): Promise<CachedPortrait | null> {
-    if (typeof efuns === 'undefined' || !efuns.readFile) {
+    if (typeof efuns === 'undefined' || !efuns.loadData) {
       return null;
     }
 
     try {
-      const filePath = `/data/images/${type}/${cacheKey}.json`;
-      const exists = await efuns.fileExists(filePath);
-      if (!exists) {
+      const data = await efuns.loadData<CachedPortrait>(`images-${type}`, cacheKey);
+      if (!data) {
         return null;
       }
 
-      const content = await efuns.readFile(filePath);
-      const data = JSON.parse(content) as CachedPortrait;
       data.image = this.normalizeEncodedImage(data.image, data.mimeType);
       return data;
     } catch {
@@ -638,20 +622,12 @@ export class PortraitDaemon extends MudObject {
    * Save an object image to disk cache.
    */
   private async saveObjectToDisk(cacheKey: string, type: ObjectImageType, portrait: CachedPortrait): Promise<void> {
-    if (typeof efuns === 'undefined' || !efuns.writeFile) {
+    if (typeof efuns === 'undefined' || !efuns.saveData) {
       return;
     }
 
     try {
-      // Ensure directory exists
-      const dirPath = `/data/images/${type}`;
-      const dirExists = await efuns.fileExists(dirPath);
-      if (!dirExists) {
-        await efuns.makeDir(dirPath, true);
-      }
-
-      const filePath = `/data/images/${type}/${cacheKey}.json`;
-      await efuns.writeFile(filePath, JSON.stringify(portrait, null, 2));
+      await efuns.saveData(`images-${type}`, cacheKey, portrait);
     } catch (error) {
       console.error('[PortraitDaemon] Failed to save object image to disk:', error);
     }

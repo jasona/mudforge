@@ -158,24 +158,20 @@ export class AnnouncementDaemon extends MudObject {
   async load(): Promise<void> {
     if (this._loaded) return;
 
-    if (typeof efuns === 'undefined' || !efuns.readFile) {
+    if (typeof efuns === 'undefined' || !efuns.loadData) {
       console.log('[AnnouncementDaemon] efuns not available, starting with empty announcements');
       this._loaded = true;
       return;
     }
 
     try {
-      const announcementsPath = '/data/announcements/announcements.json';
-      const exists = await efuns.fileExists(announcementsPath);
+      const saved = await efuns.loadData<SerializedAnnouncements>('announcements', 'announcements');
 
-      if (!exists) {
+      if (!saved) {
         console.log('[AnnouncementDaemon] No saved announcements found, starting fresh');
         this._loaded = true;
         return;
       }
-
-      const content = await efuns.readFile(announcementsPath);
-      const saved = JSON.parse(content) as SerializedAnnouncements;
 
       // Load nextId or calculate from existing
       let maxId = 0;
@@ -203,7 +199,7 @@ export class AnnouncementDaemon extends MudObject {
    * Save announcements to disk.
    */
   async save(): Promise<void> {
-    if (typeof efuns === 'undefined' || !efuns.writeFile) {
+    if (typeof efuns === 'undefined' || !efuns.saveData) {
       console.log('[AnnouncementDaemon] efuns not available, cannot save');
       return;
     }
@@ -214,16 +210,7 @@ export class AnnouncementDaemon extends MudObject {
         nextId: this._nextId,
       };
 
-      const announcementsPath = '/data/announcements/announcements.json';
-
-      // Ensure directory exists
-      const dirPath = '/data/announcements';
-      const dirExists = await efuns.fileExists(dirPath);
-      if (!dirExists) {
-        await efuns.makeDir(dirPath, true);
-      }
-
-      await efuns.writeFile(announcementsPath, JSON.stringify(serialized, null, 2));
+      await efuns.saveData('announcements', 'announcements', serialized);
       console.log(`[AnnouncementDaemon] Saved ${this._announcements.size} announcements to disk`);
       this._dirty = false;
     } catch (error) {

@@ -20,7 +20,6 @@ import type { GeneratedItemData } from '../std/loot/types.js';
 // Note: Mudlib runs in a sandbox. Use efuns for crypto/DNS.
 
 const FALLBACK_SALT_BYTES = 16;
-const BANS_FILE = '/data/moderation/bans.json';
 
 function toHex(bytes: number[]): string {
   return bytes.map(b => b.toString(16).padStart(2, '0')).join('');
@@ -221,17 +220,15 @@ export class LoginDaemon extends MudObject {
   }
 
   private async checkBanStatus(name: string): Promise<{ banned: boolean; reason?: string }> {
-    if (typeof efuns === 'undefined' || !efuns.fileExists || !efuns.readFile) {
+    if (typeof efuns === 'undefined' || !efuns.loadData) {
       return { banned: false };
     }
 
     try {
-      const exists = await efuns.fileExists(BANS_FILE);
-      if (!exists) return { banned: false };
-      const raw = await efuns.readFile(BANS_FILE);
-      const data = JSON.parse(raw) as {
+      const data = await efuns.loadData<{
         bans?: Array<{ name: string; reason?: string; expiresAt?: number }>;
-      };
+      }>('moderation', 'bans');
+      if (!data) return { banned: false };
       const now = Date.now();
       const ban = data.bans?.find((entry) => {
         if (entry.name.toLowerCase() !== name.toLowerCase()) return false;

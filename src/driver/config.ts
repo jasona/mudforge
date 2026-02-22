@@ -27,8 +27,11 @@ export interface DriverConfig {
   heartbeatIntervalMs: number;
 
   // Persistence
+  persistenceAdapter: 'filesystem' | 'supabase';
   autoSaveIntervalMs: number;
   dataPath: string;
+  supabaseUrl: string;
+  supabaseServiceKey: string;
 
   // Development
   devMode: boolean;
@@ -144,8 +147,11 @@ export function loadConfig(): DriverConfig {
     heartbeatIntervalMs: parseNumber(process.env['HEARTBEAT_INTERVAL_MS'], 2000),
 
     // Persistence
+    persistenceAdapter: (process.env['PERSISTENCE_ADAPTER'] as 'filesystem' | 'supabase') ?? 'filesystem',
     autoSaveIntervalMs: parseNumber(process.env['AUTO_SAVE_INTERVAL_MS'], 300000),
     dataPath: process.env['DATA_PATH'] ?? './mudlib/data',
+    supabaseUrl: process.env['SUPABASE_URL'] ?? '',
+    supabaseServiceKey: process.env['SUPABASE_SERVICE_KEY'] ?? '',
 
     // Development
     devMode: parseBoolean(process.env['DEV_MODE'], true),

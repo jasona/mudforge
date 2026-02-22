@@ -294,7 +294,7 @@ export class GrapevineDaemon extends MudObject {
     };
 
     try {
-      await efuns.writeFile('/data/grapevine-state.json', JSON.stringify(state, null, 2));
+      await efuns.saveData('grapevine', 'state', state);
     } catch {
       // Ignore save errors
     }
@@ -305,11 +305,17 @@ export class GrapevineDaemon extends MudObject {
    */
   private async loadState(): Promise<void> {
     try {
-      const content = await efuns.readFile('/data/grapevine-state.json');
-      const state = JSON.parse(content);
+      const state = await efuns.loadData<{ subscribedChannels: string[] }>('grapevine', 'state');
 
-      if (Array.isArray(state.subscribedChannels)) {
+      if (state && Array.isArray(state.subscribedChannels)) {
         this._subscribedChannels = new Set(state.subscribedChannels);
+      } else {
+        // No saved state, use defaults from config
+        if (this._config?.defaultChannels) {
+          this._subscribedChannels = new Set(
+            this._config.defaultChannels.map((c) => c.toLowerCase())
+          );
+        }
       }
     } catch {
       // No saved state, use defaults from config

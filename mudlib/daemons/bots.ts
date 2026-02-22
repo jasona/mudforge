@@ -344,11 +344,11 @@ Style requirements:
     this._botPersonalities.delete(botId);
 
     // Delete from disk
-    if (typeof efuns !== 'undefined' && efuns.deleteFile) {
+    if (typeof efuns !== 'undefined' && efuns.deleteData) {
       try {
-        await efuns.deleteFile(`/data/bots/${botId}.json`);
+        await efuns.deleteData('bots', botId);
       } catch {
-        // File might not exist
+        // Data might not exist
       }
     }
 
@@ -668,19 +668,18 @@ Style requirements:
    * Load personalities from disk.
    */
   async loadPersonalities(): Promise<void> {
-    if (typeof efuns === 'undefined' || !efuns.readDir || !efuns.readFile) return;
+    if (typeof efuns === 'undefined' || !efuns.listDataKeys || !efuns.loadData) return;
 
     try {
-      const files = await efuns.readDir('/data/bots');
-      for (const file of files) {
-        if (!file.endsWith('.json')) continue;
-
+      const keys = await efuns.listDataKeys('bots');
+      for (const botId of keys) {
         try {
-          const content = await efuns.readFile(`/data/bots/${file}`);
-          const personality = JSON.parse(content) as BotPersonality;
-          this._botPersonalities.set(personality.id, personality);
+          const personality = await efuns.loadData<BotPersonality>('bots', botId);
+          if (personality) {
+            this._botPersonalities.set(personality.id, personality);
+          }
         } catch {
-          console.error(`[BotDaemon] Failed to load personality: ${file}`);
+          console.error(`[BotDaemon] Failed to load personality: ${botId}`);
         }
       }
 
@@ -694,13 +693,10 @@ Style requirements:
    * Save a personality to disk.
    */
   private async savePersonality(personality: BotPersonality): Promise<void> {
-    if (typeof efuns === 'undefined' || !efuns.writeFile) return;
+    if (typeof efuns === 'undefined' || !efuns.saveData) return;
 
     try {
-      await efuns.writeFile(
-        `/data/bots/${personality.id}.json`,
-        JSON.stringify(personality, null, 2)
-      );
+      await efuns.saveData('bots', personality.id, personality);
     } catch (error) {
       console.error(`[BotDaemon] Failed to save personality: ${error}`);
     }
