@@ -1135,7 +1135,7 @@ export class GuildDaemon extends MudObject {
   ): UseSkillResult {
     // Utility skills have custom handlers
     if (skill.effect.customHandler) {
-      // TODO: Implement custom handler system
+      // FUTURE: Custom handler system (planned for a future release)
       return {
         success: true,
         message: `You use ${skill.name}.`,
@@ -1156,7 +1156,7 @@ export class GuildDaemon extends MudObject {
     skill: SkillDefinition,
     _skillLevel: number
   ): UseSkillResult {
-    // TODO: Implement crafting system
+    // FUTURE: Full crafting system (planned for a future release)
     return {
       success: true,
       message: `You use ${skill.name} to craft.`,

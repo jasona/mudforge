@@ -8,6 +8,9 @@ import { getAdapter } from './adapter-factory.js';
 import type { PersistenceAdapter } from './adapter.js';
 import { getSerializer, type ObjectReference, type PlayerSaveData } from './serializer.js';
 import type { MudObject } from '../types.js';
+import { getLogger } from '../logger.js';
+
+const logger = getLogger();
 
 /**
  * Object loader callback.
@@ -82,7 +85,7 @@ export class Loader {
           result.failed.push(path);
         }
       } catch (error) {
-        console.error(`Failed to preload ${path}:`, error);
+        logger.error({ error, path }, 'Failed to preload');
         result.failed.push(path);
       }
     }
@@ -134,7 +137,7 @@ export class Loader {
           stats.failed++;
         }
       } catch (error) {
-        console.error(`Failed to restore ${objState.objectPath}:`, error);
+        logger.error({ error, objectPath: objState.objectPath }, 'Failed to restore object');
         stats.failed++;
       }
     }
@@ -216,10 +219,10 @@ export class Loader {
           if (item) {
             await item.moveTo(player);
           } else {
-            console.warn(`Failed to clone inventory item: ${itemPath}`);
+            logger.warn({ itemPath }, 'Failed to clone inventory item');
           }
         } catch (error) {
-          console.error(`Error restoring inventory item ${itemPath}:`, error);
+          logger.error({ error, itemPath }, 'Error restoring inventory item');
         }
       }
     }

@@ -9,6 +9,9 @@ import { resolve } from 'path';
 import { pathToFileURL } from 'url';
 import type { MudObject, MudObjectConstructor } from './types.js';
 import { getRegistry, type ObjectRegistry } from './object-registry.js';
+import { getLogger } from './logger.js';
+
+const logger = getLogger();
 
 export interface MudlibLoaderConfig {
   mudlibPath: string;
@@ -259,7 +262,7 @@ export class MudlibLoader {
       try {
         await this.loadObject(path);
       } catch (error) {
-        console.error(`Failed to preload ${path}:`, error);
+        logger.error({ error, path }, 'Failed to preload');
       }
     }
   }

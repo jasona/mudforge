@@ -485,7 +485,7 @@ export class DebugPanel {
       driverVersion: this.config?.driver.version ?? 'unknown',
       browser: navigator.userAgent,
       platform: navigator.platform,
-      connectionState: 'unknown', // TODO: Get from WebSocket client
+      connectionState: 'unknown', // FUTURE: Get from WebSocket client
       uptime: Math.floor((Date.now() - this.startTime) / 1000),
       recentLogs: logger.getRecentEntries(50),
     };

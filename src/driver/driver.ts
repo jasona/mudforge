@@ -31,6 +31,7 @@ import { createGrapevineClient, destroyGrapevineClient } from '../network/grapev
 import { createDiscordClient, destroyDiscordClient } from '../network/discord-client.js';
 import { getSessionManager, resetSessionManager, type SessionManager } from '../network/session-manager.js';
 import pino, { type Logger } from 'pino';
+import { initializeLogger } from './logger.js';
 import type { MudObject } from './types.js';
 import type { Connection } from '../network/connection.js';
 import { join } from 'path';
@@ -134,6 +135,7 @@ export class Driver {
           },
         })
       : pino({ level: this.config.logLevel });
+    initializeLogger(this.logger);
 
     // Initialize subsystems
     this.registry = getRegistry();
@@ -1667,9 +1669,7 @@ ${allLogs || 'No logs captured'}
     const names = playerNames.map(p => (p.split('(')[0] ?? '').toLowerCase());
     const duplicates = names.filter((name, idx) => names.indexOf(name) !== idx);
     if (duplicates.length > 0) {
-      console.error(`[PLAYER-LIST] DUPLICATE PLAYERS DETECTED: ${duplicates.join(', ')}`);
-      console.error(`[PLAYER-LIST] Full list: ${playerNames.join(', ')}`);
-      console.error(`[PLAYER-LIST] connectionHandlers has ${this.connectionHandlers.size} entries`);
+      this.logger.error({ duplicates, playerNames, connectionCount: this.connectionHandlers.size }, 'Duplicate players detected');
     }
 
     return players;
@@ -1702,14 +1702,13 @@ ${allLogs || 'No logs captured'}
     const playerName = (existingPlayer as MudObject & { name?: string }).name || 'unknown';
     let foundOldConnection = false;
 
-    console.log(`[CONN-TRANSFER] Transferring "${playerName}" (${existingPlayer.objectId}) to new connection ${newConnection.id}`);
-    console.log(`[CONN-TRANSFER] connectionHandlers has ${this.connectionHandlers.size} entries before transfer`);
+    this.logger.debug({ playerName, objectId: existingPlayer.objectId, newConnectionId: newConnection.id, connectionCount: this.connectionHandlers.size }, 'Transferring player to new connection');
 
     // Find and disconnect the old connection
     for (const [oldConnection, handler] of this.connectionHandlers.entries()) {
       if (handler === existingPlayer) {
         foundOldConnection = true;
-        console.log(`[CONN-TRANSFER] Found old connection ${oldConnection.id} for player "${playerName}"`);
+        this.logger.debug({ oldConnectionId: oldConnection.id, playerName }, 'Found old connection for player');
 
         // Capture buffered messages before closing
         bufferedMessages = oldConnection.getBufferedMessages();
@@ -1727,14 +1726,14 @@ ${allLogs || 'No logs captured'}
     }
 
     if (!foundOldConnection) {
-      console.log(`[CONN-TRANSFER] No old connection found for player "${playerName}" - this is expected for reconnect after disconnect`);
+      this.logger.debug({ playerName }, 'No old connection found for player, expected for reconnect after disconnect');
     }
 
     // Bind the new connection to the existing player
     this.connectionHandlers.set(newConnection, existingPlayer);
     newConnection.bindPlayer(existingPlayer);
 
-    console.log(`[CONN-TRANSFER] connectionHandlers has ${this.connectionHandlers.size} entries after transfer`);
+    this.logger.debug({ connectionCount: this.connectionHandlers.size }, 'Connection transfer complete');
 
     // Update the player's connection reference
     const playerWithBind = existingPlayer as MudObject & {
@@ -1755,8 +1754,7 @@ ${allLogs || 'No logs captured'}
   findActivePlayer(name: string): MudObject | undefined {
     const lowerName = name.toLowerCase();
     const player = this.activePlayers.get(lowerName);
-    console.log(`[PLAYER-FIND] Looking for "${name}" (key: "${lowerName}") - found: ${player ? `yes (${player.objectId})` : 'no'}`);
-    console.log(`[PLAYER-FIND] activePlayers has ${this.activePlayers.size} entries: [${Array.from(this.activePlayers.keys()).join(', ')}]`);
+    this.logger.debug({ playerName: name, found: !!player, objectId: player?.objectId, activeCount: this.activePlayers.size }, 'Active player lookup');
     return player;
   }
 
@@ -1770,15 +1768,12 @@ ${allLogs || 'No logs captured'}
       const lowerName = p.name.toLowerCase();
       const existing = this.activePlayers.get(lowerName);
       if (existing && existing !== player) {
-        console.warn(`[PLAYER-REG] WARNING: Replacing existing player "${p.name}" (${existing.objectId}) with new player (${player.objectId})`);
-        console.warn(`[PLAYER-REG] This may cause duplicate player issues!`);
-        console.warn(`[PLAYER-REG] Stack:`, new Error('registerActivePlayer trace').stack);
+        this.logger.warn({ playerName: p.name, existingObjectId: existing.objectId, newObjectId: player.objectId }, 'Replacing existing player registration, may cause duplicates');
       }
-      console.log(`[PLAYER-REG] Registering "${p.name}" (${player.objectId}) - activePlayers now has ${this.activePlayers.size + (existing ? 0 : 1)} entries`);
+      this.logger.debug({ playerName: p.name, objectId: player.objectId, activeCount: this.activePlayers.size + (existing ? 0 : 1) }, 'Registering active player');
       this.activePlayers.set(lowerName, player);
     } else {
-      console.warn(`[PLAYER-REG] WARNING: Attempted to register player with no name!`);
-      console.warn(`[PLAYER-REG] Stack:`, new Error('registerActivePlayer trace').stack);
+      this.logger.warn({ objectId: player.objectId }, 'Attempted to register player with no name');
     }
   }
 
@@ -1792,9 +1787,9 @@ ${allLogs || 'No logs captured'}
       const lowerName = p.name.toLowerCase();
       const existing = this.activePlayers.get(lowerName);
       if (existing !== player) {
-        console.warn(`[PLAYER-UNREG] WARNING: Unregistering "${p.name}" but stored player is different! stored=${existing?.objectId}, unregistering=${player.objectId}`);
+        this.logger.warn({ playerName: p.name, storedObjectId: existing?.objectId, unregisteringObjectId: player.objectId }, 'Unregistering player but stored player is different');
       }
-      console.log(`[PLAYER-UNREG] Unregistering "${p.name}" (${player.objectId}) - activePlayers will have ${this.activePlayers.size - 1} entries`);
+      this.logger.debug({ playerName: p.name, objectId: player.objectId, activeCount: this.activePlayers.size - 1 }, 'Unregistering active player');
       this.activePlayers.delete(lowerName);
     }
   }
