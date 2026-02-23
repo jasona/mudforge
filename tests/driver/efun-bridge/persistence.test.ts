@@ -7,7 +7,7 @@ import { createTestEnvironment, createMockPlayer } from '../../helpers/efun-test
 import type { EfunBridge } from '../../../src/driver/efun-bridge.js';
 import { mkdir, writeFile, access } from 'fs/promises';
 import { join } from 'path';
-import { resetFileStore } from '../../../src/driver/persistence/file-store.js';
+import { resetAdapter } from '../../../src/driver/persistence/adapter-factory.js';
 import { getPermissions } from '../../../src/driver/permissions.js';
 import { constants } from 'fs';
 import type { MudObject } from '../../../src/driver/types.js';
@@ -19,7 +19,7 @@ describe('Persistence Efuns', () => {
 
   beforeEach(async () => {
     // Reset the file store singleton so each test gets a fresh one
-    resetFileStore();
+    resetAdapter();
 
     const env = await createTestEnvironment();
     efunBridge = env.efunBridge;
@@ -31,7 +31,7 @@ describe('Persistence Efuns', () => {
   });
 
   afterEach(async () => {
-    resetFileStore();
+    resetAdapter();
     await cleanup();
   });
 

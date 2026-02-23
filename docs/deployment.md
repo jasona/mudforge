@@ -112,6 +112,10 @@ Note: Cluster mode requires additional configuration for shared state.
 
 ## Environment Variables
 
+See `.env.example` for the full list with comments. Key variables grouped by category:
+
+### Core
+
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `NODE_ENV` | development | Environment mode |
@@ -119,6 +123,65 @@ Note: Cluster mode requires additional configuration for shared state.
 | `HOST` | 0.0.0.0 | Bind address |
 | `LOG_LEVEL` | info | Logging level (debug, info, warn, error) |
 | `MUDLIB_PATH` | ./mudlib | Path to mudlib directory |
+| `SHUTDOWN_TIMEOUT_MS` | 15000 | Max time for graceful shutdown before force exit |
+
+### Sandbox
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ISOLATE_MEMORY_MB` | 128 | V8 isolate memory limit |
+| `SCRIPT_TIMEOUT_MS` | 5000 | Script execution timeout |
+| `HEARTBEAT_INTERVAL_MS` | 2000 | Scheduler heartbeat interval |
+
+### Persistence
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PERSISTENCE_ADAPTER` | filesystem | Storage backend (`filesystem` or `supabase`) |
+| `AUTO_SAVE_INTERVAL_MS` | 300000 | Auto-save interval (5 minutes) |
+| `DATA_PATH` | ./mudlib/data | Data directory (filesystem adapter) |
+| `SUPABASE_URL` | *(none)* | Supabase project URL (required for supabase adapter) |
+| `SUPABASE_SERVICE_KEY` | *(none)* | Supabase service role key (required for supabase adapter) |
+
+### AI Integration
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `CLAUDE_API_KEY` | *(none)* | Anthropic API key for AI features |
+| `CLAUDE_MODEL` | claude-sonnet-4-20250514 | Claude model to use |
+| `CLAUDE_MAX_TOKENS` | 1024 | Max tokens per AI response |
+| `CLAUDE_RATE_LIMIT` | 20 | Max AI requests per minute |
+| `GEMINI_API_KEY` | *(none)* | Google Gemini key for image generation |
+
+### External Integrations
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `GIPHY_API_KEY` | *(none)* | Giphy API key for GIF sharing |
+| `DISCORD_BOT_TOKEN` | *(none)* | Discord bot token for channel bridge |
+| `GITHUB_TOKEN` | *(none)* | GitHub token for in-game bug reports |
+| `GITHUB_OWNER` | *(none)* | GitHub repo owner |
+| `GITHUB_REPO` | *(none)* | GitHub repo name |
+
+### Session Security
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `WS_SESSION_SECRET` | *(none)* | HMAC secret for session tokens (required in production) |
+| `WS_SESSION_TOKEN_TTL_MS` | 900000 | Session token TTL (15 minutes) |
+| `API_RATE_LIMIT_PER_MINUTE` | 120 | HTTP rate limit |
+| `WS_CONNECT_RATE_LIMIT_PER_MINUTE` | 40 | WebSocket connection rate limit |
+
+## Graceful Shutdown
+
+MudForge handles `SIGINT` and `SIGTERM` signals with a graceful shutdown sequence:
+
+1. All active players are saved to persistence
+2. The master object's `onShutdown()` hook is called
+3. External connections (Intermud, Discord, Grapevine) are disconnected
+4. The process exits cleanly
+
+If graceful shutdown takes longer than `SHUTDOWN_TIMEOUT_MS` (default 15 seconds), the process force-exits. This ensures no player data is lost during deployments or server restarts.
 
 ## Health Checks
 
@@ -211,7 +274,7 @@ Caddy automatically handles SSL certificates.
 
 ## Backup and Recovery
 
-### Backing Up Data
+### Backing Up Data (Filesystem Adapter)
 
 Important directories to back up:
 - `/mudlib/` - All game content
@@ -225,9 +288,13 @@ tar -czf mudforge-backup-$(date +%Y%m%d).tar.gz mudlib/ mudlib/data/
 tar -xzf mudforge-backup-20240101.tar.gz
 ```
 
+### Backing Up Data (Supabase Adapter)
+
+When using the Supabase persistence adapter, data is stored in PostgreSQL tables and Supabase Storage. Use Supabase's built-in backup tools or `pg_dump` for database backups. See [Persistence Adapter](persistence-adapter.md) for table schema details.
+
 ### Automated Backups
 
-Add to crontab:
+Add to crontab (filesystem adapter):
 ```bash
 0 */6 * * * cd /path/to/mudforge && tar -czf /backups/mudforge-$(date +\%Y\%m\%d-\%H\%M).tar.gz mudlib/ mudlib/data/
 ```

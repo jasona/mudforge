@@ -34,6 +34,7 @@ mudlib/daemons/
 ├── aggro.ts        # NPC grudge/threat memory
 ├── announcement.ts # System announcements
 ├── snoop.ts        # Admin snooping utility
+├── prompts.ts      # AI prompt template management
 ├── soul.ts         # Emote/social action system
 ├── vehicle.ts      # Vehicle system
 ├── intermud.ts     # Intermud 3 protocol (TCP)
@@ -327,6 +328,14 @@ The config daemon manages mud-wide configuration settings that persist across se
 | Setting | Type | Default | Description |
 |---------|------|---------|-------------|
 | `disconnect.timeoutMinutes` | number | 15 | Minutes before a disconnected player is force-quit |
+| `combat.playerKilling` | boolean | false | Allow PvP combat |
+| `corpse.playerDecayMinutes` | number | 60 | Minutes before player corpses decay (0 = never) |
+| `corpse.npcDecayMinutes` | number | 5 | Minutes before NPC corpses decay |
+| `reset.intervalMinutes` | number | 15 | Minutes between room resets |
+| `reset.cleanupDroppedItems` | boolean | true | Clean up non-player items during room reset |
+| `game.theme` | string | fantasy | Game theme/genre for AI-generated content |
+
+Use `config` in-game with no arguments to see the full list of 35+ settings.
 
 ### API
 
@@ -937,6 +946,54 @@ The snoop daemon provides admin snooping capability to monitor player activity.
 - Admin can monitor another player's input/output
 - Snoop session management
 
+## Prompts Daemon
+
+The prompts daemon manages AI prompt templates used by all AI content generation features.
+
+### Location
+
+`/mudlib/daemons/prompts.ts`
+
+### Responsibilities
+
+- Wraps the driver's PromptManager for mudlib access
+- Template rendering with `{{variable}}` substitution and `{{#if}}` conditionals
+- Override management (custom templates replace defaults)
+- Reload overrides from disk
+
+### API
+
+```typescript
+import { getPromptsDaemon } from '../daemons/prompts.js';
+
+const prompts = getPromptsDaemon();
+
+// Render a template with variables
+const text = prompts.render('describe.system', { styleGuide: 'brief' });
+
+// Get a template by ID
+const template = prompts.get('ainpc.system');
+
+// Get all registered prompt IDs
+const ids = prompts.getIds();
+
+// Check if a prompt has a custom override
+const overridden = prompts.hasOverride('describe.system');
+
+// Set a custom override
+await prompts.set('describe.system', 'New template: {{styleGuide}}');
+
+// Reset to default
+await prompts.reset('describe.system');
+
+// Reload overrides from disk
+await prompts.reload();
+```
+
+All AI commands (`aidescribe`, `airoom`, `ainpc`, `ailore`, etc.) use `prompts.render()` instead of hardcoded prompt strings. The `{{gameTheme}}` variable is automatically injected from the `game.theme` config setting.
+
+Managed via the `prompts` admin command. See [Commands](commands.md#prompts) for details.
+
 ## Soul Daemon
 
 The soul daemon provides the emote and social action system.
@@ -1148,18 +1205,25 @@ class TimerDaemon {
 
 ### Data Persistence
 
+Daemons use the data persistence efuns which route through the active persistence adapter (filesystem or Supabase):
+
 ```typescript
 class PersistentDaemon {
   private data: Record<string, unknown> = {};
-  private saveFile = '/data/daemon-state.json';
+  private namespace = 'mydaemon';
+  private key = 'state';
 
   async load(): Promise<void> {
-    const content = await efuns.readFile(this.saveFile);
-    this.data = JSON.parse(content);
+    if (await efuns.dataExists(this.namespace, this.key)) {
+      const content = await efuns.loadData(this.namespace, this.key);
+      this.data = JSON.parse(content);
+    }
   }
 
   async save(): Promise<void> {
-    await efuns.writeFile(this.saveFile, JSON.stringify(this.data, null, 2));
+    await efuns.saveData(this.namespace, this.key, JSON.stringify(this.data, null, 2));
   }
 }
 ```
+
+See [Persistence Adapter](persistence-adapter.md) for the full adapter pattern and namespace mapping.

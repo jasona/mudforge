@@ -12,6 +12,7 @@
 
 import type { MudObject } from '../../lib/std.js';
 import { getLoreDaemon } from '../../daemons/lore.js';
+import { getPromptsDaemon } from '../../daemons/prompts.js';
 import { parseArgs } from '../../lib/text-utils.js';
 
 interface Player extends MudObject {
@@ -126,52 +127,13 @@ export async function execute(ctx: CommandContext): Promise<void> {
   const keywords = [npcName, role, ...(personalityHints?.split(/[,\s]+/) || [])].filter(w => w.length > 3);
   const { context: loreContext, loreIds } = getLoreContext(keywords);
 
-  const prompt = `Generate an NPC for a fantasy MUD game.
-
-Name: "${npcName}"
-Role: ${role}
-${personalityHints ? `Personality hints: ${personalityHints}` : ''}
-
-${loreContext ? `WORLD LORE (use for consistency and incorporate into NPC's knowledge):
-${loreContext}
-
-` : ''}Respond with a JSON object containing:
-{
-  "shortDesc": "Brief 3-8 word description starting with lowercase (e.g., 'a grizzled old fisherman')",
-  "longDesc": "2-3 sentence description of their appearance and demeanor",
-  "personality": "2-3 sentence summary of their personality for AI context",
-  "background": "2-3 sentence backstory (can include secrets)",
-  "chatMessages": [
-    { "message": "Idle thing they might say", "type": "say" },
-    { "message": "action they might do", "type": "emote" }
-  ],
-  "responses": [
-    { "trigger": "hello|hi|greetings", "response": "Their greeting response" },
-    { "trigger": "help|assist", "response": "How they respond to requests for help" },
-    { "trigger": "bye|farewell|goodbye", "response": "Their farewell" }
-  ],
-  "speakingStyle": {
-    "formality": "casual or formal or archaic",
-    "verbosity": "terse or normal or verbose",
-    "accent": "Optional speech pattern notes"
-  },
-  "topics": ["things they know about and will discuss"],
-  "forbidden": ["things they won't discuss or are secret"],
-  "localKnowledge": ["specific facts about their area, job, or situation"]
-}
-
-Requirements:
-- shortDesc should start lowercase, suitable for "You see [shortDesc]"
-- chatMessages should have 3-5 varied entries mixing say and emote
-- responses should have triggers as regex-friendly patterns
-- speakingStyle.formality must be exactly one of: casual, formal, archaic
-- speakingStyle.verbosity must be exactly one of: terse, normal, verbose
-- topics should reflect their role and knowledge
-- forbidden should include things that would break character
-- localKnowledge should be specific facts they know
-- If world lore is provided, incorporate relevant details into background and localKnowledge
-
-Respond with ONLY the JSON object, no markdown or explanation.`;
+  const prompts = getPromptsDaemon();
+  const prompt = prompts.render('npc.generation.user', {
+    npcName,
+    role,
+    personalityHints: personalityHints || undefined,
+    loreContext: loreContext || undefined,
+  }) ?? `Generate an NPC for a fantasy MUD game.\n\nName: "${npcName}"\nRole: ${role}\n\nRespond with ONLY the JSON object, no markdown or explanation.`;
 
   try {
     const result = await efuns.aiGenerate(prompt, undefined, { maxTokens: 800 });

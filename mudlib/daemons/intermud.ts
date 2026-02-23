@@ -1088,7 +1088,7 @@ export class IntermudDaemon extends MudObject {
     };
 
     try {
-      await efuns.writeFile('/data/intermud-state.json', JSON.stringify(state, null, 2));
+      await efuns.saveData('intermud', 'state', state);
     } catch {
       // Ignore save errors
     }
@@ -1102,8 +1102,14 @@ export class IntermudDaemon extends MudObject {
    */
   private async loadState(): Promise<void> {
     try {
-      const content = await efuns.readFile('/data/intermud-state.json');
-      const state = JSON.parse(content);
+      const state = await efuns.loadData<{
+        password: number;
+        mudListId: number;
+        chanListId: number;
+        subscribedChannels: string[];
+      }>('intermud', 'state');
+
+      if (!state) return;
 
       if (typeof state.password === 'number') {
         this._password = state.password;

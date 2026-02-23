@@ -12,7 +12,8 @@ mudlib/
 │   └── lore/
 │       └── entries.json     # Persisted lore entries
 └── cmds/builder/
-    └── _lore.ts             # Builder command
+    ├── _lore.ts             # Lore management command
+    └── _ailore.ts           # AI lore generation command
 ```
 
 ## Quick Start
@@ -41,11 +42,29 @@ Edit the content, save (Ctrl+S), and close the IDE.
 
 ### AI-Generating Lore
 
+Generate a single entry:
 ```
 lore generate faction "The Shadow Hand" "thieves, underground, criminal"
 ```
 
-The AI generates appropriate lore content based on the theme keywords.
+### Bootstrapping a World with AI
+
+Generate foundational lore for an entire game world at once:
+```
+ailore bootstrap "Shadowvale" "a dark gothic world of vampires and hunters"
+```
+
+This creates one lore entry per category (8 total). You can then expand specific categories:
+```
+ailore expand faction "warring clans and secret societies"
+```
+
+Or weave everything into a narrative:
+```
+ailore fullstory
+```
+
+See [AI Integration Guide](ai-integration.md#ailore) for full `ailore` documentation.
 
 ### Using Lore in NPCs
 
@@ -227,6 +246,16 @@ lore tags
 ```
 
 Useful for understanding the tagging system in use.
+
+### lore clear
+
+Remove all lore entries:
+
+```
+lore clear
+```
+
+Prompts for confirmation before deleting. Useful when starting over with `ailore bootstrap`.
 
 ---
 

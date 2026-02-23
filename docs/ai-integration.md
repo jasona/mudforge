@@ -7,7 +7,10 @@ MudForge integrates with the Claude AI API to provide AI-powered content generat
 The AI integration provides:
 
 - **Content Generation**: Generate room descriptions, item descriptions, and NPC definitions
+- **AI Worldbuilding**: Bootstrap entire game worlds with interconnected lore entries
 - **Dynamic NPC Dialogue**: NPCs can engage in contextual conversations with players
+- **Prompt Template System**: Customizable prompt templates for all AI features
+- **Configurable Game Theme**: Set `game.theme` to rebrand all AI content at once
 - **World Lore System**: Central lore registry for consistent AI context
 - **Graceful Fallback**: Static responses when AI is unavailable
 
@@ -105,6 +108,73 @@ ainpc "Mysterious Stranger" "information broker"
 - Local knowledge facts
 - World lore IDs (from lore daemon)
 - Complete TypeScript code snippet with AI context
+
+### ailore
+
+Generate interconnected world lore using AI:
+
+```
+ailore <bootstrap|expand|fullstory> [args...]
+```
+
+**Subcommands:**
+
+- **bootstrap** `<name> [description]` - Generate foundational lore (one entry per category, 8 total):
+  ```
+  ailore bootstrap "Shadowvale" "a dark gothic world of vampires and hunters"
+  ```
+
+- **expand** `<category> [theme]` - Generate 2-4 entries in a category:
+  ```
+  ailore expand faction "warring clans and secret societies"
+  ```
+
+- **fullstory** - Weave all lore into a cohesive long-form narrative:
+  ```
+  ailore fullstory
+  ```
+
+The `bootstrap` subcommand generates entries sequentially with progress streaming, making it ideal for bootstrapping a new game world from scratch. All generated lore respects the current `game.theme` setting.
+
+See [Lore System Guide](lore-system.md) for details on managing lore entries.
+
+---
+
+## Prompt Template System
+
+All AI features use customizable prompt templates managed by the Prompts Daemon. Templates use `{{variable}}` syntax for substitution and `{{#if variable}}...{{/if}}` for conditional sections.
+
+### Game Theme
+
+The `game.theme` config setting (default: `"fantasy"`) is automatically injected as `{{gameTheme}}` into all 22+ prompt templates. Changing the theme rebrands all AI-generated content at once:
+
+```
+config game.theme cyberpunk
+```
+
+Now all `aidescribe`, `airoom`, `ainpc`, and `ailore` commands generate content in a cyberpunk style.
+
+### Customizing Templates
+
+Administrators can view and edit templates with the `prompts` command:
+
+```
+prompts                    # List all prompt IDs
+prompts describe.system    # View a specific template
+prompts edit describe.system  # Edit in IDE
+prompts reset describe.system # Restore default
+```
+
+Templates are stored in the driver's PromptManager and accessed via the prompts daemon:
+
+```typescript
+import { getPromptsDaemon } from '../daemons/prompts.js';
+
+const prompts = getPromptsDaemon();
+const rendered = prompts.render('describe.system', { styleGuide: 'brief' });
+```
+
+See [Daemons > Prompts Daemon](daemons.md#prompts-daemon) for the full API.
 
 ---
 
@@ -334,6 +404,7 @@ if (result.success) {
 - `temperature?: number` - Creativity (0.0-1.0)
 - `useContinuation?: boolean` - Auto-continue if truncated (for long-form content)
 - `maxContinuations?: number` - Max continuation requests (default: 2)
+- `timeout?: number` - API request timeout in milliseconds (default: 25000)
 
 For long-form content that may exceed token limits:
 
@@ -549,7 +620,8 @@ If responses are still cut off mid-sentence, increase `maxTokens` in the builder
 
 ## Related Documentation
 
-- [Commands Reference](commands.md) - AI builder commands
+- [Commands Reference](commands.md) - AI builder commands (`aidescribe`, `airoom`, `ainpc`, `ailore`, `prompts`)
 - [Efuns Reference](efuns.md) - AI efuns API
 - [Daemons](daemons.md#lore-daemon) - Lore daemon API
+- [Daemons](daemons.md#prompts-daemon) - Prompts daemon API
 - [Lore System Guide](lore-system.md) - Detailed lore guide

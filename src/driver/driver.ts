@@ -17,9 +17,10 @@ import { initializeClaudeClient } from './claude-client.js';
 import { initializeGeminiClient } from './gemini-client.js';
 import { initializeGitHubClient } from './github-client.js';
 import { initializeGiphyClient } from './giphy-client.js';
+import { initializePromptManager, resetPromptManager } from './prompt-manager.js';
 import { CommandManager, getCommandManager, resetCommandManager } from './command-manager.js';
 import { getPermissions } from './permissions.js';
-import { getFileStore } from './persistence/file-store.js';
+import { createAdapter, getAdapter } from './persistence/adapter-factory.js';
 import { Compiler } from './compiler.js';
 import { HotReload } from './hot-reload.js';
 import { getIsolatePool, resetIsolatePool } from '../isolation/isolate-pool.js';
@@ -295,11 +296,25 @@ export class Driver {
     this.logger.info('Starting MudForge Driver...');
 
     try {
+      // Initialize persistence adapter
+      const adapter = await createAdapter({
+        adapter: this.config.persistenceAdapter,
+        dataPath: this.config.dataPath,
+        supabaseUrl: this.config.supabaseUrl,
+        supabaseServiceKey: this.config.supabaseServiceKey,
+      });
+      await adapter.initialize();
+      this.logger.info({ adapter: this.config.persistenceAdapter }, 'Persistence adapter initialized');
+
       // Initialize isolate pool (for future sandbox use)
       getIsolatePool({
         memoryLimitMb: this.config.isolateMemoryMb,
         maxIsolates: this.config.maxIsolates,
       });
+
+      // Initialize prompt template manager (loads overrides from disk)
+      await initializePromptManager(this.config.mudlibPath);
+      this.logger.info('Prompt template manager initialized');
 
       // Load Master object
       await this.loadMaster();
@@ -410,11 +425,34 @@ export class Driver {
         this.logger.info('Discord client disconnected');
       }
 
+      // Save all active players
+      if (this.activePlayers.size > 0) {
+        this.logger.info({ count: this.activePlayers.size }, 'Saving all active players before shutdown...');
+        const savePromises: Promise<void>[] = [];
+        for (const [name, player] of this.activePlayers) {
+          savePromises.push(
+            this.efunBridge.savePlayer(player)
+              .then(() => this.logger.info({ name }, 'Player saved on shutdown'))
+              .catch((error) => this.logger.error({ error, name }, 'Failed to save player on shutdown'))
+          );
+        }
+        await Promise.all(savePromises);
+        this.logger.info('All player saves completed');
+      }
+
       // Stop file watcher
       this.hotReload.stopWatching();
 
       // Stop scheduler
       this.scheduler.stop();
+
+      // Shutdown persistence adapter
+      try {
+        const adapter = getAdapter();
+        await adapter.shutdown();
+      } catch {
+        // Adapter may not have been initialized
+      }
 
       // Clean up
       this.scheduler.clear();
@@ -471,8 +509,8 @@ export class Driver {
     this.logger.info('Loading permissions');
 
     try {
-      const fileStore = getFileStore({ dataPath: this.config.mudlibPath + '/data' });
-      const data = await fileStore.loadPermissions();
+      const adapter = getAdapter();
+      const data = await adapter.loadPermissions();
 
       if (data) {
         const permissions = getPermissions();
@@ -1999,4 +2037,5 @@ export function resetDriver(): void {
   resetMudlibLoader();
   resetCommandManager();
   resetSessionManager();
+  resetPromptManager();
 }

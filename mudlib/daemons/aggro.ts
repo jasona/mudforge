@@ -59,8 +59,9 @@ export class AggroDaemon extends MudObject {
   private _dirty: boolean = false;
   private _loaded: boolean = false;
 
-  /** Data file path */
-  private static readonly DATA_FILE = '/data/combat/grudges.json';
+  /** Data namespace and key for saveData/loadData */
+  private static readonly DATA_NAMESPACE = 'combat';
+  private static readonly DATA_KEY = 'grudges';
 
   constructor() {
     super();
@@ -242,12 +243,13 @@ export class AggroDaemon extends MudObject {
     if (this._loaded) return;
 
     try {
-      if (typeof efuns !== 'undefined' && efuns.fileExists) {
-        const exists = await efuns.fileExists(AggroDaemon.DATA_FILE);
-        if (exists && efuns.readFile) {
-          const content = await efuns.readFile(AggroDaemon.DATA_FILE);
-          const data = JSON.parse(content) as { grudges: Record<string, GrudgeRecord[]> };
+      if (typeof efuns !== 'undefined' && efuns.loadData) {
+        const data = await efuns.loadData<{ grudges: Record<string, GrudgeRecord[]> }>(
+          AggroDaemon.DATA_NAMESPACE,
+          AggroDaemon.DATA_KEY,
+        );
 
+        if (data) {
           // Restore grudges
           this._grudges.clear();
           for (const [npcPath, records] of Object.entries(data.grudges || {})) {
@@ -285,8 +287,8 @@ export class AggroDaemon extends MudObject {
 
       const data = { grudges: grudgesObj };
 
-      if (typeof efuns !== 'undefined' && efuns.writeFile) {
-        await efuns.writeFile(AggroDaemon.DATA_FILE, JSON.stringify(data, null, 2));
+      if (typeof efuns !== 'undefined' && efuns.saveData) {
+        await efuns.saveData(AggroDaemon.DATA_NAMESPACE, AggroDaemon.DATA_KEY, data);
         console.log(`[AggroDaemon] Saved ${this.grudgeCount} grudges for ${this.npcCount} NPCs`);
       }
 

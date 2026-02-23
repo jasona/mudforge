@@ -29,6 +29,7 @@ import type {
 import type { AreaDaemon } from '../daemons/area.js';
 import { TERRAINS, type TerrainType } from './terrain.js';
 import { getLoreDaemon } from '../daemons/lore.js';
+import { getPromptsDaemon } from '../daemons/prompts.js';
 
 // =============================================================================
 // Types
@@ -5841,40 +5842,22 @@ async function handleAIGenerateLayout(
   const { width, height, depth } = area.gridSize;
   const validTerrainTypes = Object.keys(TERRAINS).join(', ');
 
-  const prompt = `Generate a room layout for a MUD game area as JSON.
-
-AREA DETAILS:
-- Name: "${area.name}"
-- Region: ${area.region}/${area.subregion}
-- Description: ${area.description || 'No description provided'}
-- Theme: ${area.theme || 'fantasy'}
-- Grid Size: ${width}x${height} (${depth} floor(s))
-
-${loreContext ? `WORLD LORE (for consistency):
-${loreContext}
-
-` : ''}REQUIREMENTS:
-1. Generate 5-15 rooms that form a connected layout
-2. Rooms should be placed on valid grid coordinates (x: 0-${width - 1}, y: 0-${height - 1}, z: 0-${depth - 1})
-3. Rooms should be connected via exits (north/south/east/west/up/down)
-4. One room should be marked as the entrance
-5. Choose appropriate terrain types for each room
-6. Room IDs should be lowercase with underscores
-
-Valid terrain types: ${validTerrainTypes}
-
-Respond with ONLY a JSON array of rooms:
-[
-  {
-    "id": "entrance",
-    "shortDesc": "Dark Cave Entrance",
-    "terrain": "cave",
-    "x": 5, "y": 9, "z": 0,
-    "isEntrance": true,
-    "exits": { "north": "tunnel_01" }
-  },
-  ...
-]`;
+  const prompts = getPromptsDaemon();
+  const prompt = prompts.render('area.layout.user', {
+    areaName: area.name,
+    region: area.region,
+    subregion: area.subregion,
+    description: area.description || 'No description provided',
+    areaTheme: area.theme || 'fantasy',
+    width: String(width),
+    height: String(height),
+    depth: String(depth),
+    maxX: String(width - 1),
+    maxY: String(height - 1),
+    maxZ: String(depth - 1),
+    terrainTypes: validTerrainTypes,
+    loreContext: loreContext || undefined,
+  }) ?? `Generate a room layout for a MUD game area as JSON.\n\nArea: "${area.name}"\nGrid: ${width}x${height}\nTerrain types: ${validTerrainTypes}\n\nRespond with ONLY a JSON array of rooms.`;
 
   try {
     const result = await efuns.aiGenerate(prompt, undefined, { maxTokens: 2000, useContinuation: true });
@@ -6026,29 +6009,16 @@ async function generateRoomDescription(
     })
     .filter(Boolean);
 
-  const prompt = `Generate a room description for a fantasy MUD game.
-
-ROOM: "${room.shortDesc || room.id}"
-TERRAIN: ${room.terrain}
-AREA: ${area.name} (${area.theme || 'fantasy'})
-${neighbors.length > 0 ? `EXITS: ${neighbors.join(', ')}` : ''}
-${room.isEntrance ? 'This is the area entrance.' : ''}
-
-${loreContext ? `WORLD LORE:
-${loreContext}
-
-` : ''}Generate a JSON object with:
-{
-  "shortDesc": "Brief 3-8 word description",
-  "longDesc": "2-4 atmospheric sentences describing what players see"
-}
-
-Requirements:
-- Match the terrain type and area theme
-- Be immersive and evocative
-- longDesc should be second person ("You see...", "The air smells...")
-
-Respond with ONLY the JSON object.`;
+  const prompts = getPromptsDaemon();
+  const prompt = prompts.render('area.room.user', {
+    roomShortDesc: room.shortDesc || room.id,
+    terrain: room.terrain,
+    areaName: area.name,
+    areaTheme: area.theme || 'fantasy',
+    neighbors: neighbors.length > 0 ? neighbors.join(', ') : undefined,
+    isEntrance: room.isEntrance ? 'true' : undefined,
+    loreContext: loreContext || undefined,
+  }) ?? `Generate a room description for a fantasy MUD game.\n\nRoom: "${room.shortDesc || room.id}"\nTerrain: ${room.terrain}\n\nRespond with ONLY the JSON object.`;
 
   try {
     const result = await efuns.aiGenerate(prompt, undefined, { maxTokens: 400 });
@@ -6136,28 +6106,15 @@ async function generateNPCDescription(
   const keywords = [area.name, area.theme, npc.name, ...(npc.keywords || [])].filter(Boolean);
   const loreContext = getLoreContext(keywords);
 
-  const prompt = `Generate an NPC description for a fantasy MUD game.
-
-NPC: "${npc.name}"
-LEVEL: ${npc.level}
-GENDER: ${npc.gender || 'neutral'}
-AREA: ${area.name} (${area.theme || 'fantasy'})
-
-${loreContext ? `WORLD LORE:
-${loreContext}
-
-` : ''}Generate a JSON object with:
-{
-  "shortDesc": "A brief phrase starting lowercase (e.g., 'a grizzled old warrior')",
-  "longDesc": "2-3 sentences describing the NPC's appearance and demeanor"
-}
-
-Requirements:
-- shortDesc starts lowercase, suitable for "You see [shortDesc] standing here"
-- longDesc is detailed and atmospheric
-- Match the NPC's level and area theme
-
-Respond with ONLY the JSON object.`;
+  const prompts = getPromptsDaemon();
+  const prompt = prompts.render('area.npc.user', {
+    npcName: npc.name,
+    level: String(npc.level),
+    gender: npc.gender || 'neutral',
+    areaName: area.name,
+    areaTheme: area.theme || 'fantasy',
+    loreContext: loreContext || undefined,
+  }) ?? `Generate an NPC description for a fantasy MUD game.\n\nNPC: "${npc.name}"\nLevel: ${npc.level}\n\nRespond with ONLY the JSON object.`;
 
   try {
     const result = await efuns.aiGenerate(prompt, undefined, { maxTokens: 400 });
@@ -6245,28 +6202,15 @@ async function generateItemDescription(
   const keywords = [area.name, area.theme, item.name, item.type, ...(item.keywords || [])].filter(Boolean);
   const loreContext = getLoreContext(keywords);
 
-  const prompt = `Generate an item description for a fantasy MUD game.
-
-ITEM: "${item.name}"
-TYPE: ${item.type}
-VALUE: ${item.value || 0} gold
-AREA: ${area.name} (${area.theme || 'fantasy'})
-
-${loreContext ? `WORLD LORE:
-${loreContext}
-
-` : ''}Generate a JSON object with:
-{
-  "shortDesc": "A brief description (e.g., 'a rusty iron sword')",
-  "longDesc": "2-3 sentences describing the item when examined"
-}
-
-Requirements:
-- shortDesc starts lowercase
-- longDesc is detailed and atmospheric
-- Match the item type and area theme
-
-Respond with ONLY the JSON object.`;
+  const prompts = getPromptsDaemon();
+  const prompt = prompts.render('area.item.user', {
+    itemName: item.name,
+    itemType: item.type,
+    value: String(item.value || 0),
+    areaName: area.name,
+    areaTheme: area.theme || 'fantasy',
+    loreContext: loreContext || undefined,
+  }) ?? `Generate an item description for a fantasy MUD game.\n\nItem: "${item.name}"\nType: ${item.type}\n\nRespond with ONLY the JSON object.`;
 
   try {
     const result = await efuns.aiGenerate(prompt, undefined, { maxTokens: 400 });

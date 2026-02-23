@@ -172,6 +172,11 @@ const DEFAULT_SETTINGS: Record<string, ConfigSetting> = {
     description: 'Enable the day/night cycle (affects outdoor room lighting)',
     type: 'boolean',
   },
+  'game.theme': {
+    value: 'fantasy',
+    description: 'Game theme/genre used in AI-generated content (e.g., fantasy, sci-fi, cyberpunk, horror, steampunk)',
+    type: 'string',
+  },
 };
 
 /**
@@ -316,23 +321,19 @@ export class ConfigDaemon extends MudObject {
    * Load settings from disk.
    */
   async load(): Promise<void> {
-    if (typeof efuns === 'undefined' || !efuns.readFile) {
+    if (typeof efuns === 'undefined' || !efuns.loadData) {
       console.log('[ConfigDaemon] efuns not available, using defaults');
       return;
     }
 
     try {
-      const configPath = '/data/config/settings.json';
-      const exists = await efuns.fileExists(configPath);
+      const saved = await efuns.loadData<SerializedConfig>('config', 'settings');
 
-      if (!exists) {
+      if (!saved) {
         console.log('[ConfigDaemon] No saved config, using defaults');
         this._loaded = true;
         return;
       }
-
-      const content = await efuns.readFile(configPath);
-      const saved = JSON.parse(content) as SerializedConfig;
 
       // Merge saved values into settings (only for known keys)
       for (const [key, value] of Object.entries(saved)) {
@@ -354,7 +355,7 @@ export class ConfigDaemon extends MudObject {
    * Save settings to disk.
    */
   async save(): Promise<void> {
-    if (typeof efuns === 'undefined' || !efuns.writeFile) {
+    if (typeof efuns === 'undefined' || !efuns.saveData) {
       console.log('[ConfigDaemon] efuns not available, cannot save');
       return;
     }
@@ -366,16 +367,7 @@ export class ConfigDaemon extends MudObject {
         serialized[key] = setting.value;
       }
 
-      const configPath = '/data/config/settings.json';
-
-      // Ensure directory exists
-      const dirPath = '/data/config';
-      const dirExists = await efuns.fileExists(dirPath);
-      if (!dirExists) {
-        await efuns.makeDir(dirPath, true);
-      }
-
-      await efuns.writeFile(configPath, JSON.stringify(serialized, null, 2));
+      await efuns.saveData('config', 'settings', serialized);
       console.log('[ConfigDaemon] Saved config to disk');
       this._dirty = false;
     } catch (error) {

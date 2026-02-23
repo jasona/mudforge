@@ -12,6 +12,7 @@
 
 import type { MudObject } from '../../lib/std.js';
 import { getLoreDaemon } from '../../daemons/lore.js';
+import { getPromptsDaemon } from '../../daemons/prompts.js';
 import { parseArgs } from '../../lib/text-utils.js';
 
 interface Player extends MudObject {
@@ -117,34 +118,14 @@ export async function execute(ctx: CommandContext): Promise<void> {
   const themeKeywords = theme.split(/\s+/).filter(w => w.length > 3);
   const loreContext = getLoreContext(themeKeywords);
 
-  const prompt = `Generate a room for a fantasy MUD game.
-
-Theme: "${theme}"
-${exits.length > 0 ? `Exits: ${exits.join(', ')}` : 'No specific exits required'}
-
-${loreContext ? `WORLD LORE (use for consistency):
-${loreContext}
-
-` : ''}Respond with a JSON object containing:
-{
-  "shortDesc": "A brief 3-8 word description (e.g., 'A dusty abandoned mine shaft')",
-  "longDesc": "A 2-4 sentence atmospheric description of what players see when entering",
-  "terrain": "One of: ${TERRAIN_TYPES.join(', ')}",
-  "suggestedItems": ["2-4 items that could be found here"],
-  "suggestedNpcs": ["1-2 NPCs that might inhabit this area, or empty array if uninhabited"],
-  "ambiance": "A short atmospheric message that could randomly display (e.g., 'A cold draft whistles through the tunnel.')"
-}
-
-Requirements:
-- shortDesc should NOT start with "A" or "The" - just describe the place
-- longDesc should be immersive and evocative
-- terrain must be exactly one of the listed types
-- suggestedItems should fit the theme
-- suggestedNpcs can be empty for uninhabited areas
-- ambiance should be a single atmospheric sentence
-- If world lore is provided, incorporate relevant details naturally
-
-Respond with ONLY the JSON object, no markdown or explanation.`;
+  const prompts = getPromptsDaemon();
+  const prompt = prompts.render('room.generation.user', {
+    theme,
+    exits: exits.length > 0 ? exits.join(', ') : undefined,
+    noExits: exits.length === 0 ? 'true' : undefined,
+    terrainTypes: TERRAIN_TYPES.join(', '),
+    loreContext: loreContext || undefined,
+  }) ?? `Generate a room for a fantasy MUD game.\n\nTheme: "${theme}"\n\nRespond with ONLY the JSON object, no markdown or explanation.`;
 
   try {
     const result = await efuns.aiGenerate(prompt, undefined, { maxTokens: 500 });

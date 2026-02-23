@@ -974,6 +974,42 @@ Generates:
 
 Uses world lore and provides matching lore IDs for the NPC's `worldLore` configuration.
 
+#### ailore
+Generate interconnected world lore using AI.
+
+```
+ailore <bootstrap|expand|fullstory> [args...]
+```
+
+**Subcommands:**
+
+**bootstrap** - Generate foundational lore entries (one per category):
+```
+ailore bootstrap "Shadowvale" "a dark gothic world of vampires and hunters"
+ailore bootstrap "Neonhaven"
+```
+
+Generates one lore entry per category (8 total) sequentially, with progress streaming. Great for bootstrapping a new game world from scratch.
+
+**expand** - Generate additional entries in a specific category:
+```
+ailore expand faction "warring clans and secret societies"
+ailore expand creature
+```
+
+Generates 2-4 entries in the given category, themed around existing lore and optional keywords.
+
+**fullstory** - Weave all lore into a long-form narrative:
+```
+ailore fullstory
+```
+
+Reads all existing lore entries and produces a cohesive long-form narrative, saved as `world:fullstory`. Useful for creating a readable world history from disparate lore fragments.
+
+Categories: `world`, `region`, `faction`, `history`, `character`, `event`, `item`, `creature`, `location`, `economics`, `mechanics`, `faith`
+
+See [Lore System Guide](lore-system.md) and [AI Integration Guide](ai-integration.md) for details.
+
 ### Lore Management
 
 #### lore
@@ -988,6 +1024,7 @@ lore remove <id>                  # Remove a lore entry
 lore generate <category> <title> [theme]  # AI-generate lore
 lore search <keyword>             # Search lore content
 lore tags                         # List all tags
+lore clear                        # Remove all lore entries (with confirmation)
 ```
 
 Categories: `world`, `region`, `faction`, `history`, `character`, `event`, `item`, `creature`, `location`, `economics`, `mechanics`, `faith`
@@ -1045,12 +1082,17 @@ config disconnect.timeoutMinutes 30     # Set to 30 minutes
 config reset disconnect.timeoutMinutes  # Reset to default (15)
 ```
 
-Available settings:
+Available settings (partial list):
 | Setting | Type | Default | Description |
 |---------|------|---------|-------------|
 | `disconnect.timeoutMinutes` | number | 15 | Minutes before disconnected player is force-quit |
+| `combat.playerKilling` | boolean | false | Allow PvP combat |
+| `corpse.playerDecayMinutes` | number | 60 | Minutes before player corpses decay |
+| `corpse.npcDecayMinutes` | number | 5 | Minutes before NPC corpses decay |
+| `reset.intervalMinutes` | number | 15 | Minutes between room resets |
+| `game.theme` | string | fantasy | Game theme/genre for AI content (e.g., fantasy, sci-fi, cyberpunk) |
 
-Settings are persisted to `/data/config/settings.json` and survive server restarts.
+Use `config` with no arguments to see all available settings. Settings are persisted to `/data/config/settings.json` and survive server restarts.
 
 ### System
 
@@ -1093,6 +1135,33 @@ discordadmin test                             # Send test message
 - Valid guild and channel IDs must be configured
 
 See [Discord Integration](discord-integration.md) for setup instructions and full documentation.
+
+### Prompt Templates
+
+#### prompts
+Manage AI prompt templates used by all AI content generation commands.
+
+```
+prompts                    # List all prompt template IDs
+prompts <id>               # View a specific prompt template
+prompts edit <id>          # Open prompt in IDE editor
+prompts reset <id>         # Reset a prompt to its default
+prompts reload             # Reload overrides from disk
+```
+
+**Subcommands:**
+
+| Subcommand | Description |
+|------------|-------------|
+| *(none)* | List all registered prompt IDs with override status |
+| `<id>` | View the full template text for a prompt |
+| `edit <id>` | Open the template in the IDE for editing |
+| `reset <id>` | Remove any override and restore the default template |
+| `reload` | Reload all overrides from disk (useful after manual edits) |
+
+Prompt templates use `{{variable}}` syntax for substitution and `{{#if variable}}...{{/if}}` blocks for conditional sections. All AI commands (`aidescribe`, `airoom`, `ainpc`, `ailore`, etc.) use these templates, so customizing them changes the style and tone of all AI-generated content.
+
+The `{{gameTheme}}` variable is automatically injected into all templates from the `game.theme` config setting.
 
 ### Bots
 

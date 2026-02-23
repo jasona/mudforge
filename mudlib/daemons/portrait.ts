@@ -17,6 +17,7 @@
 import { MudObject } from '../std/object.js';
 import type { Living } from '../std/living.js';
 import type { GeneratedItemData } from '../std/loot/types.js';
+import { getPromptsDaemon } from './prompts.js';
 // Sandbox-safe hash for cache keys (not cryptographic).
 
 function fnv1aHex(input: string): string {
@@ -252,9 +253,8 @@ export class PortraitDaemon extends MudObject {
 
     const portrait = await this.getNpcPortrait(target);
 
-    if (typeof efuns !== 'undefined' && efuns.fileExists) {
-      const filePath = `/data/portraits/${cacheKey}.json`;
-      const exists = await efuns.fileExists(filePath);
+    if (typeof efuns !== 'undefined' && efuns.dataExists) {
+      const exists = await efuns.dataExists('portraits', cacheKey);
       if (exists) {
         return `/api/images/portrait/${cacheKey}`;
       }
@@ -342,19 +342,16 @@ export class PortraitDaemon extends MudObject {
    * Load a cached portrait from disk.
    */
   private async loadFromDisk(cacheKey: string): Promise<CachedPortrait | null> {
-    if (typeof efuns === 'undefined' || !efuns.readFile) {
+    if (typeof efuns === 'undefined' || !efuns.loadData) {
       return null;
     }
 
     try {
-      const filePath = `/data/portraits/${cacheKey}.json`;
-      const exists = await efuns.fileExists(filePath);
-      if (!exists) {
+      const data = await efuns.loadData<CachedPortrait>('portraits', cacheKey);
+      if (!data) {
         return null;
       }
 
-      const content = await efuns.readFile(filePath);
-      const data = JSON.parse(content) as CachedPortrait;
       data.image = this.normalizeEncodedImage(data.image, data.mimeType);
       return data;
     } catch {
@@ -366,20 +363,12 @@ export class PortraitDaemon extends MudObject {
    * Save a portrait to disk cache.
    */
   private async saveToDisk(cacheKey: string, portrait: CachedPortrait): Promise<void> {
-    if (typeof efuns === 'undefined' || !efuns.writeFile) {
+    if (typeof efuns === 'undefined' || !efuns.saveData) {
       return;
     }
 
     try {
-      // Ensure directory exists
-      const dirPath = '/data/portraits';
-      const dirExists = await efuns.fileExists(dirPath);
-      if (!dirExists) {
-        await efuns.makeDir(dirPath, true);
-      }
-
-      const filePath = `/data/portraits/${cacheKey}.json`;
-      await efuns.writeFile(filePath, JSON.stringify(portrait, null, 2));
+      await efuns.saveData('portraits', cacheKey, portrait);
     } catch (error) {
       console.error('[PortraitDaemon] Failed to save portrait to disk:', error);
     }
@@ -397,35 +386,10 @@ export class PortraitDaemon extends MudObject {
     const description = npc.longDesc || npc.shortDesc || 'a mysterious creature';
 
     // Build the portrait prompt
-    const prompt = engageKind === 'creature'
-      ? `Create a small square portrait icon for a fantasy RPG creature or beast:
-
-${description}
-
-Style requirements:
-- Dark fantasy art style with rich, moody colors
-- Portrait composition focused on the creature's face and body
-- This is an animal or beast, not a humanoid character
-- Do not depict a werewolf, person, or humanoid hybrid unless explicitly described
-- Show the creature in its natural form
-- Dramatic lighting with shadows
-- Painterly texture suitable for a game UI
-- 64x64 pixel icon style, bold and recognizable
-- The artwork must fill the entire canvas from edge to edge
-- No borders, margins, or empty space around the subject`
-      : `Create a small square portrait icon for a fantasy RPG game character:
-
-${description}
-
-Style requirements:
-- Dark fantasy art style with rich, moody colors
-- Portrait/headshot composition focused on face/upper body
-- Dramatic lighting with shadows
-- Painterly texture suitable for a game UI
-- Should look like a character portrait from a classic RPG game
-- 64x64 pixel icon style, bold and recognizable
-- The artwork must fill the entire canvas from edge to edge
-- No borders, margins, or empty space around the subject`;
+    const prompts = getPromptsDaemon();
+    const templateId = engageKind === 'creature' ? 'portrait.creature' : 'portrait.humanoid';
+    const prompt = prompts.render(templateId, { description })
+      ?? `Create a small square portrait icon for a fantasy RPG ${engageKind === 'creature' ? 'creature' : 'character'}:\n\n${description}\n\nStyle: Dark fantasy, 64x64 icon, fill entire canvas.`;
 
     // Try AI image generation with Gemini (Nano Banana) - concurrency limited
     const imageResult = await this.withGenerationLimit(() => this.callAiImageGeneration(prompt));
@@ -553,9 +517,8 @@ Style requirements:
       return image;
     }
 
-    if (typeof efuns !== 'undefined' && efuns.fileExists) {
-      const filePath = `/data/images/${type}/${cacheKey}.json`;
-      const exists = await efuns.fileExists(filePath);
+    if (typeof efuns !== 'undefined' && efuns.dataExists) {
+      const exists = await efuns.dataExists(`images-${type}`, cacheKey);
       if (exists) {
         return `/api/images/object/${cacheKey}`;
       }
@@ -638,19 +601,16 @@ Style requirements:
    * Load a cached object image from disk.
    */
   private async loadObjectFromDisk(cacheKey: string, type: ObjectImageType): Promise<CachedPortrait | null> {
-    if (typeof efuns === 'undefined' || !efuns.readFile) {
+    if (typeof efuns === 'undefined' || !efuns.loadData) {
       return null;
     }
 
     try {
-      const filePath = `/data/images/${type}/${cacheKey}.json`;
-      const exists = await efuns.fileExists(filePath);
-      if (!exists) {
+      const data = await efuns.loadData<CachedPortrait>(`images-${type}`, cacheKey);
+      if (!data) {
         return null;
       }
 
-      const content = await efuns.readFile(filePath);
-      const data = JSON.parse(content) as CachedPortrait;
       data.image = this.normalizeEncodedImage(data.image, data.mimeType);
       return data;
     } catch {
@@ -662,20 +622,12 @@ Style requirements:
    * Save an object image to disk cache.
    */
   private async saveObjectToDisk(cacheKey: string, type: ObjectImageType, portrait: CachedPortrait): Promise<void> {
-    if (typeof efuns === 'undefined' || !efuns.writeFile) {
+    if (typeof efuns === 'undefined' || !efuns.saveData) {
       return;
     }
 
     try {
-      // Ensure directory exists
-      const dirPath = `/data/images/${type}`;
-      const dirExists = await efuns.fileExists(dirPath);
-      if (!dirExists) {
-        await efuns.makeDir(dirPath, true);
-      }
-
-      const filePath = `/data/images/${type}/${cacheKey}.json`;
-      await efuns.writeFile(filePath, JSON.stringify(portrait, null, 2));
+      await efuns.saveData(`images-${type}`, cacheKey, portrait);
     } catch (error) {
       console.error('[PortraitDaemon] Failed to save object image to disk:', error);
     }
@@ -731,13 +683,27 @@ Style requirements:
   }
 
   /**
+   * Get quality-specific style hint string for a given quality level.
+   */
+  private getQualityStyle(quality: string | undefined): string {
+    if (quality === 'legendary' || quality === 'unique') {
+      return '\n- Glowing magical aura, legendary artifact appearance';
+    } else if (quality === 'epic') {
+      return '\n- Subtle magical glow, masterwork craftsmanship';
+    } else if (quality === 'rare') {
+      return '\n- Fine craftsmanship, hint of magical properties';
+    }
+    return '';
+  }
+
+  /**
    * Build an AI prompt for an object type.
    */
   private buildObjectPrompt(description: string, type: ObjectImageType, extraContext?: Record<string, unknown>): string {
+    const prompts = getPromptsDaemon();
+
     switch (type) {
       case 'player': {
-        // Check for race appearance info
-        const raceInfo = extraContext?.race as string | undefined;
         const raceName = extraContext?.raceName as string | undefined;
         const raceFeatures = extraContext?.raceFeatures as string | undefined;
         const raceBuild = extraContext?.raceBuild as string | undefined;
@@ -746,174 +712,65 @@ Style requirements:
         let raceSection = '';
         if (raceName) {
           raceSection = `\nRace: ${raceName}`;
-          if (raceFeatures) {
-            raceSection += `\nDistinctive features: ${raceFeatures}`;
-          }
-          if (raceBuild) {
-            raceSection += `\nBuild: ${raceBuild}`;
-          }
-          if (raceStyleHints) {
-            raceSection += `\nStyle hints: ${raceStyleHints}`;
-          }
+          if (raceFeatures) raceSection += `\nDistinctive features: ${raceFeatures}`;
+          if (raceBuild) raceSection += `\nBuild: ${raceBuild}`;
+          if (raceStyleHints) raceSection += `\nStyle hints: ${raceStyleHints}`;
         }
 
-        return `Create a small square portrait icon for a fantasy RPG player character:
-
-${description}${raceSection}
-
-Style requirements:
-- Dark fantasy art style with rich, moody colors
-- Portrait/headshot composition focused on face/upper body
-- Dramatic lighting with shadows
-- Painterly texture suitable for a game UI
-- Should look like a character portrait from a classic RPG game
-- 64x64 pixel icon style, bold and recognizable
-- The artwork must fill the entire canvas from edge to edge
-- No borders, margins, or empty space around the subject`;
+        return prompts.render('portrait.player', { description, raceSection: raceSection || undefined })
+          ?? `Create a portrait for a fantasy RPG player character:\n\n${description}${raceSection}\n\nStyle: Dark fantasy, 64x64 icon, fill entire canvas.`;
       }
 
       case 'npc':
-        return `Create a small square portrait icon for a fantasy RPG game character:
-
-${description}
-
-Style requirements:
-- Dark fantasy art style with rich, moody colors
-- Portrait/headshot composition focused on face/upper body
-- Dramatic lighting with shadows
-- Painterly texture suitable for a game UI
-- Should look like a character portrait from a classic RPG game
-- 64x64 pixel icon style, bold and recognizable
-- The artwork must fill the entire canvas from edge to edge
-- No borders, margins, or empty space around the subject`;
+        return prompts.render('portrait.npc', { description })
+          ?? `Create a portrait for a fantasy RPG character:\n\n${description}\n\nStyle: Dark fantasy, 64x64 icon, fill entire canvas.`;
 
       case 'pet':
-        return `Create a small square portrait icon for a fantasy RPG pet/companion:
-
-${description}
-
-Style requirements:
-- Dark fantasy art style with rich, warm colors
-- Portrait composition focused on the creature's face/body
-- Friendly but noble appearance
-- Dramatic lighting with soft shadows
-- Painterly texture suitable for a game UI
-- Should look like a companion portrait from a classic RPG game
-- 64x64 pixel icon style, bold and recognizable
-- The artwork must fill the entire canvas from edge to edge
-- No borders, margins, or empty space around the subject`;
+        return prompts.render('portrait.pet', { description })
+          ?? `Create a portrait for a fantasy RPG pet:\n\n${description}\n\nStyle: Dark fantasy, 64x64 icon, fill entire canvas.`;
 
       case 'weapon': {
-        const damageType = extraContext?.damageType as string | undefined;
-        const quality = extraContext?.quality as string | undefined;
-        const weaponType = extraContext?.weaponType as string | undefined;
-
-        // Quality-specific style hints
-        let qualityStyle = '';
-        if (quality === 'legendary' || quality === 'unique') {
-          qualityStyle = '\n- Glowing magical aura, legendary artifact appearance';
-        } else if (quality === 'epic') {
-          qualityStyle = '\n- Subtle magical glow, masterwork craftsmanship';
-        } else if (quality === 'rare') {
-          qualityStyle = '\n- Fine craftsmanship, hint of magical properties';
-        }
-
-        return `Create a fantasy RPG weapon icon:
-${description}
-
-Style: Dark fantasy, painterly, dramatic lighting${qualityStyle}
-${weaponType ? `Weapon type: ${weaponType}` : ''}
-${damageType ? `Damage type: ${damageType}` : ''}
-Square composition, item icon style on a dark background
-No text, clean iconic design
-Fill entire canvas edge to edge, no borders or margins`;
+        const qualityStyle = this.getQualityStyle(extraContext?.quality as string | undefined);
+        return prompts.render('portrait.weapon', {
+          description,
+          qualityStyle: qualityStyle || undefined,
+          weaponType: extraContext?.weaponType as string | undefined,
+          damageType: extraContext?.damageType as string | undefined,
+        }) ?? `Create a fantasy RPG weapon icon:\n${description}\n\nStyle: Dark fantasy, painterly.`;
       }
 
       case 'armor': {
-        const slot = extraContext?.slot as string | undefined;
-        const armorSlot = extraContext?.armorSlot as string | undefined;
-        const armorQuality = extraContext?.quality as string | undefined;
-        const armorType = extraContext?.armorType as string | undefined;
-
-        // Quality-specific style hints
-        let armorQualityStyle = '';
-        if (armorQuality === 'legendary' || armorQuality === 'unique') {
-          armorQualityStyle = '\n- Glowing magical enchantments, legendary artifact appearance';
-        } else if (armorQuality === 'epic') {
-          armorQualityStyle = '\n- Subtle magical glow, masterwork craftsmanship';
-        } else if (armorQuality === 'rare') {
-          armorQualityStyle = '\n- Fine craftsmanship, hint of magical properties';
-        }
-
-        return `Create a fantasy RPG armor piece icon:
-${description}
-
-Style: Dark fantasy, painterly, dramatic lighting${armorQualityStyle}
-${armorType ? `Armor type: ${armorType}` : ''}
-${slot || armorSlot ? `Slot: ${slot || armorSlot}` : ''}
-Square composition, item icon style on a dark background
-No text, clean iconic design
-Fill entire canvas edge to edge, no borders or margins`;
+        const armorQualityStyle = this.getQualityStyle(extraContext?.quality as string | undefined);
+        return prompts.render('portrait.armor', {
+          description,
+          qualityStyle: armorQualityStyle || undefined,
+          armorType: extraContext?.armorType as string | undefined,
+          slot: (extraContext?.slot as string) || (extraContext?.armorSlot as string) || undefined,
+        }) ?? `Create a fantasy RPG armor icon:\n${description}\n\nStyle: Dark fantasy, painterly.`;
       }
 
-      case 'container':
+      case 'container': {
         const state = extraContext?.isOpen ? 'open' : 'closed';
-        return `Create a fantasy RPG container icon:
-${description}
-
-Style: Dark fantasy, painterly
-State: ${state}
-Square composition, item icon style on a dark background
-No text, clean iconic design
-Fill entire canvas edge to edge, no borders or margins`;
+        return prompts.render('portrait.container', { description, state })
+          ?? `Create a fantasy RPG container icon:\n${description}\n\nState: ${state}`;
+      }
 
       case 'corpse':
-        return `Create a dark fantasy RPG corpse scene:
-${description}
-
-Style: Dark fantasy, grim, somber atmosphere
-- Fallen body or remains on the ground
-- Moody, dramatic lighting with shadows
-- Painterly texture suitable for a game UI
-Square composition on a dark background
-No text, clean dramatic design
-Fill entire canvas edge to edge, no borders or margins`;
+        return prompts.render('portrait.corpse', { description })
+          ?? `Create a dark fantasy RPG corpse scene:\n${description}`;
 
       case 'gold':
-        return `Create a fantasy RPG gold coins icon:
-${description}
-
-Style: Dark fantasy, painterly, warm golden glow
-- Shiny gold coins with fantasy designs
-- Dramatic lighting making the gold gleam
-- Treasure/loot aesthetic
-Square composition, item icon style on a dark background
-No text, clean iconic design
-Fill entire canvas edge to edge, no borders or margins`;
+        return prompts.render('portrait.gold', { description })
+          ?? `Create a fantasy RPG gold coins icon:\n${description}`;
 
       case 'item':
       default: {
-        const itemQuality = extraContext?.quality as string | undefined;
-        const baubleType = extraContext?.baubleType as string | undefined;
-
-        // Quality-specific style hints for items/baubles
-        let itemQualityStyle = '';
-        if (itemQuality === 'legendary' || itemQuality === 'unique') {
-          itemQualityStyle = '\n- Glowing magical aura, legendary artifact appearance';
-        } else if (itemQuality === 'epic') {
-          itemQualityStyle = '\n- Subtle magical glow, precious craftsmanship';
-        } else if (itemQuality === 'rare') {
-          itemQualityStyle = '\n- Fine craftsmanship, hint of magical properties';
-        }
-
-        return `Create a fantasy RPG item icon:
-${description}
-
-Style: Dark fantasy, painterly, dramatic lighting${itemQualityStyle}
-${baubleType ? `Item type: ${baubleType}` : ''}
-Square composition, item icon style on a dark background
-No text, clean iconic design
-Fill entire canvas edge to edge, no borders or margins`;
+        const itemQualityStyle = this.getQualityStyle(extraContext?.quality as string | undefined);
+        return prompts.render('portrait.item', {
+          description,
+          qualityStyle: itemQualityStyle || undefined,
+          baubleType: extraContext?.baubleType as string | undefined,
+        }) ?? `Create a fantasy RPG item icon:\n${description}\n\nStyle: Dark fantasy, painterly.`;
       }
     }
   }
@@ -1004,27 +861,14 @@ Fill entire canvas edge to edge, no borders or margins`;
     let raceSection = '';
     if (raceName) {
       raceSection = `\nRace: ${raceName}`;
-      if (raceFeatures) {
-        raceSection += `\nDistinctive features: ${raceFeatures}`;
-      }
-      if (raceBuild) {
-        raceSection += `\nBuild: ${raceBuild}`;
-      }
-      if (raceStyleHints) {
-        raceSection += `\nStyle hints: ${raceStyleHints}`;
-      }
+      if (raceFeatures) raceSection += `\nDistinctive features: ${raceFeatures}`;
+      if (raceBuild) raceSection += `\nBuild: ${raceBuild}`;
+      if (raceStyleHints) raceSection += `\nStyle hints: ${raceStyleHints}`;
     }
 
-    return `Create a portrait for a fantasy RPG character:
-
-${description}${raceSection}
-
-Style requirements:
-- Dark fantasy art style with rich, moody colors
-- Portrait/headshot composition
-- Dramatic lighting with shadows
-- 64x64 pixel icon style, bold and recognizable
-- Fill entire canvas edge to edge`;
+    const prompts = getPromptsDaemon();
+    return prompts.render('portrait.player', { description, raceSection: raceSection || undefined })
+      ?? `Create a portrait for a fantasy RPG character:\n\n${description}${raceSection}\n\nStyle: Dark fantasy, 64x64 icon, fill entire canvas.`;
   }
 
   /**

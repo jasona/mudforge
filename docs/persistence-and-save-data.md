@@ -4,15 +4,18 @@ This guide explains what MudForge saves, where it saves it, and when persistence
 
 ## Overview
 
-MudForge uses JSON file persistence for player and world state.
+MudForge uses a pluggable persistence adapter pattern. The default adapter stores data as JSON files on the local filesystem. An optional Supabase adapter stores data in PostgreSQL. See [Persistence Adapter](persistence-adapter.md) for adapter configuration and backend details.
 
 Driver persistence components:
 
-- `src/driver/persistence/file-store.ts`
-- `src/driver/persistence/serializer.ts`
-- `src/driver/persistence/loader.ts`
+- `src/driver/persistence/adapter.ts` - PersistenceAdapter interface
+- `src/driver/persistence/adapter-factory.ts` - Singleton factory
+- `src/driver/persistence/filesystem-adapter.ts` - Filesystem implementation
+- `src/driver/persistence/supabase-adapter.ts` - Supabase implementation
+- `src/driver/persistence/serializer.ts` - Object-to-JSON serialization
+- `src/driver/persistence/loader.ts` - Object restoration from saved state
 
-## Storage Layout
+## Storage Layout (Filesystem Adapter)
 
 Default data root:
 
@@ -23,6 +26,7 @@ Important files/directories:
 - `mudlib/data/players/<name>.json` - per-player save files
 - `mudlib/data/world-state.json` - world snapshot state
 - `mudlib/data/permissions.json` - permission/domain state
+- `mudlib/data/<namespace>/<key>.json` - daemon data (config, lore, bots, etc.)
 
 ## Player Save Contents
 
@@ -101,8 +105,15 @@ If persistence appears broken:
 4. Confirm restore path targets valid object locations.
 5. Validate item blueprint paths for restored inventory.
 
+## Daemon Data Persistence
+
+Daemons store their state using the data persistence efuns (`efuns.saveData`, `efuns.loadData`, etc.) which route through the active adapter. This replaces the earlier pattern of direct file I/O via `efuns.readFile`/`efuns.writeFile`.
+
+See [Persistence Adapter - Daemon Namespace Mapping](persistence-adapter.md#daemon-namespace-mapping) for the complete namespace/key mapping.
+
 ## Related Docs
 
-- `docs/architecture.md`
-- `docs/player-features.md`
-- `docs/connection-and-session-lifecycle.md`
+- [Persistence Adapter](persistence-adapter.md) — adapter interface, configuration, Supabase setup
+- [Efuns Reference](efuns.md) — data persistence efuns (saveData, loadData, etc.)
+- [Architecture](architecture.md) — system design overview
+- [Connection and Session Lifecycle](connection-and-session-lifecycle.md) — save triggers on quit/disconnect

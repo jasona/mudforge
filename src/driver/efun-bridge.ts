@@ -10,7 +10,8 @@ import { getRegistry, type ObjectRegistry } from './object-registry.js';
 import { getScheduler, type Scheduler } from './scheduler.js';
 import { getMetrics } from './metrics.js';
 import { getPermissions, resetPermissions, type Permissions, PermissionLevel } from './permissions.js';
-import { getFileStore } from './persistence/file-store.js';
+import { getAdapter } from './persistence/adapter-factory.js';
+import { getSerializer } from './persistence/serializer.js';
 import { getCommandManager } from './command-manager.js';
 import { getClaudeClient, type ClaudeMessage } from './claude-client.js';
 import { getGeminiClient } from './gemini-client.js';
@@ -39,6 +40,7 @@ import { getGitHubClient } from './github-client.js';
 import { getGiphyClient, type CachedGif } from './giphy-client.js';
 import { getShadowRegistry, type ShadowRegistry } from './shadow-registry.js';
 import type { Shadow, AddShadowResult } from './shadow-types.js';
+import { getPromptManager } from './prompt-manager.js';
 import { randomBytes, scrypt, timingSafeEqual } from 'crypto';
 import { reverse as dnsReverse } from 'dns/promises';
 import { promisify } from 'util';
@@ -154,6 +156,8 @@ export interface AIGenerateOptions {
   useContinuation?: boolean;
   /** Maximum continuation requests (default: 2) */
   maxContinuations?: number;
+  /** Request timeout in milliseconds (default: 25000). Use higher values for large generations. */
+  timeout?: number;
 }
 
 /**
@@ -1810,8 +1814,8 @@ export class EfunBridge {
 
     try {
       const data = this.permissions.export();
-      const fileStore = getFileStore({ dataPath: this.config.mudlibPath + '/data' });
-      await fileStore.savePermissions(data);
+      const adapter = getAdapter();
+      await adapter.savePermissions(data);
       return { success: true };
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
@@ -2259,8 +2263,10 @@ export class EfunBridge {
    * @param player The player object to save
    */
   async savePlayer(player: MudObject): Promise<void> {
-    const fileStore = getFileStore({ dataPath: this.config.mudlibPath + '/data' });
-    await fileStore.savePlayer(player);
+    const serializer = getSerializer();
+    const data = serializer.serializePlayer(player);
+    const adapter = getAdapter();
+    await adapter.savePlayer(data);
   }
 
   /**
@@ -2269,8 +2275,8 @@ export class EfunBridge {
    * @returns The player save data, or null if not found
    */
   async loadPlayerData(name: string): Promise<PlayerSaveData | null> {
-    const fileStore = getFileStore({ dataPath: this.config.mudlibPath + '/data' });
-    return fileStore.loadPlayer(name);
+    const adapter = getAdapter();
+    return adapter.loadPlayer(name);
   }
 
   /**
@@ -2278,8 +2284,8 @@ export class EfunBridge {
    * @param name The player's name
    */
   async playerExists(name: string): Promise<boolean> {
-    const fileStore = getFileStore({ dataPath: this.config.mudlibPath + '/data' });
-    return fileStore.playerExists(name);
+    const adapter = getAdapter();
+    return adapter.playerExists(name);
   }
 
   /**
@@ -2287,8 +2293,8 @@ export class EfunBridge {
    * @returns Array of player names
    */
   async listPlayers(): Promise<string[]> {
-    const fileStore = getFileStore({ dataPath: this.config.mudlibPath + '/data' });
-    return fileStore.listPlayers();
+    const adapter = getAdapter();
+    return adapter.listPlayers();
   }
 
   /**
@@ -2332,7 +2338,7 @@ export class EfunBridge {
       activePlayerCleared: false,
     };
     const warnings: string[] = [];
-    const fileStore = getFileStore({ dataPath: this.config.mudlibPath + '/data' });
+    const adapter = getAdapter();
 
     try {
       const activePlayer = this.findActivePlayer(normalizedName) as (MudObject & {
@@ -2364,7 +2370,7 @@ export class EfunBridge {
         }
       }
 
-      details.playerSaveDeleted = await fileStore.deletePlayer(normalizedName);
+      details.playerSaveDeleted = await adapter.deletePlayer(normalizedName);
 
       const userDirPath = `/users/${normalizedName}`;
       try {
@@ -2382,7 +2388,7 @@ export class EfunBridge {
       this.permissions.setDomains(normalizedName, []);
       this.permissions.clearCommandPaths(normalizedName);
 
-      await fileStore.savePermissions(this.permissions.export());
+      await adapter.savePermissions(this.permissions.export());
       details.permissionsReset = true;
 
       try {
@@ -2408,6 +2414,50 @@ export class EfunBridge {
         warnings,
       };
     }
+  }
+
+  // ========== Data Persistence Efuns ==========
+
+  /**
+   * Save arbitrary data under a namespace/key pair.
+   * Used by daemons for persistent storage.
+   */
+  async saveData(namespace: string, key: string, data: unknown): Promise<void> {
+    const adapter = getAdapter();
+    await adapter.saveData(namespace, key, data);
+  }
+
+  /**
+   * Load data by namespace/key pair.
+   * Returns null if not found.
+   */
+  async loadData<T = unknown>(namespace: string, key: string): Promise<T | null> {
+    const adapter = getAdapter();
+    return adapter.loadData<T>(namespace, key);
+  }
+
+  /**
+   * Check if data exists for a namespace/key pair.
+   */
+  async dataExists(namespace: string, key: string): Promise<boolean> {
+    const adapter = getAdapter();
+    return adapter.dataExists(namespace, key);
+  }
+
+  /**
+   * Delete data for a namespace/key pair.
+   */
+  async deleteData(namespace: string, key: string): Promise<boolean> {
+    const adapter = getAdapter();
+    return adapter.deleteData(namespace, key);
+  }
+
+  /**
+   * List all keys within a namespace.
+   */
+  async listDataKeys(namespace: string): Promise<string[]> {
+    const adapter = getAdapter();
+    return adapter.listKeys(namespace);
   }
 
   // ========== Paging Efuns ==========
@@ -3513,11 +3563,13 @@ export class EfunBridge {
 
     const playerName = this.getPlayerNameForRateLimit();
 
+    const pm = getPromptManager();
+    const defaultSystem = pm?.render('generate.system') ?? 'You are a helpful assistant for a MUD game. Generate creative, atmospheric content.';
     const systemPrompt = context
       ? `${context}\n\nFollow the user's instructions carefully.`
-      : 'You are a helpful assistant for a fantasy MUD game. Generate creative, atmospheric content.';
+      : defaultSystem;
 
-    const request: { systemPrompt: string; messages: ClaudeMessage[]; maxTokens?: number; temperature?: number } = {
+    const request: { systemPrompt: string; messages: ClaudeMessage[]; maxTokens?: number; temperature?: number; timeout?: number } = {
       systemPrompt,
       messages: [{ role: 'user', content: prompt }],
     };
@@ -3526,6 +3578,9 @@ export class EfunBridge {
     }
     if (options?.temperature !== undefined) {
       request.temperature = options.temperature;
+    }
+    if (options?.timeout !== undefined) {
+      request.timeout = options.timeout;
     }
 
     // Check rate limit first
@@ -3589,24 +3644,18 @@ export class EfunBridge {
         ? 'Be brief and direct. No flowery language.'
         : 'Create an atmospheric, immersive description.';
 
-    const systemPrompt = `You are a creative writer for a fantasy MUD (text-based RPG) game.
-Generate descriptions for game content. ${styleGuide}
-
-IMPORTANT RULES:
-- Short description: 3-8 words, lowercase, no period (e.g., "a dusty old tavern")
-- Long description: 2-4 sentences, present tense, second person where appropriate
-- Use color codes like {cyan}, {yellow}, {red}, {green}, {bold}, {/} for emphasis sparingly
-- Never break character or mention being an AI`;
+    const pm = getPromptManager();
+    const systemPrompt = pm?.render('describe.system', { styleGuide })
+      ?? `You are a creative writer for a MUD (text-based RPG) game.\nGenerate descriptions for game content. ${styleGuide}\n\nIMPORTANT RULES:\n- Short description: 3-8 words, lowercase, no period\n- Long description: 2-4 sentences, present tense, second person where appropriate\n- Never break character or mention being an AI`;
 
     const keywords = details.keywords?.join(', ') || '';
-    const prompt = `Generate a ${type} description.
-Name: ${details.name}
-${keywords ? `Keywords/Theme: ${keywords}` : ''}
-${details.theme ? `Theme: ${details.theme}` : ''}
-${details.existing ? `Existing description to enhance: ${details.existing}` : ''}
-
-Respond in this exact JSON format:
-{"shortDesc": "...", "longDesc": "..."}`;
+    const prompt = pm?.render('describe.user', {
+      type,
+      name: details.name,
+      keywords,
+      theme: details.theme,
+      existing: details.existing,
+    }) ?? `Generate a ${type} description.\nName: ${details.name}\n${keywords ? `Keywords/Theme: ${keywords}` : ''}\n${details.theme ? `Theme: ${details.theme}` : ''}\n\nRespond in this exact JSON format:\n{"shortDesc": "...", "longDesc": "..."}`;
 
     const result = await client.completeWithRateLimit(`desc:${playerName}`, {
       systemPrompt,
@@ -3700,30 +3749,22 @@ Respond in this exact JSON format:
       }
     }
 
-    const systemPrompt = `You are ${npcContext.name}, an NPC in a fantasy MUD game.
-
-PERSONALITY: ${npcContext.personality}
-BACKGROUND: ${npcContext.background}
-${npcContext.currentMood ? `CURRENT MOOD: ${npcContext.currentMood}` : ''}
-
-SPEAKING STYLE:
-- ${formalityDesc}
-- ${verbosityDesc}
-${npcContext.speakingStyle?.accent ? `- Speech pattern: ${npcContext.speakingStyle.accent}` : ''}
-
-KNOWLEDGE:
-- You can discuss: ${topics}
-${forbidden ? `- NEVER discuss or reveal information about: ${forbidden}` : ''}
-${npcContext.knowledgeScope?.localKnowledge ? `- Local knowledge: ${npcContext.knowledgeScope.localKnowledge.join(', ')}` : ''}
-${worldLoreContext ? `\nWORLD LORE (use this knowledge naturally in conversation):\n${worldLoreContext}` : ''}
-
-RULES:
-- Stay completely in character as ${npcContext.name}
-- Never break the fourth wall or mention being an AI
-- Respond as if you are actually this character in the game world
-- IMPORTANT: Keep responses under ${maxWords} words - this is a strict limit for game dialogue
-- Do not use quotation marks around your speech
-- End your response at a natural stopping point`;
+    const pm = getPromptManager();
+    const localKnowledge = npcContext.knowledgeScope?.localKnowledge?.join(', ') || '';
+    const systemPrompt = pm?.render('npc.dialogue.system', {
+      npcName: npcContext.name,
+      personality: npcContext.personality,
+      background: npcContext.background,
+      currentMood: npcContext.currentMood,
+      formalityDesc,
+      verbosityDesc,
+      accent: npcContext.speakingStyle?.accent,
+      topics,
+      forbidden: forbidden || '',
+      localKnowledge,
+      worldLoreContext,
+      maxWords: String(maxWords),
+    }) ?? `You are ${npcContext.name}, an NPC in a MUD game.\n\nPERSONALITY: ${npcContext.personality}\nBACKGROUND: ${npcContext.background}\n\nSPEAKING STYLE:\n- ${formalityDesc}\n- ${verbosityDesc}\n\nRULES:\n- Stay completely in character as ${npcContext.name}\n- Never break the fourth wall or mention being an AI\n- Keep responses under ${maxWords} words`;
 
     // Convert conversation history to Claude format
     const messages: ClaudeMessage[] = [];
@@ -3819,6 +3860,74 @@ RULES:
       response.cached = result.cached;
     }
     return response;
+  }
+
+  // ========== Prompt Template Efuns ==========
+
+  /**
+   * Get the effective template for a prompt ID (override if set, else default).
+   */
+  getPromptTemplate(id: string): string | undefined {
+    const pm = getPromptManager();
+    return pm?.get(id);
+  }
+
+  /**
+   * Get the hardcoded default template for a prompt ID.
+   */
+  getPromptDefault(id: string): string | undefined {
+    const pm = getPromptManager();
+    return pm?.getDefault(id);
+  }
+
+  /**
+   * Get all registered prompt IDs.
+   */
+  getPromptIds(): string[] {
+    const pm = getPromptManager();
+    return pm?.getIds() ?? [];
+  }
+
+  /**
+   * Render a prompt template with variables.
+   */
+  renderPrompt(id: string, vars?: Record<string, string | undefined>): string | undefined {
+    const pm = getPromptManager();
+    return pm?.render(id, vars ?? {});
+  }
+
+  /**
+   * Set an override for a prompt template. Requires admin permission.
+   */
+  async setPromptOverride(id: string, template: string): Promise<{ success: boolean; error?: string }> {
+    const pm = getPromptManager();
+    if (!pm) return { success: false, error: 'Prompt manager not initialized' };
+    return pm.set(id, template);
+  }
+
+  /**
+   * Reset a prompt template to its default. Requires admin permission.
+   */
+  async resetPromptOverride(id: string): Promise<{ success: boolean; error?: string }> {
+    const pm = getPromptManager();
+    if (!pm) return { success: false, error: 'Prompt manager not initialized' };
+    return pm.reset(id);
+  }
+
+  /**
+   * Reload prompt overrides from disk.
+   */
+  async reloadPrompts(): Promise<void> {
+    const pm = getPromptManager();
+    if (pm) await pm.reload();
+  }
+
+  /**
+   * Check whether a prompt ID has an active override.
+   */
+  hasPromptOverride(id: string): boolean {
+    const pm = getPromptManager();
+    return pm?.hasOverride(id) ?? false;
   }
 
   // ========== GitHub Efuns ==========
@@ -4175,6 +4284,13 @@ RULES:
       listPlayers: this.listPlayers.bind(this),
       purgePlayerData: this.purgePlayerData.bind(this),
 
+      // Data Persistence (generic namespace/key store for daemons)
+      saveData: this.saveData.bind(this),
+      loadData: this.loadData.bind(this),
+      dataExists: this.dataExists.bind(this),
+      deleteData: this.deleteData.bind(this),
+      listDataKeys: this.listDataKeys.bind(this),
+
       // Hot Reload
       reloadObject: this.reloadObject.bind(this),
       reloadCommand: this.reloadCommand.bind(this),
@@ -4230,6 +4346,16 @@ RULES:
       aiNpcResponse: this.aiNpcResponse.bind(this),
       aiImageAvailable: this.aiImageAvailable.bind(this),
       aiImageGenerate: this.aiImageGenerate.bind(this),
+
+      // AI Prompt Templates
+      getPromptTemplate: this.getPromptTemplate.bind(this),
+      getPromptDefault: this.getPromptDefault.bind(this),
+      getPromptIds: this.getPromptIds.bind(this),
+      renderPrompt: this.renderPrompt.bind(this),
+      setPromptOverride: this.setPromptOverride.bind(this),
+      resetPromptOverride: this.resetPromptOverride.bind(this),
+      reloadPrompts: this.reloadPrompts.bind(this),
+      hasPromptOverride: this.hasPromptOverride.bind(this),
 
       // Intermud 3
       i3IsConnected: this.i3IsConnected.bind(this),

@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { Loader, getLoader, resetLoader } from '../../../src/driver/persistence/loader.js';
-import { getFileStore, resetFileStore } from '../../../src/driver/persistence/file-store.js';
-import { resetSerializer } from '../../../src/driver/persistence/serializer.js';
+import { resetAdapter, setAdapter } from '../../../src/driver/persistence/adapter-factory.js';
+import { FilesystemAdapter } from '../../../src/driver/persistence/filesystem-adapter.js';
+import { getSerializer, resetSerializer } from '../../../src/driver/persistence/serializer.js';
 import type { MudObject } from '../../../src/driver/types.js';
 import { rm, mkdir } from 'fs/promises';
 
@@ -32,9 +33,11 @@ describe('Loader', () => {
   let loader: Loader;
   let loadedObjects: Map<string, MudObject>;
 
+  let adapter: FilesystemAdapter;
+
   beforeEach(async () => {
     resetLoader();
-    resetFileStore();
+    resetAdapter();
     resetSerializer();
 
     // Clean up test directory
@@ -45,8 +48,10 @@ describe('Loader', () => {
     }
     await mkdir(TEST_DATA_PATH, { recursive: true });
 
-    // Initialize file store with test path
-    getFileStore({ dataPath: TEST_DATA_PATH });
+    // Initialize adapter with test path
+    adapter = new FilesystemAdapter({ dataPath: TEST_DATA_PATH });
+    await adapter.initialize();
+    setAdapter(adapter);
 
     loadedObjects = new Map();
 
@@ -68,7 +73,7 @@ describe('Loader', () => {
 
   afterEach(async () => {
     resetLoader();
-    resetFileStore();
+    resetAdapter();
 
     // Clean up test directory
     try {
@@ -142,9 +147,10 @@ describe('Loader', () => {
 
     it('should load world state from file', async () => {
       // Save a world state first
-      const fileStore = getFileStore();
+      const serializer = getSerializer();
       const room = createMockObject('/areas/town/square', { name: 'Town Square' });
-      await fileStore.saveWorldState([room]);
+      const worldState = serializer.createWorldSnapshot([room]);
+      await adapter.saveWorldState(worldState);
 
       // Load it back
       const stats = await loader.loadWorld();
@@ -155,12 +161,13 @@ describe('Loader', () => {
 
     it('should restore object state', async () => {
       // Save with properties
-      const fileStore = getFileStore();
+      const serializer = getSerializer();
       const room = createMockObject('/areas/town/square', {
         name: 'Town Square',
         description: 'A busy square',
       });
-      await fileStore.saveWorldState([room]);
+      const worldState = serializer.createWorldSnapshot([room]);
+      await adapter.saveWorldState(worldState);
 
       // Clear and reload
       loadedObjects.clear();
@@ -176,7 +183,7 @@ describe('Loader', () => {
   describe('loadPlayer', () => {
     it('should load existing player', async () => {
       // Save player first
-      const fileStore = getFileStore();
+      const serializer = getSerializer();
       const room = createMockObject('/areas/void/void', {});
       const player = createMockObject(
         '/std/player',
@@ -187,7 +194,8 @@ describe('Loader', () => {
         true
       );
       player.environment = room;
-      await fileStore.savePlayer(player);
+      const playerData = serializer.serializePlayer(player);
+      await adapter.savePlayer(playerData);
 
       // Make room available
       loadedObjects.set('/areas/void/void', room);
@@ -207,11 +215,12 @@ describe('Loader', () => {
     });
 
     it('should move player to last location', async () => {
-      const fileStore = getFileStore();
+      const serializer = getSerializer();
       const room = createMockObject('/areas/town/square', {});
       const player = createMockObject('/std/player', { name: 'Hero' }, true);
       player.environment = room;
-      await fileStore.savePlayer(player);
+      const playerData = serializer.serializePlayer(player);
+      await adapter.savePlayer(playerData);
 
       loadedObjects.set('/areas/town/square', room);
 
@@ -254,9 +263,10 @@ describe('Loader', () => {
 
   describe('playerExists', () => {
     it('should check if player exists', async () => {
-      const fileStore = getFileStore();
+      const serializer = getSerializer();
       const player = createMockObject('/std/player', { name: 'Existing' }, true);
-      await fileStore.savePlayer(player);
+      const playerData = serializer.serializePlayer(player);
+      await adapter.savePlayer(playerData);
 
       expect(await loader.playerExists('Existing')).toBe(true);
       expect(await loader.playerExists('NonExisting')).toBe(false);
