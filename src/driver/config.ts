@@ -7,6 +7,7 @@ export interface DriverConfig {
   // Server
   port: number;
   host: string;
+  clientPath: string;
   shutdownTimeoutMs: number;
 
   // Mudlib
@@ -125,6 +126,7 @@ export function loadConfig(): DriverConfig {
     // Server
     port: parseNumber(process.env['PORT'], 3000),
     host: process.env['HOST'] ?? '0.0.0.0',
+    clientPath: process.env['CLIENT_PATH'] ?? '',
     shutdownTimeoutMs: parseNumber(process.env['SHUTDOWN_TIMEOUT_MS'], 15000),
 
     // Mudlib

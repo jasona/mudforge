@@ -121,6 +121,7 @@ See `.env.example` for the full list with comments. Key variables grouped by cat
 | `NODE_ENV` | development | Environment mode |
 | `PORT` | 3000 | HTTP/WebSocket port |
 | `HOST` | 0.0.0.0 | Bind address |
+| `CLIENT_PATH` | | Path to custom built client files |
 | `LOG_LEVEL` | info | Logging level (debug, info, warn, error) |
 | `MUDLIB_PATH` | ./mudlib | Path to mudlib directory |
 | `SHUTDOWN_TIMEOUT_MS` | 15000 | Max time for graceful shutdown before force exit |

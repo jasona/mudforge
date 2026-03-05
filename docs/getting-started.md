@@ -209,6 +209,7 @@ Edit `.env` to configure the server. Key settings:
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `PORT` | 3000 | Server port |
+| `CLIENT_PATH` | | Path to custom built client files |
 | `MUDLIB_PATH` | ./mudlib | Path to mudlib directory |
 | `ISOLATE_MEMORY_MB` | 128 | V8 isolate memory limit |
 | `SCRIPT_TIMEOUT_MS` | 5000 | Script execution timeout |

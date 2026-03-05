@@ -280,6 +280,7 @@ That's it! You're now connected to the MUD.
 |---------|---------|-------------|
 | Port | `3000` | HTTP/WebSocket server port |
 | Host | `0.0.0.0` | Bind address (all interfaces) |
+| Client Path | unset | Optional custom built client directory |
 | Mudlib Path | `./mudlib` | Game content directory |
 
 To change these, edit `.env` or set environment variables:

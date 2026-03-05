@@ -62,6 +62,7 @@ async function main(): Promise<void> {
     port: config.port,
     host: config.host,
     mudlibPath: config.mudlibPath,
+    ...(config.clientPath ? { clientPath: config.clientPath } : {}),
     logger,
     logHttpRequests: config.logHttpRequests,
     wsHeartbeatIntervalMs: config.wsHeartbeatIntervalMs,

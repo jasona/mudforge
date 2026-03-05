@@ -16,6 +16,7 @@ describe('loadConfig', () => {
     // Clear relevant env vars
     delete process.env['PORT'];
     delete process.env['HOST'];
+    delete process.env['CLIENT_PATH'];
     delete process.env['MUDLIB_PATH'];
     delete process.env['LOG_LEVEL'];
 
@@ -23,6 +24,7 @@ describe('loadConfig', () => {
 
     expect(config.port).toBe(3000);
     expect(config.host).toBe('0.0.0.0');
+    expect(config.clientPath).toBe('');
     expect(config.mudlibPath).toBe('./mudlib');
     expect(config.masterObject).toBe('/master');
     expect(config.logLevel).toBe('info');
@@ -99,6 +101,7 @@ describe('validateConfig', () => {
   const validConfig: DriverConfig = {
     port: 3000,
     host: '0.0.0.0',
+    clientPath: '',
     shutdownTimeoutMs: 15000,
     mudlibPath: './mudlib',
     masterObject: '/master',
