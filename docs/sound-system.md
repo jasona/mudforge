@@ -709,11 +709,12 @@ Settings stored in `localStorage`:
 
 ### Build Process
 
-The build script copies `src/client/sounds/` to `dist/client/sounds/`:
+The build script copies `src/client/sounds/` to `dist/client/sounds/` by default,
+or to `CLIENT_PATH/sounds/` when `CLIENT_PATH` is set:
 
 ```bash
 npm run build:client
-# Includes: cpSync('src/client/sounds', 'dist/client/sounds', { recursive: true })
+# Includes: cpSync('src/client/sounds', '<client output>/sounds', { recursive: true })
 ```
 
 ## Type Definitions

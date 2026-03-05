@@ -503,4 +503,5 @@ After making changes:
 npm run build:client
 ```
 
-This compiles and bundles the client files to `dist/client/`.
+This compiles and bundles the client files to `dist/client/` by default, or to
+`CLIENT_PATH` when that environment variable is set.

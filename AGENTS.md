@@ -40,4 +40,5 @@ PRs should include:
 
 ## Configuration & Runtime Notes
 Node.js >= 22 is required (`package.json` engines). Client assets live in
-`src/client/` and are copied/bundled into `dist/client/` by `npm run build:client`.
+`src/client/` and are copied/bundled into `dist/client/` by `npm run build:client`
+unless `CLIENT_PATH` is set, in which case that output path is used instead.
