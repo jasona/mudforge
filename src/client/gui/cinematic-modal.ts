@@ -92,6 +92,7 @@ export class CinematicModal {
     }
 
     this.renderSections(cinematic.sections, shouldFade);
+    this.applySplitLayoutIfPresent();
     this.setupNarration(cinematic);
 
     this.overlay.addEventListener('click', (event) => {
@@ -352,6 +353,16 @@ export class CinematicModal {
     const mins = Math.floor(total / 60);
     const secs = total % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
+  }
+
+  private applySplitLayoutIfPresent(): void {
+    if (!this.content) return;
+
+    const hasIntroImage = this.content.querySelector('[data-section-id="intro-image"]');
+    const hasIntroContent = this.content.querySelector('[data-section-id="intro-content"]');
+    if (hasIntroImage && hasIntroContent) {
+      this.content.classList.add('cinematic-content-split');
+    }
   }
 }
 

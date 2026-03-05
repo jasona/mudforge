@@ -872,7 +872,7 @@ ${'='.repeat(bannerWidth)}
         `Welcome to ${game.name}`,
         buildIntroCinematicSections(game.name),
         {
-          narration: { src: 'narration/intro.mp3' },
+          narration: { src: 'narration/intro.mp3', autoPlay: true },
           theme: 'parchment',
           fadeInSections: true,
         }
