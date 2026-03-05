@@ -17,6 +17,7 @@ import type { RaceId } from '../std/race/types.js';
 import { isValidRaceId } from '../std/race/definitions.js';
 import type { QuestPlayer } from '../std/quest/types.js';
 import type { GeneratedItemData } from '../std/loot/types.js';
+import { buildIntroCinematicSections, INTRO_CINEMATIC_ID } from '../lib/cinematic-content.js';
 // Note: Mudlib runs in a sandbox. Use efuns for crypto/DNS.
 
 const FALLBACK_SALT_BYTES = 16;
@@ -861,6 +862,21 @@ ${'='.repeat(bannerWidth)}
           roomWithLook.look(player);
         }
       });
+    }
+
+    // Show non-blocking world-intro cinematic for new players.
+    if (newPlayer && typeof efuns !== 'undefined' && efuns.cinematicOpen) {
+      const game = efuns.gameConfig?.() ?? { name: 'MudForge' };
+      efuns.cinematicOpen(
+        INTRO_CINEMATIC_ID,
+        `Welcome to ${game.name}`,
+        buildIntroCinematicSections(game.name),
+        {
+          narration: { src: 'narration/intro.mp3' },
+          theme: 'parchment',
+          fadeInSections: true,
+        }
+      );
     }
 
     // Initialize tutorial for new players, or resume for returning players mid-tutorial

@@ -182,9 +182,12 @@ class MudClient {
     this.soundManager = new SoundManager();
     this.soundPanel = new SoundPanel('sound-container', this.soundManager);
     this.skyPanel = new SkyPanel('sky-container');
-    this.guiModal = new GUIModal((message: GUIClientMessage) => {
-      this.wsClient.sendGUIMessage(message);
-    });
+    this.guiModal = new GUIModal(
+      (message: GUIClientMessage) => {
+        this.wsClient.sendGUIMessage(message);
+      },
+      this.soundManager
+    );
 
     // Initialize launcher - handles login before showing terminal
     this.launcher = new Launcher(this.wsClient, () => {

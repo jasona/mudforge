@@ -87,6 +87,27 @@ export interface GUIMessage {
   [key: string]: unknown;
 }
 
+export type CinematicTheme = 'parchment' | 'dark' | 'ethereal';
+
+export interface CinematicBlock {
+  type: 'heading' | 'paragraph' | 'image' | 'divider' | 'spacer';
+  text?: string;
+  level?: 1 | 2 | 3;
+  src?: string;
+  alt?: string;
+  caption?: string;
+  height?: string;
+  style?: Record<string, unknown>;
+}
+
+export interface CinematicSection {
+  id: string;
+  blocks: CinematicBlock[];
+  backgroundImage?: string;
+  backgroundColor?: string;
+  style?: Record<string, unknown>;
+}
+
 /**
  * Communication message types for the comm panel.
  */
@@ -2891,6 +2912,46 @@ export class EfunBridge {
   }
 
   /**
+   * Convenience wrapper for opening a cinematic modal.
+   */
+  cinematicOpen(
+    id: string,
+    title: string,
+    sections: CinematicSection[],
+    options?: {
+      narration?: { src: string; autoPlay?: boolean; volume?: number };
+      theme?: CinematicTheme;
+      backgroundImage?: string;
+      closable?: boolean;
+      fadeInSections?: boolean;
+    }
+  ): void {
+    this.guiSend({
+      action: 'open',
+      modal: {
+        id,
+        title,
+        size: 'fullscreen',
+        closable: options?.closable ?? true,
+        escapable: true,
+        backgroundImage: options?.backgroundImage,
+      },
+      layout: {
+        type: 'cinematic',
+        children: [],
+      },
+      data: {
+        _cinematic: {
+          sections,
+          narration: options?.narration,
+          theme: options?.theme,
+          fadeInSections: options?.fadeInSections,
+        },
+      },
+    });
+  }
+
+  /**
    * Send quest panel update to the client.
    * The quest daemon should call this to update the client's quest panel.
    *
@@ -4306,6 +4367,7 @@ export class EfunBridge {
 
       // GUI
       guiSend: this.guiSend.bind(this),
+      cinematicOpen: this.cinematicOpen.bind(this),
       sendQuestUpdate: this.sendQuestUpdate.bind(this),
       sendComm: this.sendComm.bind(this),
 

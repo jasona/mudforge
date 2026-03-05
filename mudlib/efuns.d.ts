@@ -10,6 +10,7 @@
 
 import type { MudObject } from './std/object.js';
 import type { SoundCategory } from './lib/sound-types.js';
+import type { CinematicSection } from './lib/gui-types.js';
 
 /**
  * Player save data structure.
@@ -597,6 +598,20 @@ declare global {
 
     /** Send a GUI message to the client to open/update/close modals */
     guiSend(message: GUIMessage): void;
+
+    /** Open a fullscreen cinematic modal with rich section content. */
+    cinematicOpen(
+      id: string,
+      title: string,
+      sections: CinematicSection[],
+      options?: {
+        narration?: { src: string; autoPlay?: boolean; volume?: number };
+        theme?: 'parchment' | 'dark' | 'ethereal';
+        backgroundImage?: string;
+        closable?: boolean;
+        fadeInSections?: boolean;
+      }
+    ): void;
 
     /**
      * Send quest panel update to the client.

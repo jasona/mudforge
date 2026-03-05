@@ -8,6 +8,8 @@ import { GUIRenderer } from './gui-renderer.js';
 import { validateForm, extractInputElements } from './gui-validation.js';
 import { applyStyle } from './gui-elements.js';
 import { parseAnsi } from '../ansi-parser.js';
+import { CinematicModal } from './cinematic-modal.js';
+import type { SoundManager } from '../sound-manager.js';
 import type {
   GUIOpenMessage,
   GUIUpdateMessage,
@@ -42,10 +44,13 @@ export class GUIModal {
   private enterKeyHandler: ((e: KeyboardEvent) => void) | null = null;
   private formData: Record<string, unknown> = {};
   private layout: LayoutContainer | null = null;
+  private soundManager?: SoundManager;
+  private cinematicModal: CinematicModal | null = null;
 
-  constructor(onMessage: GUIMessageHandler) {
+  constructor(onMessage: GUIMessageHandler, soundManager?: SoundManager) {
     this.onMessage = onMessage;
     this.renderer = new GUIRenderer();
+    this.soundManager = soundManager;
   }
 
   /**
@@ -98,6 +103,29 @@ export class GUIModal {
    * Open a modal from server message.
    */
   open(message: GUIOpenMessage): void {
+    if (message.layout.type === 'cinematic' && message.data?._cinematic) {
+      this.close('replaced');
+      this.modalConfig = message.modal;
+      this.formData = message.data ? { ...message.data } : {};
+      this.layout = message.layout;
+      this.cinematicModal = new CinematicModal((clientMessage) => {
+        if (clientMessage.action === 'closed') {
+          this.cinematicModal = null;
+          this.modalConfig = null;
+          this.formData = {};
+          this.layout = null;
+        }
+        this.onMessage(clientMessage);
+      }, this.soundManager);
+      this.cinematicModal.open(message);
+      return;
+    }
+
+    if (this.cinematicModal) {
+      this.cinematicModal.close();
+      this.cinematicModal = null;
+    }
+
     // Check if we're updating an existing modal with the same ID
     if (this.overlay && this.modalConfig?.id === message.modal.id) {
       // Same modal - just update content in place without flash
@@ -599,6 +627,11 @@ export class GUIModal {
    * Close the modal.
    */
   close(_reason?: string): void {
+    if (this.cinematicModal) {
+      this.cinematicModal.close();
+      this.cinematicModal = null;
+    }
+
     if (this.escapeHandler) {
       document.removeEventListener('keydown', this.escapeHandler, true);
       this.escapeHandler = null;
@@ -640,7 +673,7 @@ export class GUIModal {
    * Check if modal is open.
    */
   isOpen(): boolean {
-    return this.overlay !== null;
+    return this.overlay !== null || this.cinematicModal?.isOpen() === true;
   }
 
   /**

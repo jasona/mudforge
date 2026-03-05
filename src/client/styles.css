@@ -1,6 +1,6 @@
 /* MudForge Client Styles - Linear.app Inspired */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;700&family=Inter:wght@400;500;600&family=Libre+Baskerville:wght@400;700&family=Spectral:wght@400;600&display=swap');
 
 :root {
   /* Linear-inspired colors */
@@ -1789,6 +1789,242 @@ body {
 
 .gui-modal-footer:empty {
   display: none;
+}
+
+/* Cinematic Modal */
+.cinematic-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 3400;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.08), transparent 35%),
+    radial-gradient(circle at 75% 15%, rgba(255, 255, 255, 0.05), transparent 30%),
+    rgba(2, 3, 8, 0.9);
+  display: flex;
+  justify-content: center;
+  align-items: stretch;
+}
+
+.cinematic-container {
+  --cinematic-bg: rgba(18, 15, 12, 0.9);
+  --cinematic-bg-soft: rgba(34, 27, 21, 0.82);
+  --cinematic-text: #efe6d5;
+  --cinematic-text-muted: #d4c7ae;
+  --cinematic-border: rgba(239, 230, 213, 0.22);
+  --cinematic-highlight: #d8b469;
+  --cinematic-shadow: rgba(0, 0, 0, 0.55);
+  width: min(980px, 100vw);
+  height: 100vh;
+  padding: 96px 24px 90px;
+  position: relative;
+  color: var(--cinematic-text);
+  background:
+    linear-gradient(180deg, rgba(0, 0, 0, 0.4), transparent 20%),
+    linear-gradient(170deg, var(--cinematic-bg), var(--cinematic-bg-soft));
+  background-size: cover;
+  background-position: center;
+  box-shadow: 0 0 60px var(--cinematic-shadow);
+}
+
+.cinematic-container[data-theme='parchment'] {
+  --cinematic-bg: rgba(48, 35, 22, 0.82);
+  --cinematic-bg-soft: rgba(80, 58, 35, 0.62);
+  --cinematic-text: #f7ebd2;
+  --cinematic-text-muted: #eddcb6;
+  --cinematic-border: rgba(247, 235, 210, 0.26);
+  --cinematic-highlight: #f4d38f;
+  font-family: 'Cormorant Garamond', Georgia, serif;
+}
+
+.cinematic-container[data-theme='dark'] {
+  --cinematic-bg: rgba(9, 11, 20, 0.86);
+  --cinematic-bg-soft: rgba(18, 23, 37, 0.75);
+  --cinematic-text: #e7ebff;
+  --cinematic-text-muted: #bec8ea;
+  --cinematic-border: rgba(134, 149, 210, 0.33);
+  --cinematic-highlight: #8db7ff;
+  font-family: 'Libre Baskerville', Georgia, serif;
+}
+
+.cinematic-container[data-theme='ethereal'] {
+  --cinematic-bg: rgba(17, 13, 44, 0.84);
+  --cinematic-bg-soft: rgba(26, 35, 78, 0.72);
+  --cinematic-text: #ecedff;
+  --cinematic-text-muted: #cfd4ff;
+  --cinematic-border: rgba(176, 180, 255, 0.36);
+  --cinematic-highlight: #97d4ff;
+  font-family: 'Spectral', Georgia, serif;
+}
+
+.cinematic-title {
+  position: absolute;
+  top: 28px;
+  left: 24px;
+  right: 160px;
+  margin: 0;
+  font-size: clamp(28px, 4.5vw, 46px);
+  line-height: 1.05;
+  letter-spacing: 0.02em;
+  color: var(--cinematic-text);
+  text-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+.cinematic-close-btn {
+  position: absolute;
+  top: 22px;
+  right: 24px;
+  border: 1px solid var(--cinematic-border);
+  border-radius: 999px;
+  background: rgba(10, 12, 21, 0.5);
+  color: var(--cinematic-text);
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.cinematic-close-btn:hover {
+  background: rgba(10, 12, 21, 0.7);
+  transform: translateY(-1px);
+}
+
+.cinematic-content {
+  height: 100%;
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+.cinematic-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.cinematic-content::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.22);
+  border-radius: 999px;
+}
+
+.cinematic-section {
+  background: rgba(8, 9, 15, 0.35);
+  border: 1px solid var(--cinematic-border);
+  border-radius: 16px;
+  padding: clamp(18px, 2.8vw, 30px);
+  margin-bottom: 16px;
+  background-size: cover;
+  background-position: center;
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+
+.cinematic-section.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.cinematic-heading {
+  margin: 0 0 10px;
+  color: var(--cinematic-highlight);
+  letter-spacing: 0.03em;
+}
+
+.cinematic-paragraph {
+  margin: 0 0 12px;
+  font-size: clamp(17px, 2vw, 22px);
+  line-height: 1.55;
+  color: var(--cinematic-text-muted);
+}
+
+.cinematic-divider {
+  border: none;
+  border-top: 1px solid var(--cinematic-border);
+  margin: 18px 0;
+}
+
+.cinematic-image-wrap {
+  margin: 14px 0;
+}
+
+.cinematic-image {
+  width: 100%;
+  border-radius: 12px;
+  display: block;
+  border: 1px solid var(--cinematic-border);
+}
+
+.cinematic-image-caption {
+  margin-top: 8px;
+  font-size: 13px;
+  letter-spacing: 0.03em;
+  color: var(--cinematic-text-muted);
+}
+
+.cinematic-audio-bar {
+  position: fixed;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  width: min(920px, calc(100vw - 24px));
+  border: 1px solid var(--cinematic-border, rgba(239, 230, 213, 0.22));
+  border-radius: 14px;
+  background: rgba(6, 8, 16, 0.88);
+  backdrop-filter: blur(6px);
+  padding: 10px 14px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 12px;
+  align-items: center;
+  z-index: 3500;
+}
+
+.cinematic-audio-btn {
+  border: 1px solid var(--cinematic-border, rgba(239, 230, 213, 0.22));
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--cinematic-text, #efe6d5);
+  padding: 6px 14px;
+  cursor: pointer;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.cinematic-audio-scrubber {
+  width: 100%;
+}
+
+.cinematic-audio-time {
+  font-size: 12px;
+  color: var(--cinematic-text-muted, #d4c7ae);
+  min-width: 86px;
+  text-align: right;
+}
+
+@media (max-width: 700px) {
+  .cinematic-container {
+    padding: 84px 14px 86px;
+  }
+
+  .cinematic-title {
+    left: 14px;
+    right: 110px;
+  }
+
+  .cinematic-close-btn {
+    right: 14px;
+  }
+
+  .cinematic-audio-bar {
+    width: calc(100vw - 16px);
+    padding: 8px 10px;
+    gap: 8px;
+  }
+
+  .cinematic-audio-time {
+    min-width: 74px;
+    font-size: 11px;
+  }
 }
 
 /* Snoop Modal Terminal Output */
