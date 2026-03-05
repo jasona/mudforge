@@ -60,6 +60,10 @@ interface GUIMessage {
   [key: string]: unknown;
 }
 
+interface ThemeMessage {
+  colors: Record<string, string>;
+}
+
 /**
  * NPC AI context for configuring AI-powered dialogue.
  */
@@ -544,6 +548,23 @@ declare global {
     /** List all saved player names */
     listPlayers(): Promise<string[]>;
 
+    // ========== Data Persistence Efuns ==========
+
+    /** Save daemon/config data by namespace and key */
+    saveData(namespace: string, key: string, data: unknown): Promise<void>;
+
+    /** Load daemon/config data by namespace and key */
+    loadData<T = unknown>(namespace: string, key: string): Promise<T | null>;
+
+    /** Check whether namespace/key data exists */
+    dataExists(namespace: string, key: string): Promise<boolean>;
+
+    /** Delete namespace/key data */
+    deleteData(namespace: string, key: string): Promise<void>;
+
+    /** List keys under a namespace */
+    listDataKeys(namespace: string): Promise<string[]>;
+
     /**
      * Purge a player's persisted records (save file, permissions, workspace, sessions).
      * Requires senior builder permission (level 2) or higher.
@@ -649,6 +670,9 @@ declare global {
         isSender?: boolean;
       }
     ): void;
+
+    /** Send theme color overrides to a player's client. */
+    sendTheme(targetPlayer: MudObject, colors: ThemeMessage['colors']): void;
 
     // ========== Sound Efuns ==========
 

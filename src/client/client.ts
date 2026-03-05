@@ -11,6 +11,7 @@ import {
   StatsUpdate,
   EquipmentMessage,
   GUIMessage,
+  ThemeMessage,
   QuestMessage,
   CompletionMessage,
   CommMessage,
@@ -45,6 +46,21 @@ import { DebugPanel } from './debug-panel.js';
 import { logger } from './logger.js';
 import type { MapMessage } from './map-renderer.js';
 import type { GUIServerMessage, GUIClientMessage } from './gui/gui-types.js';
+
+const THEME_COLOR_VARS = [
+  '--bg-primary',
+  '--bg-secondary',
+  '--bg-tertiary',
+  '--bg-hover',
+  '--bg-terminal',
+  '--border-primary',
+  '--border-subtle',
+  '--text-primary',
+  '--text-secondary',
+  '--text-tertiary',
+  '--accent',
+  '--accent-hover',
+] as const;
 
 /**
  * Game/driver configuration from /api/config.
@@ -98,6 +114,20 @@ class MudClient {
   private gameConfig: GameConfig | null = null;
   private serverVersion: string | null = null;
   private versionMismatchShown: boolean = false;
+  private themePreviewSnapshot: Record<string, string> | null = null;
+  private themePreviewActive: boolean = false;
+  private revertThemeOnClose: boolean = true;
+
+  private onThemeColorInput = (event: Event): void => {
+    if (!this.themePreviewActive) return;
+
+    const input = event.target as HTMLInputElement | null;
+    if (!input || input.type !== 'color' || !input.name?.startsWith('--')) {
+      return;
+    }
+
+    document.documentElement.style.setProperty(input.name, input.value);
+  };
 
   constructor() {
     // Get DOM elements
@@ -184,6 +214,7 @@ class MudClient {
     this.skyPanel = new SkyPanel('sky-container');
     this.guiModal = new GUIModal(
       (message: GUIClientMessage) => {
+        this.handleThemeModalClientMessage(message);
         this.wsClient.sendGUIMessage(message);
       },
       this.soundManager
@@ -518,7 +549,17 @@ class MudClient {
 
     // GUI events
     this.wsClient.on('gui-message', (message: GUIMessage) => {
+      this.handleThemeModalServerMessage(message);
       this.guiModal.handleMessage(message as GUIServerMessage);
+    });
+
+    // Theme events
+    this.wsClient.on('theme-message', (message: ThemeMessage) => {
+      if (message?.colors && Object.keys(message.colors).length > 0) {
+        this.applyTheme(message.colors);
+      } else {
+        this.clearThemeOverrides();
+      }
     });
 
     // Quest events
@@ -609,6 +650,87 @@ class MudClient {
       });
     } else if (message.action === 'save-result') {
       this.ideEditor.handleSaveResult(message);
+    }
+  }
+
+  private handleThemeModalServerMessage(message: GUIMessage): void {
+    if (message.action === 'open') {
+      const modalId = (message.modal as { id?: string } | undefined)?.id;
+      if (modalId === 'theme-modal') {
+        this.beginThemePreview();
+      } else if (this.themePreviewActive) {
+        this.endThemePreview(this.revertThemeOnClose);
+        this.revertThemeOnClose = true;
+      }
+      return;
+    }
+
+    if (message.action === 'close' && message.modalId === 'theme-modal') {
+      this.endThemePreview(this.revertThemeOnClose);
+      this.revertThemeOnClose = true;
+    }
+  }
+
+  private handleThemeModalClientMessage(message: GUIClientMessage): void {
+    if ((message as { modalId?: string }).modalId !== 'theme-modal') {
+      return;
+    }
+
+    if (message.action === 'submit') {
+      this.revertThemeOnClose = false;
+      return;
+    }
+
+    if (message.action === 'closed') {
+      this.endThemePreview(this.revertThemeOnClose);
+      this.revertThemeOnClose = true;
+    }
+  }
+
+  private beginThemePreview(): void {
+    this.themePreviewSnapshot = this.captureCurrentTheme();
+    this.themePreviewActive = true;
+    this.revertThemeOnClose = true;
+    document.addEventListener('input', this.onThemeColorInput, true);
+  }
+
+  private endThemePreview(revert: boolean): void {
+    if (!this.themePreviewActive) return;
+
+    document.removeEventListener('input', this.onThemeColorInput, true);
+    this.themePreviewActive = false;
+
+    if (revert && this.themePreviewSnapshot) {
+      this.applyTheme(this.themePreviewSnapshot);
+    }
+
+    this.themePreviewSnapshot = null;
+  }
+
+  private applyTheme(colors: Record<string, string>): void {
+    for (const [varName, value] of Object.entries(colors)) {
+      if (!THEME_COLOR_VARS.includes(varName as (typeof THEME_COLOR_VARS)[number])) {
+        continue;
+      }
+      if (typeof value !== 'string' || value.trim().length === 0) {
+        continue;
+      }
+      document.documentElement.style.setProperty(varName, value.trim());
+    }
+  }
+
+  private captureCurrentTheme(): Record<string, string> {
+    const computed = getComputedStyle(document.documentElement);
+    const captured: Record<string, string> = {};
+    for (const varName of THEME_COLOR_VARS) {
+      captured[varName] = computed.getPropertyValue(varName).trim();
+    }
+    return captured;
+  }
+
+  private clearThemeOverrides(): void {
+    for (const varName of THEME_COLOR_VARS) {
+      document.documentElement.style.removeProperty(varName);
     }
   }
 

@@ -171,6 +171,13 @@ export interface GUIMessage {
 }
 
 /**
+ * THEME protocol message type for applying client color theme variables.
+ */
+export interface ThemeMessage {
+  colors: Record<string, string>;
+}
+
+/**
  * Auth request message for launcher login/registration.
  */
 export interface AuthRequest {

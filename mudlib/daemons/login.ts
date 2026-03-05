@@ -18,6 +18,7 @@ import { isValidRaceId } from '../std/race/definitions.js';
 import type { QuestPlayer } from '../std/quest/types.js';
 import type { GeneratedItemData } from '../std/loot/types.js';
 import { buildIntroCinematicSections, INTRO_CINEMATIC_ID } from '../lib/cinematic-content.js';
+import { resolveThemeColorsForPlayer } from '../lib/theme-modal.js';
 // Note: Mudlib runs in a sandbox. Use efuns for crypto/DNS.
 
 const FALLBACK_SALT_BYTES = 16;
@@ -740,6 +741,14 @@ ${'='.repeat(bannerWidth)}
       // Register as active player in the game world
       console.log(`[LOGIN] Registering "${session.name}" as active player`);
       efuns.registerActivePlayer(player);
+    }
+
+    // Send resolved theme before initial room/text render.
+    if (typeof efuns !== 'undefined' && efuns.sendTheme) {
+      const resolvedTheme = await resolveThemeColorsForPlayer(player);
+      if (Object.keys(resolvedTheme).length > 0) {
+        efuns.sendTheme(player, resolvedTheme as Record<string, string>);
+      }
     }
 
     // Get IP address and resolve hostname

@@ -28,6 +28,7 @@ const PROTOCOL_REGISTRY: ReadonlyArray<{ prefix: string; event: string }> = [
   { prefix: '\x00[STATS]',     event: 'stats-message' },
   { prefix: '\x00[EQUIPMENT]', event: 'equipment-message' },
   { prefix: '\x00[GUI]',       event: 'gui-message' },
+  { prefix: '\x00[THEME]',     event: 'theme-message' },
   { prefix: '\x00[QUEST]',     event: 'quest-message' },
   { prefix: '\x00[COMPLETE]',  event: 'completion-message' },
   { prefix: '\x00[COMM]',      event: 'comm-message' },

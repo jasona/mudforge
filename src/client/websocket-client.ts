@@ -18,6 +18,7 @@ export type {
   CompletionMessage,
   IdeMessage,
   GUIMessage,
+  ThemeMessage,
   AuthRequest,
   AuthResponseMessage,
   QuestMessage,
@@ -74,6 +75,7 @@ type WebSocketClientEvent =
   | 'stats-message'
   | 'equipment-message'
   | 'gui-message'
+  | 'theme-message'
   | 'quest-message'
   | 'completion-message'
   | 'comm-message'

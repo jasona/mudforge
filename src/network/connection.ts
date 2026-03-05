@@ -19,6 +19,7 @@ import type {
   EquipmentMessage,
   CompletionMessage,
   GUIMessage,
+  ThemeMessage,
   QuestMessage,
   CommType,
   CommMessage,
@@ -45,6 +46,7 @@ export type {
   EquipmentMessage,
   CompletionMessage,
   GUIMessage,
+  ThemeMessage,
   QuestMessage,
   CommType,
   CommMessage,
@@ -725,6 +727,15 @@ export class Connection extends EventEmitter {
   sendGUI(message: GUIMessage): void {
     const json = JSON.stringify(message);
     this.sendProtocolMessage(`\x00[GUI]${json}`);
+  }
+
+  /**
+   * Send a THEME protocol message to the client.
+   * THEME messages are prefixed with \x00[THEME] and apply CSS variable overrides.
+   */
+  sendTheme(message: ThemeMessage): void {
+    const json = JSON.stringify(message);
+    this.sendProtocolMessage(`\x00[THEME]${json}`);
   }
 
   /**

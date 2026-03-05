@@ -144,6 +144,10 @@ export interface CommMessage {
   gifId?: string;        // GIF ID for clickable [View GIF] links
 }
 
+export interface ThemeMessage {
+  colors: Record<string, string>;
+}
+
 /**
  * NPC AI context for configuring AI-powered dialogue.
  */
@@ -3021,6 +3025,40 @@ export class EfunBridge {
     connection.send(`\x00[COMM]${jsonStr}\n`);
   }
 
+  /**
+   * Send a THEME protocol message to a player.
+   * Applies client CSS variable overrides immediately.
+   */
+  sendTheme(targetPlayer: MudObject, colors: Record<string, string>): void {
+    if (!targetPlayer) {
+      return;
+    }
+
+    const playerWithConnection = targetPlayer as MudObject & {
+      connection?: {
+        sendTheme?: (message: ThemeMessage) => void;
+        send: (msg: string) => void;
+      };
+      _connection?: {
+        sendTheme?: (message: ThemeMessage) => void;
+        send: (msg: string) => void;
+      };
+    };
+
+    const connection = playerWithConnection.connection || playerWithConnection._connection;
+    if (!connection?.send) {
+      return;
+    }
+
+    const message: ThemeMessage = { colors };
+    if (connection.sendTheme) {
+      connection.sendTheme(message);
+    } else {
+      const jsonStr = JSON.stringify(message);
+      connection.send(`\x00[THEME]${jsonStr}\n`);
+    }
+  }
+
   // ========== Sound Efuns ==========
 
   /**
@@ -4370,6 +4408,7 @@ export class EfunBridge {
       cinematicOpen: this.cinematicOpen.bind(this),
       sendQuestUpdate: this.sendQuestUpdate.bind(this),
       sendComm: this.sendComm.bind(this),
+      sendTheme: this.sendTheme.bind(this),
 
       // Snoop
       snoopRegister: this.snoopRegister.bind(this),
