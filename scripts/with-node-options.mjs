@@ -1,6 +1,6 @@
 import { spawn } from 'child_process';
 import { accessSync, constants } from 'fs';
-import { delimiter, dirname, isAbsolute, join } from 'path';
+import { delimiter, dirname, extname, isAbsolute, join } from 'path';
 
 const [command, ...args] = process.argv.slice(2);
 
@@ -54,13 +54,26 @@ function resolveCommand(cmd) {
   return cmd;
 }
 
-const child = spawn(resolveCommand(command), args, {
-  stdio: 'inherit',
-  env: {
-    ...process.env,
-    NODE_OPTIONS: nodeOptions,
-  },
-});
+const resolvedCommand = resolveCommand(command);
+
+const env = {
+  ...process.env,
+  NODE_OPTIONS: nodeOptions,
+};
+
+const isWindowsCmdShim =
+  process.platform === 'win32' &&
+  ['.cmd', '.bat'].includes(extname(resolvedCommand).toLowerCase());
+
+const child = isWindowsCmdShim
+  ? spawn(process.env.ComSpec ?? 'cmd.exe', ['/c', resolvedCommand, ...args], {
+      stdio: 'inherit',
+      env,
+    })
+  : spawn(resolvedCommand, args, {
+      stdio: 'inherit',
+      env,
+    });
 
 child.on('error', (error) => {
   console.error(`Failed to start command "${command}":`, error.message);
