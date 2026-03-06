@@ -2,7 +2,7 @@
 # Builds and runs the MUD server
 
 # Build stage
-FROM node:22-alpine AS builder
+FROM node:24-alpine AS builder
 
 WORKDIR /app
 
@@ -24,7 +24,7 @@ COPY mudlib/ ./mudlib/
 RUN npm run build
 
 # Production stage
-FROM node:22-alpine
+FROM node:24-alpine
 
 WORKDIR /app
 
@@ -66,6 +66,7 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
 ENV NODE_ENV=production
 ENV PORT=3000
 ENV LOG_LEVEL=info
+ENV NODE_OPTIONS=--no-node-snapshot
 
 # Start the server (tsx needed for runtime TypeScript transpilation of mudlib)
 CMD ["npm", "start"]

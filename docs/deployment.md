@@ -14,6 +14,16 @@ npm install
 npm run dev
 ```
 
+If `npm install` fails because the default npm cache path is not writable, use:
+
+```bash
+mkdir -p /tmp/mudforge-npm-cache
+npm_config_cache=/tmp/mudforge-npm-cache npm install
+```
+
+MudForge runtime entry points set `NODE_OPTIONS=--no-node-snapshot` by default so
+`isolated-vm` remains stable on Node 24.
+
 ### Production
 
 ```bash
@@ -377,8 +387,8 @@ kill -9 <PID>
 
 **Out of memory:**
 ```bash
-# Increase Node.js heap size
-NODE_OPTIONS="--max-old-space-size=4096" npm start
+# Increase Node.js heap size while preserving the isolated-vm compatibility flag
+NODE_OPTIONS="--no-node-snapshot --max-old-space-size=4096" npm start
 ```
 
 **Permission denied:**

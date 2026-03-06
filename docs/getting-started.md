@@ -4,7 +4,7 @@ This guide walks you through setting up MudForge and building your first game co
 
 ## Prerequisites
 
-- **Node.js 22+** (required for V8 isolate support)
+- **Node.js 24+** (required for V8 isolate support)
 - **npm** (comes with Node.js)
 - **Git**
 
@@ -21,6 +21,17 @@ npm install
 # Copy the example environment file
 cp .env.example .env
 ```
+
+If `npm install` fails because your default npm cache location is not writable,
+retry with a writable cache directory:
+
+```bash
+mkdir -p /tmp/mudforge-npm-cache
+npm_config_cache=/tmp/mudforge-npm-cache npm install
+```
+
+Runtime commands in this repo also apply `--no-node-snapshot` automatically to
+avoid `isolated-vm` issues on Node 24.
 
 ## Running the Server
 

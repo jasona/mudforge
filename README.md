@@ -212,7 +212,7 @@ MudObject                          # Root of all objects
 
 | Component | Technology |
 |-----------|------------|
-| Runtime | Node.js 22+ LTS |
+| Runtime | Node.js 24+ LTS |
 | Language | TypeScript 5.x |
 | WebSocket | ws |
 | Web Server | Fastify |
@@ -223,7 +223,7 @@ MudObject                          # Root of all objects
 
 ### Prerequisites
 
-- **Node.js 20+** (LTS recommended)
+- **Node.js 24+** (LTS recommended)
 - **npm** (comes with Node.js)
 
 ### Installation
@@ -239,6 +239,17 @@ npm install
 # Copy environment configuration (optional - defaults work fine)
 cp .env.example .env
 ```
+
+If `npm install` fails in a restricted environment because the default npm cache
+path is not writable, retry with a writable cache directory:
+
+```bash
+mkdir -p /tmp/mudforge-npm-cache
+npm_config_cache=/tmp/mudforge-npm-cache npm install
+```
+
+MudForge also sets `--no-node-snapshot` on its runtime entry points by default to
+avoid `isolated-vm` issues on newer Node.js releases.
 
 ### Starting the Server
 

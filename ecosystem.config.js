@@ -9,7 +9,7 @@ module.exports = {
     script: 'dist/driver/index.js',
 
     // Node.js options
-    node_args: '--enable-source-maps',
+    node_args: '--enable-source-maps --no-node-snapshot',
 
     // Environment
     env: {

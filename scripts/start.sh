@@ -22,6 +22,10 @@ export NODE_ENV=${NODE_ENV:-production}
 export PORT=${PORT:-3000}
 export LOG_LEVEL=${LOG_LEVEL:-info}
 export MUDLIB_PATH=${MUDLIB_PATH:-./mudlib}
+case " ${NODE_OPTIONS:-} " in
+  *" --no-node-snapshot "*) ;;
+  *) export NODE_OPTIONS="--no-node-snapshot ${NODE_OPTIONS:-}" ;;
+esac
 
 # Check if dist exists
 if [ ! -d "dist" ]; then
@@ -38,6 +42,7 @@ mkdir -p mudlib/data/players
 echo -e "${GREEN}Environment: ${NODE_ENV}${NC}"
 echo -e "${GREEN}Port: ${PORT}${NC}"
 echo -e "${GREEN}Log Level: ${LOG_LEVEL}${NC}"
+echo -e "${GREEN}Node Options: ${NODE_OPTIONS}${NC}"
 
 # Check if PM2 is available
 if command -v pm2 &> /dev/null; then

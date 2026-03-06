@@ -4,12 +4,12 @@
 
 Triggers: PRs and pushes to main/master/v1.9.2
 
-### quality job (ubuntu-latest, Node 22)
+### quality job (ubuntu-latest, Node 24)
 ```
 npm ci → npm run typecheck → npm run lint → npm test → npm run build
 ```
 
-### coverage job (ubuntu-latest, Node 22)
+### coverage job (ubuntu-latest, Node 24)
 ```
 npm ci → npm run test:coverage
 ```

@@ -7,9 +7,9 @@
   "scripts": {
     "build": "tsc && npm run build:client",
     "build:client": "node scripts/build-client.mjs",
-    "dev": "tsx watch --ignore=\"mudlib/**\" --ignore=\"**/mudlib/**\" --ignore=\".juggle/**\" src/driver/index.ts",
-    "dev:no-watch": "tsx src/driver/index.ts",
-    "start": "tsx dist/driver/index.js",
+    "dev": "node scripts/with-node-options.mjs tsx watch --ignore=mudlib/** --ignore=**/mudlib/** --ignore=.juggle/** src/driver/index.ts",
+    "dev:no-watch": "node scripts/with-node-options.mjs tsx src/driver/index.ts",
+    "start": "node scripts/with-node-options.mjs tsx dist/driver/index.js",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
@@ -48,7 +48,7 @@
   },
   "homepage": "https://github.com/jasona/mudforge#readme",
   "engines": {
-    "node": ">=22.0.0"
+    "node": ">=24.0.0"
   },
   "dependencies": {
     "@codemirror/lang-css": "^6.3.1",
